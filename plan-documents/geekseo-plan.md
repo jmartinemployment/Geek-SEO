@@ -1,7 +1,13 @@
 # Geek SEO — Master Product Plan
 
-**Version:** 1.0  
+**Version:** 1.5  
 **Date:** May 2026  
+**Product goal:** Functional clone of **Surfer SEO** + **Semrush ContentShake AI**, differentiated by transparent scoring, local SERP, honest billing, and WordPress-native workflow for Geek At Your Spot clients.  
+**Changelog (1.5):** Critique fixes — no RLS in migrations; unified `seo_background_jobs`; complete route/tier/meter matrix; E-E-A-T advisory layer in scoring spec; GEO v1 scoped to Google AI Overviews only; tenancy on all services; `ISubscriptionService` owns webhooks; COGS table; internal-link inventory pipeline; Serp feature flags; implementation steps renumbered; integrations auth spec; SignalR/Vercel notes.  
+**Changelog (1.4):** Clone strategy, Surfer/ContentShake module maps, guided mode UX, extended DB/API/frontend/implementation for all clone features.  
+**Changelog (1.3):** Full Surfer SEO + Semrush ContentShake competitive parity — WordPress publish, one-click full article, topical map, published content audit, internal linking, plagiarism, deep SERP, GA4, GEO visibility, brand voice, humanizer, bulk generation, cannibalization, Google Docs add-on, Chrome extension, ChatGPT connector, public API.  
+**Changelog (1.2):** Enforced three-tier boundaries (GeekAPI → GeekApplication → GeekRepository → DB), dedicated DB principal, `IContentDocumentService` + hub orchestration in Application, `ISeoStorageRepository`, EF-only migrations, Playwright-only PDF, fixed section numbering and implementation steps.  
+**Changelog (1.1):** Security model, usage metering, OAuth reuse, no Prisma. Full feature set — no phases, deferrals, or stubs.
 **Author:** Jeff Martin, Geek At Your Spot  
 **Domain:** seo.geekatyourspot.com (subject to change)  
 **Backend:** GeekBackend (.NET 10) — new `GeekSEO` module  
@@ -13,15 +19,45 @@
 
 ### What It Is
 
-Geek SEO is an AI-powered SEO content optimization SaaS that helps business owners and content writers rank higher on Google and appear in AI-generated answers (ChatGPT, Perplexity, Google AI Overviews). It provides a real-time content editor that scores documents against live SERP competitors as you type, generates structured content briefs from SERP analysis, writes AI drafts via Claude, and tracks keyword rankings through Google Search Console.
+Geek SEO is an AI-powered SEO content optimization SaaS that helps business owners and content writers rank higher on Google and appear in AI-generated answers (ChatGPT, Perplexity, Google AI Overviews). It provides a real-time content editor that scores documents against live SERP competitors as you type, generates structured content briefs from SERP analysis, writes and humanizes AI drafts, publishes directly to WordPress, plans site-wide content strategy from GSC topical maps, monitors published posts for decay, and tracks visibility across search and AI answer engines — with a fully transparent scoring formula Surfer does not offer.
+
+### Clone Strategy
+
+Geek SEO is built to **replicate the core workflows of Surfer SEO and Semrush ContentShake AI** — not merely “inspired by” them. A user migrating from either product should recognize the same mental model: keyword → SERP research → brief → write → score → publish → monitor.
+
+**What we clone (functional parity):**
+
+| Source product | Clone target in Geek SEO |
+|---|---|
+| **Surfer SEO** | Content Editor, Content Score, SERP Analyzer (50 deep), Topical Map, Content Audit, Surfer AI one-click article, internal links, plagiarism, AI Visibility Tracker, keyword clustering, site audit |
+| **Semrush ContentShake AI** | AI article generation, keyword ideas, “ready to publish” guided flow, **push to WordPress**, GA4 performance view |
+
+**What we do differently (why not a literal white-label):**
+
+| Differentiator | Reason |
+|---|---|
+| Transparent 6-part score | Surfer’s black-box score is the #1 trust complaint |
+| Local SERP on every plan | Underserved SMB wedge |
+| $29–$149 vs Surfer $99–$299+ / ContentShake + Semrush bundle | Pricing story |
+| GeekBackend OAuth + no separate user store | Shared identity with geekatyourspot.com |
+| Next.js app (not Surfer’s stack) | Your stack — same UX patterns, different codebase |
+
+**Dual UX modes (clone both audiences):**
+
+| Mode | Clones | UI |
+|---|---|---|
+| **Expert Mode** | Surfer SEO power users | Full editor, SERP deep dive, topical map, all metrics visible |
+| **Guided Mode** | ContentShake SMB flow | Wizard: business context → keyword pick → one-click article → score checklist → Publish to WordPress |
+
+Default for new accounts: **Guided Mode**. Toggle in settings restores Expert layout.
 
 ### Who It Is For
 
-Primary: Small business owners who want to rank locally and nationally but have no SEO background. They need plain-English guidance, not NLP jargon.
+Primary: Small business owners who want Surfer/ContentShake outcomes without SEO jargon — **Guided Mode** is the ContentShake clone path.
 
-Secondary: Freelance content writers and solo SEO practitioners who need a full-featured content optimization suite at a price below Surfer SEO's $99+/month standard tier.
+Secondary: Freelance writers and SEOs who want **Surfer-class tooling** at lower cost — **Expert Mode**.
 
-The product is dogfooded on geekatyourspot.com before selling to clients, establishing proof of ROI in a real small-business context.
+The product is dogfooded on geekatyourspot.com (WordPress) before external sales — proving the ContentShake publish path on a real site.
 
 ### Positioning Table
 
@@ -34,9 +70,21 @@ The product is dogfooded on geekatyourspot.com before selling to clients, establ
 | Local SEO support | None | None | None | None | Native local SERP targeting |
 | Transparent formula | No | No | No | No | Yes — exact point breakdown per component |
 | Billing trust | Complained about on Trustpilot | Clean | Clean | Clean | No-gotchas guarantee |
-| GSC integration | Yes (Topical Map required) | Yes | No | Yes | Yes — rank tracking + re-crawl alerts |
+| GSC integration | Yes (Topical Map required) | Yes | No | Yes | Yes — topical map + rank tracking + content audit |
+| WordPress publish | Plugin | Direct push | No | Plugin | Yes — REST publish (Application Password) |
+| One-click full article AI | Yes (Surfer AI) | Yes | Partial | No | Yes — brief + draft + score in one job |
+| Topical map / content gaps | Yes | No | No | No | Yes — GSC-powered |
+| Published content audit | Yes | No | No | No | Yes — GSC decay monitoring |
+| Plagiarism check | Yes | Yes | Partial | No | Yes |
+| Internal link suggestions | Yes | No | Yes | Yes | Yes — in-editor |
+| Deep SERP (50 results) | Yes | No | No | No | Yes |
+| AI visibility (GEO) tracking | Yes | No | No | Yes (GEO) | Yes |
+| Google Analytics 4 | No | Yes | No | No | Yes |
+| Brand voice | No | N | Y | N | Yes |
+| Bulk article generation | Partial | N | N | N | Yes |
 | Real-time scoring | Yes | Yes | Yes | Yes | Yes via SignalR WebSocket |
-| API access | $299/mo plan | All plans | $93/mo plan | None | $59/mo and above |
+| API access | $299/mo plan | All plans | $93/mo plan | None | Agency ($149) — REST + API keys |
+| Google Docs / Chrome / ChatGPT | Docs, ChatGPT | No | Chrome | MCP | Docs add-on + Chrome ext + GPT Actions |
 
 ### Key Differentiators from Market Research
 
@@ -44,7 +92,7 @@ The product is dogfooded on geekatyourspot.com before selling to clients, establ
 
 **Native local SERP targeting.** No competitor has meaningful local SEO content features. Geek SEO passes a location parameter on every SERP request from day one, enabling content optimization for "plumber in Boca Raton" vs. "best plumber" — directly serving the small-business wedge.
 
-**Provider-interface architecture.** IAIProvider, ISerpProvider, IKeywordProvider, ICrawlerProvider, IRichTextProvider, and IPdfProvider are all interface-based. Claude can be swapped for OpenAI. DataForSEO can be swapped for Serper. No business logic is coupled to any vendor. This is a maintainability and vendor-risk hedge.
+**Provider-interface architecture.** IAIProvider, ISerpProvider, IKeywordProvider, ICrawlerProvider, IRichTextProvider, IPdfProvider, and IPaymentProvider are all interface-based. Claude can be swapped for OpenAI. DataForSEO can be swapped for Serper. PayPal can be swapped for Stripe. No business logic is coupled to any vendor. This is a maintainability and vendor-risk hedge.
 
 **No-gotchas pricing.** Surfer's Trustpilot page is dominated by billing complaints. Geek SEO commits to monthly price equals what you pay, instant cancellation, and stable feature sets per plan.
 
@@ -52,7 +100,7 @@ The product is dogfooded on geekatyourspot.com before selling to clients, establ
 
 ### Dogfood GTM Strategy
 
-Phase one is internal use on geekatyourspot.com. Every content page on the site is created and optimized through Geek SEO before any external sales. This produces:
+**GTM sequence step 1** is internal use on geekatyourspot.com. Every content page on the site is created and optimized through Geek SEO before any external sales. This produces:
 
 1. Real performance data — content scores correlated with actual GSC ranking improvements
 2. Bug discovery in a real small-business context
@@ -60,6 +108,104 @@ Phase one is internal use on geekatyourspot.com. Every content page on the site 
 4. A demo account with real data, not seeded test data
 
 Once five to ten content pieces have documented ranking improvements, sales outreach begins with Geek At Your Spot clients and referrals. The product story is "we built this tool to grow our own site and it worked — now we're offering it to our clients."
+
+### Scope Commitment
+
+The entire feature set in this document ships complete. There are no MVP phases, no deferred features, and no stubbed data layers. Every service connects to real providers (DataForSEO, Anthropic, Google GSC, PayPal, Supabase, Playwright). If a provider credential is missing, the feature fails with a clear error — it does not fall back to hardcoded or in-memory data.
+
+### Tier Naming (Team / Agency)
+
+**Team** and **Agency** are **volume tiers** (higher monthly limits), not multi-seat collaboration plans. Architecture decision: solo operator per account — no shared workspaces, invites, or role-based access in v1. Do not implement seat licensing; tier names reflect usage caps only.
+
+### Relationship to RankPilot
+
+`rankpilot/` in the monorepo is a separate Angular SEO auditor product. Geek SEO is the **content optimization SaaS** (editor, scoring, briefs, writing). RankPilot is not merged into Geek SEO; shared code lives in `@geek/*` packages and GeekBackend auth only. Avoid duplicating SERP/scoring logic in both codebases — Geek SEO owns the content editor product.
+
+### Rank Tracking Expectations
+
+"Rank tracking" means **Google Search Console Search Analytics data** (impressions, clicks, average position, CTR) synced daily — not third-party SERP position scraping. UI copy must say "GSC performance" where precision matters. Users without GSC connected see an empty state with connect CTA, not fabricated ranks.
+
+### Competitive Parity Features (Surfer SEO + Semrush ContentShake)
+
+All items below ship in v1 — same scope rules as the rest of this document (real providers, no stubs). Each feature follows **GeekAPI → Application Service → Repository/Provider → external API or DB**.
+
+| # | Feature | Surfer / ContentShake reference | Geek SEO capability |
+|---|---|---|---|
+| 1 | **One-click full article** | Surfer AI | `POST /api/seo/writing/full-article` → `seo_background_jobs` (poll `GET /api/seo/jobs/{id}`) |
+| 2 | **WordPress publish** | ContentShake push | `POST /api/seo/wordpress/publish` — draft or publish via WP REST API + Application Password |
+| 3 | **Topical map** | Surfer Topical Map | GSC queries + keyword clustering → content gap cards + “create document” CTA |
+| 4 | **Published content audit** | Surfer Content Audit | Track mapped URLs; weekly GSC snapshots; refresh recommendations |
+| 5 | **Internal linking (editor)** | Surfer internal links | Sidebar suggests anchor + target URL from `seo_site_page_inventory` |
+| 6 | **Plagiarism check** | Both | `IPlagiarismProvider` (Copyscape API) on demand per document |
+| 7 | **Deep SERP analyzer** | Surfer SERP Analyzer | Top **50** organic results + TF-IDF term matrix (not just top 10 for scoring) |
+| 8 | **Keyword cannibalization** | Surfer Pro+ | GSC: multiple pages competing for same query → warning + merge/canonical guidance |
+| 9 | **Google Analytics 4** | ContentShake | GA4 Data API — landing page performance alongside GSC |
+| 10 | **AI visibility (GEO)** | Surfer AI Tracker, Frase GEO | **v1:** Google AI Overviews only (DataForSEO). Domain/brand mention detection on SERP AI blocks. **v2 (labeled):** ChatGPT/Perplexity via `IAIProvider` probes when stable APIs exist |
+| 11 | **Brand voice** | Frase (leader) | User uploads samples → `seo_brand_voices` → injected into all `IAIProvider` prompts |
+| 12 | **AI humanizer** | Surfer Surfy | `POST /api/seo/writing/humanize` — rewrite to reduce AI-detection patterns while preserving score |
+| 13 | **Bulk / autopilot articles** | Surfer partial, Sight AI | `POST /api/seo/writing/bulk` — queue N keywords → background jobs → documents |
+| 14 | **Google Docs add-on** | Surfer | Separate Apps Script add-on calls Geek SEO REST API with OAuth token (same `geekseo` client) |
+| 15 | **Chrome extension** | NeuronWriter | MV3 extension: highlight page, send selection to Geek SEO API for score/snippet |
+| 16 | **ChatGPT connector** | Surfer ChatGPT | OpenAPI spec published at `/api/seo/openapi.json` + GPT Actions for brief/draft/score |
+| 17 | **Public REST API** | Surfer high tier | Agency tier: API keys in `seo_api_keys` — same routes as UI, rate-limited |
+| 18 | **Readability + E-E-A-T hints** | market-gaps research | **Advisory layer** (not scored): `EeatAdvisory[]` in `ScoreUpdate` — citations, author byline, experience sections, schema markup (see scoring spec §7) |
+| 19 | **Auto-Optimize** | Surfer (most-used in-editor feature) | `POST /api/seo/content/{id}/auto-optimize` — service splices top missing NLP terms into appropriate paragraphs; returns patched `content_html`; frontend applies as single TipTap transaction |
+| 20 | **AI detection score** | Surfer (pre-humanize) | `POST /api/seo/writing/detect` — `IAiDetectionProvider` (GPTZero API primary) returns `{ aiProbability: 0.87, sentences: [...] }`; shown in editor toolbar before user decides to humanize |
+| 21 | **Content calendar** | ContentShake planning board | `status` column on `seo_content_documents` (`planned` → `writing` → `review` → `published`). `/app/calendar` — kanban across all project documents; drag card to change status via `PATCH /api/seo/content/{id}/status` |
+| 22 | **SERP feature capture guidance** | gap across all competitors | DataForSEO already returns `featured_snippet`, `people_also_ask`, `local_pack` flags per SERP result. `SerpFeatureGuidanceService` maps present features → actionable copy: "Featured snippet detected — add a 40–60 word direct answer in a `<p>` immediately after your first H2." Shown in `ScoreSidebar` above suggestions. |
+
+**Integrations architecture:** Google Docs, Chrome, and ChatGPT are **thin clients** of GeekBackend — no duplicate business logic.
+
+| Integration | Auth | Rate limits |
+|---|---|---|
+| **Google Docs add-on** | GeekBackend OAuth PKCE (`geekseo` client); Apps Script stores refresh via user paste or secure property | Same tier as UI — calls `/api/seo/*` with Bearer |
+| **Chrome extension** | Agency **API key** in extension options (`X-Api-Key`) OR OAuth redirect for logged-in users | 60 req/min per key |
+| **ChatGPT GPT Actions** | Agency API key per user; OpenAPI at `/api/seo/openapi.json` | Same as `PublicApiController` |
+| **Public REST API** | Agency only — `seo_api_keys` hashed with bcrypt | 120 req/min per key |
+
+No integration bypasses `SeoFeatureGateMiddleware` / `SeoUsageGateMiddleware`.
+
+### Surfer SEO → Geek SEO Module Map
+
+| Surfer feature | Geek SEO module | Route / entry |
+|---|---|---|
+| Content Editor + Score | `ContentEditorPage` + `SeoContentScoringHub` | `/app/content/[id]` |
+| SERP Analyzer | `SerpDeepAnalysisPage` | `/app/serp/[keyword]` + `GET /api/seo/serp/deep` |
+| Content Brief | `ContentBriefService` | `/app/briefs/new` |
+| Surfer AI (full article) | `AIWritingService.EnqueueFullArticleAsync` | `POST /api/seo/writing/full-article` → `seo_background_jobs` |
+| Outline / Draft / Optimize | `AIWritingService` | `/app/write` |
+| Topical Map | `TopicalMapService` | `/app/strategy/topical-map` |
+| Content Audit (published) | `PublishedContentAuditService` | `/app/content-audit` |
+| Keyword Research | `KeywordResearchService` | `/app/keywords` |
+| Keyword Clustering | `KeywordResearchService.ClusterAsync` | same |
+| Cannibalization | `KeywordCannibalizationService` | `/app/strategy/cannibalization` |
+| Site Audit | `SiteAuditService` | `/app/audit` |
+| GSC / Rank tracking | `RankTrackingService` | `/app/rankings` |
+| Internal links | `InternalLinkingService` | Editor sidebar + `GET /api/seo/links/suggest` |
+| Plagiarism | `PlagiarismService` | Editor toolbar + `POST /api/seo/plagiarism/check` |
+| AI Visibility Tracker | `GeoVisibilityService` | `/app/geo` |
+| Humanizer (Surfy) | `AIWritingService.HumanizeAsync` | `POST /api/seo/writing/humanize` |
+| Bulk generation | `BulkWritingService` | `/app/bulk` |
+| Brand voice | `BrandVoiceService` | `/app/settings/brand-voice` |
+| Google Docs | `integrations/google-docs/` Apps Script | Uses REST API |
+| ChatGPT | `GET /api/seo/openapi.json` | GPT Actions |
+| API (Peace of Mind) | `PublicApiController` + `seo_api_keys` | Agency tier |
+| Auto-Optimize | `ContentScoringService.AutoOptimizeAsync` | `POST /api/seo/content/{id}/auto-optimize` |
+| AI Detection | `AIWritingService.DetectAsync` via `IAiDetectionProvider` | `POST /api/seo/writing/detect` |
+| SERP Feature Guidance | `ContentScoringService.GetSerpFeatureGuidanceAsync` | `ScoreSidebar` — included in `ScoreUpdate` payload |
+
+### ContentShake → Geek SEO Module Map
+
+| ContentShake feature | Geek SEO module | Route / entry |
+|---|---|---|
+| AI SEO article | `EnqueueFullArticleAsync` + Guided wizard | `/app/guided` step 4 — poll `GET /api/seo/jobs/{id}` |
+| Keyword ideas (Semrush DB) | `KeywordResearchService` (DataForSEO — same UX, different provider) | Guided step 2 |
+| SEO score while writing | Real-time SignalR scoring | Editor (same as Surfer clone) |
+| Ready to publish | Guided checklist: score ≥ target, plagiarism pass, meta filled | Guided step 5 |
+| Push to WordPress | `WordPressPublishService` | `POST /api/seo/wordpress/publish` + Guided “Publish” button |
+| GA4 stats | `GoogleAnalyticsService` | `/app/analytics` |
+| GSC data | `RankTrackingService` | `/app/rankings` |
+| Content calendar / planning board | `ContentCalendarPage` | `/app/calendar` — kanban by status |
 
 ---
 
@@ -86,19 +232,23 @@ Once five to ten content pieces have documented ranking improvements, sales outr
 ┌─────────────────────────────────────────────────────────────────────────┤
 │                      GEEKAPI  (Railway .NET 10)                         │
 │                                                                         │
-│  Controllers/Seo/           Hubs/                  Middleware/          │
-│  ├── ProjectsController     └── SeoContentHub      └── SeoFeatureGate  │
-│  ├── ContentController           (SignalR)              (PayPal tier    │
-│  ├── BriefController                                     check)         │
+│  Controllers/Seo/           Hubs/                       Middleware/       │
+│  ├── ProjectsController     └── SeoContentScoringHub  SeoFeatureGate    │
+│  ├── ContentController          (SignalR — services     SeoUsageGate      │
+│  ├── BriefController             only, no repos)                        │
+│  ├── SerpController                                                     │
 │  ├── WritingController                                                  │
 │  ├── KeywordsController                                                 │
 │  ├── AuditController                                                    │
 │  ├── RankController                                                     │
 │  ├── ReportsController                                                  │
-│  ├── SubscriptionController                                             │
-│  └── GscController                                                      │
+│  ├── SubscriptionController   ├── WordPressController                   │
+│  ├── GscController            ├── TopicalMapController                    │
+│  ├── PublishedContentAuditCtrl├── PlagiarismController                  │
+│  ├── IntegrationsController   ├── GeoVisibilityController               │
+│  ├── AnalyticsController      └── PublicApiController (Agency keys)     │
 │                                                                         │
-│  Consumes GeekApplication via DI — never references GeekRepository      │
+│  Injects I*Service only — NEVER I*Repository, SeoDbContext, providers   │
 └──────────────────────────┬──────────────────────────────────────────────┘
                            │
                            ▼
@@ -106,7 +256,8 @@ Once five to ten content pieces have documented ranking improvements, sales outr
 │                   GEEKAPPLICATION  (in-process class library)           │
 │                                                                         │
 │  Interfaces/Seo/            Services/Seo/                              │
-│  ├── IContentScoringService ├── ContentScoringService                  │
+│  ├── IContentScoringService ├── ContentScoringService (+ hub methods)  │
+│  ├── IContentDocumentService├── ContentDocumentService                 │
 │  ├── IContentBriefService   ├── ContentBriefService                    │
 │  ├── IAIWritingService      ├── AIWritingService                       │
 │  ├── IKeywordResearch...    ├── KeywordResearchService                 │
@@ -115,11 +266,25 @@ Once five to ten content pieces have documented ranking improvements, sales outr
 │  ├── IRankTrackingService   ├── RankTrackingService                    │
 │  ├── IReportService         ├── ReportService                          │
 │  ├── ISubscriptionService   ├── SubscriptionService                    │
-│  └── IGscService            └── GscService                             │
+│  ├── IProjectService          ├── ProjectService                       │
+│  ├── IUsageMeteringService    ├── UsageMeteringService                   │
+│  ├── IWordPressPublishService ├── WordPressPublishService                │
+│  ├── ITopicalMapService       ├── TopicalMapService                      │
+│  ├── IPublishedContentAudit.. ├── PublishedContentAuditService           │
+│  ├── IInternalLinkingService  ├── InternalLinkingService                 │
+│  ├── IPlagiarismService       ├── PlagiarismService                      │
+│  ├── IGoogleAnalyticsService  ├── GoogleAnalyticsService                 │
+│  ├── IGeoVisibilityService    ├── GeoVisibilityService                   │
+│  ├── IBrandVoiceService       ├── BrandVoiceService                      │
+│  ├── IBulkWritingService      ├── BulkWritingService                     │
+│  ├── IKeywordCannibalization. ├── KeywordCannibalizationService        │
+│  └── IGscService              └── GscService                             │
 │                                                                         │
-│  Provider Interfaces (consumed by services, implemented in Repository) │
-│  IAIProvider / ISerpProvider / IKeywordProvider / ICrawlerProvider     │
-│  IRichTextProvider / IPdfProvider                                       │
+│  Provider interfaces defined here; implementations in GeekRepository  │
+│  IAIProvider / ISerpProvider / IKeywordProvider / ICrawlerProvider       │
+│  IRichTextProvider / IPdfProvider / IPaymentProvider                    │
+│  IPlagiarismProvider / IWordPressProvider / IAnalyticsProvider            │
+│  IGeoVisibilityProvider / IAiDetectionProvider                            │
 └──────────────────────────┬──────────────────────────────────────────────┘
                            │
                            ▼
@@ -131,25 +296,89 @@ Once five to ten content pieces have documented ranking improvements, sales outr
 │  ├── KeywordRepository      ├── DataForSEOSerpProvider  → DataForSEO   │
 │  ├── SerpCacheRepository    ├── DataForSEOKeywordProv.  → DataForSEO   │
 │  ├── AuditRepository        ├── PlaywrightCrawlerProv.  → Playwright   │
-│  ├── RankRepository         ├── TipTapProvider          → TipTap       │
-│  ├── SubscriptionRepository └── PuppeteerProvider       → Puppeteer    │
-│  └── GscRepository                                                      │
+│  ├── RankRepository         ├── TipTapProvider          → HtmlAgilityPack│
+│  ├── SubscriptionRepository ├── PlaywrightPdfProvider   → Playwright     │
+│  ├── UsageRepository        ├── SeoStorageRepository  → Supabase Storage │
+│  ├── WordPressConnectionRepo├── CopyscapePlagiarismProvider             │
+│  ├── TopicalMapRepository   ├── WordPressRestProvider → WP REST API      │
+│  ├── PublishedPageRepository├── GoogleAnalytics4Provider → GA4 Data API   │
+│  ├── SitePageInventoryRepo  ├── GeoVisibilityProvider → AI Overview APIs  │
+│  ├── BrandVoiceRepository   │   + IAIProvider probes for LLM mentions    │
+│  ├── BulkJobRepository      │                                          │
+│  └── GscRepository / Ga4Repository                                       │
+│                             PlaywrightPdfProvider (shared Chromium pool) │
 │                                                                         │
-│  All repositories use Dapper (auth-pattern, same as existing auth repos)│
+│  SeoDbContext (EF Core 10) — ONLY type that opens PostgreSQL connections  │
 └──────────────────────────┬──────────────────────────────────────────────┘
-                           │
+                           │  Connection: GEEK_SEO_DATABASE_URL
+                           │  Principal: geekseo_app (schema geek_seo only)
                            ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │              SUPABASE PostgreSQL  (instance mpnruwauxsqbrxvlksnf)      │
-│              Schema: geek_seo                                           │
-│                                                                         │
-│  seo_projects         seo_content_documents    seo_keywords             │
-│  seo_keyword_clusters seo_serp_results         seo_competitor_pages     │
-│  seo_page_audits      seo_site_audits          seo_site_audit_pages     │
-│  seo_rank_tracking    seo_gsc_connections      seo_subscriptions        │
-│  seo_reports          seo_alerts                                        │
+│              Schema: geek_seo  (31 tables — see Section 5)                │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Layer Enforcement (NON-NEGOTIABLE)
+
+Matches `GeekBackend/CLAUDE.md` — enforced by `.csproj` references and code review:
+
+```
+GeekAPI  →  GeekApplication  →  GeekRepository  →  PostgreSQL / Supabase Storage
+   ↑              ↑                    ↑
+Controllers    I*Service           I*Repository + Provider impls
+Hubs           (business logic)    SeoDbContext (DB only)
+```
+
+| Rule | Detail |
+|---|---|
+| **GeekAPI `.csproj`** | References `GeekApplication` only. **Must not** reference `GeekRepository`. |
+| **GeekApplication `.csproj`** | References `GeekRepository` (for DI registration at startup — interfaces still live in Application). Services inject `I*Repository` and provider interfaces — **never** `SeoDbContext`. |
+| **GeekRepository `.csproj`** | References PostgreSQL/Npgsql/EF Core/Playwright SDKs. **Only** `Repositories/Seo/*` and `SeoDbContext` open DB connections. |
+| **Controllers & Hubs** | Inject `I*Service` only. Forbidden: `IContentDocumentRepository`, `SeoDbContext`, `IAIProvider`, any concrete `*Repository` or `*Provider`. |
+| **Background workers** (`GscSyncService`, `SiteAuditWorker`) | Resolve `I*Service` from `IServiceScopeFactory` — **never** repositories directly. |
+| **Next.js** | HTTPS to GeekAPI only. No database drivers, no Supabase client, no Prisma. |
+
+**Analyzer enforcement (recommended):** Add a `GeekAPI` architecture test or Roslyn analyzer that fails the build if any `GeekAPI` type references `GeekRepository` namespaces or `Npgsql`/`SeoDbContext`.
+
+### Data Access & Security Model
+
+Geek SEO data lives in Supabase schema `geek_seo` on instance `mpnruwauxsqbrxvlksnf` (shared with OrderStack / GeekQuote). The Next.js frontend **never** connects to Supabase.
+
+| Layer | Responsibility |
+|---|---|
+| **PostgreSQL** | Accepts connections **only** from `geekseo_app` DB user with `USAGE` on schema `geek_seo` (and `public` if required for extensions). No anon/authenticated Supabase roles for app traffic. |
+| **`SeoDbContext` (GeekRepository)** | Sole owner of PostgreSQL connections for SEO. Uses `GEEK_SEO_DATABASE_URL` when set; otherwise falls back to `DATABASE_URL` (same Supabase **instance**, schema `geek_seo`). Separate env var = optional **different DB role** (`geekseo_app` with grants on `geek_seo` only), not a second database server. |
+| **`ISeoStorageRepository` (GeekRepository)** | Sole owner of Supabase Storage API calls (`seo-reports` bucket). Application services call the interface only. |
+| **Repositories** | Called **only** from `GeekApplication/Services/Seo/*`. Every query includes `userId` ownership (or project-scoped join). |
+| **GeekAPI + SignalR** | Authorize via existing GeekBackend OAuth JWT (`sub` = `users.id`). Call `I*Service` methods; services enforce tenancy. |
+| **EF Core global filters** | `SeoDbContext` applies query filters on tenant entities (`UserId == currentUserId`) where practical; services still pass `userId` explicitly. |
+| **Supabase RLS** | **Disabled** in `InitialSeoSchema` migration. GeekBackend uses `geekseo_app`, not Supabase Auth JWTs — `auth.uid()` policies never apply. Tenancy = Application services + EF global query filters only. |
+| **GSC tokens** | AES-256-GCM encrypted at rest in `seo_gsc_connections`. Never returned to clients. |
+
+**Database user setup (run once on Supabase):**
+
+```sql
+CREATE ROLE geekseo_app LOGIN PASSWORD '...';
+GRANT USAGE ON SCHEMA geek_seo TO geekseo_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA geek_seo TO geekseo_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA geek_seo TO geekseo_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA geek_seo
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO geekseo_app;
+-- Do NOT grant geekseo_app access to auth, orderstack, or other schemas
+```
+
+**Migrations:** `SeoDbContext` only. Add with `--context SeoDbContext`. Apply on deploy via `MigrateAsync()` in `GeekAPI/Program.cs` (same as existing content tables). **Do not** run hand-written DDL from Section 5 in production — Section 5 SQL is reference documentation only.
+
+### Railway Infrastructure (Browser Workloads)
+
+Playwright (crawl + PDF) runs inside GeekAPI on Railway. Mitigations required in implementation:
+
+- **Singleton browser pool** — one `IBrowser` instance per process, reuse contexts; do not launch Chromium per request.
+- **Bounded concurrency** — `SemaphoreSlim` max 2 concurrent crawls on API instances; site audits run on `IBackgroundTaskQueue` only.
+- **Timeouts** — 30s navigation timeout, 60s max per page crawl.
+- **Memory** — Railway service plan must allow ≥2 GB RAM for Playwright; monitor OOM in production logs.
+- **Alternative path** — `ICrawlerProvider` interface allows swapping to DataForSEO On-Page API if self-hosted Chromium becomes unstable (implement interface, not a runtime fallback stub).
 
 ### WebSocket Content Scoring Flow
 
@@ -163,21 +392,21 @@ Frontend debounce: 800ms (clears on next keystroke, fires only when user pauses)
 SignalR emit: hub.sendAsync("ContentChanged", { documentId, contentHtml, targetKeyword })
     │
     ▼
-SeoContentScoringHub.OnContentChanged(documentId, contentHtml, targetKeyword)
+SeoContentScoringHub.ContentChanged(documentId, contentHtml, targetKeyword)
+    │   (Hub is thin — no repositories)
+    ▼
+IContentScoringService.ProcessContentChangedAsync(userId, documentId, contentHtml, targetKeyword)
+    │   (all logic in Application layer)
+    ├── IContentDocumentService.EnsureAccessAsync(userId, documentId) — sole ownership gate
+    ├── Rate limit: max 1 benchmark refresh per document per 60s
+    ├── ISerpCacheRepository cache check; on MISS → IBackgroundTaskQueue refresh
+    ├── ScoreAsync against warm benchmarks; persist via repository inside service
+    └── Returns ContentScoreHubResult { ScoreUpdate | PendingReason | BenchmarkRefreshing }
     │
-    ├── Retrieve document from IContentDocumentRepository (get current target keyword)
+    ▼
+Hub maps result → SignalR events (ScoreUpdate | ScorePending | BenchmarkReady)
     │
-    ├── Check ISerpCacheRepository: is SERP cache for this keyword:location still valid?
-    │   ├── HIT  → use cached benchmarks (no external API call)
-    │   └── MISS → ISerpProvider.GetSerpResultsAsync(keyword, location)
-    │               → store result in seo_serp_results (TTL 24h)
-    │               → ICrawlerProvider.CrawlPageAsync for any competitor URLs not in cache
-    │               → store in seo_competitor_pages (TTL 72h)
-    │
-    ├── IContentScoringService.ScoreAsync(contentHtml, targetKeyword, cachedBenchmarks)
-    │   → Run 6-component scoring algorithm (see geekseo-content-scoring-spec.md)
-    │
-    └── Hub broadcast to group(documentId):
+    └── group(documentId):
         ScoreUpdate {
             score: 72,
             grade: "C",
@@ -260,6 +489,7 @@ SubscriptionController → SubscriptionService.ConfirmAsync(userId, subscription
     │
     ▼
 PayPal fires webhook to /api/seo/subscription/webhook
+    (Raw request body preserved for signature verification — see Section 9)
     BILLING.SUBSCRIPTION.ACTIVATED  → UPDATE seo_subscriptions SET status = 'active'
     BILLING.SUBSCRIPTION.CANCELLED  → UPDATE seo_subscriptions SET status = 'cancelled'
     BILLING.SUBSCRIPTION.SUSPENDED  → UPDATE seo_subscriptions SET status = 'suspended'
@@ -282,7 +512,7 @@ User enters site URL on /app/audit → clicks "Start Audit"
 POST /api/seo/audit/site  body: { projectId, siteUrl }
     │
     ▼
-AuditController → ISiteAuditService.StartAuditAsync(projectId, siteUrl)
+AuditController → ISiteAuditService.StartAuditAsync(userId, projectId, siteUrl)
     → INSERT INTO seo_site_audits (status: "running", started_at: now)
     → Enqueue background job (IBackgroundTaskQueue)
     → Return 202 Accepted with auditId
@@ -316,7 +546,173 @@ Frontend polls GET /api/seo/audit/{auditId}/status every 5 seconds
 
 ---
 
-## 3. Provider Interface Contracts
+## 3. Authentication Strategy
+
+### Overview
+
+Geek SEO reuses GeekBackend's existing OAuth 2.1 + PKCE + TOTP infrastructure. No separate auth system. Geek SEO registers as a new OAuth client in GeekBackend. The Next.js frontend runs the PKCE flow. GeekBackend issues JWTs; the `sub` claim equals the user's `users.id` UUID in the GeekBackend auth tables.
+
+**Do not implement:** NextAuth, Auth.js, Supabase Auth, or any separate user store. All authentication is delegated to GeekBackend.
+
+---
+
+### Registration and Login Flow
+
+```
+User clicks "Sign Up" on seo.geekatyourspot.com
+    │
+    ▼
+GET /auth/signup → SignupPage (Next.js)
+    Form: name, email, password
+    POST to GeekBackend: POST /api/auth/register
+        body: { name, email, password, clientId: "geekseo" }
+    GeekBackend creates user record, sends verification email via Resend
+    Redirect to /auth/verify-email (show "check your inbox" screen)
+    │
+    ▼
+User clicks email verification link → GET /api/auth/verify?token=...
+    GeekBackend marks user verified
+    Redirects to seo.geekatyourspot.com/login
+    │
+    ▼
+Login: PKCE flow
+    Frontend generates code_verifier (random 64 bytes, base64url)
+    Derives code_challenge = base64url(SHA-256(code_verifier))
+    GET /api/auth/authorize
+        ?client_id=geekseo
+        &redirect_uri={APP_URL}/auth/callback
+        &response_type=code
+        &code_challenge={challenge}
+        &code_challenge_method=S256
+    GeekBackend validates client_id, shows login form (or returns auth code if session exists)
+    User enters email + password → GeekBackend validates credentials
+    If TOTP enabled: redirect through TOTP challenge page
+    On success: redirect to {APP_URL}/auth/callback?code={authCode}
+    │
+    ▼
+Frontend: GET /auth/callback?code={authCode}
+    POST to GeekBackend: POST /api/auth/token
+        body: { grant_type: "authorization_code", code, code_verifier, client_id: "geekseo", redirect_uri }
+    GeekBackend returns:
+        { access_token, token_type: "Bearer", expires_in: 900, refresh_token }
+    Store access_token in memory (React context, never localStorage)
+    POST /api/auth/token/cookie: GeekBackend sets httpOnly Secure SameSite=Strict cookie
+        containing encrypted refresh_token (GeekBackend owns the cookie)
+    Redirect to /app/dashboard
+```
+
+---
+
+### Token Lifecycle
+
+| Token | Storage | Lifetime | Refresh |
+|---|---|---|---|
+| `access_token` | React memory (AuthContext) | 15 minutes | Auto-refresh 60s before expiry |
+| `refresh_token` | httpOnly Secure cookie (GeekBackend-set) | 30 days | Sliding window on use |
+
+**Silent refresh:** `useAuth` hook sets a `setTimeout` to fire 60 seconds before the `access_token` expiry. On fire, call `POST /api/auth/token/refresh` (the cookie is sent automatically by the browser). On success, update `access_token` in context. On failure (cookie expired or revoked), redirect to `/login`.
+
+**On page load:** Before rendering authenticated routes, call `GET /api/auth/me` with the stored `access_token`. On 401, attempt silent refresh. If refresh fails, redirect to `/login`.
+
+---
+
+### SignalR Authentication
+
+The `useContentScoring` hook's `accessTokenFactory` returns the in-memory `access_token` from `AuthContext`:
+
+```typescript
+// hooks/useContentScoring.ts — connection builder
+const connection = new signalR.HubConnectionBuilder()
+  .withUrl(`${process.env.NEXT_PUBLIC_API_URL}/hubs/seo-scoring`, {
+    accessTokenFactory: () => authContext.accessToken ?? '',
+  })
+  .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+  .build();
+```
+
+If the access token expires mid-session (unlikely at 15-min lifetime + 800ms debounce), `withAutomaticReconnect` triggers a reconnect. The frontend refreshes the token before the reconnect attempt via the `onreconnecting` event.
+
+### Next.js (Vercel) + SignalR (Railway)
+
+| Concern | Decision |
+|---|---|
+| **Hub host** | `SeoContentScoringHub` on GeekAPI (Railway), path `/hubs/seo-scoring` |
+| **Frontend** | Vercel — browser WebSocket to `NEXT_PUBLIC_API_URL` (not server-side SignalR from Next) |
+| **CORS** | GeekAPI allows `https://seo.geekatyourspot.com` + `http://localhost:3000` with credentials |
+| **Scale-out** | Dogfood: single Railway instance. Before multi-instance: add **Redis backplane** for SignalR or sticky sessions |
+| **Auth** | `accessTokenFactory` passes Bearer JWT; hub validates same as REST |
+
+---
+
+### GeekSEO OAuth Client Registration in GeekBackend
+
+Register a new client in GeekBackend's `oauth_clients` table:
+
+```sql
+INSERT INTO oauth_clients (client_id, client_name, redirect_uris, allowed_scopes, pkce_required)
+VALUES (
+    'geekseo',
+    'Geek SEO',
+    ARRAY['https://seo.geekatyourspot.com/auth/callback', 'http://localhost:3000/auth/callback'],
+    ARRAY['profile', 'email'],
+    true
+);
+```
+
+No client secret — PKCE-only client (public client). GeekBackend validates the `code_verifier` instead of a secret.
+
+---
+
+### Environment Variables
+
+```bash
+# GeekBackend (Railway)
+# No new vars — geekseo client registered in DB, not env
+
+# Next.js frontend (Vercel)
+NEXT_PUBLIC_API_URL=https://api.geekatyourspot.com        # GeekBackend base URL
+NEXT_PUBLIC_AUTH_URL=https://api.geekatyourspot.com       # Same — GeekBackend issues auth
+NEXT_PUBLIC_CLIENT_ID=geekseo
+NEXT_PUBLIC_REDIRECT_URI=https://seo.geekatyourspot.com/auth/callback
+NEXT_PUBLIC_APP_URL=https://seo.geekatyourspot.com
+```
+
+---
+
+### JWT Claims Used by GeekBackend
+
+Every GeekBackend JWT carries:
+
+| Claim | Type | Example | Used By |
+|---|---|---|---|
+| `sub` | UUID string | `"f47ac10b-..."` | All EF Core `.Where(x => x.UserId == userId)` queries |
+| `email` | string | `"jeff@..."` | UI display only |
+| `name` | string | `"Jeff Martin"` | UI display only |
+| `exp` | Unix timestamp | `1748000000` | Token expiry check in middleware |
+
+**Subscription tier** is **not** read from JWT. `SeoFeatureGateMiddleware` and `SeoUsageGateMiddleware` call `ISubscriptionService.GetActiveTierAsync(userId)` → `seo_subscriptions` table only.
+
+`SeoContentScoringHub` and all SEO controllers read `sub` from `context.User` and pass `userId` into Application services.
+
+---
+
+### Teams: v1 Solo, Schema Designed for v2 Multi-Seat
+
+**v1 (shipping):** Each account is a solo operator. "Team" and "Agency" tiers are volume limits (more content reports, more AI drafts per month), not multi-seat. No shared workspaces, no invites, no role-based access.
+
+**Why name them Team/Agency if solo?** Volume buyers — small agencies with one operator account — need higher limits and API access. The tier name signals the intended buyer, not the seat model.
+
+**v2 design (not in scope for v1, but schema accommodates it):**
+
+Organization tables (`seo_organizations`, `seo_organization_members`) are defined **once** in Section 5 (end of reference SQL). Do not duplicate DDL elsewhere.
+
+`seo_projects` has a nullable `org_id` column in Section 5. In v1 it is always NULL. In v2, team members access projects where `org_id` matches their membership. Metering aggregates across the org's `user_id`s.
+
+**Metering for v2:** When `org_id IS NOT NULL` on a project, `IUsageMeteringService.IncrementAsync` writes to the org owner's usage counter. Team members share the org's monthly limit, not individual limits.
+
+---
+
+## 4. Provider Interface Contracts
 
 ### IAIProvider
 
@@ -384,7 +780,19 @@ public sealed record SerpResult
     public IReadOnlyList<PeopleAlsoAskResult> PeopleAlsoAsk { get; init; } = [];
     public IReadOnlyList<string> RelatedSearches { get; init; } = [];
     public string? FeaturedSnippetText { get; init; }
+    public required SerpFeatures Features { get; init; }
     public required DateTimeOffset FetchedAt { get; init; }
+}
+
+/// <summary>SERP-level feature flags from DataForSEO — drives SerpFeatureGuidance in ScoreUpdate.</summary>
+public sealed record SerpFeatures
+{
+    public bool HasFeaturedSnippet { get; init; }
+    public bool HasPeopleAlsoAsk { get; init; }
+    public bool HasLocalPack { get; init; }
+    public bool HasImagePack { get; init; }
+    public bool HasVideoCarousel { get; init; }
+    public bool HasKnowledgePanel { get; init; }
 }
 
 public sealed record SerpOrganicResult
@@ -569,11 +977,164 @@ public sealed record PdfMargins
 public enum PdfPageFormat { A4, Letter, Legal }
 ```
 
+### IPaymentProvider
+
+```csharp
+// GeekApplication/Interfaces/Seo/IPaymentProvider.cs
+
+namespace GeekApplication.Interfaces.Seo;
+
+/// <summary>
+/// Abstracts the subscription billing processor. Primary implementation: PayPal.
+/// Swap at the DI layer to change processors without touching ISubscriptionService.
+/// </summary>
+public interface IPaymentProvider
+{
+    /// <summary>Verify a subscription exists and is in an expected state after onApprove callback.</summary>
+    Task<Result<PaymentSubscriptionDetail>> GetSubscriptionAsync(string subscriptionId, CancellationToken ct = default);
+
+    /// <summary>Cancel an active subscription immediately.</summary>
+    Task<Result> CancelSubscriptionAsync(string subscriptionId, string reason, CancellationToken ct = default);
+
+    /// <summary>Validate that an incoming webhook payload came from the processor, not a spoof.</summary>
+    Task<Result> VerifyWebhookSignatureAsync(WebhookVerificationRequest request, CancellationToken ct = default);
+
+    /// <summary>Parse the raw webhook payload into a provider-agnostic event.</summary>
+    Result<PaymentWebhookEvent> ParseWebhookEvent(string rawBody);
+
+    string ProviderName { get; }
+}
+
+public sealed record PaymentSubscriptionDetail
+{
+    public required string SubscriptionId { get; init; }
+    public required string PlanId { get; init; }
+    public required PaymentSubscriptionStatus Status { get; init; }
+    public DateTimeOffset? CurrentPeriodStart { get; init; }
+    public DateTimeOffset? CurrentPeriodEnd { get; init; }
+}
+
+public enum PaymentSubscriptionStatus
+{
+    Active,
+    PendingActivation,
+    Cancelled,
+    Suspended,
+    PaymentFailed,
+    Unknown
+}
+
+public sealed record WebhookVerificationRequest
+{
+    public required string RawBody { get; init; }
+    public required string WebhookId { get; init; }
+    public required IReadOnlyDictionary<string, string> Headers { get; init; }
+}
+
+public sealed record PaymentWebhookEvent
+{
+    public required string EventType { get; init; }       // normalized: "subscription.activated", "subscription.cancelled", etc.
+    public required string SubscriptionId { get; init; }
+    public required string PlanId { get; init; }
+    public DateTimeOffset? PeriodEnd { get; init; }
+    public required string RawEventType { get; init; }    // original processor event string for logging
+}
+```
+
+**Primary implementation:** `PayPalPaymentProvider` in `GeekRepository/Providers/Seo/PayPalPaymentProvider.cs`.
+
+PayPal-specific webhook headers it reads: `PAYPAL-TRANSMISSION-ID`, `PAYPAL-TRANSMISSION-TIME`, `PAYPAL-CERT-URL`, `PAYPAL-AUTH-ALGO`, `PAYPAL-TRANSMISSION-SIG`.
+
+PayPal event-type mapping to normalized `PaymentWebhookEvent.EventType`:
+
+| PayPal event | Normalized |
+|---|---|
+| `BILLING.SUBSCRIPTION.ACTIVATED` | `subscription.activated` |
+| `BILLING.SUBSCRIPTION.CANCELLED` | `subscription.cancelled` |
+| `BILLING.SUBSCRIPTION.SUSPENDED` | `subscription.suspended` |
+| `PAYMENT.SALE.COMPLETED` | `payment.completed` |
+| `PAYMENT.SALE.DENIED` | `payment.failed` |
+
+`ISubscriptionService` depends on `IPaymentProvider`, never on `PayPalPaymentProvider` directly. All PayPal API credentials (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`) are read inside `PayPalPaymentProvider` from environment — never passed through the interface.
+
+### Clone provider interfaces (Section 4)
+
+`ISerpProvider.GetSerpResultsAsync` accepts `ResultCount` up to **50** for deep SERP (stored in `seo_serp_deep_cache`). Default **10** for scoring (stored in `seo_serp_results`).
+
+```csharp
+// IPlagiarismProvider.cs
+public interface IPlagiarismProvider
+{
+    Task<Result<PlagiarismProviderResult>> CheckAsync(string plainText, CancellationToken ct = default);
+    string ProviderName { get; }
+}
+
+// IWordPressProvider.cs
+public interface IWordPressProvider
+{
+    Task<Result<WordPressConnectionTestResult>> TestConnectionAsync(WordPressCredentials credentials, CancellationToken ct = default);
+    Task<Result<WordPressPublishProviderResult>> PublishPostAsync(WordPressCredentials credentials, WordPressPostPayload post, CancellationToken ct = default);
+    string ProviderName { get; }
+}
+
+// IAnalyticsProvider.cs (GA4)
+public interface IAnalyticsProvider
+{
+    Task<Result<string>> GetOAuthAuthorizationUrlAsync(string redirectUri, string state, CancellationToken ct = default);
+    Task<Result<OAuthTokens>> ExchangeCodeAsync(string code, string redirectUri, CancellationToken ct = default);
+    Task<Result<Ga4LandingPageReport>> GetLandingPagesAsync(string propertyId, string refreshToken, DateOnly from, DateOnly to, CancellationToken ct = default);
+    string ProviderName { get; }
+}
+
+// IGeoVisibilityProvider.cs — v1: google_aio only
+public interface IGeoVisibilityProvider
+{
+    Task<Result<GeoMentionCheckResult>> CheckGoogleAiOverviewAsync(string queryText, string domain, string location, CancellationToken ct = default);
+    string ProviderName { get; }
+}
+
+// IAiDetectionProvider.cs
+public interface IAiDetectionProvider
+{
+    Task<Result<AiDetectionResult>> DetectAsync(string plainText, CancellationToken ct = default);
+    string ProviderName { get; }
+}
+
+public sealed record AiDetectionResult
+{
+    public required double AiProbability { get; init; }
+    public IReadOnlyList<AiDetectionSentence> FlaggedSentences { get; init; } = [];
+}
+```
+
 ---
 
-## 4. Database Schema
+## 5. Database Schema
 
-All tables reside in the `geek_seo` schema on Supabase instance `mpnruwauxsqbrxvlksnf`. Row-Level Security is enabled on every table. Users can only access rows where `user_id` matches `auth.uid()`.
+**Source of truth:** EF Core migrations on `SeoDbContext` (`GeekRepository/Migrations/Seo/`). The SQL below is **reference documentation** showing the intended shape — generate production schema via `dotnet ef migrations add`, not by pasting this script.
+
+**Table count:** 31 tables in `geek_seo` — 15 core + 14 clone-feature tables + 1 unified jobs table + 2 v2 org tables (v1 leaves `org_id` NULL).
+
+**RLS:** Do **not** enable Row Level Security in EF migrations. Reference SQL below has no `ENABLE ROW LEVEL SECURITY` blocks. Tenancy is enforced in **Application services** (every method takes `userId`) + EF Core global query filters on `SeoDbContext`.
+
+### SERP cache tables (when to use which)
+
+| Table | Purpose | TTL | Used by |
+|---|---|---|---|
+| `seo_serp_results` | Top **10** organic + `serp_features` JSON for scoring benchmarks and SERP feature guidance | 24h | Real-time scoring, briefs, `GetSerpOverviewAsync` |
+| `seo_serp_deep_cache` | Top **50** organic + TF-IDF term matrix for Surfer SERP Analyzer clone | 7 days | `GetSerpDeepAnalysisAsync` only — never on every keystroke |
+| `seo_competitor_pages` | Crawled HTML/text for benchmark URLs | 72h | Scoring engine crawl cache |
+
+### Internal link inventory pipeline
+
+`seo_site_page_inventory` is populated by (in order of trigger):
+
+1. **Site audit completion** — `SiteAuditWorker` upserts every crawled URL with title, H1, word count after a site-wide audit finishes.
+2. **WordPress publish** — `WordPressPublishService` upserts the published URL + post title after successful REST publish.
+3. **GSC URL import (optional)** — `RankTrackingService.SyncGscDataAsync` can upsert URLs from GSC Search Analytics top pages (deduped by URL).
+4. **Manual register** — `POST /api/seo/content-audit/register` adds a published page URL to inventory.
+
+`InternalLinkingService.SuggestLinksAsync` reads inventory for the project only — never suggests links to uncrawled external domains.
 
 ```sql
 -- Enable schema
@@ -589,6 +1150,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE geek_seo.seo_projects (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id             UUID NOT NULL,
+    org_id              UUID,
     name                TEXT NOT NULL,
     url                 TEXT NOT NULL,
     gsc_connected       BOOLEAN NOT NULL DEFAULT FALSE,
@@ -597,12 +1159,10 @@ CREATE TABLE geek_seo.seo_projects (
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- v1: org_id is always NULL. v2: set when project belongs to an organization.
 
 CREATE INDEX idx_seo_projects_user_id ON geek_seo.seo_projects (user_id);
 
-ALTER TABLE geek_seo.seo_projects ENABLE ROW LEVEL SECURITY;
-CREATE POLICY seo_projects_user_policy ON geek_seo.seo_projects
-    USING (user_id = auth.uid());
 
 -- ============================================================
 -- seo_content_documents
@@ -619,6 +1179,12 @@ CREATE TABLE geek_seo.seo_content_documents (
     word_count          INTEGER NOT NULL DEFAULT 0,
     score_components    JSONB NOT NULL DEFAULT '{}',
     last_scored_at      TIMESTAMPTZ,
+    status              TEXT NOT NULL DEFAULT 'planned'
+                            CHECK (status IN ('planned', 'writing', 'review', 'published')),
+    published_score     INTEGER,           -- score at time of publish (for GSC correlation)
+    published_word_count INTEGER,
+    published_at        TIMESTAMPTZ,
+    ai_detection_score  NUMERIC(5, 4),     -- 0.0–1.0 probability from IAiDetectionProvider
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -626,10 +1192,25 @@ CREATE TABLE geek_seo.seo_content_documents (
 CREATE INDEX idx_seo_content_docs_project ON geek_seo.seo_content_documents (project_id);
 CREATE INDEX idx_seo_content_docs_user    ON geek_seo.seo_content_documents (user_id);
 CREATE INDEX idx_seo_content_docs_score   ON geek_seo.seo_content_documents (seo_score DESC);
+CREATE INDEX idx_seo_content_docs_status  ON geek_seo.seo_content_documents (status);
 
-ALTER TABLE geek_seo.seo_content_documents ENABLE ROW LEVEL SECURITY;
-CREATE POLICY seo_content_documents_user_policy ON geek_seo.seo_content_documents
-    USING (user_id = auth.uid());
+
+-- ============================================================
+-- seo_keyword_clusters (must exist before seo_keywords FK)
+-- ============================================================
+CREATE TABLE geek_seo.seo_keyword_clusters (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id          UUID NOT NULL REFERENCES geek_seo.seo_projects(id) ON DELETE CASCADE,
+    name                TEXT NOT NULL,
+    pillar_keyword      TEXT NOT NULL,
+    keywords            JSONB NOT NULL DEFAULT '[]',
+    average_volume      INTEGER NOT NULL DEFAULT 0,
+    average_difficulty  NUMERIC(5, 2) NOT NULL DEFAULT 0,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_seo_keyword_clusters_project ON geek_seo.seo_keyword_clusters (project_id);
+
 
 -- ============================================================
 -- seo_keywords
@@ -656,25 +1237,6 @@ CREATE INDEX idx_seo_keywords_keyword    ON geek_seo.seo_keywords (keyword);
 CREATE INDEX idx_seo_keywords_expires    ON geek_seo.seo_keywords (expires_at);
 CREATE INDEX idx_seo_keywords_difficulty ON geek_seo.seo_keywords (keyword_difficulty);
 
--- ============================================================
--- seo_keyword_clusters
--- ============================================================
-CREATE TABLE geek_seo.seo_keyword_clusters (
-    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    project_id          UUID NOT NULL REFERENCES geek_seo.seo_projects(id) ON DELETE CASCADE,
-    name                TEXT NOT NULL,
-    pillar_keyword      TEXT NOT NULL,
-    keywords            JSONB NOT NULL DEFAULT '[]',
-    average_volume      INTEGER NOT NULL DEFAULT 0,
-    average_difficulty  NUMERIC(5, 2) NOT NULL DEFAULT 0,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_seo_keyword_clusters_project ON geek_seo.seo_keyword_clusters (project_id);
-
-ALTER TABLE geek_seo.seo_keyword_clusters ENABLE ROW LEVEL SECURITY;
-CREATE POLICY seo_keyword_clusters_user_policy ON geek_seo.seo_keyword_clusters
-    USING (project_id IN (SELECT id FROM geek_seo.seo_projects WHERE user_id = auth.uid()));
 
 -- ============================================================
 -- seo_serp_results (cache table — no RLS, project-scoped access via service layer)
@@ -688,10 +1250,15 @@ CREATE TABLE geek_seo.seo_serp_results (
     people_also_ask     JSONB NOT NULL DEFAULT '[]',
     related_searches    JSONB NOT NULL DEFAULT '[]',
     featured_snippet    TEXT,
+    serp_features       JSONB NOT NULL DEFAULT '{}',
     fetched_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expires_at          TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '24 hours'),
     UNIQUE (keyword, location, language_code)
 );
+
+-- serp_features JSON shape (stored from DataForSEO):
+-- { "has_featured_snippet": bool, "has_people_also_ask": bool, "has_local_pack": bool,
+--   "has_image_pack": bool, "has_video_carousel": bool, "has_knowledge_panel": bool }
 
 CREATE INDEX idx_seo_serp_keyword  ON geek_seo.seo_serp_results (keyword, location);
 CREATE INDEX idx_seo_serp_expires  ON geek_seo.seo_serp_results (expires_at);
@@ -744,9 +1311,6 @@ CREATE INDEX idx_seo_page_audits_project ON geek_seo.seo_page_audits (project_id
 CREATE INDEX idx_seo_page_audits_url     ON geek_seo.seo_page_audits (url);
 CREATE INDEX idx_seo_page_audits_user    ON geek_seo.seo_page_audits (user_id);
 
-ALTER TABLE geek_seo.seo_page_audits ENABLE ROW LEVEL SECURITY;
-CREATE POLICY seo_page_audits_user_policy ON geek_seo.seo_page_audits
-    USING (user_id = auth.uid());
 
 -- ============================================================
 -- seo_site_audits
@@ -766,9 +1330,6 @@ CREATE TABLE geek_seo.seo_site_audits (
 CREATE INDEX idx_seo_site_audits_project ON geek_seo.seo_site_audits (project_id);
 CREATE INDEX idx_seo_site_audits_status  ON geek_seo.seo_site_audits (status);
 
-ALTER TABLE geek_seo.seo_site_audits ENABLE ROW LEVEL SECURITY;
-CREATE POLICY seo_site_audits_user_policy ON geek_seo.seo_site_audits
-    USING (project_id IN (SELECT id FROM geek_seo.seo_projects WHERE user_id = auth.uid()));
 
 -- ============================================================
 -- seo_site_audit_pages
@@ -809,9 +1370,6 @@ CREATE INDEX idx_seo_rank_tracking_keyword ON geek_seo.seo_rank_tracking (keywor
 CREATE INDEX idx_seo_rank_tracking_date    ON geek_seo.seo_rank_tracking (date DESC);
 CREATE INDEX idx_seo_rank_tracking_pos     ON geek_seo.seo_rank_tracking (position);
 
-ALTER TABLE geek_seo.seo_rank_tracking ENABLE ROW LEVEL SECURITY;
-CREATE POLICY seo_rank_tracking_user_policy ON geek_seo.seo_rank_tracking
-    USING (project_id IN (SELECT id FROM geek_seo.seo_projects WHERE user_id = auth.uid()));
 
 -- ============================================================
 -- seo_gsc_connections
@@ -823,6 +1381,10 @@ CREATE TABLE geek_seo.seo_gsc_connections (
     encrypted_refresh_token  BYTEA NOT NULL,
     encryption_iv            BYTEA NOT NULL,
     encryption_tag           BYTEA NOT NULL,
+    encrypted_access_token   BYTEA,
+    access_token_iv          BYTEA,
+    access_token_tag         BYTEA,
+    access_token_expires_at  TIMESTAMPTZ,
     site_url                 TEXT NOT NULL,
     google_email             TEXT,
     connected_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -833,9 +1395,6 @@ CREATE TABLE geek_seo.seo_gsc_connections (
 CREATE INDEX idx_seo_gsc_connections_user    ON geek_seo.seo_gsc_connections (user_id);
 CREATE INDEX idx_seo_gsc_connections_project ON geek_seo.seo_gsc_connections (project_id);
 
-ALTER TABLE geek_seo.seo_gsc_connections ENABLE ROW LEVEL SECURITY;
-CREATE POLICY seo_gsc_connections_user_policy ON geek_seo.seo_gsc_connections
-    USING (user_id = auth.uid());
 
 -- ============================================================
 -- seo_subscriptions
@@ -859,9 +1418,6 @@ CREATE INDEX idx_seo_subscriptions_user   ON geek_seo.seo_subscriptions (user_id
 CREATE INDEX idx_seo_subscriptions_status ON geek_seo.seo_subscriptions (status);
 CREATE INDEX idx_seo_subscriptions_paypal ON geek_seo.seo_subscriptions (paypal_subscription_id);
 
-ALTER TABLE geek_seo.seo_subscriptions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY seo_subscriptions_user_policy ON geek_seo.seo_subscriptions
-    USING (user_id = auth.uid());
 
 -- ============================================================
 -- seo_reports
@@ -881,9 +1437,6 @@ CREATE TABLE geek_seo.seo_reports (
 CREATE INDEX idx_seo_reports_project ON geek_seo.seo_reports (project_id);
 CREATE INDEX idx_seo_reports_user    ON geek_seo.seo_reports (user_id);
 
-ALTER TABLE geek_seo.seo_reports ENABLE ROW LEVEL SECURITY;
-CREATE POLICY seo_reports_user_policy ON geek_seo.seo_reports
-    USING (user_id = auth.uid());
 
 -- ============================================================
 -- seo_alerts
@@ -903,14 +1456,223 @@ CREATE INDEX idx_seo_alerts_project ON geek_seo.seo_alerts (project_id);
 CREATE INDEX idx_seo_alerts_user    ON geek_seo.seo_alerts (user_id);
 CREATE INDEX idx_seo_alerts_type    ON geek_seo.seo_alerts (type);
 
-ALTER TABLE geek_seo.seo_alerts ENABLE ROW LEVEL SECURITY;
-CREATE POLICY seo_alerts_user_policy ON geek_seo.seo_alerts
-    USING (user_id = auth.uid());
+
+-- ============================================================
+-- seo_usage_counters (monthly metered limits per tier — Section 9)
+-- ============================================================
+CREATE TABLE geek_seo.seo_usage_counters (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id         UUID NOT NULL,
+    period_start    DATE NOT NULL,
+    feature         TEXT NOT NULL,
+    count           INTEGER NOT NULL DEFAULT 0,
+  UNIQUE (user_id, period_start, feature)
+);
+
+CREATE INDEX idx_seo_usage_user_period ON geek_seo.seo_usage_counters (user_id, period_start);
+CREATE INDEX idx_seo_usage_feature     ON geek_seo.seo_usage_counters (feature);
+
+
+-- ============================================================
+-- Clone-feature tables (Surfer + ContentShake parity)
+-- ============================================================
+CREATE TABLE geek_seo.seo_wordpress_connections (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id          UUID NOT NULL REFERENCES geek_seo.seo_projects(id) ON DELETE CASCADE,
+    user_id             UUID NOT NULL,
+    site_url            TEXT NOT NULL,
+    username            TEXT NOT NULL,
+    encrypted_app_password BYTEA NOT NULL,
+    encryption_iv       BYTEA NOT NULL,
+    encryption_tag      BYTEA NOT NULL,
+    default_post_status TEXT NOT NULL DEFAULT 'draft',
+    connected_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (project_id)
+);
+
+CREATE TABLE geek_seo.seo_published_pages (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id          UUID NOT NULL REFERENCES geek_seo.seo_projects(id) ON DELETE CASCADE,
+    document_id         UUID REFERENCES geek_seo.seo_content_documents(id) ON DELETE SET NULL,
+    url                 TEXT NOT NULL,
+    wordpress_post_id   INTEGER,
+    target_keyword      TEXT,
+    last_audit_at       TIMESTAMPTZ,
+    UNIQUE (project_id, url)
+);
+
+CREATE TABLE geek_seo.seo_content_performance_snapshots (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    published_page_id   UUID NOT NULL REFERENCES geek_seo.seo_published_pages(id) ON DELETE CASCADE,
+    date                DATE NOT NULL,
+    position            NUMERIC(6, 2),
+    impressions         INTEGER NOT NULL DEFAULT 0,
+    clicks              INTEGER NOT NULL DEFAULT 0,
+    ctr                 NUMERIC(6, 4),
+    UNIQUE (published_page_id, date)
+);
+
+CREATE TABLE geek_seo.seo_topical_maps (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id          UUID NOT NULL REFERENCES geek_seo.seo_projects(id) ON DELETE CASCADE,
+    status              TEXT NOT NULL DEFAULT 'pending',
+    clusters            JSONB NOT NULL DEFAULT '[]',
+    content_gaps        JSONB NOT NULL DEFAULT '[]',
+    generated_at        TIMESTAMPTZ,
+    expires_at          TIMESTAMPTZ
+);
+
+CREATE TABLE geek_seo.seo_site_page_inventory (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id          UUID NOT NULL REFERENCES geek_seo.seo_projects(id) ON DELETE CASCADE,
+    url                 TEXT NOT NULL,
+    title               TEXT,
+    h1                  TEXT,
+    word_count          INTEGER NOT NULL DEFAULT 0,
+    crawled_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (project_id, url)
+);
+
+CREATE TABLE geek_seo.seo_brand_voices (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id             UUID NOT NULL,
+    name                TEXT NOT NULL,
+    sample_text         TEXT NOT NULL,
+    style_instructions  TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE geek_seo.seo_bulk_jobs (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id          UUID NOT NULL REFERENCES geek_seo.seo_projects(id) ON DELETE CASCADE,
+    user_id             UUID NOT NULL,
+    status              TEXT NOT NULL DEFAULT 'pending',
+    keywords            JSONB NOT NULL,
+    completed_count     INTEGER NOT NULL DEFAULT 0,
+    total_count         INTEGER NOT NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at        TIMESTAMPTZ
+);
+
+CREATE TABLE geek_seo.seo_plagiarism_checks (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    document_id         UUID NOT NULL REFERENCES geek_seo.seo_content_documents(id) ON DELETE CASCADE,
+    match_percent       NUMERIC(5, 2) NOT NULL,
+    matches             JSONB NOT NULL DEFAULT '[]',
+    checked_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE geek_seo.seo_ga4_connections (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id          UUID NOT NULL REFERENCES geek_seo.seo_projects(id) ON DELETE CASCADE,
+    property_id         TEXT NOT NULL,
+    encrypted_refresh_token BYTEA NOT NULL,
+    encryption_iv       BYTEA NOT NULL,
+    encryption_tag      BYTEA NOT NULL,
+    connected_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (project_id)
+);
+
+CREATE TABLE geek_seo.seo_geo_tracking_queries (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id          UUID NOT NULL REFERENCES geek_seo.seo_projects(id) ON DELETE CASCADE,
+    query_text          TEXT NOT NULL,
+    platforms           JSONB NOT NULL DEFAULT '["google_aio"]',
+    enabled             BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE geek_seo.seo_geo_mention_snapshots (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    query_id            UUID NOT NULL REFERENCES geek_seo.seo_geo_tracking_queries(id) ON DELETE CASCADE,
+    platform            TEXT NOT NULL,
+    mentioned           BOOLEAN NOT NULL,
+    snippet             TEXT,
+    checked_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE geek_seo.seo_cannibalization_issues (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id          UUID NOT NULL REFERENCES geek_seo.seo_projects(id) ON DELETE CASCADE,
+    keyword             TEXT NOT NULL,
+    competing_urls      JSONB NOT NULL,
+    severity            TEXT NOT NULL,
+    detected_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE geek_seo.seo_api_keys (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id             UUID NOT NULL,
+    key_hash            TEXT NOT NULL,
+    key_prefix          TEXT NOT NULL,
+    name                TEXT NOT NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    revoked_at          TIMESTAMPTZ
+);
+
+-- Unified async job queue (full-article, bulk, topical map, site audit enqueue)
+CREATE TABLE geek_seo.seo_background_jobs (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id             UUID NOT NULL,
+    project_id          UUID REFERENCES geek_seo.seo_projects(id) ON DELETE CASCADE,
+    job_type            TEXT NOT NULL
+                            CHECK (job_type IN (
+                                'full_article', 'bulk_writing', 'topical_map',
+                                'site_audit', 'published_audit_weekly'
+                            )),
+    status              TEXT NOT NULL DEFAULT 'pending'
+                            CHECK (status IN ('pending', 'running', 'complete', 'failed')),
+    payload             JSONB NOT NULL DEFAULT '{}',
+    result_id           UUID,
+    progress_percent    INTEGER NOT NULL DEFAULT 0,
+    error_message       TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    started_at          TIMESTAMPTZ,
+    completed_at        TIMESTAMPTZ
+);
+
+CREATE INDEX idx_seo_background_jobs_user ON geek_seo.seo_background_jobs (user_id, status);
+CREATE INDEX idx_seo_background_jobs_type ON geek_seo.seo_background_jobs (job_type, status);
+
+CREATE TABLE geek_seo.seo_serp_deep_cache (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    keyword             TEXT NOT NULL,
+    location            TEXT NOT NULL,
+    result_count        INTEGER NOT NULL DEFAULT 50,
+    results             JSONB NOT NULL,
+    term_matrix         JSONB NOT NULL DEFAULT '{}',
+    fetched_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at          TIMESTAMPTZ NOT NULL,
+    UNIQUE (keyword, location, result_count)
+);
+
+-- ============================================================
+-- v2 organization tables (created in InitialSeoSchema migration; unused in v1 code)
+-- ============================================================
+CREATE TABLE geek_seo.seo_organizations (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name        TEXT NOT NULL,
+    owner_id    UUID NOT NULL,
+    slug        TEXT NOT NULL UNIQUE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE geek_seo.seo_organization_members (
+    org_id      UUID NOT NULL REFERENCES geek_seo.seo_organizations(id) ON DELETE CASCADE,
+    user_id     UUID NOT NULL,
+    role        TEXT NOT NULL DEFAULT 'writer' CHECK (role IN ('owner', 'admin', 'writer')),
+    invited_by  UUID,
+    joined_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (org_id, user_id)
+);
+
+ALTER TABLE geek_seo.seo_projects
+    ADD CONSTRAINT fk_seo_projects_org
+    FOREIGN KEY (org_id) REFERENCES geek_seo.seo_organizations(id) ON DELETE SET NULL;
 ```
 
 ---
 
-## 5. Backend Module Spec
+## 6. Backend Module Spec
 
 ### GeekApplication/Interfaces/Seo/ — Service Interfaces
 
@@ -924,13 +1686,59 @@ public interface IContentScoringService
 
     Task<Result<SerpBenchmarks>> GetOrFetchBenchmarksAsync(
         string keyword, string location, CancellationToken ct = default);
+
+    // Hub orchestration — all document/SERP/cache access stays inside this service
+    Task<Result<ContentScoreHubResult>> ProcessContentChangedAsync(
+        Guid userId, Guid documentId, string contentHtml, string targetKeyword,
+        CancellationToken ct = default);
+
+    Task<Result> ProcessKeywordChangedAsync(
+        Guid userId, Guid documentId, string newKeyword, string location,
+        CancellationToken ct = default);
+
+    // SerpController + editor sidebar (top 10)
+    Task<Result<SerpOverviewResult>> GetSerpOverviewAsync(
+        Guid userId, Guid projectId, string keyword, string location,
+        CancellationToken ct = default);
+
+    // Surfer SERP Analyzer clone (top 50 + term matrix) — uses seo_serp_deep_cache
+    Task<Result<SerpDeepAnalysisResult>> GetSerpDeepAnalysisAsync(
+        Guid userId, string keyword, string location, CancellationToken ct = default);
+
+    // Surfer Auto-Optimize clone — splices missing terms, re-scores, returns patched HTML
+    Task<Result<AutoOptimizeResult>> AutoOptimizeAsync(
+        Guid userId, Guid documentId, CancellationToken ct = default);
+
+    // SERP feature guidance for ScoreSidebar (from cached serp_features, not per keystroke)
+    Task<Result<IReadOnlyList<SerpFeatureGuidance>>> GetSerpFeatureGuidanceAsync(
+        string keyword, string location, CancellationToken ct = default);
+}
+
+// IContentDocumentService.cs — sole entry for content CRUD + tenancy from GeekAPI
+public interface IContentDocumentService
+{
+    /// <summary>Throws/returns Failure if user does not own document. Used by scoring hub and other services.</summary>
+    Task<Result<ContentDocument>> EnsureAccessAsync(Guid userId, Guid documentId, CancellationToken ct = default);
+
+    Task<Result<IReadOnlyList<ContentDocument>>> ListByProjectAsync(
+        Guid userId, Guid projectId, CancellationToken ct = default);
+    Task<Result<ContentDocument>> GetAsync(Guid userId, Guid documentId, CancellationToken ct = default);
+    Task<Result<ContentDocument>> CreateAsync(
+        Guid userId, CreateContentDocumentRequest request, CancellationToken ct = default);
+    Task<Result<ContentDocument>> UpdateContentAsync(
+        Guid userId, Guid documentId, UpdateContentRequest request, CancellationToken ct = default);
+    Task<Result<ContentDocument>> UpdateStatusAsync(
+        Guid userId, Guid documentId, ContentDocumentStatus status, CancellationToken ct = default);
+    Task<Result<ContentScoreResult>> ScoreNowAsync(
+        Guid userId, Guid documentId, CancellationToken ct = default);
+    Task<Result> DeleteAsync(Guid userId, Guid documentId, CancellationToken ct = default);
 }
 
 // IContentBriefService.cs
 public interface IContentBriefService
 {
     Task<Result<ContentBrief>> GenerateBriefAsync(
-        string keyword, string location, int competitorCount,
+        Guid userId, Guid projectId, string keyword, string location, int competitorCount,
         CancellationToken ct = default);
 }
 
@@ -947,35 +1755,128 @@ public interface IAIWritingService
     Task<Result<string>> OptimizeContentAsync(
         string contentHtml, string targetKeyword,
         ContentScoreResult currentScore, CancellationToken ct = default);
+
+    // Surfer AI + ContentShake one-click article clone — returns seo_background_jobs.id
+    Task<Result<Guid>> EnqueueFullArticleAsync(
+        Guid userId, Guid projectId, string keyword, string location,
+        int targetWordCount, CancellationToken ct = default);
+
+    Task<Result<string>> HumanizeAsync(
+        Guid userId, Guid documentId, string contentHtml, CancellationToken ct = default);
+
+    Task<Result<AiDetectionResult>> DetectAsync(
+        Guid userId, Guid documentId, string contentHtml, CancellationToken ct = default);
+}
+
+// IWordPressPublishService.cs — ContentShake publish clone
+public interface IWordPressPublishService
+{
+    Task<Result> ConnectAsync(Guid userId, Guid projectId, WordPressConnectRequest request, CancellationToken ct);
+    Task<Result<WordPressPublishResult>> PublishDocumentAsync(
+        Guid userId, Guid documentId, WordPressPublishOptions options, CancellationToken ct);
+    Task<Result> DisconnectAsync(Guid userId, Guid projectId, CancellationToken ct);
+}
+
+// ITopicalMapService.cs — Surfer Topical Map clone
+public interface ITopicalMapService
+{
+    Task<Result<Guid>> GenerateMapAsync(Guid userId, Guid projectId, CancellationToken ct);
+    Task<Result<TopicalMapResult>> GetMapAsync(Guid userId, Guid mapId, CancellationToken ct);
+}
+
+// IPublishedContentAuditService.cs — Surfer Content Audit clone
+public interface IPublishedContentAuditService
+{
+    Task<Result> RegisterPublishedPageAsync(Guid userId, Guid projectId, RegisterPublishedPageRequest request, CancellationToken ct);
+    Task<Result<IReadOnlyList<PublishedPageAuditRow>>> GetAuditDashboardAsync(Guid userId, Guid projectId, CancellationToken ct);
+    Task<Result> RunWeeklyAuditAsync(CancellationToken ct);
+}
+
+// IInternalLinkingService.cs
+public interface IInternalLinkingService
+{
+    Task<Result<IReadOnlyList<InternalLinkSuggestion>>> SuggestLinksAsync(
+        Guid userId, Guid projectId, Guid documentId, string contentHtml, CancellationToken ct);
+}
+
+// IPlagiarismService.cs
+public interface IPlagiarismService
+{
+    Task<Result<PlagiarismCheckResult>> CheckDocumentAsync(Guid userId, Guid documentId, CancellationToken ct);
+}
+
+// IGoogleAnalyticsService.cs — ContentShake GA4 clone
+public interface IGoogleAnalyticsService
+{
+    Task<Result<string>> GetAuthorizationUrlAsync(Guid userId, Guid projectId, CancellationToken ct);
+    Task<Result> HandleCallbackAsync(Guid userId, string code, string state, CancellationToken ct);
+    Task<Result<Ga4PerformanceReport>> GetLandingPageReportAsync(
+        Guid userId, Guid projectId, DateOnly from, DateOnly to, CancellationToken ct);
+}
+
+// IGeoVisibilityService.cs — v1: Google AI Overviews only (DataForSEO)
+public interface IGeoVisibilityService
+{
+    Task<Result<IReadOnlyList<GeoTrackingQuery>>> ListQueriesAsync(Guid userId, Guid projectId, CancellationToken ct);
+    Task<Result<Guid>> AddQueryAsync(Guid userId, Guid projectId, string queryText, CancellationToken ct);
+    Task<Result<IReadOnlyList<GeoMentionSnapshot>>> GetMentionHistoryAsync(Guid userId, Guid queryId, CancellationToken ct);
+    Task<Result> RunDailyGeoScanAsync(CancellationToken ct);
+}
+
+// IBrandVoiceService.cs
+public interface IBrandVoiceService
+{
+    Task<Result<BrandVoice>> CreateAsync(Guid userId, CreateBrandVoiceRequest request, CancellationToken ct);
+    Task<Result<IReadOnlyList<BrandVoice>>> ListAsync(Guid userId, CancellationToken ct);
+    Task<Result> SetDefaultAsync(Guid userId, Guid brandVoiceId, CancellationToken ct);
+}
+
+// IBulkWritingService.cs — job id = seo_background_jobs.id (job_type = bulk_writing)
+public interface IBulkWritingService
+{
+    Task<Result<Guid>> StartBulkJobAsync(Guid userId, Guid projectId, IReadOnlyList<string> keywords, CancellationToken ct);
+    Task<Result<BulkJobStatus>> GetJobStatusAsync(Guid userId, Guid jobId, CancellationToken ct);
+}
+
+// IBackgroundJobService.cs — poll status for any async job type
+public interface IBackgroundJobService
+{
+    Task<Result<BackgroundJobStatus>> GetJobAsync(Guid userId, Guid jobId, CancellationToken ct = default);
+}
+
+// IKeywordCannibalizationService.cs
+public interface IKeywordCannibalizationService
+{
+    Task<Result<IReadOnlyList<CannibalizationIssue>>> DetectAsync(Guid userId, Guid projectId, CancellationToken ct);
 }
 
 // IKeywordResearchService.cs
 public interface IKeywordResearchService
 {
     Task<Result<IReadOnlyList<KeywordResult>>> ResearchAsync(
-        string seedKeyword, string location, int resultCount,
+        Guid userId, Guid projectId, string seedKeyword, string location, int resultCount,
         CancellationToken ct = default);
 
     Task<Result<IReadOnlyList<KeywordCluster>>> ClusterAsync(
-        Guid projectId, IReadOnlyList<string> keywords,
+        Guid userId, Guid projectId, IReadOnlyList<string> keywords,
         string location, CancellationToken ct = default);
 }
 
-// ISiteAuditService.cs
+// ISiteAuditService.cs — audit id stored in seo_background_jobs.result_id when complete
 public interface ISiteAuditService
 {
-    Task<Result<Guid>> StartAuditAsync(Guid projectId, string siteUrl, CancellationToken ct = default);
-    Task<Result<SiteAuditStatus>> GetStatusAsync(Guid auditId, CancellationToken ct = default);
-    Task<Result<SiteAuditReport>> GetReportAsync(Guid auditId, CancellationToken ct = default);
+    Task<Result<Guid>> StartAuditAsync(Guid userId, Guid projectId, string siteUrl, CancellationToken ct = default);
+    Task<Result<SiteAuditStatus>> GetStatusAsync(Guid userId, Guid auditId, CancellationToken ct = default);
+    Task<Result<SiteAuditReport>> GetReportAsync(Guid userId, Guid auditId, CancellationToken ct = default);
 }
 
 // IPageAuditService.cs
 public interface IPageAuditService
 {
     Task<Result<PageAuditResult>> AuditPageAsync(
-        Guid projectId, string url, CancellationToken ct = default);
+        Guid userId, Guid projectId, string url, CancellationToken ct = default);
     Task<Result<PageAuditResult>> AuditPageFromContentAsync(
-        Guid projectId, string url, PageContent crawlResult,
+        Guid userId, Guid projectId, string url, PageContent crawlResult,
         CancellationToken ct = default);
 }
 
@@ -983,13 +1884,14 @@ public interface IPageAuditService
 public interface IRankTrackingService
 {
     Task<Result<IReadOnlyList<RankSnapshot>>> GetRankHistoryAsync(
-        Guid projectId, string keyword, DateTimeOffset from, DateTimeOffset to,
+        Guid userId, Guid projectId, string keyword, DateTimeOffset from, DateTimeOffset to,
         CancellationToken ct = default);
 
     Task<Result<IReadOnlyList<RankSnapshot>>> GetTopKeywordsAsync(
-        Guid projectId, int count, CancellationToken ct = default);
+        Guid userId, Guid projectId, int count, CancellationToken ct = default);
 
-    Task<Result> SyncGscDataAsync(Guid projectId, CancellationToken ct = default);
+    Task<Result> SyncGscDataAsync(Guid userId, Guid projectId, CancellationToken ct = default);
+    Task<Result> SyncAllConnectedProjectsAsync(CancellationToken ct = default);
 }
 
 // IReportService.cs
@@ -1011,7 +1913,9 @@ public interface ISubscriptionService
 {
     Task<Result<SubscriptionTier>> GetActiveTierAsync(Guid userId, CancellationToken ct = default);
     Task<Result> ConfirmSubscriptionAsync(Guid userId, string paypalSubscriptionId, SubscriptionTier tier, CancellationToken ct = default);
-    Task<Result> HandleWebhookEventAsync(PayPalWebhookEvent webhookEvent, CancellationToken ct = default);
+    /// <summary>Verify PayPal signature via IPaymentProvider, parse event, update subscription. Called by controller with raw body.</summary>
+    Task<Result> ProcessWebhookAsync(string rawBody, IReadOnlyDictionary<string, string> headers, CancellationToken ct = default);
+    Task<Result> HandleWebhookEventAsync(PaymentWebhookEvent webhookEvent, CancellationToken ct = default);
     Task<Result> CancelSubscriptionAsync(Guid userId, CancellationToken ct = default);
     bool IsFeatureAllowed(SubscriptionTier tier, string featureName);
 }
@@ -1023,6 +1927,25 @@ public interface IGscService
     Task<Result> HandleCallbackAsync(string code, string state, CancellationToken ct = default);
     Task<Result<IReadOnlyList<GscDataPoint>>> FetchSearchAnalyticsAsync(Guid projectId, DateOnly startDate, DateOnly endDate, CancellationToken ct = default);
     Task<Result> DisconnectAsync(Guid projectId, CancellationToken ct = default);
+}
+
+// IProjectService.cs
+public interface IProjectService
+{
+    Task<Result<IReadOnlyList<SeoProject>>> ListAsync(Guid userId, CancellationToken ct = default);
+    Task<Result<SeoProject>> GetAsync(Guid userId, Guid projectId, CancellationToken ct = default);
+    Task<Result<SeoProject>> CreateAsync(Guid userId, CreateProjectRequest request, CancellationToken ct = default);
+    Task<Result<SeoProject>> UpdateAsync(Guid userId, Guid projectId, UpdateProjectRequest request, CancellationToken ct = default);
+    Task<Result> DeleteAsync(Guid userId, Guid projectId, CancellationToken ct = default);
+}
+
+// IUsageMeteringService.cs
+public interface IUsageMeteringService
+{
+    Task<Result<int>> GetUsageAsync(Guid userId, string feature, CancellationToken ct = default);
+    Task<Result<int>> GetLimitAsync(SubscriptionTier tier, string feature, CancellationToken ct = default);
+    Task<Result> IncrementAsync(Guid userId, string feature, int amount = 1, CancellationToken ct = default);
+    Task<Result> EnsureWithinLimitAsync(Guid userId, SubscriptionTier tier, string feature, CancellationToken ct = default);
 }
 ```
 
@@ -1097,6 +2020,44 @@ public interface IGscRepository
     Task<Result> UpdateLastSyncedAsync(Guid projectId, CancellationToken ct = default);
     Task<Result> DeleteConnectionAsync(Guid projectId, CancellationToken ct = default);
 }
+
+// IProjectRepository.cs
+public interface IProjectRepository
+{
+    Task<Result<IReadOnlyList<SeoProject>>> ListByUserAsync(Guid userId, CancellationToken ct = default);
+    Task<Result<SeoProject?>> GetByIdAsync(Guid projectId, CancellationToken ct = default);
+    Task<Result<SeoProject>> CreateAsync(CreateProjectDbRequest request, CancellationToken ct = default);
+    Task<Result> UpdateAsync(Guid projectId, UpdateProjectDbRequest request, CancellationToken ct = default);
+    Task<Result> DeleteAsync(Guid projectId, Guid userId, CancellationToken ct = default);
+}
+
+// IUsageRepository.cs
+public interface IUsageRepository
+{
+    Task<Result<int>> GetCountAsync(Guid userId, DateOnly periodStart, string feature, CancellationToken ct = default);
+    Task<Result> IncrementAsync(Guid userId, DateOnly periodStart, string feature, int amount, CancellationToken ct = default);
+}
+
+// IBackgroundJobRepository.cs — unified async queue
+public interface IBackgroundJobRepository
+{
+    Task<Result<BackgroundJob>> CreateAsync(CreateBackgroundJobRequest request, CancellationToken ct = default);
+    Task<Result<BackgroundJob>> GetByIdAsync(Guid jobId, CancellationToken ct = default);
+    Task<Result> UpdateProgressAsync(Guid jobId, int progressPercent, CancellationToken ct = default);
+    Task<Result> MarkCompleteAsync(Guid jobId, Guid? resultId, CancellationToken ct = default);
+    Task<Result> MarkFailedAsync(Guid jobId, string errorMessage, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<BackgroundJob>>> GetPendingAsync(string jobType, int limit, CancellationToken ct = default);
+}
+
+// ISeoStorageRepository.cs — Supabase Storage; only GeekRepository talks to the Storage API
+public interface ISeoStorageRepository
+{
+    Task<Result<string>> UploadReportAsync(
+        string objectPath, byte[] bytes, string contentType, CancellationToken ct = default);
+    Task<Result<string>> GetSignedDownloadUrlAsync(
+        string objectPath, TimeSpan expiry, CancellationToken ct = default);
+    Task<Result> DeleteObjectAsync(string objectPath, CancellationToken ct = default);
+}
 ```
 
 ### GeekAPI/Hubs/SeoContentScoringHub.cs
@@ -1111,11 +2072,8 @@ using GeekApplication.Interfaces.Seo;
 namespace GeekAPI.Hubs;
 
 [Authorize]
-public sealed class SeoContentScoringHub(
-    IContentScoringService scoringService,
-    IContentDocumentRepository documentRepository) : Hub
+public sealed class SeoContentScoringHub(IContentScoringService scoringService) : Hub
 {
-    // Client joins the group for their document to receive score updates
     public async Task JoinDocument(string documentId)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, $"doc:{documentId}");
@@ -1126,62 +2084,46 @@ public sealed class SeoContentScoringHub(
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"doc:{documentId}");
     }
 
-    // Called by client after 800ms debounce when content changes
+    // Thin hub — all business logic in IContentScoringService (Application layer)
     public async Task ContentChanged(string documentId, string contentHtml, string targetKeyword)
     {
         var userId = GetUserId();
         if (userId == Guid.Empty) return;
 
-        // Verify document belongs to this user
-        var docResult = await documentRepository.GetByIdAsync(Guid.Parse(documentId));
-        if (!docResult.IsSuccess || docResult.Value!.UserId != userId) return;
+        var result = await scoringService.ProcessContentChangedAsync(
+            userId, Guid.Parse(documentId), contentHtml, targetKeyword, Context.ConnectionAborted);
 
-        var doc = docResult.Value;
-        var keyword = string.IsNullOrWhiteSpace(targetKeyword)
-            ? doc.TargetKeyword
-            : targetKeyword;
+        if (!result.IsSuccess) return;
 
-        if (string.IsNullOrWhiteSpace(keyword)) return;
-
-        // Fetch or use cached SERP benchmarks — no external API call if cache is warm
-        var benchmarksResult = await scoringService.GetOrFetchBenchmarksAsync(
-            keyword, doc.TargetLocation);
-
-        if (!benchmarksResult.IsSuccess) return;
-
-        var scoreResult = await scoringService.ScoreAsync(
-            contentHtml, keyword, doc.TargetLocation, benchmarksResult.Value!);
-
-        if (!scoreResult.IsSuccess) return;
-
-        var update = new ScoreUpdateMessage
+        var hubResult = result.Value!;
+        if (hubResult.PendingReason is not null)
         {
-            DocumentId = documentId,
-            Score = scoreResult.Value!.TotalScore,
-            Grade = scoreResult.Value.Grade,
-            Components = scoreResult.Value.Components,
-            Suggestions = scoreResult.Value.Suggestions,
-            Timestamp = DateTimeOffset.UtcNow
-        };
+            await Clients.Caller.SendAsync("ScorePending", new { documentId, reason = hubResult.PendingReason });
+            return;
+        }
 
-        // Push to all clients subscribed to this document group
-        await Clients.Group($"doc:{documentId}").SendAsync("ScoreUpdate", update);
+        if (hubResult.ScoreUpdate is not null)
+        {
+            await Clients.Group($"doc:{documentId}").SendAsync("ScoreUpdate", hubResult.ScoreUpdate);
+        }
     }
 
-    // Called by client when target keyword changes — triggers fresh SERP fetch
     public async Task KeywordChanged(string documentId, string newKeyword, string location)
     {
         var userId = GetUserId();
         if (userId == Guid.Empty) return;
 
-        var docResult = await documentRepository.GetByIdAsync(Guid.Parse(documentId));
-        if (!docResult.IsSuccess || docResult.Value!.UserId != userId) return;
+        await Clients.Group($"doc:{documentId}")
+            .SendAsync("BenchmarkRefreshing", new { documentId, keyword = newKeyword });
 
-        // Invalidate cache signal — next ContentChanged will re-fetch benchmarks
-        await Clients.Caller.SendAsync("BenchmarkRefreshing", new { documentId, keyword = newKeyword });
+        var result = await scoringService.ProcessKeywordChangedAsync(
+            userId, Guid.Parse(documentId), newKeyword, location, Context.ConnectionAborted);
 
-        // Eagerly kick off benchmark refresh in background
-        _ = scoringService.GetOrFetchBenchmarksAsync(newKeyword, location);
+        if (result.IsSuccess)
+        {
+            await Clients.Group($"doc:{documentId}")
+                .SendAsync("BenchmarkReady", new { documentId, keyword = newKeyword });
+        }
     }
 
     private Guid GetUserId()
@@ -1198,6 +2140,8 @@ public sealed record ScoreUpdateMessage
     public required string Grade { get; init; }
     public required object Components { get; init; }
     public required IReadOnlyList<object> Suggestions { get; init; }
+    public IReadOnlyList<SerpFeatureGuidance> SerpFeatures { get; init; } = [];
+    public IReadOnlyList<EeatAdvisory> EeatAdvisories { get; init; } = [];
     public required DateTimeOffset Timestamp { get; init; }
 }
 ```
@@ -1216,9 +2160,9 @@ public sealed class ProjectsController(IProjectService projectService) : Control
     [HttpDelete("{id}")]  public Task<IActionResult> Delete(Guid id, CancellationToken ct);
 }
 
-// ContentController.cs
+// ContentController.cs — IContentDocumentService only (no repository injection)
 [ApiController, Route("api/seo/content"), Authorize]
-public sealed class ContentController(IContentDocumentRepository repo, IContentScoringService scoring) : ControllerBase
+public sealed class ContentController(IContentDocumentService contentService) : ControllerBase
 {
     [HttpGet]                public Task<IActionResult> List([FromQuery] Guid projectId, CancellationToken ct);
     [HttpGet("{id}")]        public Task<IActionResult> Get(Guid id, CancellationToken ct);
@@ -1284,14 +2228,14 @@ public sealed class ReportsController(IReportService reportService) : Controller
     [HttpGet("{reportId}/download") public Task<IActionResult> Download(Guid reportId, CancellationToken ct);
 }
 
-// SubscriptionController.cs
+// SubscriptionController.cs — webhook reads raw body (no [FromBody] on webhook action)
 [ApiController, Route("api/seo/subscription")]
 public sealed class SubscriptionController(ISubscriptionService subscriptionService) : ControllerBase
 {
     [HttpGet, Authorize]            public Task<IActionResult> GetCurrentTier(CancellationToken ct);
     [HttpPost("confirm"), Authorize] public Task<IActionResult> ConfirmSubscription([FromBody] ConfirmSubscriptionRequest req, CancellationToken ct);
     [HttpDelete, Authorize]         public Task<IActionResult> Cancel(CancellationToken ct);
-    [HttpPost("webhook"), AllowAnonymous] public Task<IActionResult> Webhook([FromBody] JsonElement payload, CancellationToken ct);
+    [HttpPost("webhook"), AllowAnonymous] public Task<IActionResult> Webhook(CancellationToken ct);
 }
 
 // GscController.cs
@@ -1303,91 +2247,227 @@ public sealed class GscController(IGscService gscService) : ControllerBase
     [HttpDelete("{projectId}")]     public Task<IActionResult> Disconnect(Guid projectId, CancellationToken ct);
     [HttpGet("{projectId}/status")] public Task<IActionResult> GetStatus(Guid projectId, CancellationToken ct);
 }
+
+// SerpController.cs
+[ApiController, Route("api/seo/serp"), Authorize]
+public sealed class SerpController(IContentScoringService scoringService) : ControllerBase
+{
+    [HttpGet] public Task<IActionResult> GetOverview(...);
+    [HttpGet("deep")] public Task<IActionResult> GetDeepAnalysis(...);
+}
+
+// WritingController.cs — extend existing
+[HttpPost("full-article")] public Task<IActionResult> GenerateFullArticle(...);
+[HttpPost("humanize")]    public Task<IActionResult> Humanize(...);
+[HttpPost("bulk")]        public Task<IActionResult> StartBulkJob(...);
+[HttpGet("bulk/{jobId}")] public Task<IActionResult> GetBulkJobStatus(...);
+
+// WordPressController.cs — ContentShake clone
+[ApiController, Route("api/seo/wordpress"), Authorize]
+public sealed class WordPressController(IWordPressPublishService wpService) : ControllerBase
+{
+    [HttpPost("connect")]    public Task<IActionResult> Connect(...);
+    [HttpPost("publish")]    public Task<IActionResult> Publish(...);
+    [HttpDelete("{projectId}")] public Task<IActionResult> Disconnect(...);
+}
+
+// TopicalMapController.cs
+[ApiController, Route("api/seo/topical-map"), Authorize]
+public sealed class TopicalMapController(ITopicalMapService topicalMapService) : ControllerBase
+{
+    [HttpPost("generate")] public Task<IActionResult> Generate(...);
+    [HttpGet("{mapId}")]   public Task<IActionResult> Get(...);
+}
+
+// PublishedContentAuditController.cs (not Site AuditController)
+[ApiController, Route("api/seo/content-audit"), Authorize]
+public sealed class PublishedContentAuditController(IPublishedContentAuditService auditService) : ControllerBase
+{
+    [HttpGet]              public Task<IActionResult> Dashboard(...);
+    [HttpPost("register")] public Task<IActionResult> RegisterPage(...);
+}
+
+// InternalLinksController.cs
+[ApiController, Route("api/seo/links"), Authorize]
+public sealed class InternalLinksController(IInternalLinkingService linkService) : ControllerBase
+{
+    [HttpGet("suggest")] public Task<IActionResult> Suggest(...);
+}
+
+// PlagiarismController.cs
+[ApiController, Route("api/seo/plagiarism"), Authorize]
+public sealed class PlagiarismController(IPlagiarismService plagiarismService) : ControllerBase
+{
+    [HttpPost("check")] public Task<IActionResult> Check(...);
+}
+
+// AnalyticsController.cs — GA4 clone
+[ApiController, Route("api/seo/analytics"), Authorize]
+public sealed class AnalyticsController(IGoogleAnalyticsService analyticsService) : ControllerBase
+{
+    [HttpGet("ga4/auth-url")] public Task<IActionResult> GetGa4AuthUrl(...);
+    [HttpGet("ga4/callback"), AllowAnonymous] public Task<IActionResult> Ga4Callback(...);
+    [HttpGet("ga4/{projectId}/landing-pages")] public Task<IActionResult> LandingPages(...);
+}
+
+// GeoVisibilityController.cs
+[ApiController, Route("api/seo/geo"), Authorize]
+public sealed class GeoVisibilityController(IGeoVisibilityService geoService) : ControllerBase
+{
+    [HttpGet("{projectId}")]  public Task<IActionResult> ListQueries(...);
+    [HttpPost]                public Task<IActionResult> AddQuery(...);
+    [HttpGet("history/{queryId}")] public Task<IActionResult> History(...);
+}
+
+// BrandVoiceController.cs
+[ApiController, Route("api/seo/brand-voice"), Authorize]
+public sealed class BrandVoiceController(IBrandVoiceService brandVoiceService) : ControllerBase
+{
+    [HttpGet]  public Task<IActionResult> List(...);
+    [HttpPost] public Task<IActionResult> Create(...);
+    [HttpPut("default/{id}")] public Task<IActionResult> SetDefault(...);
+}
+
+// CannibalizationController.cs
+[ApiController, Route("api/seo/cannibalization"), Authorize]
+public sealed class CannibalizationController(IKeywordCannibalizationService service) : ControllerBase
+{
+    [HttpGet("{projectId}")] public Task<IActionResult> Detect(...);
+}
+
+// ContentController.cs — extend existing (auto-optimize + status)
+[HttpPost("{id}/auto-optimize")] public Task<IActionResult> AutoOptimize(Guid id, CancellationToken ct);
+[HttpPatch("{id}/status")]       public Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateStatusRequest req, CancellationToken ct);
+
+// WritingController.cs — extend existing (AI detection)
+[HttpPost("detect")] public Task<IActionResult> Detect([FromBody] DetectAiRequest req, CancellationToken ct);
+
+// JobsController.cs — poll any seo_background_jobs row
+[ApiController, Route("api/seo/jobs"), Authorize]
+public sealed class JobsController(IBackgroundJobService jobService) : ControllerBase
+{
+    [HttpGet("{jobId}")] public Task<IActionResult> GetStatus(Guid jobId, CancellationToken ct);
+}
+
+// PublicApiController.cs — Agency tier API keys
+[ApiController, Route("api/seo/v1")]
+public sealed class PublicApiController(...) : ControllerBase
+{
+    // Same surface as UI routes; authenticates via X-Api-Key header (Agency tier)
+}
+
+// IntegrationsController.cs
+[HttpGet("openapi.json"), AllowAnonymous] public Task<IActionResult> OpenApiSpec(...);
 ```
+
+### Clone User Flows
+
+**Guided Mode (ContentShake clone):**
+```
+/app/guided
+  Step 1: Business context (industry, location, site URL) → saves to seo_projects
+  Step 2: Keyword ideas (KeywordResearchService) → user picks one
+  Step 3: Optional brief preview
+  Step 4: "Generate article" → POST /api/seo/writing/full-article → poll GET /api/seo/jobs/{jobId}
+  Step 5: Opens ContentEditor with score sidebar; checklist (score ≥ 70, meta, plagiarism)
+  Step 6: "Publish to WordPress" → POST /api/seo/wordpress/publish → success URL
+```
+
+**Expert Mode — Surfer AI clone:**
+```
+/app/content → New → Enter keyword → "Generate with AI" (full-article) → editor
+```
+
+**Surfer Topical Map clone:**
+```
+/app/strategy/topical-map → Generate (requires GSC) → cluster cards → "Write this" → new document
+```
+
+### Route → tier → meter matrix (complete)
+
+Implement in `GeekApplication/Constants/Seo/FeatureGates.cs` and `UsageLimits.cs`. Middleware matches longest path prefix.
+
+**Minimum tier gates** (`SeoFeatureGateMiddleware` — 402 if below tier):
+
+| Path prefix | Min tier |
+|---|---|
+| `/api/seo/gsc` | Professional |
+| `/api/seo/rankings` | Professional |
+| `/api/seo/audit/site` | Professional |
+| `/api/seo/reports` | Professional |
+| `/api/seo/analytics/ga4` | Professional |
+| `/api/seo/content-audit` | Professional |
+| `/api/seo/topical-map` | Professional |
+| `/api/seo/cannibalization` | Professional |
+| `/api/seo/geo` | Professional |
+| `/api/seo/serp/deep` | Starter (metered) |
+| `/api/seo/writing/bulk` | Professional |
+| `/api/seo/v1` | Agency (public API + `X-Api-Key`) |
+| `/api/seo/writing/full-article` | Starter |
+| `/api/seo/writing/humanize` | Starter |
+| `/api/seo/writing/detect` | Starter |
+| `/api/seo/plagiarism` | Starter |
+| `/api/seo/content/` + `/auto-optimize` | Starter |
+| `/api/seo/wordpress` | Starter |
+| `/api/seo/links` | Starter |
+| `/api/seo/keywords/cluster` | Starter |
+| `/api/seo/writing/outline`, `/draft`, `/optimize` | Starter |
+
+**Metered routes** (`SeoUsageGateMiddleware` — 429 if over monthly cap; increment after success):
+
+| Route key | Usage feature key |
+|---|---|
+| `POST:/api/seo/content` | `content_document` |
+| `POST:/api/seo/briefs/generate` | `content_brief` |
+| `POST:/api/seo/writing/draft` | `ai_draft` |
+| `POST:/api/seo/writing/full-article` | `full_article` |
+| `POST:/api/seo/writing/humanize` | `humanize` |
+| `POST:/api/seo/writing/detect` | `ai_detect` |
+| `POST:/api/seo/writing/bulk` | `bulk_job` |
+| `POST:/api/seo/keywords/research` | `keyword_lookup` |
+| `POST:/api/seo/audit/page` | `page_audit` |
+| `POST:/api/seo/audit/site` | `site_audit` |
+| `GET:/api/seo/serp/deep` | `deep_serp` |
+| `POST:/api/seo/plagiarism/check` | `plagiarism_check` |
+| `POST:/api/seo/content/` + `/auto-optimize` | `auto_optimize` |
+| `POST:/api/seo/topical-map/generate` | `topical_map_refresh` |
+
+Monthly caps per tier: Section 9 feature gate table. `UsageLimits.cs` is the single source of truth.
+
+### Editor workflow: humanize, auto-optimize, publish
+
+1. **AI detect** (`POST /writing/detect`) — optional; caches `ai_detection_score` on document.
+2. **Humanize** — rewrites content; **always triggers re-score** via SignalR; Guided Mode blocks publish if score drops >5 points from pre-humanize snapshot without user confirm.
+3. **Auto-optimize** — returns patched `content_html` + `ContentScoreResult`; frontend applies as one TipTap transaction; show delta ("+8 pts estimated").
+4. **Publish checklist (Guided)** — score ≥ target, plagiarism pass, meta filled, optional humanize if `ai_detection_score` > 0.7.
 
 ### GeekAPI/Middleware/SeoFeatureGateMiddleware.cs
 
-```csharp
-// GeekAPI/Middleware/SeoFeatureGateMiddleware.cs
+Controllers inject `ISubscriptionService` only. Middleware resolves tier from JWT `sub` and compares to `FeatureGates.cs` (table above). Returns 402 JSON with `requiredTier` and `upgradeUrl`.
 
-using GeekApplication.Interfaces.Seo;
+### GeekAPI/Middleware/SeoUsageGateMiddleware.cs
 
-namespace GeekAPI.Middleware;
-
-public sealed class SeoFeatureGateMiddleware(
-    RequestDelegate next,
-    ISubscriptionService subscriptionService)
-{
-    // Feature to minimum tier mapping
-    private static readonly Dictionary<string, SubscriptionTier> FeatureGates = new()
-    {
-        { "/api/seo/gsc",      SubscriptionTier.Professional },
-        { "/api/seo/rankings", SubscriptionTier.Professional },
-        { "/api/seo/audit/site", SubscriptionTier.Professional },
-        { "/api/seo/reports",  SubscriptionTier.Professional },
-        { "/api/seo/keywords/cluster", SubscriptionTier.Starter },
-        { "/api/seo/writing/draft",    SubscriptionTier.Starter },
-        { "/api/seo/writing/outline",  SubscriptionTier.Starter },
-        { "/api/seo/writing/optimize", SubscriptionTier.Starter },
-    };
-
-    public async Task InvokeAsync(HttpContext context)
-    {
-        // Only gate authenticated SEO API routes
-        if (!context.Request.Path.StartsWithSegments("/api/seo") ||
-            context.User?.Identity?.IsAuthenticated != true)
-        {
-            await next(context);
-            return;
-        }
-
-        // Check if this path has a feature gate
-        var matchedGate = FeatureGates
-            .Where(kvp => context.Request.Path.StartsWithSegments(kvp.Key))
-            .OrderByDescending(kvp => kvp.Key.Length)
-            .FirstOrDefault();
-
-        if (matchedGate.Key is null)
-        {
-            await next(context);
-            return;
-        }
-
-        var userIdClaim = context.User.FindFirst("sub")?.Value;
-        if (!Guid.TryParse(userIdClaim, out var userId))
-        {
-            context.Response.StatusCode = 401;
-            return;
-        }
-
-        var tierResult = await subscriptionService.GetActiveTierAsync(userId);
-        var activeTier = tierResult.IsSuccess ? tierResult.Value! : SubscriptionTier.None;
-
-        if (activeTier < matchedGate.Value)
-        {
-            context.Response.StatusCode = 402;
-            await context.Response.WriteAsJsonAsync(new
-            {
-                error = "subscription_required",
-                requiredTier = matchedGate.Value.ToString().ToLower(),
-                currentTier = activeTier.ToString().ToLower(),
-                upgradeUrl = "/pricing"
-            });
-            return;
-        }
-
-        await next(context);
-    }
-}
-
-public enum SubscriptionTier { None = 0, Starter = 1, Professional = 2, Team = 3, Agency = 4 }
-```
+Runs after feature gate. Pre-check `IUsageMeteringService.EnsureWithinLimitAsync`; post-handler `IncrementAsync` via `IAsyncResultFilter` or middleware `finally` on 2xx responses.
 
 ---
 
-## 6. Frontend Page Inventory
+## 7. Frontend Page Inventory
 
-All pages use Next.js 15 App Router. Authenticated pages live under `(app)` route group with layout that validates session via GeekBackend OAuth 2.1 PKCE.
+All pages use Next.js 16 App Router with React 19. Authenticated pages live under `(app)` route group with layout that validates session via GeekBackend OAuth 2.1 PKCE.
+
+### Frontend Data Access (NON-NEGOTIABLE)
+
+The Next.js app is a **pure API client** to GeekBackend. Do not add:
+
+| Forbidden | Use instead |
+|---|---|
+| Prisma | GeekBackend REST (`/api/seo/*`) |
+| Supabase JS client | GeekBackend REST + SignalR |
+| NextAuth / Auth.js | GeekBackend OAuth 2.1 PKCE (same pattern as geekatyourspot-r) |
+| Vercel AI SDK / direct Anthropic calls from Next.js | `/api/seo/writing/*`, `/api/seo/briefs/*` on GeekBackend |
+| Next.js Server Actions that touch the database | Server Components may call GeekBackend with the user's Bearer token only |
+
+All persistence, provider keys, and business logic live in GeekBackend. The frontend holds UI state, TipTap document HTML, and the OAuth access token (memory + httpOnly refresh cookie via GeekBackend).
 
 ### Public Routes
 
@@ -1413,7 +2493,23 @@ All pages use Next.js 15 App Router. Authenticated pages live under `(app)` rout
 | `/app/audit/page` | `PageAuditPage` | /api/seo/audit/page |
 | `/app/rankings` | `RankTrackingPage` | seo_rank_tracking |
 | `/app/reports` | `ReportsPage` | seo_reports |
-| `/app/settings` | `SettingsPage` | subscription, GSC, account |
+| `/app/settings` | `SettingsPage` | subscription, GSC, GA4, WordPress, brand voice, mode toggle |
+| `/app/guided` | `GuidedWizardPage` | ContentShake clone — 6-step publish flow |
+| `/app/strategy/topical-map` | `TopicalMapPage` | Surfer Topical Map clone |
+| `/app/strategy/cannibalization` | `CannibalizationPage` | Surfer cannibalization clone |
+| `/app/content-audit` | `PublishedContentAuditPage` | Surfer Content Audit clone |
+| `/app/serp/[keyword]` | `SerpDeepAnalysisPage` | Surfer SERP Analyzer (50 results) |
+| `/app/geo` | `GeoVisibilityPage` | Surfer AI Visibility clone |
+| `/app/analytics` | `AnalyticsPage` | ContentShake GA4 clone |
+| `/app/bulk` | `BulkGenerationPage` | Bulk article queue |
+| `/app/calendar` | `ContentCalendarPage` | Kanban: Planned → Writing → Review → Published. Drag card calls `PATCH /api/seo/content/{id}/status`. ContentShake planning board clone. |
+
+**Editor enhancements (clone):** `InternalLinksPanel`, `PlagiarismButton`, `HumanizeButton`, `AiDetectionBadge`, `AutoOptimizeButton`, `PublishToWordPressButton`, `GenerateFullArticleButton`, `SerpFeatureGuidancePanel`.
+
+**Separate repos (thin clients, same API):**
+- `integrations/google-docs-addon/` — Apps Script
+- `integrations/chrome-extension/` — MV3
+- `integrations/chatgpt-openapi/` — spec + GPT Action config
 
 ### Key Component Interfaces
 
@@ -1572,7 +2668,7 @@ export function useContentScoring(
 
 ---
 
-## 7. Content Scoring Algorithm Summary
+## 8. Content Scoring Algorithm Summary
 
 Full specification is in `geekseo-content-scoring-spec.md`. Summary:
 
@@ -1586,13 +2682,13 @@ Full specification is in `geekseo-content-scoring-spec.md`. Summary:
 5. Run 6-component scoring against benchmarks (see spec for formula)
 6. Generate prioritized suggestion list (sorted by point value descending)
 
-**Output:** `ContentScoreResult` with total score 0-100, letter grade (A-F), per-component breakdown, and ordered suggestion array
+**Output:** `ContentScoreResult` with total score 0-100, letter grade (A-F), per-component breakdown, and ordered suggestion array. **E-E-A-T advisories** and **SERP feature guidance** are separate (not scored) — see `geekseo-content-scoring-spec.md` §7.
 
 **Caching:** SERP results cached 24 hours. Competitor pages cached 72 hours. During a writing session, only the first content score request triggers external API calls. All subsequent scoring during the same session uses cached benchmarks.
 
 ---
 
-## 8. PayPal Integration
+## 9. PayPal Integration
 
 ### Subscription Plans
 
@@ -1630,30 +2726,15 @@ PayPal subscription plan IDs are created in the PayPal Developer Dashboard and s
 The webhook endpoint must be unauthenticated (PayPal calls it, not the user). Validate PayPal webhook signatures using PayPal's verification API to prevent spoofing.
 
 ```csharp
-// SubscriptionController.cs — Webhook method
+// SubscriptionController.cs — Webhook method (ISubscriptionService only — provider inside service)
 
 [HttpPost("webhook"), AllowAnonymous]
-public async Task<IActionResult> Webhook([FromBody] JsonElement payload, CancellationToken ct)
+public async Task<IActionResult> Webhook(CancellationToken ct)
 {
-    // Verify PayPal webhook signature
-    var webhookId = Environment.GetEnvironmentVariable("PAYPAL_WEBHOOK_ID") ?? "";
-    var headers = new PayPalWebhookHeaders(
-        transmissionId: Request.Headers["PAYPAL-TRANSMISSION-ID"],
-        timestamp: Request.Headers["PAYPAL-TRANSMISSION-TIME"],
-        certUrl: Request.Headers["PAYPAL-CERT-URL"],
-        authAlgo: Request.Headers["PAYPAL-AUTH-ALGO"],
-        transmissionSig: Request.Headers["PAYPAL-TRANSMISSION-SIG"]
-    );
-
     var rawBody = await new StreamReader(Request.Body).ReadToEndAsync(ct);
-    var isValid = await subscriptionService.VerifyWebhookSignatureAsync(webhookId, headers, rawBody, ct);
-    if (!isValid) return Unauthorized();
-
-    var eventType = payload.GetProperty("event_type").GetString();
-    var webhookEvent = new PayPalWebhookEvent(eventType!, payload);
-    var result = await subscriptionService.HandleWebhookEventAsync(webhookEvent, ct);
-
-    return result.IsSuccess ? Ok() : StatusCode(500);
+    var headers = Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString());
+    var result = await subscriptionService.ProcessWebhookAsync(rawBody, headers, ct);
+    return result.IsSuccess ? Ok() : result.ErrorCode == "unauthorized" ? Unauthorized() : StatusCode(500);
 }
 ```
 
@@ -1673,10 +2754,41 @@ public async Task<IActionResult> Webhook([FromBody] JsonElement payload, Cancell
 | GSC + rank tracking | No | Yes | Yes | Yes |
 | PDF reports | No | Yes | Yes | Yes |
 | Re-crawl alerts | No | Yes | Yes | Yes |
+| Full-article AI (Surfer AI / ContentShake) | 3/mo | 15/mo | 40/mo | Unlimited |
+| WordPress publish | Yes | Yes | Yes | Yes |
+| Topical map refresh | No | 2/mo | 4/mo | Unlimited |
+| Published content audit | No | Yes | Yes | Yes |
+| Plagiarism checks | 10/mo | 50/mo | 150/mo | Unlimited |
+| Deep SERP (50) | 5/mo | 30/mo | 100/mo | Unlimited |
+| GEO visibility queries | No | 5 | 20 | Unlimited |
+| GA4 dashboard | No | Yes | Yes | Yes |
+| Bulk article jobs | No | 1 job (10 kw) | 3 jobs | Unlimited |
+| Public API + API keys | No | No | No | Yes |
+| Brand voices | 1 | 3 | 10 | Unlimited |
+| Humanizer | 10/mo | 50/mo | Unlimited | Unlimited |
+| Auto-optimize | 20/mo | 100/mo | Unlimited | Unlimited |
+| AI detection checks | 20/mo | 100/mo | Unlimited | Unlimited |
+| Internal link suggestions | Unlimited | Unlimited | Unlimited | Unlimited |
+| Cannibalization reports | No | 5/mo | 20/mo | Unlimited |
+
+### Unit economics (COGS guardrails)
+
+Estimated variable cost per **full document lifecycle** (SERP + 10 crawls + brief + draft + 5 re-scores + 1 plagiarism):
+
+| Cost driver | Est. per doc | Mitigation |
+|---|---|---|
+| DataForSEO SERP (10) | $0.003 | 24h cache key `(keyword, location)` |
+| Playwright crawls (10 pages) | $0.00 (self-hosted) | Singleton pool; cap 10 competitors |
+| Claude (brief + draft + terms) | $0.15–$0.40 | Token caps in `IAIProvider`; brand voice cached |
+| Copyscape | $0.05 | Starter: 10/mo cap |
+| GPTZero | $0.02 | Metered |
+| Deep SERP (50) | $0.01 | Separate cache; 5–30/mo tier caps |
+
+**Target gross margin:** ≥70% on Professional ($59) at 20 full-article equivalents/mo. `UsageLimits.cs` must enforce hard caps so a single Starter user cannot exceed ~$8 COGS/mo. Log per-request token + API spend in structured logs for monthly review.
 
 ---
 
-## 9. GSC Integration
+## 10. GSC Integration
 
 ### OAuth 2.0 Consent Flow
 
@@ -1747,12 +2859,11 @@ public sealed class GscSyncService(
     private async Task SyncAllProjectsAsync(CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
-        var gscRepo = scope.ServiceProvider.GetRequiredService<IGscRepository>();
         var rankService = scope.ServiceProvider.GetRequiredService<IRankTrackingService>();
 
-        // Get all active GSC connections across all users
-        // For each: decrypt token, call GSC API, store results
-        // Failures are logged per-project but do not stop the job
+        // IRankTrackingService.SyncAllConnectedProjectsAsync — Application layer only
+        // (internally uses IGscRepository + IRankRepository; worker never touches repositories)
+        await rankService.SyncAllConnectedProjectsAsync(ct);
     }
 
     private static TimeSpan GetNextRunTime()
@@ -1810,137 +2921,94 @@ public async Task<Result<IReadOnlyList<GscDataPoint>>> FetchSearchAnalyticsAsync
 
 ---
 
-## 10. Flat Implementation Steps
+## 11. Flat Implementation Steps
 
-These steps are ordered for maximum forward momentum with no blocked dependencies. Each step is concrete enough to execute without additional architectural decisions.
+Ordered for forward momentum. **Layer rule on every step:** GeekAPI → Application Service → Repository → DB/Storage. No shortcuts.
 
-1. Create `geek_seo` schema in Supabase instance `mpnruwauxsqbrxvlksnf`. Run the full DDL from Section 4. Verify all 14 tables exist with correct columns and indexes.
+### A. Database & contracts
 
-2. Create `GeekApplication/Interfaces/Seo/` directory. Add all six provider interfaces: `IAIProvider.cs`, `ISerpProvider.cs`, `IKeywordProvider.cs`, `ICrawlerProvider.cs`, `IRichTextProvider.cs`, `IPdfProvider.cs` with all request/response records from Section 3.
+1. Create PostgreSQL role `geekseo_app` on Supabase `mpnruwauxsqbrxvlksnf` with grants on schema `geek_seo` only (see Section 2). Set `GEEK_SEO_DATABASE_URL` in Railway — never expose to Vercel.
 
-3. Create `GeekApplication/Interfaces/Seo/` service interfaces: `IContentScoringService.cs`, `IContentBriefService.cs`, `IAIWritingService.cs`, `IKeywordResearchService.cs`, `ISiteAuditService.cs`, `IPageAuditService.cs`, `IRankTrackingService.cs`, `IReportService.cs`, `ISubscriptionService.cs`, `IGscService.cs`.
+2. Add provider interfaces in `GeekApplication/Interfaces/Seo/` per Section 4 (core + clone providers with full C# contracts).
 
-4. Create `GeekApplication/Interfaces/Seo/` repository interfaces: `IContentDocumentRepository.cs`, `IKeywordRepository.cs`, `ISerpCacheRepository.cs`, `IAuditRepository.cs`, `IRankRepository.cs`, `ISubscriptionRepository.cs`, `IGscRepository.cs`.
+3. Add all service interfaces per Section 6 including `IBackgroundJobService`, `EnsureAccessAsync`, `ProcessWebhookAsync`, extended `IContentScoringService` / `IAIWritingService`.
 
-5. Create `GeekApplication/Models/Seo/` with all domain model records: `ContentDocument`, `ContentBrief`, `ContentScoreResult`, `SerpBenchmarks`, `KeywordResult`, `KeywordCluster`, `PageContent`, `SiteAuditReport`, `SiteAuditStatus`, `RankSnapshot`, `GscDataPoint`, `GscConnection`, `SubscriptionRecord`, `PayPalWebhookEvent`.
+4. Add repository interfaces for all Section 5 tables including `IBackgroundJobRepository`.
 
-6. Add `SubscriptionTier` enum to `GeekApplication/Constants/Seo/SubscriptionTier.cs`.
+5. Add `GeekApplication/Models/Seo/` — `ContentScoreHubResult`, `ScoreUpdateMessage` (with `SerpFeatures`, `EeatAdvisories`), `SerpOverviewResult`, `AutoOptimizeResult`.
 
-7. Create `GeekRepository/Repositories/Seo/` directory. Implement `ContentDocumentRepository` using Dapper. All methods return `Result<T>`. Connection via `IDbConnectionFactory` (same pattern as existing auth repositories).
+6. Add `GeekApplication/Constants/Seo/FeatureGates.cs`, `UsageLimits.cs` (complete matrix in Section 6).
 
-8. Implement `KeywordRepository` in `GeekRepository/Repositories/Seo/`. Include `BulkUpsertAsync` using Dapper's `ExecuteAsync` with a list parameter.
+7. Create `SeoDbContext` — **31** entity mappings, `HasDefaultSchema("geek_seo")`, global query filters, **no RLS**.
 
-9. Implement `SerpCacheRepository` in `GeekRepository/Repositories/Seo/`. The `UpsertAsync` method uses `INSERT ... ON CONFLICT (keyword, location, language_code) DO UPDATE SET ...`. Include `DeleteExpiredAsync` for cache cleanup.
+8. `dotnet ef migrations add InitialSeoSchema --context SeoDbContext`. Deploy via `MigrateAsync()`.
 
-10. Implement `AuditRepository` in `GeekRepository/Repositories/Seo/`. Site audit pages use batch insert via Dapper with a loop (no bulk Dapper extension required — Supabase handles it fine).
+### B. GeekRepository (data + external providers)
 
-11. Implement `RankRepository` in `GeekRepository/Repositories/Seo/`. The `BulkUpsertAsync` uses `INSERT ... ON CONFLICT (project_id, keyword, date) DO UPDATE SET position = EXCLUDED.position, impressions = EXCLUDED.impressions, clicks = EXCLUDED.clicks`.
+9. Implement all SEO repositories including `BackgroundJobRepository`, clone table repos.
 
-12. Implement `SubscriptionRepository` in `GeekRepository/Repositories/Seo/`. The `GetActiveAsync` query filters on `status IN ('active', 'pending_webhook')` and orders by `created_at DESC LIMIT 1`.
+10. Implement `SeoStorageRepository` (bucket `seo-reports`).
 
-13. Implement `GscRepository` in `GeekRepository/Repositories/Seo/`. The `UpsertConnectionAsync` stores `encrypted_refresh_token` as `BYTEA` using Dapper's `byte[]` parameter.
+11. Implement providers: `ClaudeProvider`, `DataForSEOSerpProvider` (maps `SerpFeatures` from DataForSEO), `DataForSEOKeywordProvider`, `PlaywrightCrawlerProvider` (**singleton browser pool**), `TipTapProvider`, `PlaywrightPdfProvider`, `PayPalPaymentProvider`, `CopyscapePlagiarismProvider`, `WordPressRestProvider`, `GoogleAnalytics4Provider`, `GeoVisibilityProvider` (**Google AI Overviews only v1**), `GPTZeroProvider`.
 
-14. Create `GeekRepository/Providers/Seo/ClaudeProvider.cs`. Implement `IAIProvider` using the official Anthropic `anthropic-sdk` NuGet package. Include prompt caching headers on system prompts (`cache_control: { type: "ephemeral" }`). Model defaults to `claude-sonnet-4-5`.
+12. Register repositories/providers; `SiteAuditWorker` upserts `seo_site_page_inventory` on audit complete.
 
-15. Create `GeekRepository/Providers/Seo/DataForSEOSerpProvider.cs`. Implement `ISerpProvider` using the official `dataforseo/CSharpClient` from GitHub. Use the Live SERP endpoint for real-time results. API credentials from environment variables `DATAFORSEO_LOGIN` and `DATAFORSEO_PASSWORD`.
+### C. GeekApplication (services)
 
-16. Create `GeekRepository/Providers/Seo/DataForSEOKeywordProvider.cs`. Implement `IKeywordProvider` using the same DataForSEO C# client. Use Keywords Data API for volume/CPC and Labs API for difficulty. Include `GetKeywordSuggestionsAsync` via the Keywords for Keywords endpoint (up to 20 seed terms, returns up to 20,000 suggestions).
+13. `ContentDocumentService` — `EnsureAccessAsync`, CRUD, `UpdateStatusAsync`, publish snapshots.
 
-17. Create `GeekRepository/Providers/Seo/PlaywrightCrawlerProvider.cs`. Implement `ICrawlerProvider`. Install `Microsoft.Playwright` NuGet package. `CrawlPageAsync` launches a headless Chromium instance, navigates to the URL, extracts: `document.title`, `meta[name=description]`, all heading tags, `document.body.innerText`, all `<a>` links, all `<img alt>` attributes, JSON-LD script tags, link canonical. Respects `robots.txt` via `IsAllowedByRobotsTxtAsync`.
+14. `ContentScoringService` — scoring spec, hub orchestration, `AutoOptimizeAsync`, `GetSerpFeatureGuidanceAsync`, E-E-A-T advisories; calls `IContentDocumentService.EnsureAccessAsync` (not repository directly).
 
-18. Create `GeekRepository/Providers/Seo/TipTapProvider.cs`. Implement `IRichTextProvider`. Use `HtmlAgilityPack` NuGet for HTML parsing. `ExtractPlainText` strips all tags. `ExtractHeadings` selects all h1-h6 nodes. `CountWords` splits `innerText` by whitespace.
+15. `AIWritingService` — `EnqueueFullArticleAsync` (writes `seo_background_jobs`), `HumanizeAsync`, `DetectAsync`. `BackgroundJobWorker` processes job queue.
 
-19. Create `GeekRepository/Providers/Seo/PuppeteerProvider.cs`. Implement `IPdfProvider`. Use `PuppeteerSharp` NuGet. `GeneratePdfAsync` launches headless Chromium, sets page content from `PdfRequest.HtmlContent`, calls `page.PdfAsync()` with A4/Letter format, returns bytes.
+16. Implement remaining clone services; `SubscriptionService.ProcessWebhookAsync` owns PayPal verification.
 
-20. Register all providers and repositories in `GeekRepository/ServiceCollectionExtensions.cs`:
-    ```csharp
-    services.AddScoped<IAIProvider, ClaudeProvider>();
-    services.AddScoped<ISerpProvider, DataForSEOSerpProvider>();
-    services.AddScoped<IKeywordProvider, DataForSEOKeywordProvider>();
-    services.AddScoped<ICrawlerProvider, PlaywrightCrawlerProvider>();
-    services.AddScoped<IRichTextProvider, TipTapProvider>();
-    services.AddScoped<IPdfProvider, PuppeteerProvider>();
-    services.AddScoped<IContentDocumentRepository, ContentDocumentRepository>();
-    // ... all other repositories
-    ```
+17. Register all services in `GeekApplication/ServiceCollectionExtensions.cs`.
 
-21. Create `GeekApplication/Services/Seo/ContentScoringService.cs`. Implement `IContentScoringService`. `GetOrFetchBenchmarksAsync` checks `ISerpCacheRepository`, calls `ISerpProvider` on miss, then calls `ICrawlerProvider` for any competitor URLs not in `seo_competitor_pages` cache. `ScoreAsync` runs the full 6-component algorithm from `geekseo-content-scoring-spec.md`.
+### D. GeekAPI (presentation)
 
-22. Create `GeekApplication/Services/Seo/ContentBriefService.cs`. Implement `IContentBriefService`. `GenerateBriefAsync` calls `ISerpProvider.GetSerpResultsAsync`, crawls top `competitorCount` pages via `ICrawlerProvider`, aggregates headings/questions/topics, then calls `IAIProvider` with prompt: "You are an SEO content strategist. Based on the following SERP analysis for the keyword '{keyword}', generate a comprehensive content brief including: recommended title, meta description, H1, H2 outline with 8-12 headings, key questions to answer, important terms to include, recommended word count, and content angle. SERP data: {serpJson}".
+18. Architecture test: GeekAPI must not reference GeekRepository.
 
-23. Create `GeekApplication/Services/Seo/AIWritingService.cs`. Implement `IAIWritingService`. `GenerateOutlineAsync` calls `IAIProvider` with the content brief context. `GenerateDraftAsync` calls `IAIProvider` with the outline and a word count target, instructing Claude to write complete paragraphs for each section. `OptimizeContentAsync` calls `IAIProvider` with the current content, score, and top 5 suggestions, asking for specific additions/rewrites to improve the score.
+19. `SeoContentScoringHub` — `IContentScoringService` only.
 
-24. Create `GeekApplication/Services/Seo/KeywordResearchService.cs`. Implement `IKeywordResearchService`. `ResearchAsync` checks `IKeywordRepository` cache first (TTL 7 days), calls `IKeywordProvider.GetKeywordDataAsync` on miss, stores results. `ClusterAsync` calls `IKeywordProvider.ClusterKeywordsAsync` and stores clusters in `seo_keyword_clusters`.
+20. `SeoFeatureGateMiddleware` + `SeoUsageGateMiddleware` per Section 6 matrix.
 
-25. Create `GeekApplication/Services/Seo/SiteAuditService.cs`. Implement `ISiteAuditService`. `StartAuditAsync` inserts a record with `status: "pending"`, enqueues a background task via `IBackgroundTaskQueue`, returns the new `auditId`. The background worker calls `ICrawlerProvider.CrawlSiteAsync`, then `IPageAuditService.AuditPageFromContentAsync` for each page, updates progress.
+21. Create **23** controllers (Section 6 + `JobsController`) — `ISubscriptionService` only on webhooks.
 
-26. Create `GeekApplication/Services/Seo/PageAuditService.cs`. Implement `IPageAuditService`. `AuditPageAsync` calls `ICrawlerProvider.CrawlPageAsync`, then calls the scoring logic. `AuditPageFromContentAsync` accepts an already-crawled `PageContent` and runs the 20-point on-page checklist (see site audit flow in Section 2). Each issue has a `severity` field: `critical`, `warning`, or `info`.
+22. Background workers: `GscSyncService`, `SiteAuditWorker`, `BackgroundJobWorker`, `GeoScanService` — resolve `I*Service` from scope.
 
-27. Create `GeekApplication/Services/Seo/RankTrackingService.cs`. Implement `IRankTrackingService`. `SyncGscDataAsync` calls `IGscService.FetchSearchAnalyticsAsync` for yesterday's data and calls `IRankRepository.BulkUpsertAsync`. `GetRankHistoryAsync` queries `IRankRepository` and returns sorted by date.
+23. Register `geekseo` OAuth client, SignalR hub, CORS for Vercel origin.
 
-28. Create `GeekApplication/Services/Seo/ReportService.cs`. Implement `IReportService`. `GenerateSiteAuditReportAsync` builds an HTML string from the audit data, calls `IPdfProvider.GeneratePdfAsync`, stores the PDF bytes to Supabase Storage bucket `seo-reports`, stores the file path in `seo_reports`. `GetReportDownloadUrlAsync` generates a signed URL from Supabase Storage.
+24. Railway env vars per Section 3 + `GPTZERO_API_KEY`, `COPYSCAPE_API_KEY`.
 
-29. Create `GeekApplication/Services/Seo/SubscriptionService.cs`. Implement `ISubscriptionService`. `GetActiveTierAsync` calls `ISubscriptionRepository.GetActiveAsync` and maps the `tier` string to `SubscriptionTier` enum. `ConfirmSubscriptionAsync` calls PayPal's GET subscription API to verify status before inserting. `HandleWebhookEventAsync` switches on `event_type` and calls the appropriate repository update. `IsFeatureAllowed` uses a static dictionary of `(SubscriptionTier, string feature) → bool`.
+### E. Next.js frontend
 
-30. Create `GeekApplication/Services/Seo/GscService.cs`. Implement `IGscService`. `GetAuthorizationUrlAsync` builds the Google OAuth URL with CSRF state. `HandleCallbackAsync` validates state, exchanges code, encrypts refresh token, upserts in `IGscRepository`. `FetchSearchAnalyticsAsync` decrypts token, refreshes access token, calls GSC API.
+25. Create `frontend/` — no Prisma, Supabase client, NextAuth, or direct AI SDKs.
 
-31. Register all application services in `GeekApplication/ServiceCollectionExtensions.cs`:
-    ```csharp
-    services.AddScoped<IContentScoringService, ContentScoringService>();
-    services.AddScoped<IContentBriefService, ContentBriefService>();
-    // ... all other services
-    ```
+26. GeekBackend OAuth 2.1 PKCE (`useAuth`, Section 3).
 
-32. Create `GeekAPI/Hubs/SeoContentScoringHub.cs` as specified in Section 5. Register SignalR hub in `GeekAPI/Program.cs`: `app.MapHub<SeoContentScoringHub>("/hubs/seo-scoring")`.
+27–36. All Section 7 routes including Guided Mode, calendar, clone editor toolbar.
 
-33. Create `GeekAPI/Middleware/SeoFeatureGateMiddleware.cs` as specified in Section 5. Register in `GeekAPI/Program.cs` before `app.UseEndpoints`.
+### F. Clone integrations (Surfer + ContentShake)
 
-34. Create all 10 SEO controllers in `GeekAPI/Controllers/Seo/` as specified in Section 5. Each controller is thin — validates the request, calls the service, maps `Result<T>` to HTTP response (`IsSuccess` → 200/201/204, `NotFound` → 404, `Failure` → 500).
+37. `GuidedWizardPage` — 6 steps; poll `GET /api/seo/jobs/{id}`.
 
-35. Create `GeekAPI/BackgroundServices/GscSyncService.cs` as specified in Section 9. Register as `IHostedService` in `GeekAPI/Program.cs`.
+38. WordPress connect + publish; dogfood on geekatyourspot.com.
 
-36. Create `GeekAPI/BackgroundServices/SiteAuditWorker.cs` — a hosted service that dequeues site audit jobs from `IBackgroundTaskQueue` and executes them. The queue is an `IHostedService` with a `Channel<Func<CancellationToken, Task>>` backing it.
+39. `ContentCalendarPage` kanban + status PATCH.
 
-37. Add environment variables to Railway GeekBackend service:
-    - `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD`
-    - `ANTHROPIC_API_KEY`
-    - `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`
-    - `PAYPAL_PLAN_ID_STARTER`, `PAYPAL_PLAN_ID_PROFESSIONAL`, `PAYPAL_PLAN_ID_TEAM`, `PAYPAL_PLAN_ID_AGENCY`
-    - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-    - `RESEND_API_KEY`
+40. Auto-optimize, AI detection badge, SERP feature guidance panel (per Section 6 editor workflow).
 
-38. Create the Next.js frontend project at `/Volumes/Seagate/development/Geek-SEO/frontend/`. Run `npx create-next-app@latest geekseo --typescript --tailwind --app`. Install: `@microsoft/signalr`, `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-*` (required extensions), `recharts`, `@paypal/react-paypal-js`, `react-hook-form`, `zod`, `@hookform/resolvers`, `motion`, `resend`.
+41–44. Google Docs add-on, Chrome extension (Agency API key), ChatGPT OpenAPI, Agency API key UI.
 
-39. Configure `tailwind.config.ts` for Tailwind v4. Install shadcn: `npx shadcn-ui@latest init`. Add components: `button`, `card`, `dialog`, `dropdown-menu`, `input`, `label`, `progress`, `select`, `separator`, `sheet`, `skeleton`, `slider`, `switch`, `table`, `tabs`, `textarea`, `toast`, `tooltip`.
+### G. Test & deploy
 
-40. Implement `GeekBackend OAuth 2.1 PKCE` authentication flow in the frontend. Store access token in memory (not localStorage). Refresh token in httpOnly cookie. Middleware in `(app)` layout validates session on every authenticated route and redirects to `/login` if token is invalid or expired.
+45. Playwright E2E: OAuth → editor WebSocket score → GSC → calendar → auto-optimize → detect.
 
-41. Create the `ContentEditorPage` at `/app/content/[id]`. Initialize TipTap editor. Wire `onUpdate` to `notifyContentChanged` from the `useContentScoring` hook (800ms debounce is inside the hook, not in the component). Layout: 70% editor, 30% `ScoreSidebar`. `ScoreSidebar` renders an animated score ring (SVG), letter grade, per-component mini progress bars, and a sorted suggestion list.
+46. Deploy GeekBackend; verify `MigrateAsync()` and `/health`.
 
-42. Create the `SerpCompetitorPanel` component. It fetches `GET /api/seo/serp?keyword=...&location=...` and renders a table of top 10 competitor pages with position, domain, word count, estimated score, and heading counts. Accessible below the editor or in a slide-out sheet on mobile.
+47. Deploy Vercel frontend.
 
-43. Create the `KeywordResearchPage`. The search input calls `POST /api/seo/keywords/research`. Results render in a sortable table with columns: keyword, volume, difficulty (color-coded bar), CPC, SERP features. A "Cluster Keywords" button sends selected rows to `POST /api/seo/keywords/cluster` and renders the cluster view.
+48. Dogfood on geekatyourspot.com (5 local keyword docs, GSC, 2–4 weeks).
 
-44. Create the `SiteAuditListPage` and `SiteAuditResultsPage`. List page shows all audits with status badge. Results page shows overall score gauge (Recharts `RadialBarChart`), issues grouped in tabs by severity (critical/warning/info), and a full sortable table of pages with their individual scores.
-
-45. Create the `RankTrackingPage`. A `Recharts LineChart` shows position over time for the selected keyword (Y-axis inverted: position 1 at top). A summary cards row shows: impressions (7-day), clicks (7-day), average position, CTR. A table lists all tracked keywords with last position, position delta (up/down arrow), and weekly impressions.
-
-46. Create the `SettingsPage` with three tabs: Account (name, email, password), GSC (`GscConnectButton` + connection status), Subscription (current plan display, `SubscriptionGate`-wrapped upgrade buttons, cancel link). The cancel link calls `DELETE /api/seo/subscription` and shows a confirmation dialog before proceeding.
-
-47. Create PayPal subscription flow. Load `@paypal/react-paypal-js` `PayPalScriptProvider` in the pricing page. Render four `PayPalButtons` components, one per tier. Each button's `createSubscription` returns the corresponding PayPal plan ID from environment variable. `onApprove` calls `POST /api/seo/subscription/confirm`.
-
-48. Create `AlertsService` in `GeekApplication/Services/Seo/AlertsService.cs`. Runs as a daily hosted service. For each alert in `seo_alerts` where `enabled = true`: check condition (rank dropped by threshold, audit completed, etc.), call `Resend` API if condition is met and `last_sent_at` is more than 24 hours ago, update `last_sent_at`.
-
-49. Create the landing page at `/`. Sections: Hero with animated content editor mockup, Features grid (6 cards), Competitive positioning table vs. Surfer/Frase/NeuronWriter, Transparent scoring explainer (animated breakdown diagram), Pricing section (four tiers), Social proof section (dogfood GSC screenshots showing ranking improvements), FAQ, CTA footer. Build this after at least one real geekatyourspot.com article has been scored and improved — use real screenshot evidence.
-
-50. Set up Google Search Console credentials. Create a project in Google Cloud Console. Enable the `Google Search Console API`. Create OAuth 2.0 credentials (Web application type). Set the authorized redirect URI to `{API_BASE_URL}/api/seo/gsc/callback`. Store `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in Railway environment variables.
-
-51. Create the four PayPal subscription plans in the PayPal Developer Dashboard (sandbox first). Each plan: billing cycle = monthly, fixed price matching the tier. Note the plan IDs and store in Railway environment variables. Create the webhook endpoint pointing to `{API_BASE_URL}/api/seo/subscription/webhook`. Subscribe to all four webhook event types. Note the `PAYPAL_WEBHOOK_ID`.
-
-52. Write Playwright end-to-end tests for the critical path: (a) register account → verify email → login, (b) create project → create content document → receive score update via WebSocket, (c) keyword research → view results, (d) connect GSC → verify connection stored. Tests run against a local dev stack.
-
-53. Deploy GeekBackend to Railway with all new environment variables set. Run `dotnet ef migrations script > seo_migrations.sql` to generate the migration SQL for the new repositories (SEO tables use Dapper + raw DDL, not EF migrations, so apply the DDL from Step 1 directly on Supabase). Verify `/health` endpoint returns 200.
-
-54. Deploy Next.js frontend to Vercel. Set environment variables: `NEXT_PUBLIC_API_URL` (Railway GeekBackend URL), `NEXT_PUBLIC_PAYPAL_CLIENT_ID`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`. Verify the full auth flow works end-to-end (login → dashboard → content editor → SignalR WebSocket connects).
-
-55. Internal dogfood run on `geekatyourspot.com`. Create 5 content documents targeting local keywords (e.g., "web design Boca Raton", "WordPress developer Broward County"). Score each document, apply suggestions, publish to WordPress, connect GSC, and wait 2-4 weeks for ranking data. Document the before/after GSC impressions/position in a spreadsheet that feeds the landing page proof section.
+49. Landing page with real GSC proof screenshots.

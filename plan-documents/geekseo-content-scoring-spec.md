@@ -1,7 +1,8 @@
 # Geek SEO — Content Scoring Engine Specification
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Date:** May 2026  
+**Changelog (1.1):** E-E-A-T advisory layer (not scored); `SerpFeatures` on `SerpResult`; Playwright singleton pool aligned with master plan; `ScoreUpdate` payload fields.  
 **Scope:** Complete specification for the content scoring algorithm powering the Geek SEO real-time editor. This is the core product differentiator.
 
 ---
@@ -73,6 +74,7 @@ The primary implementation (`DataForSEOSerpProvider`) calls DataForSEO's Live SE
 | `PeopleAlsoAsk` | `IReadOnlyList<PeopleAlsoAskResult>` | PAA questions + answers |
 | `RelatedSearches` | `IReadOnlyList<string>` | Related search queries |
 | `FeaturedSnippetText` | `string?` | Featured snippet content if present |
+| `Features` | `SerpFeatures` | `has_featured_snippet`, `has_people_also_ask`, `has_local_pack`, `has_image_pack`, etc. — persisted in `seo_serp_results.serp_features` |
 | `FetchedAt` | `DateTimeOffset` | When the live pull happened |
 
 Each `SerpOrganicResult` carries: `Position`, `Url`, `Title`, `Snippet`, `Domain`.
@@ -107,69 +109,55 @@ The 24-hour TTL is intentionally longer than needed for daily accuracy — SERPs
 After SERP results are fetched, the scoring engine needs the full text of the top-ranking pages to extract terms and calculate benchmarks. `ICrawlerProvider.CrawlPageAsync(url)` fetches a single competitor page and returns a structured `PageContent` record.
 
 ```csharp
-// PlaywrightCrawlerProvider.cs — CrawlPageAsync implementation
+// PlaywrightCrawlerProvider.cs — uses injected IBrowser from singleton pool (see geekseo-plan.md §2 Railway)
 public async Task<Result<PageContent>> CrawlPageAsync(string url, CancellationToken ct = default)
 {
-    // Check robots.txt before crawling
     var isAllowed = await IsAllowedByRobotsTxtAsync(url, ct);
     if (!isAllowed)
         return Result<PageContent>.Failure($"URL {url} disallowed by robots.txt");
 
-    using var playwright = await Playwright.CreateAsync();
-    await using var browser = await playwright.Chromium.LaunchAsync(new()
+    await _crawlSemaphore.WaitAsync(ct);
+    try
     {
-        Headless = true,
-        Args = new[] { "--no-sandbox", "--disable-dev-shm-usage" }
-    });
+        await using var context = await _browser.NewContextAsync();
+        var page = await context.NewPageAsync();
+        await page.SetExtraHTTPHeadersAsync(new Dictionary<string, string>
+        {
+            { "User-Agent", "GeekSEO-Bot/1.0 (content analysis; contact: jeff@geekatyourspot.com)" }
+        });
 
-    var page = await browser.NewPageAsync();
-    await page.SetExtraHTTPHeadersAsync(new Dictionary<string, string>
+        var response = await page.GotoAsync(url, new() { Timeout = 15000, WaitUntil = WaitUntilState.DOMContentLoaded });
+        var httpStatus = response?.Status ?? 0;
+        if (httpStatus >= 400)
+            return Result<PageContent>.Failure($"HTTP {httpStatus} for {url}");
+
+        var metaTitle = await page.TitleAsync();
+        var headings = await ExtractHeadingsAsync(page);
+        var bodyText = await page.EvalOnSelectorAsync<string>("body", "el => el.innerText");
+        var wordCount = CountWords(bodyText);
+        var structuredDataTypes = await ExtractStructuredDataTypesAsync(page);
+
+        return Result<PageContent>.Success(new PageContent
+        {
+            Url = url,
+            FullText = bodyText,
+            MetaTitle = metaTitle,
+            WordCount = wordCount,
+            HttpStatusCode = httpStatus,
+            Headings = headings,
+            HasStructuredData = structuredDataTypes.Count > 0,
+            StructuredDataTypes = structuredDataTypes,
+            CrawledAt = DateTimeOffset.UtcNow
+        });
+    }
+    finally
     {
-        { "User-Agent", "GeekSEO-Bot/1.0 (content analysis; contact: jeff@geekatyourspot.com)" }
-    });
-
-    var response = await page.GotoAsync(url, new() { Timeout = 15000, WaitUntil = WaitUntilState.DOMContentLoaded });
-    var httpStatus = response?.Status ?? 0;
-
-    if (httpStatus >= 400)
-        return Result<PageContent>.Failure($"HTTP {httpStatus} for {url}");
-
-    // Extract all required fields
-    var metaTitle = await page.TitleAsync();
-    var metaDescription = await page.EvalOnSelectorAsync<string?>(
-        "meta[name='description']", "el => el?.getAttribute('content')");
-    var canonical = await page.EvalOnSelectorAsync<string?>(
-        "link[rel='canonical']", "el => el?.getAttribute('href')");
-
-    var headings = await ExtractHeadingsAsync(page);
-    var bodyText = await page.EvalOnSelectorAsync<string>("body", "el => el.innerText");
-    var wordCount = CountWords(bodyText);
-
-    var internalLinks = await ExtractInternalLinksAsync(page, url);
-    var externalLinks = await ExtractExternalLinksAsync(page, url);
-    var imageData = await ExtractImageDataAsync(page);
-
-    var structuredDataTypes = await ExtractStructuredDataTypesAsync(page);
-
-    return Result<PageContent>.Success(new PageContent
-    {
-        Url = url,
-        FullText = bodyText,
-        MetaTitle = metaTitle,
-        MetaDescription = metaDescription,
-        CanonicalUrl = canonical,
-        WordCount = wordCount,
-        HttpStatusCode = httpStatus,
-        Headings = headings,
-        InternalLinks = internalLinks,
-        ExternalLinks = externalLinks,
-        Images = imageData,
-        HasStructuredData = structuredDataTypes.Count > 0,
-        StructuredDataTypes = structuredDataTypes,
-        CrawledAt = DateTimeOffset.UtcNow
-    });
+        _crawlSemaphore.Release();
+    }
 }
 ```
+
+**Pool rules:** One `IBrowser` per GeekAPI process; max **2** concurrent `CrawlPageAsync` via `SemaphoreSlim`; 30s navigation timeout. Never `Playwright.CreateAsync()` per request.
 
 ### What Is Extracted
 
@@ -798,7 +786,42 @@ public async Task<Result<ContentScoreResult>> ScoreAsync(
 
 ---
 
-## 7. Real-Time WebSocket Flow
+## 7. E-E-A-T Advisory Layer (Not Scored)
+
+The **0–100 score remains 6 components only** (Section 6). E-E-A-T is a separate **advisory list** returned in `ScoreUpdateMessage.EeatAdvisories` — never added to `TotalScore`. This matches parity feature #18 without breaking transparent scoring math.
+
+### Rules (deterministic checks on HTML + metadata)
+
+| Advisory code | Trigger | User-facing action |
+|---|---|---|
+| `author_byline` | No author name in content and no `Article` schema `author` | Add author byline with credentials in intro or footer |
+| `first_hand_experience` | No first-person experiential phrases in body (heuristic: "we installed", "our team", "I tested") | Add a short "our experience" section with specific details |
+| `citations` | Fewer than 2 external links to authoritative domains | Link to 2+ primary sources (.gov, .edu, industry authorities) |
+| `author_schema` | No `Person` or `Article` author in JSON-LD | Add `author` to Article schema |
+| `about_page_link` | No link to `/about` or author bio URL | Link to about/team page |
+| `date_freshness` | No visible publish/update date when competitors show dates | Add "Last updated {month year}" near top |
+
+```csharp
+public static IReadOnlyList<EeatAdvisory> GenerateEeatAdvisories(
+    string contentHtml, string plainText, IReadOnlyList<SerpOrganicResult> competitors)
+{
+    var advisories = new List<EeatAdvisory>();
+    if (!HasAuthorSignal(contentHtml, plainText))
+        advisories.Add(new("author_byline", "Add an author byline with relevant credentials.", 0));
+    // ... remaining checks per table
+    return advisories;
+}
+```
+
+`ContentScoringService.ProcessContentChangedAsync` attaches advisories to `ScoreUpdate` on each score (cheap — no extra API calls).
+
+### SERP feature guidance (paired with E-E-A-T in UI)
+
+`GetSerpFeatureGuidanceAsync` reads cached `SerpFeatures` from `seo_serp_results` and returns actionable copy (featured snippet → 40–60 word answer after first H2; local pack → NAP block; etc.). Included in `ScoreUpdateMessage.SerpFeatures`.
+
+---
+
+## 8. Real-Time WebSocket Flow
 
 ### Complete End-to-End Timeline
 
@@ -812,9 +835,10 @@ t=800ms  Debounce timer fires (no keystrokes in last 800ms)
          connection.invoke("ContentChanged", documentId, contentHtml, targetKeyword)
 
 t=800ms  SignalR message arrives at SeoContentScoringHub.ContentChanged(...)
-         Hub verifies document ownership (userId from JWT claim matches document.UserId)
+         Hub delegates to IContentScoringService.ProcessContentChangedAsync (no repositories in hub)
 
-t=801ms  Check ISerpCacheRepository for cached benchmarks
+t=801ms  ContentScoringService verifies ownership via IContentDocumentRepository
+         Check ISerpCacheRepository for cached benchmarks
          ├── CACHE HIT (typical case during a writing session):
          │   Benchmarks retrieved from PostgreSQL (~5ms)
          │   Skip to scoring
@@ -881,7 +905,7 @@ The hub does not impose additional server-side rate limiting beyond the client's
 
 ---
 
-## 8. Suggestion Generation
+## 9. Suggestion Generation
 
 Suggestions are generated for every component that is below its maximum score. They are sorted by `pointValue` descending — the suggestions that would produce the largest score increase appear first.
 
@@ -1088,7 +1112,7 @@ The ScoreSidebar renders the top 10 suggestions. The remaining suggestions are a
 
 ---
 
-## 9. Grade Scale
+## 10. Grade Scale
 
 The letter grade is a user-friendly summary of the numeric score. It is displayed prominently in the `ScoreSidebar` alongside the score ring.
 
@@ -1124,7 +1148,7 @@ On score change (WebSocket update), the ring animates from old score to new scor
 
 ---
 
-## 10. Comparison to Surfer SEO
+## 11. Comparison to Surfer SEO
 
 ### Methodology Foundation: Shared
 

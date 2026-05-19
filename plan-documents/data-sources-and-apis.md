@@ -84,7 +84,7 @@ Some parameters multiply the cost:
 
 - Google only
 - Very thin result data (no page-level metrics, no SERP features beyond basic organic)
-- No keyword data, backlink data, or on-page data
+- N o keyword data, backlink data, or on-page data
 
 #### Verdict for Our Product
 
