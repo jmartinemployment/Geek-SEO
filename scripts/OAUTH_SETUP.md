@@ -4,9 +4,11 @@
 
 Client `geekseo` is defined in `geek-OAuth/src/oidc/clients.ts`. Redeploy geek-OAuth after pulling.
 
+**DNS:** Namecheap host must be `auth` (→ `auth.geekatyourspot.com`), not `oauth`. CNAME target is the **geek-OAuth** Railway URL, not GeekAPI (`geekbackend-production-…`). See `frontend/DEPLOY.md` → Namecheap DNS.
+
 | Variable | Example |
 |----------|---------|
-| `AUTH_SERVER_URL` | `https://auth.geekatyourspot.com` |
+| `AUTH_SERVER_URL` | `https://auth.geekatyourspot.com` (must match browser URL) |
 | `GEEK_BACKEND_URL` | `https://api.geekatyourspot.com` |
 
 Local: run geek-OAuth on **port 3001** (`PORT=3001 npm run dev`) so Next.js can use 3000.

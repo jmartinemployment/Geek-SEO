@@ -48,6 +48,8 @@ cd ../GeekBackend/GeekAPI
 export REPO_URL=http://localhost:5050
 export REPO_API_KEY=dev-repo-key-change-me
 export AUTH_SERVER_URL=http://localhost:3001
+# Optional — defaults include localhost:3000 if unset
+# export CORS_ORIGINS=http://localhost:3000
 
 # Dev auth bypass (use a real users.id from your DB)
 export DEV_USER_ID=00000000-0000-0000-0000-000000000001

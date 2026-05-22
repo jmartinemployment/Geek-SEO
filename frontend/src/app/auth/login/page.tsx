@@ -1,16 +1,39 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { authConfig } from '@/lib/auth/config';
 import { generateCodeChallenge, generateCodeVerifier, PKCE_STORAGE_KEY } from '@/lib/auth/pkce';
+
+function misconfiguredAuthUrl(): string | null {
+  if (typeof globalThis.location === 'undefined') return null;
+  const host = globalThis.location.hostname;
+  const onLocalFrontend = host === 'localhost' || host === '127.0.0.1';
+  const authPointsLocal =
+    authConfig.authUrl.includes('localhost') || authConfig.authUrl.includes('127.0.0.1');
+  if (!onLocalFrontend && authPointsLocal) {
+    return `Auth server is set to ${authConfig.authUrl}, but this app is running on ${host}. Set NEXT_PUBLIC_AUTH_URL (and redeploy on Vercel) to your public geek-OAuth URL.`;
+  }
+  return null;
+}
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const configError = misconfiguredAuthUrl();
+    if (configError) setError(configError);
+  }, []);
+
   async function startLogin() {
     setLoading(true);
     setError(null);
+    const configError = misconfiguredAuthUrl();
+    if (configError) {
+      setError(configError);
+      setLoading(false);
+      return;
+    }
     try {
       const verifier = generateCodeVerifier();
       sessionStorage.setItem(PKCE_STORAGE_KEY, verifier);
