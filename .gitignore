@@ -3,3 +3,11 @@
 CLAUDE.md
 plan-documents/architecture-questions.md
 .vercel
+
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+.env
+.env.local
