@@ -20,6 +20,15 @@ Surfer / ContentShake-style SEO content SaaS.
 - **GeekSeoBackend:** .NET project in `GeekSeoBackend/` — `:5051`, `/api/seo/*`, `/hubs/seo-scoring`.
 - **Data:** Jeff — GeekRepository (`geek_seo`); GeekSeoBackend calls `REPO_URL` (not GeekAPI product routes).
 
+## Build
+
+From repo root (requires sibling `GeekBackend/GeekApplication`):
+
+```bash
+dotnet build GeekSEO.slnx
+dotnet run --project GeekSeoBackend
+```
+
 ## Local dev
 
 See [`scripts/LOCAL_DEV.md`](scripts/LOCAL_DEV.md).
