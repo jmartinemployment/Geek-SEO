@@ -4,35 +4,17 @@ namespace GeekSeoBackend.Controllers;
 
 [ApiController]
 [Route("health")]
-public sealed class HealthController(IHttpClientFactory httpClientFactory) : ControllerBase
+public sealed class HealthController : ControllerBase
 {
+    /// <summary>
+    /// Liveness for Railway/deploy probes — must not call OAuth or GeekRepository (those can block for minutes when the issuer is down).
+    /// </summary>
     [HttpGet]
-    public async Task<IActionResult> Get(CancellationToken cancellationToken)
-    {
-        var repository = "ok";
-        try
+    public IActionResult Get() =>
+        Ok(new
         {
-            var http = httpClientFactory.CreateClient("GeekRepository");
-            using var response = await http.GetAsync(
-                "repo/seo/projects?userId=00000000-0000-0000-0000-000000000000",
-                cancellationToken);
-            if (response.StatusCode is not System.Net.HttpStatusCode.OK
-                and not System.Net.HttpStatusCode.NotFound)
-            {
-                repository = "error";
-            }
-        }
-        catch
-        {
-            repository = "error";
-        }
-
-        return Ok(new
-        {
-            status = repository == "ok" ? "ok" : "degraded",
+            status = "ok",
             timestamp = DateTime.UtcNow,
             service = "GeekSeoBackend",
-            repository,
         });
-    }
 }
