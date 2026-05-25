@@ -3,12 +3,12 @@
  * Geek SEO API smoke test (no browser).
  *
  * Usage:
- *   API_URL=http://localhost:8080 \
+ *   API_URL=http://localhost:5051 \
  *   DEV_USER_ID=00000000-0000-0000-0000-000000000001 \
  *   node scripts/e2e-smoke.mjs
  *
- * Optional (billable external APIs on GeekRepository):
- *   RUN_KEYWORD_RESEARCH=true  — DATAFORSEO_* on GeekRepository
+ * Optional (billable external APIs on GeekSeoBackend):
+ *   RUN_KEYWORD_RESEARCH=true  — DATAFORSEO_* on GeekSeoBackend
  *   RUN_BRIEF=true             — DATAFORSEO_* + ANTHROPIC_API_KEY
  *   RUN_FULL_ARTICLE=true      — ANTHROPIC_API_KEY (polls job until done or timeout)
  *   RUN_AI_TOOLS=true          — ANTHROPIC_API_KEY (humanize on sample HTML)
@@ -17,7 +17,7 @@
  *   RUN_WORDPRESS=true WP_SITE_URL=... WP_USERNAME=... WP_APP_PASSWORD=...
  */
 
-const API_URL = process.env.API_URL ?? 'http://localhost:8080';
+const API_URL = process.env.API_URL ?? 'http://localhost:5051';
 const DEV_USER_ID = process.env.DEV_USER_ID ?? '00000000-0000-0000-0000-000000000001';
 const JOB_POLL_MS = Number.parseInt(process.env.JOB_POLL_MS ?? '3000', 10);
 const JOB_MAX_WAIT_MS = Number.parseInt(process.env.JOB_MAX_WAIT_MS ?? '120000', 10);
@@ -85,7 +85,7 @@ async function main() {
   console.log(`Geek SEO smoke test → ${API_URL} (user ${DEV_USER_ID})\n`);
 
   const health = await fetch(`${API_URL}/health`).catch(() => null);
-  log(health?.ok, 'GeekAPI health', health ? String(health.status) : 'unreachable');
+  log(health?.ok, 'GeekSeoBackend health', health ? String(health.status) : 'unreachable');
 
   const projectsBefore = await api('GET', '/api/seo/projects');
   log(projectsBefore.ok, 'GET /api/seo/projects');

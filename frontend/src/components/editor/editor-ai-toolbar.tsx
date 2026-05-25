@@ -42,7 +42,7 @@ export function EditorAiToolbar({
   return (
     <div className="mt-6 border-t pt-4">
       <h3 className="text-sm font-semibold">AI tools</h3>
-      <p className="mt-1 text-xs text-zinc-500">Requires ANTHROPIC_API_KEY on GeekRepository.</p>
+      <p className="mt-1 text-xs text-zinc-500">Requires ANTHROPIC_API_KEY on GeekSeoBackend.</p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button
           type="button"

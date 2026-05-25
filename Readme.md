@@ -1,1 +1,25 @@
-AI content writers that integrate directly with SEO platforms streamline your workflow by pulling real-time search data, optimizing content as you write, and auto-publishing directly to your CMS. The most effective tools for combining AI generation with SEO intelligence include:Surfer SEO: Known as a top-tier SEO optimization platform, it features Surfer AI, which researches, writes, and optimizes full articles based on live SERP data and NLP guidelines.Semrush ContentShake AI: Combines Semrush’s keyword database with AI writing. It generates ready-to-publish, SEO-optimized articles and allows you to push content directly to WordPress.NeuronWriter: Provides competitor analysis and NLP-focused content optimization. It connects with Google Docs and WordPress for a smooth hand-off from drafting to publishing.AIOSEO (All in One SEO): An excellent plugin for WordPress users that places an AI writing assistant directly inside your CMS, allowing you to generate and optimize content without leaving the platform.Frase: A research-first platform that builds outlines from top Google search results and generates content briefs that you can seamlessly write and optimize within the tool.Sight AI: Features specialized AI agents that focus on content generation while monitoring how your brand and content rank across top conversational AI platforms (like ChatGPT and Claude).
+# Geek SEO
+
+Surfer / ContentShake-style SEO content SaaS.
+
+**Plan:** [`plan-documents/GEEKSEO-PLAN.md`](plan-documents/GEEKSEO-PLAN.md)
+
+## Repo layout (intended)
+
+| Path | Role |
+|------|------|
+| `frontend/` | Next.js app |
+| `GeekSeoBackend/` | SEO product API + SignalR |
+| `plan-documents/` | Product spec |
+
+**GeekAPI is not the SEO product.** Planning excluded GeekAPI from SEO; product code belongs in **this repo**, not `GeekBackend/GeekAPI`.
+
+## Status
+
+- **Frontend:** Step 1 UI — projects, documents, editor + SignalR score sidebar.
+- **GeekSeoBackend:** .NET project in `GeekSeoBackend/` — `:5051`, `/api/seo/*`, `/hubs/seo-scoring`.
+- **Data:** Jeff — GeekRepository (`geek_seo`); GeekSeoBackend calls `REPO_URL` (not GeekAPI product routes).
+
+## Local dev
+
+See [`scripts/LOCAL_DEV.md`](scripts/LOCAL_DEV.md).

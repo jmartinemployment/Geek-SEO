@@ -5,14 +5,13 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { CompetitorPanel } from '@/components/editor/competitor-panel';
-import { EditorAiToolbar } from '@/components/editor/editor-ai-toolbar';
 import { ContentEditor } from '@/components/editor/content-editor';
+import { ScoreSidebar } from '@/components/editor/score-sidebar';
+import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import { useContentScoring } from '@/hooks/useContentScoring';
 import {
   deleteSerpCache,
   getContent,
-  getWordPressStatus,
-  publishToWordPress,
   updateContent,
   type SeoContentDocument,
 } from '@/lib/seo-api';
@@ -29,13 +28,11 @@ export default function ContentEditorPage() {
   const [location, setLocation] = useState('United States');
   const [title, setTitle] = useState('');
   const keywordRef = useRef(keyword);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
-  const [publishing, setPublishing] = useState(false);
-  const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
-  const [wpConnected, setWpConnected] = useState(false);
   const [copyHint, setCopyHint] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialScoreSentRef = useRef(false);
 
   const {
     scoreUpdate,
@@ -49,8 +46,10 @@ export default function ContentEditorPage() {
 
   useEffect(() => {
     if (authLoading) return;
+    initialScoreSentRef.current = false;
     void (async () => {
       try {
+        setError(null);
         const loaded = await getContent(documentId, accessToken);
         setDoc(loaded);
         setHtml(loaded.contentHtml || DEFAULT_HTML);
@@ -58,17 +57,17 @@ export default function ContentEditorPage() {
         keywordRef.current = loaded.targetKeyword;
         setLocation(loaded.targetLocation || 'United States');
         setTitle(loaded.title);
-        try {
-          const wp = await getWordPressStatus(loaded.projectId, accessToken);
-          setWpConnected(wp.connected);
-        } catch {
-          setWpConnected(false);
-        }
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to load document');
+        setError(e);
       }
     })();
   }, [documentId, accessToken, authLoading]);
+
+  useEffect(() => {
+    if (!doc || !connected || initialScoreSentRef.current) return;
+    initialScoreSentRef.current = true;
+    void notifyContentChanged(html, keyword);
+  }, [doc, connected, html, keyword, notifyContentChanged]);
 
   const scheduleScore = useCallback(
     (nextHtml: string, nextKeyword: string) => {
@@ -83,6 +82,7 @@ export default function ContentEditorPage() {
   async function save(nextHtml: string, nextKeyword: string, nextTitle: string) {
     setSaving(true);
     try {
+      setError(null);
       const updated = await updateContent(
         documentId,
         {
@@ -96,7 +96,7 @@ export default function ContentEditorPage() {
       setDoc(updated);
       scheduleScore(nextHtml, nextKeyword);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Save failed');
+      setError(e);
     } finally {
       setSaving(false);
     }
@@ -107,32 +107,48 @@ export default function ContentEditorPage() {
     scheduleScore(nextHtml, keyword);
   }
 
+  async function refreshSerp() {
+    try {
+      setError(null);
+      await deleteSerpCache(keyword, location, accessToken);
+      void notifyKeywordChanged(html, keyword, location);
+    } catch (e) {
+      setError(e);
+    }
+  }
+
   if (authLoading) {
     return <main className="p-8 text-zinc-500">Loading session…</main>;
   }
 
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
-      <div className="flex flex-1 flex-col border-r">
-        <header className="flex items-center gap-4 border-b px-6 py-4">
-          <Link href={doc ? `/app/projects/${doc.projectId}` : '/app/projects'} className="text-sm text-zinc-500">
+      <div className="flex flex-1 flex-col lg:border-r">
+        <header className="flex items-center gap-4 border-b bg-white px-6 py-4">
+          <Link
+            href={doc ? `/app/projects/${doc.projectId}` : '/app/projects'}
+            className="text-sm text-zinc-500 hover:text-zinc-800"
+          >
             ← Back
           </Link>
           <input
-            className="flex-1 text-lg font-semibold outline-none"
+            className="flex-1 rounded-lg border border-transparent bg-transparent text-lg font-semibold outline-none focus:border-zinc-300 focus:bg-white focus:px-2"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onBlur={() => void save(html, keyword, title)}
+            aria-label="Document title"
           />
-          <span className="text-xs text-zinc-400">{saving ? 'Saving…' : connected ? 'Live' : 'Offline'}</span>
+          <span className="text-xs text-zinc-400">{saving ? 'Saving…' : null}</span>
         </header>
 
         <div className="flex flex-1 flex-col gap-4 p-6">
-          <div className="grid max-w-md gap-3 sm:grid-cols-2">
-            <label className="text-sm font-medium text-zinc-600 sm:col-span-2">
+          {error ? <SeoErrorBanner error={error} /> : null}
+
+          <div className="grid max-w-lg gap-4 sm:grid-cols-2">
+            <label className="text-sm font-medium text-zinc-700 sm:col-span-2">
               Target keyword
               <input
-                className="mt-1 block w-full rounded border px-3 py-2"
+                className="mt-1 block w-full rounded-lg border border-zinc-300 px-3 py-2 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 onBlur={() => {
@@ -144,10 +160,10 @@ export default function ContentEditorPage() {
                 }}
               />
             </label>
-            <label className="text-sm font-medium text-zinc-600 sm:col-span-2">
+            <label className="text-sm font-medium text-zinc-700 sm:col-span-2">
               Location
               <input
-                className="mt-1 block w-full rounded border px-3 py-2"
+                className="mt-1 block w-full rounded-lg border border-zinc-300 px-3 py-2 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 onBlur={() => {
@@ -160,199 +176,45 @@ export default function ContentEditorPage() {
 
           <ContentEditor html={html} onChange={onHtmlChange} />
         </div>
-
-        {error && <p className="px-6 pb-4 text-sm text-red-600">{error}</p>}
       </div>
 
-      <aside className="w-full shrink-0 bg-zinc-50 p-6 lg:w-96">
-        <h2 className="text-lg font-semibold">Content score</h2>
-
-        <button
-          type="button"
-          className="mt-3 text-xs text-zinc-500 underline hover:text-zinc-800"
-          onClick={() =>
-            void (async () => {
-              try {
-                await deleteSerpCache(keyword, location, accessToken);
-                void notifyKeywordChanged(html, keyword, location);
-              } catch (e) {
-                setError(e instanceof Error ? e.message : 'Refresh failed');
-              }
-            })()
-          }
-        >
-          Refresh SERP benchmarks
-        </button>
-
-        {scoreError && <p className="mt-2 text-sm text-red-600">{scoreError}</p>}
-        {(benchmarkRefreshing || pendingReason) && (
-          <p className="mt-4 text-sm text-amber-700">
-            Benchmarks loading… {pendingReason ? `(${pendingReason})` : ''}
-          </p>
+      <div className="flex flex-col">
+        <ScoreSidebar
+          keyword={keyword}
+          scoreUpdate={scoreUpdate}
+          pendingReason={pendingReason}
+          benchmarkRefreshing={benchmarkRefreshing}
+          scoreError={scoreError}
+          connected={connected}
+          onRefreshSerp={() => void refreshSerp()}
+          onCopyHtml={() => {
+            void navigator.clipboard.writeText(html).then(() => {
+              setCopyHint('HTML copied');
+              setTimeout(() => setCopyHint(null), 3000);
+            });
+          }}
+        />
+        {copyHint && (
+          <p className="px-6 pb-2 text-xs text-emerald-700 lg:hidden">{copyHint}</p>
         )}
-
-        {scoreUpdate?.benchmarkQuality === 'low_sample_count' && (
-          <p className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
-            Fewer than 3 competitor pages could be crawled — word-count targets are estimated from SERP snippets.
-          </p>
-        )}
-
-        {scoreUpdate ? (
-          <div className="mt-4 space-y-4">
-            <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-bold">{scoreUpdate.score}</span>
-              <span className="text-xl text-zinc-500">/ 100</span>
-              <span className="rounded bg-zinc-900 px-2 py-0.5 text-sm text-white">{scoreUpdate.grade}</span>
-            </div>
-
-            <ul className="space-y-1 text-sm">
-              {Object.entries(scoreUpdate.components).map(([key, value]) => (
-                <li key={key} className="flex justify-between">
-                  <span className="text-zinc-600">{key}</span>
-                  <span>{value}</span>
-                </li>
-              ))}
-            </ul>
-
-            {scoreUpdate.suggestions.length > 0 && (
-              <div>
-                <h3 className="font-medium">Top suggestions</h3>
-                <ul className="mt-2 space-y-2 text-sm">
-                  {scoreUpdate.suggestions.slice(0, 5).map((s) => (
-                    <li key={s.component} className="rounded border bg-white p-2">
-                      +{s.pointValue} pts — {s.actionText}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {scoreUpdate.serpFeatures.length > 0 && (
-              <div>
-                <h3 className="font-medium">SERP features</h3>
-                <ul className="mt-2 space-y-1 text-sm text-zinc-700">
-                  {scoreUpdate.serpFeatures.map((f) => (
-                    <li key={f.feature}>{f.actionText}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="mt-4 text-sm text-zinc-500">Edit content to see your score.</p>
-        )}
-
-        <div className="mt-6 border-t pt-4">
-          <h3 className="text-sm font-semibold">Export</h3>
-          <p className="mt-1 text-xs text-zinc-500">
-            Copy HTML to paste into any CMS, or connect WordPress on the project page.
-          </p>
+        <div className="border-t px-6 pb-4 lg:hidden">
           <button
             type="button"
-            className="mt-3 w-full rounded-lg border bg-white px-3 py-2 text-xs font-medium hover:bg-zinc-50"
+            className="w-full rounded-lg border bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50"
             onClick={() => {
               void navigator.clipboard.writeText(html).then(() => {
-                setCopyHint('HTML copied to clipboard');
+                setCopyHint('HTML copied');
                 setTimeout(() => setCopyHint(null), 3000);
               });
             }}
           >
             Copy HTML
           </button>
-          {copyHint && <p className="mt-2 text-xs text-green-800">{copyHint}</p>}
-          {!wpConnected && doc && (
-            <Link
-              href={`/app/projects/${doc.projectId}`}
-              className="mt-2 block text-xs text-zinc-500 underline hover:text-zinc-800"
-            >
-              Optional: connect WordPress on project settings
-            </Link>
-          )}
         </div>
-
-        {wpConnected && (
-          <div className="mt-6 border-t pt-4">
-            <h3 className="text-sm font-semibold">WordPress</h3>
-          {publishedUrl && (
-            <a
-              href={publishedUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 block text-xs text-green-700 underline"
-            >
-              View on WordPress
-            </a>
-          )}
-          <div className="mt-3 flex flex-col gap-2">
-            <button
-              type="button"
-              disabled={publishing}
-              className="rounded-lg border bg-white px-3 py-2 text-xs font-medium hover:bg-zinc-50 disabled:opacity-50"
-              onClick={() =>
-                void (async () => {
-                  setPublishing(true);
-                  setError(null);
-                  try {
-                    await save(html, keyword, title);
-                    const result = await publishToWordPress(
-                      documentId,
-                      { postStatus: 'draft' },
-                      accessToken,
-                    );
-                    setPublishedUrl(result.url);
-                  } catch (e) {
-                    setError(e instanceof Error ? e.message : 'Publish failed');
-                  } finally {
-                    setPublishing(false);
-                  }
-                })()
-              }
-            >
-              {publishing ? 'Publishing…' : 'Save draft to WordPress'}
-            </button>
-            <button
-              type="button"
-              disabled={publishing}
-              className="rounded-lg bg-zinc-900 px-3 py-2 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
-              onClick={() =>
-                void (async () => {
-                  setPublishing(true);
-                  setError(null);
-                  try {
-                    await save(html, keyword, title);
-                    const result = await publishToWordPress(
-                      documentId,
-                      { postStatus: 'publish' },
-                      accessToken,
-                    );
-                    setPublishedUrl(result.url);
-                  } catch (e) {
-                    setError(e instanceof Error ? e.message : 'Publish failed');
-                  } finally {
-                    setPublishing(false);
-                  }
-                })()
-              }
-            >
-              Publish live
-            </button>
-          </div>
-          </div>
-        )}
-
-        <EditorAiToolbar
-          documentId={documentId}
-          contentHtml={html}
-          accessToken={accessToken}
-          onApplyHtml={(next) => {
-            setHtml(next);
-            scheduleScore(next, keyword);
-          }}
-          onError={setError}
-        />
-
-        <CompetitorPanel documentId={documentId} accessToken={accessToken} />
-      </aside>
+        <div className="bg-zinc-50 px-6 pb-6 lg:w-96">
+          <CompetitorPanel documentId={documentId} accessToken={accessToken} />
+        </div>
+      </div>
     </div>
   );
 }

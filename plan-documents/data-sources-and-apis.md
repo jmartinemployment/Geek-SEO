@@ -1,7 +1,8 @@
 # Data Sources and APIs for an AI SEO Content Platform
 
 > Research Date: May 2026
-> Purpose: Evaluate available APIs for SERP data, NLP analysis, and keyword data to power a Surfer SEO competitor built on .NET 10 / ASP.NET Core.
+> Purpose: Evaluate available APIs for SERP data, NLP analysis, and keyword data to power a Surfer SEO competitor built on .NET 10 / ASP.NET Core.  
+> **Runtime:** External APIs are called from **GeekSeoBackend** only. Cached results are stored in `geek_seo` by GeekSeoBackend. See `ARCHITECTURE.md`.
 
 ---
 

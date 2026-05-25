@@ -1,9 +1,9 @@
 # Geek SEO — Content Scoring Engine Specification
 
-**Version:** 1.1  
-**Date:** May 2026  
-**Changelog (1.1):** E-E-A-T advisory layer (not scored); `SerpFeatures` on `SerpResult`; Playwright singleton pool aligned with master plan; `ScoreUpdate` payload fields.  
-**Scope:** Complete specification for the content scoring algorithm powering the Geek SEO real-time editor. This is the core product differentiator.
+**Date:** May 2026
+**Master plan:** [`GEEKSEO-PLAN-V2.md`](GEEKSEO-PLAN-V2.md) — features #21 (dual SEO+GEO scores), #22 (E-E-A-T advisories)
+**Architecture:** Scoring in **GeekSeoBackend** (`Geek-SEO/GeekSeoBackend/`). Persistence via Jeff’s data layer (GeekRepository; not SEO product on GeekAPI). Browser calls GeekSeoBackend only — see [`ARCHITECTURE.md`](ARCHITECTURE.md).
+**Scope:** Transparent **SEO** score (6 components, 0–100) + separate **GEO** score (5 dimensions, 0–100 each) for the real-time editor.
 
 ---
 
@@ -88,9 +88,9 @@ Cache key: composite of `(keyword, location, languageCode)` stored as a unique c
 TTL: 24 hours from `fetched_at`. The `expires_at` column is set to `fetched_at + INTERVAL '24 hours'`.
 
 Cache strategy:
-1. `ISerpCacheRepository.GetAsync(keyword, location, languageCode)` is called first
-2. If a result exists and `expires_at > NOW()`, the cached result is returned — no external API call
-3. If no result or expired, `ISerpProvider.GetSerpResultsAsync` is called, the result is stored via `ISerpCacheRepository.UpsertAsync`, and then returned
+1. GeekSeoBackend loads `seo_serp_results` for `(keyword, location, languageCode)`
+2. If `expires_at > NOW()`, use cached row
+3. On miss: GeekSeoBackend fetches SERP + crawls competitors, upserts `seo_serp_results` + `seo_competitor_pages`
 
 This means: when multiple users research the same keyword in the same location within 24 hours, only the first request hits DataForSEO. All subsequent users in that window use the cached result. At 100 users doing 10 keyword lookups per day, aggressive cache hit rates can reduce DataForSEO SERP costs by 60-80%.
 
@@ -109,7 +109,7 @@ The 24-hour TTL is intentionally longer than needed for daily accuracy — SERPs
 After SERP results are fetched, the scoring engine needs the full text of the top-ranking pages to extract terms and calculate benchmarks. `ICrawlerProvider.CrawlPageAsync(url)` fetches a single competitor page and returns a structured `PageContent` record.
 
 ```csharp
-// PlaywrightCrawlerProvider.cs — uses injected IBrowser from singleton pool (see geekseo-plan.md §2 Railway)
+// PlaywrightCrawlerProvider.cs — GeekSeoBackend only; singleton IBrowser pool (see ARCHITECTURE.md)
 public async Task<Result<PageContent>> CrawlPageAsync(string url, CancellationToken ct = default)
 {
     var isAllowed = await IsAllowedByRobotsTxtAsync(url, ct);
@@ -157,7 +157,7 @@ public async Task<Result<PageContent>> CrawlPageAsync(string url, CancellationTo
 }
 ```
 
-**Pool rules:** One `IBrowser` per GeekAPI process; max **2** concurrent `CrawlPageAsync` via `SemaphoreSlim`; 30s navigation timeout. Never `Playwright.CreateAsync()` per request.
+**Pool rules:** One `IBrowser` per **GeekSeoBackend** process; max **2** concurrent `CrawlPageAsync` via `SemaphoreSlim`; 30s navigation timeout. Never `Playwright.CreateAsync()` per request.
 
 ### What Is Extracted
 
@@ -184,9 +184,9 @@ TTL: 72 hours. Competitor pages change less frequently than SERP rankings themse
 
 Cache strategy:
 1. After SERP results are fetched (or pulled from cache), get all `SerpOrganicResult.Url` values
-2. For each URL, call `ISerpCacheRepository.GetCompetitorPagesAsync(serpResultId)`
-3. For any URL not in the competitor pages cache, call `ICrawlerProvider.CrawlPageAsync`
-4. Store crawled result via `ISerpCacheRepository.UpsertCompetitorPageAsync`
+2. GeekSeoBackend loads `seo_competitor_pages` for `serp_result_id`
+3. On miss: `CrawlPage` per URL inside GeekSeoBackend
+4. GeekSeoBackend upserts `seo_competitor_pages`
 5. Proceed with benchmarking using the full set of 10 competitor pages
 
 If fewer than 3 competitor pages were successfully crawled (due to crawl failures, robots.txt blocks, or JS-heavy pages that Playwright cannot extract text from), the scoring engine logs a warning and proceeds with whatever pages it has. The score is still calculated — it is annotated with a `BenchmarkQuality` field indicating `low_sample_count` so the frontend can display a notice to the user.
@@ -207,7 +207,7 @@ For each competitor page's `FullText`:
 
 **Tokenization:**
 ```csharp
-// NlpExtractor.cs (in GeekApplication/Services/Seo/Nlp/)
+// NlpExtractor.cs (in GeekSeoBackend/Services/Scoring/Nlp/)
 public static IReadOnlyList<string> Tokenize(string text)
 {
     // 1. Lowercase
@@ -566,8 +566,8 @@ public static int CalculateHeadingScore(
 {
     int score = 0;
 
-    // H1 present: 5 points
-    if (userHeadings.Any(h => h.Level == "h2" || h.Level == "h1"))
+    // H1 present: 5 points (exactly one H1 — not satisfied by H2 alone)
+    if (userHeadings.Any(h => h.Level == "h1"))
         score += 5;
 
     var userH2Count = userHeadings.Count(h => h.Level == "h2");
@@ -710,7 +710,7 @@ public static int CalculateReadabilityScore(
 ### Full ScoreAsync Method
 
 ```csharp
-// GeekApplication/Services/Seo/ContentScoringService.cs
+// GeekSeoBackend/Services/Scoring/ContentScoringService.cs
 
 public async Task<Result<ContentScoreResult>> ScoreAsync(
     string contentHtml,
@@ -813,7 +813,7 @@ public static IReadOnlyList<EeatAdvisory> GenerateEeatAdvisories(
 }
 ```
 
-`ContentScoringService.ProcessContentChangedAsync` attaches advisories to `ScoreUpdate` on each score (cheap — no extra API calls).
+GeekSeoBackend includes E-E-A-T advisories in `ScoreUpdate` (no extra API calls).
 
 ### SERP feature guidance (paired with E-E-A-T in UI)
 
@@ -834,26 +834,18 @@ t=800ms  Debounce timer fires (no keystrokes in last 800ms)
          useContentScoring hook calls:
          connection.invoke("ContentChanged", documentId, contentHtml, targetKeyword)
 
-t=800ms  SignalR message arrives at SeoContentScoringHub.ContentChanged(...)
-         Hub delegates to IContentScoringService.ProcessContentChangedAsync (no repositories in hub)
+t=800ms  SignalR message arrives at SeoScoringHub.ContentChanged(...)
+         on GeekSeoBackend → ScoringOrchestrator
 
-t=801ms  ContentScoringService verifies ownership via IContentDocumentRepository
-         Check ISerpCacheRepository for cached benchmarks
-         ├── CACHE HIT (typical case during a writing session):
-         │   Benchmarks retrieved from PostgreSQL (~5ms)
-         │   Skip to scoring
-         │
-         └── CACHE MISS (first score for this keyword, or 24h expired):
-             ISerpProvider.GetSerpResultsAsync called → DataForSEO Live API (~1-2 sec)
-             ISerpCacheRepository.UpsertAsync stores result
-             For each organic result URL not in seo_competitor_pages cache:
-                 ICrawlerProvider.CrawlPageAsync called (~2-4 sec per page)
-                 ISerpCacheRepository.UpsertCompetitorPageAsync stores result
-             IAIProvider.CompleteWithSystemAsync called per new page (~1-2 sec per page)
-             Total first-fetch latency: 20-40 seconds (10 pages × 2-4 sec + AI calls)
-             This happens ONCE. All subsequent scoring in the session uses cache.
+t=801ms  ScoringOrchestrator calls ISeoDataClient to load SERP/competitor cache
+         ├── CACHE HIT:
+         │   Benchmarks from SeoDataClient (~5ms) → ScoreContent only
+         └── CACHE MISS:
+             FetchBenchmarks (DataForSEO + Playwright + Claude)
+             GeekSeoBackend upserts cache tables
+             First-fetch latency: 20-40 seconds (once per keyword/location TTL)
 
-t=810ms  (cache hit path) IContentScoringService.ScoreAsync runs
+t=810ms  (cache hit path) GeekSeoBackend.ScoreContent runs
          Tokenization, n-gram extraction, frequency calculation: ~50ms
          6-component scoring: ~10ms
          Suggestion generation: ~10ms
@@ -1182,7 +1174,7 @@ Surfer's True Density is a placement-aware metric: it weights keyword occurrence
 
 Geek SEO's term coverage score counts occurrences in plain text regardless of placement. The heading structure score handles H1/H2/H3 presence separately. This is a deliberate simplification that makes the formula clearer and the suggestions more actionable — users are told "add this term 3 more times anywhere in your content" rather than "add it in a heading context."
 
-A future enhancement could add a placement bonus (e.g., the top 3 benchmark terms checked specifically in heading positions), but this increases formula complexity and is deferred.
+Placement-weighted term scoring (Surfer True Density) is **not cloned** — heading structure is scored separately (§4.3).
 
 **Benchmark sample size:**
 
@@ -1190,13 +1182,31 @@ Surfer analyzes 50+ ranking pages in some plans. Geek SEO benchmarks against the
 
 The practical difference is small. The top 10 results are the most consistent signal — pages 11-50 have significant variance and include many near-duplicate results. Analyzing 10 pages produces stable benchmarks with lower API cost and faster first-load times.
 
-**What Surfer Does That Geek SEO Does Not (explicitly):**
+**What Surfer does that Geek SEO handles differently (see master plan §1.1 Not cloned):**
 
-- "True Density" placement weighting
-- AI Visibility Tracker (brand monitoring in LLM responses) — a future Geek SEO feature
-- Topical Map (domain-wide content gap analysis via GSC) — a future Geek SEO feature
-- Plagiarism checker — not planned
-- Word count / heading count for ALL 50 competitors displayed in a grid — Geek SEO shows top 10
+- **True Density** — not cloned; transparent term coverage + separate heading score
+- **50-competitor grid in scoring UI** — deep 50-result view is parity #7 (`/app/serp/[keyword]`); live editor benchmarks top 10 for latency
+
+**Covered elsewhere in master plan (not in this spec):** Topical Map (#3), multi-LLM AI Visibility (#10), Plagiarism (#6), Content Guard (#24).
+
+---
+
+## 9. GEO Score (parity #25)
+
+Separate from the SEO total. Computed in `ContentScoringService` alongside SEO; both returned in `ScoreUpdate` SignalR payload.
+
+| Dimension | Max | What it measures |
+|-----------|-----|------------------|
+| **Authority** | 20 | Citations, expert quotes, named sources, E-E-A-T signals |
+| **Readability** | 20 | Clarity for AI extraction (short paragraphs, definitions, lists) |
+| **Structure** | 20 | Headings, FAQ blocks, direct-answer paragraphs for AI snippets |
+| **Citations** | 20 | Outbound links to authoritative sources |
+| **Depth** | 20 | Comprehensive coverage vs SERP benchmark word count and subtopics |
+
+**GEO total:** 0–100 (sum of dimensions). **GEO grade:** A–F from same thresholds as SEO.  
+**UI:** `GeoScorePanel` in editor sidebar; suggestions parallel SEO `SuggestionItem[]` with `component: 'geo'`.
+
+Implementation steps: master plan §11 steps 41, 48.
 
 ---
 
@@ -1208,7 +1218,11 @@ public sealed record ContentScoreResult
     public required int TotalScore { get; init; }
     public required string Grade { get; init; }
     public required ScoreComponents Components { get; init; }
+    public required GeoScoreComponents GeoComponents { get; init; }  // parity #25
+    public required int GeoTotalScore { get; init; }
+    public required string GeoGrade { get; init; }
     public required IReadOnlyList<SuggestionItem> Suggestions { get; init; }
+    public required IReadOnlyList<EeatAdvisory> EeatAdvisories { get; init; }  // parity #18 — not scored
     public required int WordCount { get; init; }
     public required int HeadingCount { get; init; }
     public required string BenchmarkQuality { get; init; }
@@ -1242,9 +1256,9 @@ This avoids storing a large denormalized JSONB blob per benchmark set while keep
 ## Appendix C: NlpExtractor Static Class
 
 ```csharp
-// GeekApplication/Services/Seo/Nlp/NlpExtractor.cs
+// GeekSeoBackend/Services/Scoring/Nlp/NlpExtractor.cs
 
-namespace GeekApplication.Services.Seo.Nlp;
+namespace GeekSeoBackend.Services.Scoring.Nlp;
 
 public static class NlpExtractor
 {

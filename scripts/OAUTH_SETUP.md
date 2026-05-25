@@ -1,38 +1,34 @@
-# Geek SEO — OAuth setup
+# geek-OAuth setup for Geek SEO
 
-## 1. geek-OAuth (required)
+Geek SEO login uses **geek-OAuth only**. GeekAPI is not part of this project.
 
-Client `geekseo` is defined in `geek-OAuth/src/oidc/clients.ts`. Redeploy geek-OAuth after pulling.
+## DNS
 
-**DNS:** Namecheap host must be `auth` (→ `auth.geekatyourspot.com`), not `oauth`. CNAME target is the **geek-OAuth** Railway URL, not GeekAPI (`geekbackend-production-…`). See `frontend/DEPLOY.md` → Namecheap DNS.
+Host **`auth`** → `auth.geekatyourspot.com` → geek-OAuth Railway URL. See `frontend/DEPLOY.md`.
 
-| Variable | Example |
-|----------|---------|
-| `AUTH_SERVER_URL` | `https://auth.geekatyourspot.com` (must match browser URL) |
-| `GEEK_BACKEND_URL` | `https://api.geekatyourspot.com` |
+## 1. Register client
 
-Local: run geek-OAuth on **port 3001** (`PORT=3001 npm run dev`) so Next.js can use 3000.
+Run `scripts/geekseo_oauth_client.sql` and add `geekseo` to `geek-OAuth/src/oidc/clients.ts` with redirect:
 
-## 2. Database client row (optional)
+- `http://localhost:3000/auth/callback`
+- `https://seo.geekatyourspot.com/auth/callback`
 
-If your OIDC adapter reads `auth.oauth_clients`, run:
+## 2. Local geek-OAuth
 
 ```bash
-psql "$DATABASE_URL" -f scripts/geekseo_oauth_client.sql
+cd ../geek-OAuth
+PORT=3001 npm run dev
 ```
 
-## 3. GeekAPI
+## 3. GeekSeoBackend
+
+GeekSeoBackend must validate JWTs from `AUTH_SERVER_URL` (same public URL as `NEXT_PUBLIC_AUTH_URL`). SEO routes are not on geek-OAuth.
+
+## 4. Frontend
 
 ```bash
-AUTH_SERVER_URL=https://auth.geekatyourspot.com   # or http://localhost:3001
+NEXT_PUBLIC_OAUTH_AUTHORITY=http://localhost:3001
+NEXT_PUBLIC_OAUTH_CLIENT_ID=geekseo
 ```
 
-## 4. Vercel / Next.js
-
-See `frontend/DEPLOY.md` — `NEXT_PUBLIC_AUTH_URL`, `NEXT_PUBLIC_CLIENT_ID=geekseo`.
-
-## 5. Verify
-
-1. Open `https://<auth-server>/.well-known/openid-configuration`
-2. Sign in at `/auth/login` on the frontend
-3. Confirm `GET /api/seo/projects` returns 200 with Bearer token
+See `frontend/.env.example` and `frontend/DEPLOY.md`.

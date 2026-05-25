@@ -75,13 +75,24 @@ export function useContentScoring(documentId: string, accessToken: string | null
       setPendingReason(null);
     });
 
+    const joinDocument = async () => {
+      await connection.invoke('JoinDocument', documentId);
+    };
+
+    connection.onreconnected(() => {
+      setConnected(true);
+      void joinDocument().catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : 'Reconnect failed');
+      });
+    });
+
     connectionRef.current = connection;
 
     void (async () => {
       try {
         await connection.start();
         setConnected(true);
-        await connection.invoke('JoinDocument', documentId);
+        await joinDocument();
       } catch (e) {
         setError(e instanceof Error ? e.message : 'SignalR connection failed');
       }
@@ -90,6 +101,7 @@ export function useContentScoring(documentId: string, accessToken: string | null
     return () => {
       void connection.stop();
       connectionRef.current = null;
+      setConnected(false);
     };
   }, [documentId, accessToken]);
 

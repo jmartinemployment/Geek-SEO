@@ -7,8 +7,10 @@ import { useAuth } from '@/components/auth/auth-provider';
 const nav = [
   { href: '/app/dashboard', label: 'Dashboard' },
   { href: '/app/guided', label: 'Guided' },
+  { href: '/app/planner', label: 'Planner' },
   { href: '/app/keywords', label: 'Keywords' },
-  { href: '/app/briefs/new', label: 'Briefs' },
+  { href: '/app/strategy/topical-map', label: 'Topical map' },
+  { href: '/app/rankings', label: 'Rankings' },
   { href: '/app/calendar', label: 'Calendar' },
   { href: '/app/projects', label: 'Projects' },
 ];

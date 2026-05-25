@@ -1,8 +1,9 @@
 # Competitor Analysis: AI-Powered SEO Content Tools
 
-> Research Date: May 2026
-> Purpose: Inform product planning for a Surfer SEO competitor targeting small businesses.
-> Stack: Angular 21 frontend + .NET 10 / ASP.NET Core backend.
+> **Background research** — May 2026.  
+> **Canonical competitor scope (Surfer Keyword Research vs Topical Map, Semrush Content Toolkit, Frase 2026):** [`geekseo-plan.md` §1.1](geekseo-plan.md)  
+> **Implementation scope:** 26 parity features + §11 steps in master plan — not this file.  
+> Stack: Next.js + GeekSeoBackend (.NET 10) — [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ---
 

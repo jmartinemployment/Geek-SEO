@@ -1,4 +1,21 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
+import { parseSeoApiErrorResponse } from '@/lib/seo-api-errors';
+
+export { SeoApiError, formatSeoApiErrorMessage } from '@/lib/seo-api-errors';
+export type { SeoGateErrorBody } from '@/lib/seo-api-errors';
+
+/** GeekSeoBackend — sole SEO API for this app (see plan-documents/GEEKSEO-PLAN.md). */
+const SEO_API_URL = process.env.NEXT_PUBLIC_SEO_API_URL ?? 'http://localhost:5051';
+
+const API_URL = SEO_API_URL;
+
+async function seoJson<T>(res: Response): Promise<T> {
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<T>;
+}
+
+async function seoVoid(res: Response): Promise<void> {
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+}
 
 export function apiHeaders(accessToken?: string | null): HeadersInit {
   const headers: HeadersInit = { 'Content-Type': 'application/json' };
@@ -38,8 +55,7 @@ export async function listProjects(accessToken?: string | null): Promise<SeoProj
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<SeoProject[]>;
+  return seoJson<SeoProject[]>(res);
 }
 
 export type BackgroundJobStatus = {
@@ -77,7 +93,7 @@ export async function createProject(
     headers: apiHeaders(accessToken),
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<SeoProject>;
 }
 
@@ -89,7 +105,7 @@ export async function listContent(
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<SeoContentDocument[]>;
 }
 
@@ -107,7 +123,7 @@ export async function createContent(
     headers: apiHeaders(accessToken),
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<SeoContentDocument>;
 }
 
@@ -119,7 +135,7 @@ export async function getContent(
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<SeoContentDocument>;
 }
 
@@ -138,7 +154,7 @@ export async function updateContent(
     headers: apiHeaders(accessToken),
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<SeoContentDocument>;
 }
 
@@ -152,7 +168,7 @@ export async function updateContentStatus(
     headers: apiHeaders(accessToken),
     body: JSON.stringify({ status }),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<SeoContentDocument>;
 }
 
@@ -160,8 +176,14 @@ export function getApiUrl(): string {
   return API_URL;
 }
 
+export function getSeoApiUrl(): string {
+  return SEO_API_URL;
+}
+
 export function getHubUrl(): string {
-  return `${API_URL}/hubs/seo-scoring`;
+  const signalrBase =
+    process.env.NEXT_PUBLIC_SEO_SIGNALR_URL?.replace(/\/$/, '') ?? SEO_API_URL;
+  return `${signalrBase}/hubs/seo-scoring`;
 }
 
 export async function startFullArticle(
@@ -178,7 +200,7 @@ export async function startFullArticle(
     headers: apiHeaders(accessToken),
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<BackgroundJobStatus>;
 }
 
@@ -190,7 +212,7 @@ export async function getJobStatus(
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<BackgroundJobStatus>;
 }
 
@@ -202,7 +224,7 @@ export async function getCompetitors(
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<CompetitorInsights>;
 }
 
@@ -214,7 +236,7 @@ export async function refreshCompetitorCrawl(
     method: 'POST',
     headers: apiHeaders(accessToken),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<CompetitorInsights>;
 }
 
@@ -240,7 +262,7 @@ export async function researchKeywords(
     headers: apiHeaders(accessToken),
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<KeywordResult[]>;
 }
 
@@ -265,7 +287,7 @@ export async function getWordPressStatus(
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<WordPressConnectionStatus>;
 }
 
@@ -284,7 +306,7 @@ export async function connectWordPress(
     headers: apiHeaders(accessToken),
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
 }
 
 export type ContentBrief = {
@@ -320,7 +342,7 @@ export async function generateBrief(
     headers: apiHeaders(accessToken),
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<ContentBrief>;
 }
 
@@ -333,7 +355,7 @@ export async function humanizeContent(
     headers: apiHeaders(accessToken),
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<{ content: string }>;
 }
 
@@ -346,7 +368,7 @@ export async function detectAiContent(
     headers: apiHeaders(accessToken),
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<AiDetectionResult>;
 }
 
@@ -358,7 +380,7 @@ export async function autoOptimizeContent(
     method: 'POST',
     headers: apiHeaders(accessToken),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<AutoOptimizeResult>;
 }
 
@@ -372,7 +394,7 @@ export async function publishToWordPress(
     headers: apiHeaders(accessToken),
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<WordPressPublishResult>;
 }
 
@@ -387,5 +409,5 @@ export async function deleteSerpCache(
     method: 'DELETE',
     headers: apiHeaders(accessToken),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
 }

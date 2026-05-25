@@ -1,7 +1,7 @@
 # Feature Comparison Matrix: AI-Powered SEO Content Tools
 
-> Research Date: May 2026
-> Legend: Y = Yes / Full, P = Partial / Limited, N = No, ? = Unknown/Unclear
+> **Background research** — May 2026. Legend: Y = Yes / P = Partial / N = No  
+> **Geek SEO shipped scope:** [`geekseo-plan.md`](geekseo-plan.md) parity table (#1–#26) — this matrix is not the scope source of truth.
 
 ---
 

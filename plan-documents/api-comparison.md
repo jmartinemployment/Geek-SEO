@@ -447,7 +447,7 @@ If you use live mode for real-time UX (required for interactive features like "a
 | SE Ranking | No | No (REST only) |
 | Google Ads API | Yes (official Google Ads API .NET library) | Yes |
 
-**DataForSEO is the only SERP/keyword API provider with an official C# SDK.** For a .NET backend (which this project uses per the enterprise standards in CLAUDE.md), this matters significantly — you avoid maintaining a hand-rolled HTTP wrapper and get typed request/response models out of the box.
+**DataForSEO is the only SERP/keyword API provider with an official C# SDK.** Use it in **GeekSeoBackend**. Cached JSON rows are persisted by GeekSeoBackend.
 
 ---
 
@@ -490,11 +490,13 @@ Based on public information and developer documentation:
 
 ## Part 4: Recommended Stack
 
+**Runtime:** DataForSEO and all provider SDKs run in **GeekSeoBackend**. Cached SERP/keyword rows persist in `geek_seo` via GeekSeoBackend. See `ARCHITECTURE.md`.
+
 ### MVP Recommendation
 
 **Primary SERP API:** DataForSEO
 **Primary Keyword API:** DataForSEO Keywords Data API + DataForSEO Labs API
-**C# SDK:** `dataforseo/CSharpClient` (official)
+**C# SDK:** `dataforseo/CSharpClient` (official) — referenced by **GeekSeoBackend**
 **Node.js SDK:** `dataforseo-client` (npm, official)
 
 **Why DataForSEO for everything:**

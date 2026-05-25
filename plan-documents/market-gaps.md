@@ -1,7 +1,7 @@
 # Market Gaps: AI SEO Content Tools
 
 > Research Date: May 2026
-> Purpose: Identify whitespace a new Surfer SEO competitor can own — specifically targeting small businesses with an Angular 21 / .NET 10 product.
+> Purpose: Identify whitespace a new Surfer SEO competitor can own — specifically targeting small businesses. Backend: GeekSeoBackend (.NET 10) — see `ARCHITECTURE.md`.
 
 ---
 
