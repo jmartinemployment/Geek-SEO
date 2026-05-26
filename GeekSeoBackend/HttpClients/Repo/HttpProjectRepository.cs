@@ -1,3 +1,4 @@
+using GeekSeoBackend.Infrastructure;
 using System.Net;
 using System.Net.Http.Json;
 using GeekSeoBackend.Auth;
@@ -10,35 +11,35 @@ namespace GeekSeoBackend.HttpClients.Repo;
 
 public sealed class HttpProjectRepository(IHttpClientFactory factory, ICurrentUserContext user) : IProjectRepository
 {
-    private readonly HttpClient _http = factory.CreateClient("GeekRepository");
+    private readonly HttpClient _http = factory.CreateClient(GeekDataGateway.HttpClientName);
 
     public async Task<Result<IReadOnlyList<SeoProject>>> ListByUserAsync(Guid userId, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"repo/seo/projects?userId={userId}", ct);
+        var response = await _http.GetAsync($"api/seo/internal/projects?userId={userId}", ct);
         return await ReadListAsync<SeoProject>(response, ct);
     }
 
     public async Task<Result<SeoProject>> GetByIdAsync(Guid projectId, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"repo/seo/projects/{projectId}?userId={user.UserId}", ct);
+        var response = await _http.GetAsync($"api/seo/internal/projects/{projectId}?userId={user.UserId}", ct);
         return await ReadOneAsync<SeoProject>(response, ct);
     }
 
     public async Task<Result<SeoProject>> CreateAsync(Guid userId, CreateProjectRequest request, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync($"repo/seo/projects?userId={userId}", request, ct);
+        var response = await _http.PostAsJsonAsync($"api/seo/internal/projects?userId={userId}", request, ct);
         return await ReadOneAsync<SeoProject>(response, ct);
     }
 
     public async Task<Result<SeoProject>> UpdateAsync(Guid projectId, UpdateProjectRequest request, CancellationToken ct = default)
     {
-        var response = await _http.PutAsJsonAsync($"repo/seo/projects/{projectId}?userId={user.UserId}", request, ct);
+        var response = await _http.PutAsJsonAsync($"api/seo/internal/projects/{projectId}?userId={user.UserId}", request, ct);
         return await ReadOneAsync<SeoProject>(response, ct);
     }
 
     public async Task<Result> DeleteAsync(Guid projectId, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"repo/seo/projects/{projectId}?userId={user.UserId}", ct);
+        var response = await _http.DeleteAsync($"api/seo/internal/projects/{projectId}?userId={user.UserId}", ct);
         return response.IsSuccessStatusCode
             ? Result.Success()
             : Result.Failure(await response.Content.ReadAsStringAsync(ct));

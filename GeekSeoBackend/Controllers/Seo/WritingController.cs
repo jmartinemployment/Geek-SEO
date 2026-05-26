@@ -17,6 +17,13 @@ public sealed class WritingController(IAIWritingService writing, ICurrentUserCon
         return result.IsSuccess ? Accepted(result.Value) : BadRequest(result.Error);
     }
 
+    [HttpPost("bulk")]
+    public async Task<IActionResult> Bulk([FromBody] BulkArticleRequest request, CancellationToken ct)
+    {
+        var result = await writing.EnqueueBulkArticlesAsync(user.RequireUserId(), request, ct);
+        return result.IsSuccess ? Accepted(result.Value) : BadRequest(result.Error);
+    }
+
     [HttpPost("outline")]
     public async Task<IActionResult> Outline([FromBody] WritingOutlineRequest request, CancellationToken ct)
     {

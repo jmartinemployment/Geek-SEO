@@ -49,12 +49,17 @@ Redeploy after any `NEXT_PUBLIC_*` change (build-time embed).
 
 ## GeekSeoBackend (Railway / hosting)
 
-Configure on the **GeekSeoBackend** service (not in this repo), including at minimum:
+Configure on the **GeekSeoBackend** service only. **Do not** set `DATABASE_URL`, `REPO_URL`, or any GeekRepository URL — persistence goes through GeekAPI (`GEEK_API_URL`).
 
-- `GEEK_SEO_DATABASE_URL` or equivalent Postgres connection
-- `AUTH_SERVER_URL=https://auth.geekatyourspot.com`
-- `CORS_ORIGINS=https://seo.geekatyourspot.com,http://localhost:3000`
-- Provider keys: `DATAFORSEO_*`, `ANTHROPIC_API_KEY`, Playwright as required
+| Variable | Example |
+|----------|---------|
+| `GEEK_API_URL` | `https://api.geekatyourspot.com` |
+| `GEEK_BACKEND_API_KEY` | Same key as on GeekAPI |
+| `GEEK_OAUTH_AUTHORITY` | `https://api.geekatyourspot.com` (or your issuer URL) |
+| `JWT_AUDIENCE` | `geekseo` |
+| `CORS_ORIGINS` | `https://seo.geekatyourspot.com,http://localhost:3000` |
+| `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | DataForSEO account |
+| `ANTHROPIC_API_KEY` | Claude API key |
 
 See `plan-documents/GEEKSEO-PLAN.md` for full capability list.
 

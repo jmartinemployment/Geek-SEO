@@ -1,0 +1,19 @@
+using GeekApplication.Interfaces.Seo;
+using GeekApplication.Models.Seo;
+using GeekSeoBackend.Auth;
+using GeekSeoBackend.Extensions;
+using Microsoft.AspNetCore.Mvc;
+
+namespace GeekSeoBackend.Controllers.Seo;
+
+[ApiController]
+[Route("api/seo/links")]
+public sealed class LinksController(IInternalLinkService links, ICurrentUserContext user) : ControllerBase
+{
+    [HttpPost("suggest")]
+    public async Task<IActionResult> Suggest([FromBody] InternalLinkSuggestRequest request, CancellationToken ct)
+    {
+        var result = await links.SuggestAsync(user.RequireUserId(), request, ct);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
+    }
+}

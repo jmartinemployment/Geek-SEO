@@ -1,11 +1,11 @@
-import { FeaturePlaceholder } from '@/components/app/feature-placeholder';
+import { IntegrationRequired } from '@/components/app/integration-required';
 
-export default function ContentAuditPage() {
+export default function AuditPage() {
   return (
-    <FeaturePlaceholder
-      title="Published Content Audit"
-      description="GSC decay monitoring with sparklines and refresh, merge, or canonical recommendations."
-      planStep="Step 49 — /app/audit"
+    <IntegrationRequired
+      title="Site audit"
+      description="Crawl-based technical SEO audit with issue prioritization. Requires Playwright crawler and site crawl jobs."
+      integrationName="Site crawl pipeline"
     />
   );
 }

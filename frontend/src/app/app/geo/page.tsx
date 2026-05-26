@@ -1,11 +1,11 @@
-import { FeaturePlaceholder } from '@/components/app/feature-placeholder';
+import { IntegrationRequired } from '@/components/app/integration-required';
 
-export default function GeoVisibilityPage() {
+export default function GeoPage() {
   return (
-    <FeaturePlaceholder
-      title="AI Visibility"
-      description="Multi-LLM mention tracking across ChatGPT, Gemini, Perplexity, Claude, and Google AI Overviews."
-      planStep="Step 46 — /app/geo"
+    <IntegrationRequired
+      title="GEO insights"
+      description="Generative-engine optimization signals and AI-overview visibility — planned after GSC and SERP deep analysis are live."
+      integrationName="GEO analysis"
     />
   );
 }

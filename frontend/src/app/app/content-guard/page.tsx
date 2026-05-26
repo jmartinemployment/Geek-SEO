@@ -1,11 +1,11 @@
-import { FeaturePlaceholder } from '@/components/app/feature-placeholder';
+import { IntegrationRequired } from '@/components/app/integration-required';
 
 export default function ContentGuardPage() {
   return (
-    <FeaturePlaceholder
+    <IntegrationRequired
       title="Content Guard"
-      description="Decay policies, automated fix runs, and approve or rollback workflows for published URLs."
-      planStep="Step 47 — /app/content-guard"
+      description="Monitor published URLs for drift, broken links, and score regression. Requires GSC URL inventory and scheduled checks."
+      integrationName="Content Guard monitors"
     />
   );
 }

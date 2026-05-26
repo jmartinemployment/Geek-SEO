@@ -17,8 +17,10 @@ Surfer / ContentShake-style SEO content SaaS.
 ## Status
 
 - **Frontend:** Step 1 UI — projects, documents, editor + SignalR score sidebar.
-- **GeekSeoBackend:** .NET project in `GeekSeoBackend/` — `:5051`, `/api/seo/*`, `/hubs/seo-scoring`.
-- **Data:** Jeff — GeekRepository (`geek_seo`); GeekSeoBackend calls `REPO_URL` (not GeekAPI product routes).
+- **GeekSeoBackend:** Product API `:5051` — providers (DataForSEO, Playwright, Claude), `ContentScoringService`, SignalR hub.
+- **GeekAPI:** Thin internal proxy only — `/api/seo/internal/*` → GeekRepository `repo/seo/*`.
+- **GeekRepository:** `geek_seo` schema + EF migrations — persistence only (no SERP/scoring).
+- **Step 1:** Ready for E2E verification once `DATABASE_URL`, provider keys, and all three services are running locally.
 
 ## Build
 

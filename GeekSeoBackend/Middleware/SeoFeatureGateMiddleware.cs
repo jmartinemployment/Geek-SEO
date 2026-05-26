@@ -42,14 +42,16 @@ public sealed class SeoFeatureGateMiddleware(RequestDelegate next)
             return;
         }
 
-        if ((int)tierResult.Value < (int)required)
+        var currentTier = tierResult.Value;
+        var requiredTier = required!.Value;
+        if ((int)currentTier < (int)requiredTier)
         {
             context.Response.StatusCode = StatusCodes.Status402PaymentRequired;
             await context.Response.WriteAsJsonAsync(new
             {
                 error = "Upgrade required for this feature",
-                requiredTier = required.ToString().ToLowerInvariant(),
-                currentTier = tierResult.Value.ToString().ToLowerInvariant(),
+                requiredTier = requiredTier.ToString().ToLowerInvariant(),
+                currentTier = currentTier.ToString().ToLowerInvariant(),
                 upgradeUrl = "https://seo.geekatyourspot.com/pricing",
             });
             return;

@@ -1,15 +1,41 @@
 using DotNetEnv;
+using GeekApplication.Interfaces.Seo;
 using GeekSeoBackend.Extensions;
 using GeekSeoBackend.Hubs;
+using GeekSeoBackend.Infrastructure;
 using GeekSeoBackend.Middleware;
+using GeekSeoBackend.Providers.Seo;
 using GeekSeoBackend.Services;
+using GeekSeoBackend.Workers;
 
 Env.TraversePath().Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-builder.Services.AddGeekSeoBackend(builder.Configuration);
+
+PlaywrightBrowserHolder? playwrightHolder = null;
+var disablePlaywright = string.Equals(
+    Environment.GetEnvironmentVariable("DISABLE_PLAYWRIGHT"), "true", StringComparison.OrdinalIgnoreCase);
+if (!disablePlaywright)
+{
+    try
+    {
+        playwrightHolder = new PlaywrightBrowserHolder();
+        await playwrightHolder.InitializeAsync();
+        builder.Services.AddSingleton(playwrightHolder);
+    }
+    catch (Exception ex)
+    {
+        builder.Logging.AddConsole();
+        var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger("Startup");
+        logger.LogWarning(ex, "Playwright unavailable; competitor crawl disabled (NoOpCrawlerProvider).");
+    }
+}
+
+builder.Services.AddGeekSeoBackend(builder.Configuration, playwrightHolder);
+builder.Services.AddHostedService<FullArticleJobWorker>();
+builder.Services.AddHostedService<BulkArticleJobWorker>();
 
 var corsOrigins = CorsOriginParser.GetAllowedOrigins();
 builder.Services.AddCors(options =>
@@ -20,33 +46,33 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader()
             .AllowCredentials()));
 
-var repoUrl = Environment.GetEnvironmentVariable("REPO_URL")
-    ?? Environment.GetEnvironmentVariable("GEEK_REPO_URL")
-    ?? "http://localhost:5050";
-var repoApiKey = Environment.GetEnvironmentVariable("REPO_API_KEY") ?? string.Empty;
-builder.Services.AddSingleton<RepositoryAccessTokenProvider>();
-builder.Services.AddTransient<RepositoryBearerTokenHandler>();
-builder.Services.AddHttpClient("GeekRepositoryToken")
-    .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromSeconds(15));
-var repositoryClientBuilder = builder.Services.AddHttpClient("GeekRepository", client =>
+var gatewayUrl = Environment.GetEnvironmentVariable("GEEK_API_URL")
+    ?? Environment.GetEnvironmentVariable("DATA_GATEWAY_URL")
+    ?? (builder.Environment.IsDevelopment() ? "http://localhost:5272" : string.Empty);
+
+if (string.IsNullOrWhiteSpace(gatewayUrl))
 {
-    client.BaseAddress = new Uri(repoUrl.TrimEnd('/') + "/");
-    client.Timeout = TimeSpan.FromSeconds(30);
-});
-if (!string.IsNullOrWhiteSpace(repoApiKey) && builder.Environment.IsDevelopment())
-{
-    repositoryClientBuilder.ConfigureHttpClient(client =>
-        client.DefaultRequestHeaders.Add("X-Repo-Key", repoApiKey));
+    throw new InvalidOperationException(
+        "GEEK_API_URL is required. GeekRepository (REPO_URL) is only configured on GeekAPI.");
 }
-else
+
+builder.Services.AddTransient<GeekDataGatewayHandler>();
+builder.Services.AddHttpClient(GeekDataGateway.HttpClientName, client =>
 {
-    repositoryClientBuilder.AddHttpMessageHandler<RepositoryBearerTokenHandler>();
-}
+    client.BaseAddress = new Uri(gatewayUrl.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(60);
+}).AddHttpMessageHandler<GeekDataGatewayHandler>();
 
 var app = builder.Build();
 
+app.Lifetime.ApplicationStopping.Register(() =>
+{
+    if (playwrightHolder is not null)
+        _ = playwrightHolder.DisposeAsync();
+});
+
 app.Logger.LogInformation("CORS origins: {Origins}", string.Join(", ", corsOrigins));
-app.Logger.LogInformation("GeekSeoBackend data path: REPO_URL={RepoUrl}", repoUrl);
+app.Logger.LogInformation("Data gateway: {Url} (providers run on GeekSeoBackend)", gatewayUrl);
 
 app.UseCors();
 app.UseAuthentication();

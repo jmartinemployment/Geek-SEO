@@ -7,11 +7,7 @@
 | Service | Port | Path |
 |---------|------|------|
 | Next.js | 3000 | `frontend/` |
-| **GeekSeoBackend** | **5051** | **`GeekSeoBackend/`** (add this project — not in GeekBackend) |
-
-## What does not run SEO product code
-
-**GeekAPI** — platform/OIDC and optional **internal DB gateway only**. Never point the Geek SEO frontend at GeekAPI for `/api/seo` or SignalR.
+| **GeekSeoBackend** | **5051** | **`GeekSeoBackend/`** |
 
 ## GeekSeoBackend
 
@@ -22,7 +18,21 @@ dotnet run
 # http://localhost:5051/health
 ```
 
-Requires GeekRepository on `:5050` and GeekAPI issuer for tokens. In `.env`: `REPO_URL`, `GEEK_OAUTH_AUTHORITY`, `GEEK_SEO_BACKEND_CLIENT_SECRET` (client `geekseo-backend` — not `GEEK_API_CLIENT_SECRET`).
+**Do not set `REPO_URL`** on GeekSeoBackend. Data goes through GeekAPI internal routes only.
+
+| Variable | Purpose |
+|----------|---------|
+| `GEEK_API_URL` | GeekAPI base URL (e.g. `http://localhost:5272` locally) |
+| `GEEK_BACKEND_API_KEY` | Same key as GeekAPI `GEEK_BACKEND_API_KEY` (dev internal proxy) |
+| `GEEK_OAUTH_AUTHORITY` | Token issuer (production) |
+| `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | Live SERP (required for real scoring) |
+| `ANTHROPIC_API_KEY` | Term extraction + AI writing |
+
+**GeekRepository** must run with `DATABASE_URL` so `geek_seo` migrations apply. GeekAPI needs `REPO_URL` + `REPO_API_KEY` to proxy to the repo.
+
+If `geek_seo` was dropped by an older migration, restart GeekRepository once — EF `InitialSeoSchema` recreates it.
+
+**Background jobs:** `FullArticleJobWorker` runs inside GeekSeoBackend (polls every 5s). `POST /api/seo/writing/full-article` enqueues; poll `GET /api/seo/jobs/{id}`.
 
 ## Frontend
 
@@ -33,12 +43,13 @@ npm install
 npm run dev
 ```
 
-`NEXT_PUBLIC_SEO_API_URL=http://localhost:5051` — only valid when GeekSeoBackend in **this repo** is running.
+`NEXT_PUBLIC_SEO_API_URL=http://localhost:5051`
 
 ## Auth
 
-geek-OAuth on :3001 — see `scripts/OAUTH_SETUP.md`. Optional `NEXT_PUBLIC_DEV_USER_ID` for dev.
+geek-OAuth — see `scripts/OAUTH_SETUP.md`. Optional `NEXT_PUBLIC_DEV_USER_ID` for dev.
 
-## Data layer (Jeff — GeekBackend)
+## GeekBackend (Jeff)
 
-GeekRepository :5050 with `geek_seo` schema. GeekSeoBackend calls Jeff’s internal HTTP API for persistence — not GeekAPI product routes.
+- **GeekAPI:** issuer + `/api/seo/internal/*` gateway; holds `REPO_URL`
+- **GeekRepository:** `geek_seo` schema — not called directly from this repo

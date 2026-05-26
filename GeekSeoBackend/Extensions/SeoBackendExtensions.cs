@@ -1,8 +1,10 @@
 using System.Text;
-using GeekSeoBackend.Auth;
-using GeekSeoBackend.HttpClients.Repo;
 using GeekApplication.Interfaces.Seo;
 using GeekApplication.Services.Seo;
+using GeekSeoBackend.Auth;
+using GeekSeoBackend.HttpClients.Repo;
+using GeekSeoBackend.Infrastructure;
+using GeekSeoBackend.Providers.Seo;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using SubscriptionService = GeekApplication.Services.Seo.SubscriptionService;
@@ -11,29 +13,72 @@ namespace GeekSeoBackend.Extensions;
 
 public static class SeoBackendExtensions
 {
-    public static IServiceCollection AddGeekSeoBackend(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddGeekSeoBackend(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        PlaywrightBrowserHolder? playwrightHolder)
     {
         services.AddHttpContextAccessor();
+        services.AddSingleton<WorkerUserContext>();
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();
 
+        // Persistence via GeekAPI → GeekRepository (dumb data pipe)
         services.AddScoped<IProjectRepository, HttpProjectRepository>();
         services.AddScoped<IContentDocumentRepository, HttpContentDocumentRepository>();
         services.AddScoped<IBackgroundJobRepository, HttpBackgroundJobRepository>();
+        services.AddScoped<ISerpCacheRepository, HttpSerpCacheRepository>();
+        services.AddScoped<ICompetitorPageRepository, HttpCompetitorPageRepository>();
+        services.AddScoped<ISubscriptionRepository, HttpSubscriptionRepository>();
+        services.AddScoped<IUsageMeteringRepository, HttpUsageMeteringRepository>();
+        services.AddScoped<IKeywordRepository, HttpKeywordRepository>();
+        services.AddScoped<IWordPressConnectionRepository, HttpWordPressConnectionRepository>();
+        services.AddScoped<IWordPressPublishRepository, HttpWordPressPublishRepository>();
+        services.AddScoped<IBrandVoiceRepository, HttpBrandVoiceRepository>();
+
         services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<IContentDocumentService, ContentDocumentService>();
         services.AddScoped<IBackgroundJobService, BackgroundJobService>();
-        services.AddScoped<IContentScoringService, HttpContentScoringService>();
-        services.AddScoped<ISubscriptionRepository, HttpSubscriptionRepository>();
         services.AddScoped<ISubscriptionService, SubscriptionService>();
-        services.AddScoped<IUsageMeteringRepository, HttpUsageMeteringRepository>();
         services.AddScoped<IUsageMeteringService, UsageMeteringService>();
-        services.AddScoped<ICompetitorInsightsService, HttpCompetitorInsightsService>();
-        services.AddScoped<IAIWritingService, HttpAIWritingService>();
-        services.AddScoped<IContentBriefService, HttpContentBriefService>();
-        services.AddScoped<IKeywordResearchService, HttpKeywordResearchService>();
-        services.AddScoped<IWordPressPublishService, HttpWordPressPublishService>();
-        services.AddSignalR();
 
+        // External providers + scoring (product host only)
+        services.AddScoped<IRichTextProvider, HtmlRichTextProvider>();
+        services.AddHttpClient("DataForSEO", client =>
+        {
+            client.BaseAddress = new Uri("https://api.dataforseo.com");
+            client.Timeout = TimeSpan.FromSeconds(60);
+        });
+        services.AddHttpClient("Anthropic", client => client.BaseAddress = new Uri("https://api.anthropic.com"));
+        services.AddHttpClient("WordPress");
+        services.AddScoped<ISerpProvider, DataForSEOSerpProvider>();
+        services.AddScoped<IKeywordProvider, DataForSEOKeywordProvider>();
+        services.AddScoped<IAIProvider, ClaudeProvider>();
+        services.AddScoped<IWordPressProvider, WordPressRestProvider>();
+
+        if (playwrightHolder?.Browser is not null)
+            services.AddSingleton<ICrawlerProvider>(_ => new PlaywrightCrawlerProvider(playwrightHolder.Browser));
+        else
+            services.AddSingleton<ICrawlerProvider, NoOpCrawlerProvider>();
+
+        services.AddScoped<CompetitorCrawlService>();
+        services.AddScoped<IContentScoringService, ContentScoringService>();
+        services.AddScoped<ICompetitorInsightsService, CompetitorInsightsService>();
+        services.AddScoped<IContentBriefService, ContentBriefService>();
+        services.AddScoped<IAIWritingService, AIWritingService>();
+        services.AddScoped<IKeywordResearchService, KeywordResearchService>();
+        services.AddScoped<IWordPressPublishService, WordPressPublishService>();
+        services.AddScoped<IBrandVoiceService, BrandVoiceService>();
+        services.AddScoped<ISerpAnalysisService, SerpAnalysisService>();
+        services.AddScoped<IInternalLinkService, InternalLinkService>();
+
+        services.AddSignalR();
+        AddAuthentication(services, configuration);
+
+        return services;
+    }
+
+    private static void AddAuthentication(IServiceCollection services, IConfiguration configuration)
+    {
         var authServerUrl = Environment.GetEnvironmentVariable("GEEK_OAUTH_AUTHORITY")
             ?? Environment.GetEnvironmentVariable("AUTH_SERVER_URL");
         var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
@@ -57,37 +102,37 @@ public static class SeoBackendExtensions
                     options.Events = JwtBearerEvents();
                 });
             services.AddAuthorization();
+            return;
         }
-        else if (!string.IsNullOrWhiteSpace(jwtKey))
-        {
-            var keyBytes = Convert.FromBase64String(jwtKey);
-            var issuer = configuration["Jwt:Authority"]
-                ?? Environment.GetEnvironmentVariable("JWT_ISSUER")
-                ?? "https://api.geekatyourspot.com";
-            var audience = configuration["Jwt:Audience"]
-                ?? Environment.GetEnvironmentVariable("JWT_AUDIENCE")
-                ?? "geekseo";
 
-            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                .AddJwtBearer(options =>
+        if (string.IsNullOrWhiteSpace(jwtKey))
+            return;
+
+        var keyBytes = Convert.FromBase64String(jwtKey);
+        var issuer = configuration["Jwt:Authority"]
+            ?? Environment.GetEnvironmentVariable("JWT_ISSUER")
+            ?? "https://api.geekatyourspot.com";
+        var audience = configuration["Jwt:Audience"]
+            ?? Environment.GetEnvironmentVariable("JWT_AUDIENCE")
+            ?? "geekseo";
+
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
                 {
-                    options.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        ValidateIssuer = true,
-                        ValidateAudience = true,
-                        ValidateLifetime = true,
-                        ValidateIssuerSigningKey = true,
-                        ValidIssuer = issuer,
-                        ValidAudience = audience,
-                        IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
-                        ClockSkew = TimeSpan.FromMinutes(1),
-                    };
-                    options.Events = JwtBearerEvents();
-                });
-            services.AddAuthorization();
-        }
-
-        return services;
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = issuer,
+                    ValidAudience = audience,
+                    IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
+                    ClockSkew = TimeSpan.FromMinutes(1),
+                };
+                options.Events = JwtBearerEvents();
+            });
+        services.AddAuthorization();
     }
 
     private static JwtBearerEvents JwtBearerEvents() => new()

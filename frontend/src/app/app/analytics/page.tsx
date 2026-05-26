@@ -1,11 +1,11 @@
-import { FeaturePlaceholder } from '@/components/app/feature-placeholder';
+import { IntegrationRequired } from '@/components/app/integration-required';
 
 export default function AnalyticsPage() {
   return (
-    <FeaturePlaceholder
-      title="GA4 Analytics"
-      description="Landing pages joined with Geek SEO document titles and live scores."
-      planStep="Step 48 — /app/analytics"
+    <IntegrationRequired
+      title="Analytics"
+      description="Traffic and conversion reporting from Google Analytics 4 after OAuth is configured."
+      integrationName="Google Analytics 4"
     />
   );
 }

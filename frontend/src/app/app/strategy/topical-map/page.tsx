@@ -1,11 +1,11 @@
-import { FeaturePlaceholder } from '@/components/app/feature-placeholder';
+import { IntegrationRequired } from '@/components/app/integration-required';
 
 export default function TopicalMapPage() {
   return (
-    <FeaturePlaceholder
-      title="Topical Map"
-      description="GSC-backed cluster map with covered, gap, and partial status plus write-this CTAs."
-      planStep="Step 44 — /app/strategy/topical-map"
+    <IntegrationRequired
+      title="Topical map"
+      description="Visual content strategy map from GSC queries and keyword clusters. Use Content Planner for keyword clustering today."
+      integrationName="Google Search Console + topical map generator"
     />
   );
 }

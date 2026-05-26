@@ -1,3 +1,4 @@
+using GeekSeoBackend.Infrastructure;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Extensions;
 using Microsoft.AspNetCore.Mvc;
@@ -16,9 +17,9 @@ public sealed class SerpCacheController(IHttpClientFactory factory, ICurrentUser
         CancellationToken ct = default)
     {
         _ = user.RequireUserId();
-        var http = factory.CreateClient("GeekRepository");
+        var http = factory.CreateClient(GeekDataGateway.HttpClientName);
         var url =
-            $"repo/seo/serp-cache?keyword={Uri.EscapeDataString(keyword)}&location={Uri.EscapeDataString(location)}&languageCode={languageCode}";
+            $"api/seo/internal/serp-cache?keyword={Uri.EscapeDataString(keyword)}&location={Uri.EscapeDataString(location)}&languageCode={languageCode}";
         var response = await http.DeleteAsync(url, ct);
         if (!response.IsSuccessStatusCode)
             return BadRequest(await response.Content.ReadAsStringAsync(ct));

@@ -398,6 +398,89 @@ export async function publishToWordPress(
   return res.json() as Promise<WordPressPublishResult>;
 }
 
+export type KeywordCluster = {
+  clusterName: string;
+  pillarKeyword: string;
+  keywords: string[];
+  averageVolume: number;
+  averageDifficulty: number;
+};
+
+export async function clusterKeywords(
+  body: { projectId: string; keywords: string[]; location?: string },
+  accessToken?: string | null,
+): Promise<KeywordCluster[]> {
+  const res = await fetch(`${API_URL}/api/seo/keywords/cluster`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<KeywordCluster[]>;
+}
+
+export type BrandVoice = {
+  id: string;
+  name: string;
+  sampleText: string;
+  styleInstructions?: string;
+  createdAt: string;
+};
+
+export async function listBrandVoices(accessToken?: string | null): Promise<BrandVoice[]> {
+  const res = await fetch(`${API_URL}/api/seo/brand-voices`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<BrandVoice[]>;
+}
+
+export async function createBrandVoice(
+  body: { name: string; sampleText: string; styleInstructions?: string },
+  accessToken?: string | null,
+): Promise<BrandVoice> {
+  const res = await fetch(`${API_URL}/api/seo/brand-voices`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<BrandVoice>;
+}
+
+export async function deleteBrandVoice(id: string, accessToken?: string | null): Promise<void> {
+  const res = await fetch(`${API_URL}/api/seo/brand-voices/${id}`, {
+    method: 'DELETE',
+    headers: apiHeaders(accessToken),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+}
+
+export async function startBulkArticles(
+  body: { projectId: string; keywords: string[]; location?: string },
+  accessToken?: string | null,
+): Promise<BackgroundJobStatus> {
+  const res = await fetch(`${API_URL}/api/seo/writing/bulk`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<BackgroundJobStatus>;
+}
+
+export async function getSubscriptionTier(
+  accessToken?: string | null,
+): Promise<{ tier: string }> {
+  const res = await fetch(`${API_URL}/api/seo/subscription`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<{ tier: string }>;
+}
+
 export async function deleteSerpCache(
   keyword: string,
   location: string,

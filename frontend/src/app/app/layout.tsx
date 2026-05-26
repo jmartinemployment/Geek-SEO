@@ -13,6 +13,7 @@ const nav = [
   { href: '/app/rankings', label: 'Rankings' },
   { href: '/app/calendar', label: 'Calendar' },
   { href: '/app/projects', label: 'Projects' },
+  { href: '/app/brand-voice', label: 'Brand voice' },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

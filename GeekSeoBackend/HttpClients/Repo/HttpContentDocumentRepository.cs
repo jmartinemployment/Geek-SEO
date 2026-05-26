@@ -1,3 +1,4 @@
+using GeekSeoBackend.Infrastructure;
 using System.Net;
 using System.Net.Http.Json;
 using GeekSeoBackend.Auth;
@@ -10,17 +11,17 @@ namespace GeekSeoBackend.HttpClients.Repo;
 
 public sealed class HttpContentDocumentRepository(IHttpClientFactory factory, ICurrentUserContext user) : IContentDocumentRepository
 {
-    private readonly HttpClient _http = factory.CreateClient("GeekRepository");
+    private readonly HttpClient _http = factory.CreateClient(GeekDataGateway.HttpClientName);
 
     public async Task<Result<SeoContentDocument>> GetByIdAsync(Guid documentId, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"repo/seo/content/{documentId}?userId={user.UserId}", ct);
+        var response = await _http.GetAsync($"api/seo/internal/content/{documentId}?userId={user.UserId}", ct);
         return await ReadOneAsync(response, ct);
     }
 
     public async Task<Result<IReadOnlyList<SeoContentDocument>>> GetByProjectAsync(Guid projectId, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"repo/seo/content?userId={user.UserId}&projectId={projectId}", ct);
+        var response = await _http.GetAsync($"api/seo/internal/content?userId={user.UserId}&projectId={projectId}", ct);
         if (!response.IsSuccessStatusCode)
             return Result<IReadOnlyList<SeoContentDocument>>.Failure(await response.Content.ReadAsStringAsync(ct));
         var list = await response.Content.ReadFromJsonAsync<List<SeoContentDocument>>(ct);
@@ -30,14 +31,14 @@ public sealed class HttpContentDocumentRepository(IHttpClientFactory factory, IC
     public async Task<Result<SeoContentDocument>> CreateAsync(
         Guid userId, CreateContentDocumentRequest request, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync($"repo/seo/content?userId={userId}", request, ct);
+        var response = await _http.PostAsJsonAsync($"api/seo/internal/content?userId={userId}", request, ct);
         return await ReadOneAsync(response, ct);
     }
 
     public async Task<Result<SeoContentDocument>> UpdateContentAsync(
         Guid documentId, UpdateContentRequest request, int wordCount, CancellationToken ct = default)
     {
-        var response = await _http.PutAsJsonAsync($"repo/seo/content/{documentId}/content?userId={user.UserId}", request, ct);
+        var response = await _http.PutAsJsonAsync($"api/seo/internal/content/{documentId}/content?userId={user.UserId}", request, ct);
         return await ReadOneAsync(response, ct);
     }
 
@@ -45,7 +46,7 @@ public sealed class HttpContentDocumentRepository(IHttpClientFactory factory, IC
         Guid documentId, string status, CancellationToken ct = default)
     {
         var response = await _http.PatchAsJsonAsync(
-            $"repo/seo/content/{documentId}/status?userId={user.UserId}", new { status }, ct);
+            $"api/seo/internal/content/{documentId}/status?userId={user.UserId}", new { status }, ct);
         return await ReadOneAsync(response, ct);
     }
 
@@ -53,7 +54,7 @@ public sealed class HttpContentDocumentRepository(IHttpClientFactory factory, IC
         Guid documentId, int score, string scoreComponentsJson, CancellationToken ct = default)
     {
         var response = await _http.PutAsJsonAsync(
-            $"repo/seo/content/{documentId}/score",
+            $"api/seo/internal/content/{documentId}/score?userId={user.UserId}",
             new { score, scoreComponentsJson },
             ct);
         return response.IsSuccessStatusCode
@@ -66,7 +67,7 @@ public sealed class HttpContentDocumentRepository(IHttpClientFactory factory, IC
 
     public async Task<Result> DeleteAsync(Guid documentId, CancellationToken ct = default)
     {
-        var response = await _http.DeleteAsync($"repo/seo/content/{documentId}?userId={user.UserId}", ct);
+        var response = await _http.DeleteAsync($"api/seo/internal/content/{documentId}?userId={user.UserId}", ct);
         return response.IsSuccessStatusCode
             ? Result.Success()
             : Result.Failure(await response.Content.ReadAsStringAsync(ct));

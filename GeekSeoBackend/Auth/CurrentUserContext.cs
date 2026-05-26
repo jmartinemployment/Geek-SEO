@@ -2,7 +2,7 @@ using System.Security.Claims;
 
 namespace GeekSeoBackend.Auth;
 
-public sealed class CurrentUserContext(IHttpContextAccessor accessor) : ICurrentUserContext
+public sealed class CurrentUserContext(IHttpContextAccessor accessor, WorkerUserContext worker) : ICurrentUserContext
 {
     public bool IsAuthenticated => TryResolveUserId(out _);
 
@@ -19,6 +19,12 @@ public sealed class CurrentUserContext(IHttpContextAccessor accessor) : ICurrent
     private bool TryResolveUserId(out Guid userId)
     {
         userId = Guid.Empty;
+        if (worker.UserId != Guid.Empty)
+        {
+            userId = worker.UserId;
+            return true;
+        }
+
         var sub = accessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? accessor.HttpContext?.User.FindFirstValue("sub");
         if (Guid.TryParse(sub, out userId) && userId != Guid.Empty)

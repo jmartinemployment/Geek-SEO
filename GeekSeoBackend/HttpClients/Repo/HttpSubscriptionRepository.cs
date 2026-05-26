@@ -1,3 +1,4 @@
+using GeekSeoBackend.Infrastructure;
 using System.Net;
 using System.Net.Http.Json;
 using GeekApplication.Entities.Seo;
@@ -8,11 +9,11 @@ namespace GeekSeoBackend.HttpClients.Repo;
 
 public sealed class HttpSubscriptionRepository(IHttpClientFactory factory) : ISubscriptionRepository
 {
-    private readonly HttpClient _http = factory.CreateClient("GeekRepository");
+    private readonly HttpClient _http = factory.CreateClient(GeekDataGateway.HttpClientName);
 
     public async Task<Result<SeoSubscription?>> GetByUserIdAsync(Guid userId, CancellationToken ct = default)
     {
-        var response = await _http.GetAsync($"repo/seo/subscriptions?userId={userId}", ct);
+        var response = await _http.GetAsync($"api/seo/internal/subscriptions?userId={userId}", ct);
         if (response.StatusCode == HttpStatusCode.NotFound)
             return Result<SeoSubscription?>.Success(null);
         if (!response.IsSuccessStatusCode)
