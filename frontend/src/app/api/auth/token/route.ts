@@ -12,7 +12,7 @@ type TokenResponse = {
 };
 
 async function exchangeToken(body: URLSearchParams): Promise<TokenResponse> {
-  const response = await fetch(`${authConfig.authUrl}/oauth/token`, {
+  const response = await fetch(authConfig.tokenUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: body.toString(),

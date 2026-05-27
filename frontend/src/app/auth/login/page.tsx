@@ -46,7 +46,7 @@ export default function LoginPage() {
         code_challenge: challenge,
         code_challenge_method: 'S256',
       });
-      globalThis.location.href = `${authConfig.authUrl}/oauth/authorize?${params.toString()}`;
+      globalThis.location.href = `${authConfig.authorizeUrl}?${params.toString()}`;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not start login');
       setLoading(false);
