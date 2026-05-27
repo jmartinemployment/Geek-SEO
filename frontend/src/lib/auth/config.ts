@@ -4,7 +4,7 @@ export const authConfig = {
   authUrl: authBaseUrl,
   authorizeUrl: `${authBaseUrl}/connect/authorize`,
   tokenUrl: `${authBaseUrl}/connect/token`,
-  clientId: process.env.NEXT_PUBLIC_CLIENT_ID ?? 'geekseo',
+  clientId: process.env.NEXT_PUBLIC_CLIENT_ID?.trim() || 'geekseo',
   redirectUri:
     process.env.NEXT_PUBLIC_REDIRECT_URI ??
     `${(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/u, '')}/auth/callback`,

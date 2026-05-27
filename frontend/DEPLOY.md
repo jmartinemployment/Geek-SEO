@@ -69,7 +69,16 @@ See `plan-documents/GEEKSEO-PLAN.md` for full capability list.
 | Symptom | Fix |
 |---------|-----|
 | Sign-in goes to `localhost:3001` in production | Set all `NEXT_PUBLIC_*` vars on Vercel and redeploy |
+| OpenIddict `client_id is invalid` (ID2052) | **geek-OAuth** has no `geekseo` client — redeploy **GeekOAuth** (not GeekSeoBackend). Verify `curl` below. Do **not** put `GOOGLE_CLIENT_ID` in `NEXT_PUBLIC_CLIENT_ID`. |
 | Auth host NXDOMAIN | CNAME `auth` → geek-OAuth Railway URL |
 | API errors / CORS | GeekSeoBackend `CORS_ORIGINS` must include `https://seo.geekatyourspot.com` |
+
+Verify `geekseo` is registered on auth:
+
+```bash
+curl -sS "https://auth.geekatyourspot.com/connect/authorize?client_id=geekseo&redirect_uri=https://seo.geekatyourspot.com/auth/callback&response_type=code&scope=openid&code_challenge=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&code_challenge_method=S256" | head -1
+```
+
+If you see `client_id is invalid`, redeploy **GeekOAuth** from `main` and ensure Railway has `CLIENT_SECRET_GEEKAPI` and `CLIENT_SECRET_GEEKWEBSITE` set.
 
 `geekseo` client redirect URIs must include `https://seo.geekatyourspot.com/auth/callback` and local `http://localhost:3000/auth/callback`.

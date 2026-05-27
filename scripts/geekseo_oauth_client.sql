@@ -1,6 +1,6 @@
--- Geek SEO OAuth client for auth.oauth_clients (GeekBackend / geek-OAuth DB adapter).
--- geek-OAuth also registers client_id=geekseo in src/oidc/clients.ts — keep both in sync.
--- Run: psql "$DATABASE_URL" -f scripts/geekseo_oauth_client.sql
+-- DEPRECATED for GeekOAuth (.NET): clients live in OpenIddictApplications, seeded at deploy.
+-- Prefer: redeploy GeekOAuth (ClientSeeder + startup bootstrap create client_id=geekseo).
+-- This script targeted legacy auth.oauth_clients and is not used by GeekOAuth.Server.
 
 INSERT INTO auth.oauth_clients (
   id,

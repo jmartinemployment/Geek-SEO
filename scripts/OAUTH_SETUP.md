@@ -27,8 +27,8 @@ GeekSeoBackend must validate JWTs from `AUTH_SERVER_URL` (same public URL as `NE
 ## 4. Frontend
 
 ```bash
-NEXT_PUBLIC_OAUTH_AUTHORITY=http://localhost:3001
-NEXT_PUBLIC_OAUTH_CLIENT_ID=geekseo
+NEXT_PUBLIC_AUTH_URL=http://localhost:3001
+NEXT_PUBLIC_CLIENT_ID=geekseo
 ```
 
 See `frontend/.env.example` and `frontend/DEPLOY.md`.
