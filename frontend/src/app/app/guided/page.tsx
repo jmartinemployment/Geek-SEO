@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import {
@@ -25,7 +24,6 @@ const STEPS = [
 ] as const;
 
 export default function GuidedWizardPage() {
-  const router = useRouter();
   const { accessToken, isLoading: authLoading } = useAuth();
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);

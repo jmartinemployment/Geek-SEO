@@ -1,6 +1,10 @@
 # Geek SEO — project status
 
-Last updated: May 25, 2026
+Last updated: May 27, 2026
+
+## Identity (geek-OAuth)
+
+Platform login for Geek SEO (**OAuth 2.1 + PKCE** via **geek-OAuth**) is **complete** for production: issuer, `geekseo` client, redirect URIs, and JWT validation on GeekSeoBackend (`GEEK_OAUTH_AUTHORITY`). This is unrelated to **Google** OAuth for GSC / GA4 integrations (still not built).
 
 ## Architecture (target state — implemented)
 
@@ -16,6 +20,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 
 | Flow | Backend | Frontend | Needs |
 |------|---------|----------|-------|
+| Platform login (geek-OAuth) | ✅ JWT validation | ✅ PKCE + `/api/auth/*` | `NEXT_PUBLIC_AUTH_*`, `GEEK_OAUTH_AUTHORITY` |
 | Projects CRUD | ✅ | ✅ | `GEEK_API_URL`, `GEEK_BACKEND_API_KEY`, auth |
 | Content editor + live score | ✅ | ✅ | DataForSEO, Anthropic, Playwright (optional) |
 | SERP-backed briefs | ✅ | ✅ | DataForSEO |
@@ -27,6 +32,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 | Brand voice CRUD | ✅ | ✅ /app/brand-voice | Postgres |
 | Humanize / AI detect / auto-optimize | ✅ | ✅ toolbar | Anthropic |
 | Deep SERP analysis | ✅ `GET /api/seo/serp/deep` | — | DataForSEO |
+| Google integrations (GSC + GA4) | ✅ OAuth + data endpoints | partial (`IntegrationRequired` pages not yet wired) | Google OAuth env vars + GeekAPI internal Google routes |
 | Internal link suggestions | ✅ | — | sibling docs in project |
 | Usage gates + subscription tier read | ✅ | partial | subscription row in DB |
 
@@ -34,8 +40,8 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 
 | Area | Status |
 |------|--------|
-| Google Search Console OAuth | **Not built** — rankings, topical map, content guard UI show integration-required |
-| Google Analytics 4 | **Not built** |
+| Google Search Console OAuth | **Backend implemented in GeekSeoBackend** (`/api/seo/integrations/google/*`, `/api/seo/rankings/{projectId}`) — frontend wiring and GeekAPI internal Google routes must be live |
+| Google Analytics 4 | **Backend implemented in GeekSeoBackend** (`/api/seo/analytics/ga4/{projectId}/landing-pages`) — frontend wiring and internal Google routes must be live |
 | PayPal billing + webhooks | **Not built** |
 | Site-wide technical audit crawl | **Not built** |
 | Copyscape / plagiarism | **Not built** |

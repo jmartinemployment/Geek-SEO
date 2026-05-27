@@ -5,6 +5,7 @@ using GeekSeoBackend.Auth;
 using GeekSeoBackend.HttpClients.Repo;
 using GeekSeoBackend.Infrastructure;
 using GeekSeoBackend.Providers.Seo;
+using GeekSeoBackend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using SubscriptionService = GeekApplication.Services.Seo.SubscriptionService;
@@ -34,6 +35,7 @@ public static class SeoBackendExtensions
         services.AddScoped<IWordPressConnectionRepository, HttpWordPressConnectionRepository>();
         services.AddScoped<IWordPressPublishRepository, HttpWordPressPublishRepository>();
         services.AddScoped<IBrandVoiceRepository, HttpBrandVoiceRepository>();
+        services.AddScoped<IGoogleIntegrationRepository, HttpGoogleIntegrationRepository>();
 
         services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<IContentDocumentService, ContentDocumentService>();
@@ -70,11 +72,29 @@ public static class SeoBackendExtensions
         services.AddScoped<IBrandVoiceService, BrandVoiceService>();
         services.AddScoped<ISerpAnalysisService, SerpAnalysisService>();
         services.AddScoped<IInternalLinkService, InternalLinkService>();
+        services.AddMemoryCache();
+        services.AddHttpClient("GoogleOAuth");
+        services.AddHttpClient("GoogleApis");
+        services.AddSingleton<IGoogleOAuthStateStore, InMemoryGoogleOAuthStateStore>();
+        services.AddSingleton(_ => new GoogleOAuthOptions
+        {
+            ClientId = ReadEnv("GOOGLE_CLIENT_ID"),
+            ClientSecret = ReadEnv("GOOGLE_CLIENT_SECRET"),
+            RedirectUri = ReadEnv("GOOGLE_REDIRECT_URI"),
+        });
+        services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
+        services.AddScoped<IGoogleDataService, GoogleDataService>();
 
         services.AddSignalR();
         AddAuthentication(services, configuration);
 
         return services;
+    }
+
+    private static string ReadEnv(string name)
+    {
+        var value = Environment.GetEnvironmentVariable(name);
+        return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
     }
 
     private static void AddAuthentication(IServiceCollection services, IConfiguration configuration)

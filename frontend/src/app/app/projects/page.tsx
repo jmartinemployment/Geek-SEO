@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import { createProject, getSeoApiUrl, listProjects, type SeoProject } from '@/lib/seo-api';
@@ -15,7 +15,8 @@ export default function ProjectsPage() {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('https://');
 
-  async function load() {
+  const load = useCallback(async () => {
+    setLoading(true);
     try {
       setError(null);
       setProjects(await listProjects(accessToken));
@@ -24,13 +25,15 @@ export default function ProjectsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [accessToken]);
 
   useEffect(() => {
     if (authLoading) return;
-    setLoading(true);
-    void load();
-  }, [accessToken, authLoading]);
+    const timer = setTimeout(() => {
+      void load();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [authLoading, load]);
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();

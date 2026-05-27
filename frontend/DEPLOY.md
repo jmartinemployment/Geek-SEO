@@ -5,7 +5,7 @@ WordPress is **optional**. Users can write, score, and export HTML without a con
 ## Prerequisites
 
 - **GeekSeoBackend** deployed and reachable (SEO REST + SignalR)
-- **geek-OAuth** deployed for login (`scripts/geekseo_oauth_client.sql` + `geek-OAuth/src/oidc/clients.ts`)
+- **geek-OAuth** deployed for login (`scripts/geekseo_oauth_client.sql` + `geek-OAuth/src/oidc/clients.ts`) — platform identity (OAuth 2.1 + PKCE) is **live** for Geek SEO once DNS and env vars match your public issuer
 - DNS: `seo.geekatyourspot.com` → Vercel
 
 ## DNS for this product
@@ -60,6 +60,7 @@ Configure on the **GeekSeoBackend** service only. **Do not** set `DATABASE_URL`,
 | `CORS_ORIGINS` | `https://seo.geekatyourspot.com,http://localhost:3000` |
 | `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | DataForSEO account |
 | `ANTHROPIC_API_KEY` | Claude API key |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Google OAuth for GSC + GA4 backend routes |
 
 See `plan-documents/GEEKSEO-PLAN.md` for full capability list.
 

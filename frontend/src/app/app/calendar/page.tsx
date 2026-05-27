@@ -58,7 +58,10 @@ export default function ContentCalendarPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    void load();
+    const timer = setTimeout(() => {
+      void load();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [authLoading, load]);
 
   async function moveCard(card: CalendarCard, nextStatus: ColumnId) {

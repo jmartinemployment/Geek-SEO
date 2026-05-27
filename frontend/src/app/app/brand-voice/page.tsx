@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import {
   createBrandVoice,
@@ -18,13 +18,16 @@ export default function BrandVoicePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     setVoices(await listBrandVoices(accessToken));
-  }
+  }, [accessToken]);
 
   useEffect(() => {
-    void refresh().catch((e) => setError(e instanceof Error ? e.message : 'Load failed'));
-  }, [accessToken]);
+    const timer = setTimeout(() => {
+      void refresh().catch((e) => setError(e instanceof Error ? e.message : 'Load failed'));
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [refresh]);
 
   if (authLoading) return <main className="p-8">Loading…</main>;
 

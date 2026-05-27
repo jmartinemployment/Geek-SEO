@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { authConfig } from '@/lib/auth/config';
 import { generateCodeChallenge, generateCodeVerifier, PKCE_STORAGE_KEY } from '@/lib/auth/pkce';
 
@@ -17,13 +17,8 @@ function misconfiguredAuthUrl(): string | null {
 }
 
 export default function LoginPage() {
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() => misconfiguredAuthUrl());
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const configError = misconfiguredAuthUrl();
-    if (configError) setError(configError);
-  }, []);
 
   async function startLogin() {
     setLoading(true);

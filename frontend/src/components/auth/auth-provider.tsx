@@ -26,12 +26,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [accessToken, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshAccessTokenRef = useRef<() => Promise<string | null>>(async () => null);
 
   const scheduleRefresh = useCallback((expiresInSeconds: number) => {
     if (refreshTimer.current) clearTimeout(refreshTimer.current);
     const ms = Math.max(30_000, (expiresInSeconds - 60) * 1000);
     refreshTimer.current = setTimeout(() => {
-      void refreshAccessToken();
+      void refreshAccessTokenRef.current();
     }, ms);
   }, []);
 
@@ -55,6 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
   }, [scheduleRefresh]);
+
+  useEffect(() => {
+    refreshAccessTokenRef.current = refreshAccessToken;
+  }, [refreshAccessToken]);
 
   const setAccessToken = useCallback(
     (token: string | null, expiresInSeconds = 900) => {

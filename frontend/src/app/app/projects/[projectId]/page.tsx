@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
+import { GoogleSettings } from '@/components/google/google-settings';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import { createContent, listContent, type SeoContentDocument } from '@/lib/seo-api';
 
@@ -11,7 +12,10 @@ export default function ProjectDocumentsPage() {
   const { accessToken, isLoading: authLoading } = useAuth();
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const projectId = params.projectId as string;
+  const googleNotice = searchParams.get('google');
+  const googleMessage = searchParams.get('message');
   const [documents, setDocuments] = useState<SeoContentDocument[]>([]);
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
@@ -19,7 +23,8 @@ export default function ProjectDocumentsPage() {
   const [title, setTitle] = useState('New article');
   const [keyword, setKeyword] = useState('');
 
-  async function load() {
+  const load = useCallback(async () => {
+    setLoading(true);
     try {
       setError(null);
       setDocuments(await listContent(projectId, accessToken));
@@ -28,13 +33,15 @@ export default function ProjectDocumentsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [projectId, accessToken]);
 
   useEffect(() => {
     if (authLoading) return;
-    setLoading(true);
-    void load();
-  }, [projectId, accessToken, authLoading]);
+    const timer = setTimeout(() => {
+      void load();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [authLoading, load]);
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -62,6 +69,21 @@ export default function ProjectDocumentsPage() {
         ← Projects
       </Link>
       <h1 className="mt-4 text-2xl font-semibold tracking-tight">Content documents</h1>
+
+      {googleNotice === 'connected' ? (
+        <p className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+          Google Search Console and Analytics are connected for this project.
+        </p>
+      ) : null}
+      {googleNotice === 'error' ? (
+        <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          Google connect failed{googleMessage ? `: ${googleMessage}` : '.'}
+        </p>
+      ) : null}
+
+      <div className="mt-6">
+        <GoogleSettings projectId={projectId} accessToken={accessToken} />
+      </div>
 
       {error ? <div className="mt-4"><SeoErrorBanner error={error} /></div> : null}
 

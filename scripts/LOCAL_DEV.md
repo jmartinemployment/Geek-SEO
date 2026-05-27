@@ -27,6 +27,7 @@ dotnet run
 | `GEEK_OAUTH_AUTHORITY` | Token issuer (production) |
 | `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | Live SERP (required for real scoring) |
 | `ANTHROPIC_API_KEY` | Term extraction + AI writing |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Google OAuth for GSC + GA4 integration endpoints |
 
 **GeekRepository** must run with `DATABASE_URL` so `geek_seo` migrations apply. GeekAPI needs `REPO_URL` + `REPO_API_KEY` to proxy to the repo.
 

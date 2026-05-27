@@ -13,10 +13,6 @@ async function seoJson<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-async function seoVoid(res: Response): Promise<void> {
-  if (!res.ok) throw await parseSeoApiErrorResponse(res);
-}
-
 export function apiHeaders(accessToken?: string | null): HeadersInit {
   const headers: HeadersInit = { 'Content-Type': 'application/json' };
   if (accessToken) {
@@ -493,4 +489,112 @@ export async function deleteSerpCache(
     headers: apiHeaders(accessToken),
   });
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
+}
+
+export type GoogleIntegrationStatus = {
+  connected: boolean;
+  gscConnected: boolean;
+  ga4Connected: boolean;
+  siteUrl?: string;
+  propertyId?: string;
+  connectedAt?: string;
+};
+
+export type GoogleRankingRow = {
+  query: string;
+  page: string;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  position: number;
+};
+
+export type GoogleRankingsResponse = {
+  projectId: string;
+  siteUrl: string;
+  startDate: string;
+  endDate: string;
+  rows: GoogleRankingRow[];
+};
+
+export type Ga4LandingPageRow = {
+  landingPage: string;
+  sessions: number;
+  users: number;
+  conversions: number;
+};
+
+export type Ga4LandingPagesResponse = {
+  projectId: string;
+  propertyId: string;
+  startDate: string;
+  endDate: string;
+  rows: Ga4LandingPageRow[];
+};
+
+export async function getGoogleIntegrationStatus(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<GoogleIntegrationStatus> {
+  const res = await fetch(
+    `${API_URL}/api/seo/integrations/google/status?projectId=${projectId}`,
+    { headers: apiHeaders(accessToken), cache: 'no-store' },
+  );
+  return seoJson<GoogleIntegrationStatus>(res);
+}
+
+export async function getGoogleConnectUrl(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<{ url: string; expiresAt: string }> {
+  const res = await fetch(
+    `${API_URL}/api/seo/integrations/google/connect-url?projectId=${projectId}`,
+    { headers: apiHeaders(accessToken), cache: 'no-store' },
+  );
+  return seoJson<{ url: string; expiresAt: string }>(res);
+}
+
+export async function disconnectGoogle(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<void> {
+  const res = await fetch(
+    `${API_URL}/api/seo/integrations/google/disconnect?projectId=${projectId}`,
+    { method: 'DELETE', headers: apiHeaders(accessToken) },
+  );
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+}
+
+export async function getGoogleRankings(
+  projectId: string,
+  accessToken?: string | null,
+  startDate?: string,
+  endDate?: string,
+): Promise<GoogleRankingsResponse> {
+  const params = new URLSearchParams();
+  if (startDate) params.set('startDate', startDate);
+  if (endDate) params.set('endDate', endDate);
+  const qs = params.toString();
+  const res = await fetch(
+    `${API_URL}/api/seo/rankings/${projectId}${qs ? `?${qs}` : ''}`,
+    { headers: apiHeaders(accessToken), cache: 'no-store' },
+  );
+  return seoJson<GoogleRankingsResponse>(res);
+}
+
+export async function getGa4LandingPages(
+  projectId: string,
+  accessToken?: string | null,
+  startDate?: string,
+  endDate?: string,
+): Promise<Ga4LandingPagesResponse> {
+  const params = new URLSearchParams();
+  if (startDate) params.set('startDate', startDate);
+  if (endDate) params.set('endDate', endDate);
+  const qs = params.toString();
+  const res = await fetch(
+    `${API_URL}/api/seo/analytics/ga4/${projectId}/landing-pages${qs ? `?${qs}` : ''}`,
+    { headers: apiHeaders(accessToken), cache: 'no-store' },
+  );
+  return seoJson<Ga4LandingPagesResponse>(res);
 }

@@ -1,11 +1,11 @@
-import { IntegrationRequired } from '@/components/app/integration-required';
+import { GoogleProjectPanel } from '@/components/google/google-project-panel';
 
 export default function AnalyticsPage() {
   return (
-    <IntegrationRequired
+    <GoogleProjectPanel
       title="Analytics"
-      description="Traffic and conversion reporting from Google Analytics 4 after OAuth is configured."
-      integrationName="Google Analytics 4"
+      description="Landing page sessions and conversions from Google Analytics 4 for the selected project."
+      mode="analytics"
     />
   );
 }
