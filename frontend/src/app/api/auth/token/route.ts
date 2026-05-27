@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     } else {
       const refresh = (await cookies()).get(REFRESH_COOKIE)?.value;
       if (!refresh)
-        return NextResponse.json({ error: 'No refresh session' }, { status: 401 });
+        return NextResponse.json({ accessToken: null, expiresIn: 0 });
       params.set('grant_type', 'refresh_token');
       params.set('refresh_token', refresh);
     }

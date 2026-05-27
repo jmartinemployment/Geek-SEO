@@ -47,7 +47,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(null);
         return null;
       }
-      const data = (await res.json()) as { accessToken: string; expiresIn: number };
+      const data = (await res.json()) as { accessToken: string | null; expiresIn: number };
+      if (!data.accessToken) {
+        setToken(null);
+        return null;
+      }
       setToken(data.accessToken);
       scheduleRefresh(data.expiresIn);
       return data.accessToken;
@@ -77,7 +81,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void (async () => {
-      await refreshAccessToken();
+      const path = globalThis.location?.pathname ?? '';
+      if (!path.startsWith('/auth')) await refreshAccessToken();
       setIsLoading(false);
     })();
     return () => {
