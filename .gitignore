@@ -1,6 +1,11 @@
 # Claude Code
 .claude/
+.cursor/
 CLAUDE.md
+AGENTS.md
+**/AGENTS.md
+RULES.md
+**/RULES.md
 plan-documents/architecture-questions.md
 .vercel
 
