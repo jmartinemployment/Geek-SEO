@@ -1,9 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
-import { PKCE_STORAGE_KEY } from '@/lib/auth/pkce';
 
 function CallbackInner() {
   const params = useSearchParams();
@@ -13,12 +13,15 @@ function CallbackInner() {
 
   useEffect(() => {
     void (async () => {
-      const code = params.get('code');
-      const verifier = sessionStorage.getItem(PKCE_STORAGE_KEY);
-      sessionStorage.removeItem(PKCE_STORAGE_KEY);
+      const oauthError = params.get('error');
+      if (oauthError) {
+        setError(params.get('error_description') ?? oauthError);
+        return;
+      }
 
-      if (!code || !verifier) {
-        setError('Missing authorization code or PKCE verifier.');
+      const code = params.get('code');
+      if (!code) {
+        setError('Sign-in did not return an authorization code. Try Log in again.');
         return;
       }
 
@@ -29,7 +32,6 @@ function CallbackInner() {
           body: JSON.stringify({
             grantType: 'authorization_code',
             code,
-            codeVerifier: verifier,
           }),
         });
         if (!res.ok) {
@@ -54,14 +56,28 @@ function CallbackInner() {
 
   return (
     <main className="mx-auto max-w-md p-8">
-      {error ? <p className="text-red-600">{error}</p> : <p className="text-zinc-600">Completing sign-in…</p>}
+      {error ? (
+        <>
+          <p className="rounded border border-red-500/50 bg-red-950/50 p-3 text-sm text-red-300">
+            {error}
+          </p>
+          <Link
+            href="/api/auth/start"
+            className="mt-6 inline-block rounded bg-white px-4 py-2 text-sm font-medium text-zinc-900"
+          >
+            Log in
+          </Link>
+        </>
+      ) : (
+        <p className="text-zinc-300">Completing sign-in…</p>
+      )}
     </main>
   );
 }
 
 export default function AuthCallbackPage() {
   return (
-    <Suspense fallback={<main className="p-8">Completing sign-in…</main>}>
+    <Suspense fallback={<main className="p-8 text-zinc-300">Completing sign-in…</main>}>
       <CallbackInner />
     </Suspense>
   );

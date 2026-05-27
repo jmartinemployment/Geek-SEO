@@ -8,5 +8,5 @@ export const authConfig = {
   redirectUri:
     process.env.NEXT_PUBLIC_REDIRECT_URI ??
     `${(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/u, '')}/auth/callback`,
-  scope: 'openid profile email',
+  scope: 'openid profile email offline_access',
 };

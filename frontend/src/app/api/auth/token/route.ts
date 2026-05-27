@@ -1,8 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { authConfig } from '@/lib/auth/config';
-
-const REFRESH_COOKIE = 'geekseo_refresh';
+import { PKCE_COOKIE, REFRESH_COOKIE } from '@/lib/auth/oauth-cookies';
 
 type TokenResponse = {
   access_token: string;
@@ -39,11 +38,20 @@ export async function POST(request: Request) {
     });
 
     if (json.grantType === 'authorization_code') {
-      if (!json.code || !json.codeVerifier)
-        return NextResponse.json({ error: 'code and codeVerifier required' }, { status: 400 });
+      if (!json.code) return NextResponse.json({ error: 'code required' }, { status: 400 });
+
+      const jar = await cookies();
+      const codeVerifier =
+        jar.get(PKCE_COOKIE)?.value ?? json.codeVerifier?.trim() ?? '';
+      if (!codeVerifier)
+        return NextResponse.json(
+          { error: 'Sign-in session expired. Go to Log in and try again.' },
+          { status: 400 },
+        );
+
       params.set('grant_type', 'authorization_code');
       params.set('code', json.code);
-      params.set('code_verifier', json.codeVerifier);
+      params.set('code_verifier', codeVerifier);
       params.set('redirect_uri', authConfig.redirectUri);
     } else {
       const refresh = (await cookies()).get(REFRESH_COOKIE)?.value;
@@ -68,6 +76,8 @@ export async function POST(request: Request) {
         maxAge: 60 * 60 * 24 * 30,
       });
     }
+
+    res.cookies.set(PKCE_COOKIE, '', { httpOnly: true, path: '/', maxAge: 0 });
 
     return res;
   } catch (error) {

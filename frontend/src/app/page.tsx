@@ -9,7 +9,7 @@ export default function Home() {
       </p>
       <div className="flex gap-3">
         <Link
-          href="/auth/login"
+          href="/api/auth/start"
           className="inline-flex w-fit rounded-lg bg-zinc-900 px-5 py-3 text-white hover:bg-zinc-800"
         >
           Sign in
