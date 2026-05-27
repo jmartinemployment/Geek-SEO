@@ -1,6 +1,7 @@
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Extensions;
 using GeekSeoBackend.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GeekSeoBackend.Controllers.Seo;
@@ -27,6 +28,7 @@ public sealed class GoogleIntegrationsController(IGoogleOAuthService google, ICu
         }
     }
 
+    [AllowAnonymous]
     [HttpGet("callback")]
     public async Task<IActionResult> Callback(
         [FromQuery] string code,

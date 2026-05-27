@@ -42,7 +42,10 @@ public sealed class HttpGoogleIntegrationRepository(IHttpClientFactory factory) 
     public async Task<Result<SeoGscConnection>> UpsertGscConnectionAsync(
         SeoGscConnection connection, CancellationToken ct = default)
     {
-        var response = await _http.PutAsJsonAsync("api/seo/internal/google/gsc-connection", connection, ct);
+        var response = await _http.PutAsJsonAsync(
+            $"api/seo/internal/google/gsc-connection?userId={connection.UserId}",
+            connection,
+            ct);
         if (!response.IsSuccessStatusCode)
             return Result<SeoGscConnection>.Failure(await response.Content.ReadAsStringAsync(ct));
         var payload = await response.Content.ReadFromJsonAsync<SeoGscConnection>(ct);
@@ -52,9 +55,14 @@ public sealed class HttpGoogleIntegrationRepository(IHttpClientFactory factory) 
     }
 
     public async Task<Result<SeoGa4Connection>> UpsertGa4ConnectionAsync(
-        SeoGa4Connection connection, CancellationToken ct = default)
+        SeoGa4Connection connection,
+        Guid userId,
+        CancellationToken ct = default)
     {
-        var response = await _http.PutAsJsonAsync("api/seo/internal/google/ga4-connection", connection, ct);
+        var response = await _http.PutAsJsonAsync(
+            $"api/seo/internal/google/ga4-connection?userId={userId}",
+            connection,
+            ct);
         if (!response.IsSuccessStatusCode)
             return Result<SeoGa4Connection>.Failure(await response.Content.ReadAsStringAsync(ct));
         var payload = await response.Content.ReadFromJsonAsync<SeoGa4Connection>(ct);

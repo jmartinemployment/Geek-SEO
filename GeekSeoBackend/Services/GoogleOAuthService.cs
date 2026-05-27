@@ -121,7 +121,7 @@ public sealed class GoogleOAuthService(
                 EncryptionTag = tokenTag,
                 ConnectedAt = DateTimeOffset.UtcNow,
             };
-            var ga4Upsert = await integrations.UpsertGa4ConnectionAsync(ga4, ct);
+            var ga4Upsert = await integrations.UpsertGa4ConnectionAsync(ga4, payload.UserId, ct);
             if (!ga4Upsert.IsSuccess)
                 throw new GoogleIntegrationException(ga4Upsert.Error ?? "Failed to persist Google Analytics 4 connection.");
             ga4Connected = true;
