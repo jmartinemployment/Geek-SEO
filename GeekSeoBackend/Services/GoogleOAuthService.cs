@@ -214,11 +214,9 @@ public sealed class GoogleOAuthService(
 
     private async Task EnsureProjectOwnershipAsync(Guid userId, Guid projectId, CancellationToken ct)
     {
-        var project = await projects.GetByIdAsync(projectId, ct);
+        var project = await projects.GetByIdAsync(projectId, userId, ct);
         if (!project.IsSuccess || project.Value is null)
-            throw new GoogleIntegrationException("Project not found.", StatusCodes.Status404NotFound);
-        if (project.Value.UserId != userId)
-            throw new GoogleIntegrationException("Forbidden.", StatusCodes.Status403Forbidden);
+            throw new GoogleIntegrationException("Project not found or access denied.", StatusCodes.Status404NotFound);
     }
 
     private async Task<GoogleTokenResponse> ExchangeCodeAsync(string code, CancellationToken ct)

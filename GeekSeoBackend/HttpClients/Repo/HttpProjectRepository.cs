@@ -25,6 +25,12 @@ public sealed class HttpProjectRepository(IHttpClientFactory factory, ICurrentUs
         return await ReadOneAsync<SeoProject>(response, ct);
     }
 
+    public async Task<Result<SeoProject>> GetByIdAsync(Guid projectId, Guid userId, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"api/seo/internal/projects/{projectId}?userId={userId}", ct);
+        return await ReadOneAsync<SeoProject>(response, ct);
+    }
+
     public async Task<Result<SeoProject>> CreateAsync(Guid userId, CreateProjectRequest request, CancellationToken ct = default)
     {
         var response = await _http.PostAsJsonAsync($"api/seo/internal/projects?userId={userId}", request, ct);
