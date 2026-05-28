@@ -2,12 +2,14 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/auth-provider';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import { createProject, getSeoApiUrl, listProjects, type SeoProject } from '@/lib/seo-api';
 
 export default function ProjectsPage() {
   const { accessToken, isLoading: authLoading } = useAuth();
+  const router = useRouter();
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
@@ -40,13 +42,10 @@ export default function ProjectsPage() {
     setCreating(true);
     try {
       setError(null);
-      await createProject({ name, url }, accessToken);
-      setName('');
-      setUrl('https://');
-      await load();
+      const project = await createProject({ name, url }, accessToken);
+      router.push(`/app/projects/${project.id}`);
     } catch (err) {
       setError(err);
-    } finally {
       setCreating(false);
     }
   }
@@ -75,21 +74,33 @@ export default function ProjectsPage() {
         onSubmit={onCreate}
         className="mt-8 flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm"
       >
-        <h2 className="font-medium">New project</h2>
-        <input
-          className="rounded-lg border border-zinc-300 px-3 py-2 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
-          placeholder="Site name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <input
-          className="rounded-lg border border-zinc-300 px-3 py-2 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
-          placeholder="https://example.com"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          required
-        />
+        <div>
+          <h2 className="font-medium">New project</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            A project represents one website. Add content documents inside it to write and score SEO articles.
+          </p>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-zinc-700">Project name</label>
+          <input
+            className="rounded-lg border border-zinc-300 px-3 py-2 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            placeholder="e.g. Geek At Your Spot"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-zinc-700">Website URL</label>
+          <input
+            className="rounded-lg border border-zinc-300 px-3 py-2 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            placeholder="https://yourdomain.com"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            required
+          />
+          <p className="text-xs text-zinc-400">Root domain only — used for competitor analysis and scoring.</p>
+        </div>
         <button
           type="submit"
           disabled={creating}
