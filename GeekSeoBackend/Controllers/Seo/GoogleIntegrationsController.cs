@@ -51,6 +51,11 @@ public sealed class GoogleIntegrationsController(IGoogleOAuthService google, ICu
         {
             return Redirect($"{appBase}/app/projects?google=error&message={Uri.EscapeDataString(ex.Message)}");
         }
+        catch (Exception ex)
+        {
+            var msg = ex.Message.Length > 200 ? ex.Message[..200] : ex.Message;
+            return Redirect($"{appBase}/app/projects?google=error&message={Uri.EscapeDataString($"Unexpected error: {msg}")}");
+        }
     }
 
     private static string ResolveAppBaseUrl()
