@@ -53,7 +53,7 @@ export function WordPressSettings({ projectId, accessToken }: WordPressSettingsP
     }
   }
 
-  if (!status) return <p className="text-sm text-zinc-500">Loading WordPress…</p>;
+  if (!status) return <p className="text-sm text-[var(--color-text-secondary)]">Loading WordPress…</p>;
 
   if (status.connected) {
     return (
@@ -67,7 +67,7 @@ export function WordPressSettings({ projectId, accessToken }: WordPressSettingsP
   }
 
   return (
-    <div className="mt-6 rounded-lg border bg-zinc-50/50">
+    <div className="mt-6 rounded-lg border bg-[var(--color-surface-muted)]/50">
       <button
         type="button"
         className="flex w-full items-center justify-between px-4 py-3 text-left text-sm"
@@ -75,14 +75,14 @@ export function WordPressSettings({ projectId, accessToken }: WordPressSettingsP
         aria-expanded={expanded}
       >
         <span>
-          <span className="font-medium text-zinc-800">WordPress publish</span>
-          <span className="ml-2 text-xs text-zinc-500">(optional)</span>
+          <span className="font-medium text-[var(--color-text-primary)]">WordPress publish</span>
+          <span className="ml-2 text-xs text-[var(--color-text-secondary)]">(optional)</span>
         </span>
-        <span className="text-zinc-400">{expanded ? '−' : '+'}</span>
+        <span className="text-[var(--color-text-muted)]">{expanded ? '−' : '+'}</span>
       </button>
       {expanded && (
         <form onSubmit={onConnect} className="space-y-3 border-t bg-white px-4 py-4">
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-[var(--color-text-secondary)]">
             Skip this if you do not have a WordPress site yet. You can still write, score, and export
             HTML from the editor.
           </p>
@@ -112,7 +112,7 @@ export function WordPressSettings({ projectId, accessToken }: WordPressSettingsP
           <button
             type="submit"
             disabled={saving}
-            className="rounded bg-zinc-900 px-3 py-2 text-sm text-white disabled:opacity-50"
+            className="rounded bg-[var(--color-accent)] px-3 py-2 text-sm text-white disabled:opacity-50"
           >
             {saving ? 'Connecting…' : 'Connect WordPress'}
           </button>

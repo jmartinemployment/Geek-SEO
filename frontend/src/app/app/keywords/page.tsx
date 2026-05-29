@@ -51,12 +51,12 @@ export default function KeywordResearchPage() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
       <h1 className="text-2xl font-semibold">Keyword research</h1>
-      <p className="mt-1 text-sm text-zinc-600">
+      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
         Ideas from DataForSEO — cached per project for clustering and guided mode.
       </p>
 
       <form onSubmit={onResearch} className="mt-8 space-y-4 rounded-xl border bg-white p-6 shadow-sm">
-        <label className="block text-sm font-medium text-zinc-700">
+        <label className="block text-sm font-medium text-[var(--color-text-primary)]">
           Project
           <select
             className="mt-1 w-full rounded-lg border px-3 py-2"
@@ -70,7 +70,7 @@ export default function KeywordResearchPage() {
             ))}
           </select>
         </label>
-        <label className="block text-sm font-medium text-zinc-700">
+        <label className="block text-sm font-medium text-[var(--color-text-primary)]">
           Seed keyword
           <input
             className="mt-1 w-full rounded-lg border px-3 py-2"
@@ -80,7 +80,7 @@ export default function KeywordResearchPage() {
             required
           />
         </label>
-        <label className="block text-sm font-medium text-zinc-700">
+        <label className="block text-sm font-medium text-[var(--color-text-primary)]">
           Location
           <input
             className="mt-1 w-full rounded-lg border px-3 py-2"
@@ -91,7 +91,7 @@ export default function KeywordResearchPage() {
         <button
           type="submit"
           disabled={loading}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800 disabled:opacity-50"
+          className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
         >
           {loading ? 'Researching…' : 'Find keywords'}
         </button>
@@ -102,7 +102,7 @@ export default function KeywordResearchPage() {
       {results.length > 0 && (
         <div className="mt-10 overflow-hidden rounded-xl border bg-white shadow-sm">
           <table className="w-full text-sm">
-            <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500">
+            <thead className="bg-[var(--color-surface-muted)] text-left text-xs uppercase tracking-wide text-[var(--color-text-secondary)]">
               <tr>
                 <th className="px-4 py-3">Keyword</th>
                 <th className="px-4 py-3">Volume</th>
@@ -112,7 +112,7 @@ export default function KeywordResearchPage() {
             </thead>
             <tbody className="divide-y">
               {results.map((r) => (
-                <tr key={r.keyword} className="hover:bg-zinc-50">
+                <tr key={r.keyword} className="hover:bg-[var(--color-surface-muted)]">
                   <td className="px-4 py-3 font-medium">{r.keyword}</td>
                   <td className="px-4 py-3">{r.searchVolume.toLocaleString()}</td>
                   <td className="px-4 py-3">{r.keywordDifficulty}</td>
@@ -124,8 +124,8 @@ export default function KeywordResearchPage() {
         </div>
       )}
 
-      <p className="mt-8 text-sm text-zinc-500">
-        <Link href="/app/guided" className="underline hover:text-zinc-800">
+      <p className="mt-8 text-sm text-[var(--color-text-secondary)]">
+        <Link href="/app/guided" className="underline hover:text-[var(--color-text-primary)]">
           Use Guided mode
         </Link>{' '}
         to turn a keyword into a scored article.

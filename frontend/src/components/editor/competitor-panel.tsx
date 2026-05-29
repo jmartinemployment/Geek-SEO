@@ -64,16 +64,16 @@ export function CompetitorPanel({ documentId, accessToken }: CompetitorPanelProp
   }, [data?.crawlStatus, stopPolling]);
 
   if (error) return <p className="text-xs text-red-600">{error}</p>;
-  if (!data) return <p className="text-xs text-zinc-500">Loading competitors…</p>;
+  if (!data) return <p className="text-xs text-[var(--color-text-secondary)]">Loading competitors…</p>;
 
   return (
     <div className="mt-6 border-t pt-4">
       <h3 className="text-sm font-semibold">Top competitors</h3>
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-[var(--color-text-secondary)]">
         {data.keyword} · {data.location}
       </p>
       {crawling && (
-        <p className="mt-2 text-xs text-zinc-600">Crawling competitor pages…</p>
+        <p className="mt-2 text-xs text-[var(--color-text-secondary)]">Crawling competitor pages…</p>
       )}
       {data.benchmarkQuality === 'low_sample_count' && (
         <p className="mt-2 text-xs text-amber-800">Limited crawl data — refresh SERP to improve benchmarks.</p>
@@ -81,11 +81,11 @@ export function CompetitorPanel({ documentId, accessToken }: CompetitorPanelProp
       <ul className="mt-3 max-h-48 space-y-2 overflow-y-auto text-xs">
         {data.pages.map((p) => (
           <li key={p.url} className="rounded border bg-white p-2">
-            <div className="font-medium text-zinc-800">
+            <div className="font-medium text-[var(--color-text-primary)]">
               #{p.position} {p.domain ?? p.url}
             </div>
-            <p className="truncate text-zinc-500">{p.metaTitle ?? p.url}</p>
-            <p className="text-zinc-600">{p.wordCount > 0 ? `${p.wordCount} words` : 'Not crawled yet'}</p>
+            <p className="truncate text-[var(--color-text-secondary)]">{p.metaTitle ?? p.url}</p>
+            <p className="text-[var(--color-text-secondary)]">{p.wordCount > 0 ? `${p.wordCount} words` : 'Not crawled yet'}</p>
           </li>
         ))}
       </ul>

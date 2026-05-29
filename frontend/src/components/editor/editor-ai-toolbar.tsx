@@ -42,12 +42,12 @@ export function EditorAiToolbar({
   return (
     <div className="mt-6 border-t pt-4">
       <h3 className="text-sm font-semibold">AI tools</h3>
-      <p className="mt-1 text-xs text-zinc-500">Requires ANTHROPIC_API_KEY on GeekSeoBackend.</p>
+      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Requires ANTHROPIC_API_KEY on GeekSeoBackend.</p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button
           type="button"
           disabled={!!busy}
-          className="rounded-lg border bg-white px-3 py-1.5 text-xs font-medium hover:bg-zinc-50 disabled:opacity-50"
+          className="rounded-lg border bg-white px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
           onClick={() =>
             void run('humanize', async () => {
               const result = await humanizeContent({ documentId, contentHtml }, accessToken);
@@ -60,7 +60,7 @@ export function EditorAiToolbar({
         <button
           type="button"
           disabled={!!busy}
-          className="rounded-lg border bg-white px-3 py-1.5 text-xs font-medium hover:bg-zinc-50 disabled:opacity-50"
+          className="rounded-lg border bg-white px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
           onClick={() =>
             void run('optimize', async () => {
               const result = await autoOptimizeContent(documentId, accessToken);
@@ -74,7 +74,7 @@ export function EditorAiToolbar({
         <button
           type="button"
           disabled={!!busy}
-          className="rounded-lg border bg-white px-3 py-1.5 text-xs font-medium hover:bg-zinc-50 disabled:opacity-50"
+          className="rounded-lg border bg-white px-3 py-1.5 text-xs font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
           onClick={() =>
             void run('detect', async () => {
               setDetection(await detectAiContent({ documentId, contentHtml }, accessToken));
@@ -86,7 +86,7 @@ export function EditorAiToolbar({
       </div>
       {optimizeDelta && <p className="mt-2 text-xs text-green-800">{optimizeDelta}</p>}
       {detection && (
-        <p className="mt-2 rounded border bg-white p-2 text-xs text-zinc-700">
+        <p className="mt-2 rounded border bg-white p-2 text-xs text-[var(--color-text-primary)]">
           AI probability: {Math.round(detection.aiProbability * 100)}% — {detection.summary}
         </p>
       )}

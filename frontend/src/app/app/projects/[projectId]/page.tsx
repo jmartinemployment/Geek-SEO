@@ -60,12 +60,12 @@ export default function ProjectDocumentsPage() {
   }
 
   if (authLoading) {
-    return <main className="mx-auto max-w-3xl p-8 text-zinc-500">Loading…</main>;
+    return <main className="mx-auto max-w-3xl p-8 text-[var(--color-text-secondary)]">Loading…</main>;
   }
 
   return (
     <main className="mx-auto max-w-3xl p-8">
-      <Link href="/app/projects" className="text-sm text-zinc-500 hover:text-zinc-800">
+      <Link href="/app/projects" className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
         ← Projects
       </Link>
       <h1 className="mt-4 text-2xl font-semibold tracking-tight">Content documents</h1>
@@ -93,14 +93,14 @@ export default function ProjectDocumentsPage() {
       >
         <h2 className="font-medium">New document</h2>
         <input
-          className="rounded-lg border border-zinc-300 px-3 py-2"
+          className="rounded-lg border border-[var(--color-border-strong)] px-3 py-2"
           placeholder="Title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
         />
         <input
-          className="rounded-lg border border-zinc-300 px-3 py-2"
+          className="rounded-lg border border-[var(--color-border-strong)] px-3 py-2"
           placeholder="Target keyword"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
@@ -108,16 +108,16 @@ export default function ProjectDocumentsPage() {
         <button
           type="submit"
           disabled={creating}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-white hover:bg-zinc-800 disabled:opacity-50"
+          className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
         >
           {creating ? 'Opening editor…' : 'Create & open editor'}
         </button>
       </form>
 
       {loading ? (
-        <p className="mt-8 text-sm text-zinc-500">Loading documents…</p>
+        <p className="mt-8 text-sm text-[var(--color-text-secondary)]">Loading documents…</p>
       ) : documents.length === 0 ? (
-        <div className="mt-8 rounded-xl border border-dashed bg-zinc-50 p-10 text-center text-sm text-zinc-600">
+        <div className="mt-8 rounded-xl border border-dashed bg-[var(--color-bg)] p-10 text-center text-sm text-[var(--color-text-secondary)]">
           No documents yet. Create one to open the live SEO editor.
         </div>
       ) : (
@@ -127,7 +127,7 @@ export default function ProjectDocumentsPage() {
               <Link href={`/app/content/${d.id}`} className="font-medium hover:underline">
                 {d.title}
               </Link>
-              <p className="mt-1 text-sm text-zinc-500">
+              <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
                 {d.targetKeyword || 'No keyword'} · Score {d.seoScore > 0 ? d.seoScore : '—'} ·{' '}
                 {d.wordCount} words
               </p>

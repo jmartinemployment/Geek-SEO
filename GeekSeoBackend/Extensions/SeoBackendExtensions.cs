@@ -85,6 +85,14 @@ public static class SeoBackendExtensions
         services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
         services.AddScoped<IGoogleDataService, GoogleDataService>();
 
+        services.AddHttpClient("PublicScanPage", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("GeekSEO-Scan/1.0 (https://seo.geekatyourspot.com)");
+        });
+        services.AddHttpClient("PublicScanPsi", client => client.Timeout = TimeSpan.FromSeconds(45));
+        services.AddScoped<IPublicSiteScanService, PublicSiteScanService>();
+
         services.AddSignalR();
         AddAuthentication(services, configuration);
 

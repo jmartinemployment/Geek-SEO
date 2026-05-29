@@ -60,7 +60,7 @@ export function GoogleSettings({ projectId, accessToken }: GoogleSettingsProps) 
     }
   }
 
-  if (!status) return <p className="text-sm text-zinc-500">Loading Google integration…</p>;
+  if (!status) return <p className="text-sm text-[var(--color-text-secondary)]">Loading Google integration…</p>;
 
   if (status.connected) {
     return (
@@ -95,7 +95,7 @@ export function GoogleSettings({ projectId, accessToken }: GoogleSettingsProps) 
         type="button"
         disabled={loading}
         onClick={() => void onConnect()}
-        className="mt-3 rounded-lg bg-zinc-900 px-4 py-2 text-xs text-white disabled:opacity-60"
+        className="mt-3 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-xs text-white disabled:opacity-60"
       >
         {loading ? 'Redirecting…' : 'Connect Google'}
       </button>

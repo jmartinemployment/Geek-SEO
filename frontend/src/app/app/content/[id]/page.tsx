@@ -118,7 +118,7 @@ export default function ContentEditorPage() {
   }
 
   if (authLoading) {
-    return <main className="p-8 text-zinc-500">Loading session…</main>;
+    return <main className="p-8 text-[var(--color-text-secondary)]">Loading session…</main>;
   }
 
   return (
@@ -127,28 +127,28 @@ export default function ContentEditorPage() {
         <header className="flex items-center gap-4 border-b bg-white px-6 py-4">
           <Link
             href={doc ? `/app/projects/${doc.projectId}` : '/app/projects'}
-            className="text-sm text-zinc-500 hover:text-zinc-800"
+            className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
           >
             ← Back
           </Link>
           <input
-            className="flex-1 rounded-lg border border-transparent bg-transparent text-lg font-semibold outline-none focus:border-zinc-300 focus:bg-white focus:px-2"
+            className="flex-1 rounded-lg border border-transparent bg-transparent text-lg font-semibold outline-none focus:border-[var(--color-border-strong)] focus:bg-white focus:px-2"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onBlur={() => void save(html, keyword, title)}
             aria-label="Document title"
           />
-          <span className="text-xs text-zinc-400">{saving ? 'Saving…' : null}</span>
+          <span className="text-xs text-[var(--color-text-muted)]">{saving ? 'Saving…' : null}</span>
         </header>
 
         <div className="flex flex-1 flex-col gap-4 p-6">
           {error ? <SeoErrorBanner error={error} /> : null}
 
           <div className="grid max-w-lg gap-4 sm:grid-cols-2">
-            <label className="text-sm font-medium text-zinc-700 sm:col-span-2">
+            <label className="text-sm font-medium text-[var(--color-text-primary)] sm:col-span-2">
               Target keyword
               <input
-                className="mt-1 block w-full rounded-lg border border-zinc-300 px-3 py-2 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                className="mt-1 block w-full rounded-lg border border-[var(--color-border-strong)] px-3 py-2 shadow-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 onBlur={() => {
@@ -160,10 +160,10 @@ export default function ContentEditorPage() {
                 }}
               />
             </label>
-            <label className="text-sm font-medium text-zinc-700 sm:col-span-2">
+            <label className="text-sm font-medium text-[var(--color-text-primary)] sm:col-span-2">
               Location
               <input
-                className="mt-1 block w-full rounded-lg border border-zinc-300 px-3 py-2 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                className="mt-1 block w-full rounded-lg border border-[var(--color-border-strong)] px-3 py-2 shadow-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 onBlur={() => {
@@ -200,7 +200,7 @@ export default function ContentEditorPage() {
         <div className="border-t px-6 pb-4 lg:hidden">
           <button
             type="button"
-            className="w-full rounded-lg border bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50"
+            className="w-full rounded-lg border bg-white px-3 py-2 text-sm font-medium hover:bg-[var(--color-surface-muted)]"
             onClick={() => {
               void navigator.clipboard.writeText(html).then(() => {
                 setCopyHint('HTML copied');
@@ -211,7 +211,7 @@ export default function ContentEditorPage() {
             Copy HTML
           </button>
         </div>
-        <div className="bg-zinc-50 px-6 pb-6 lg:w-96">
+        <div className="bg-[var(--color-bg)] px-6 pb-6 lg:w-96">
           <CompetitorPanel documentId={documentId} accessToken={accessToken} />
         </div>
       </div>

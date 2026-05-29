@@ -93,7 +93,7 @@ export default function ContentPlannerPage() {
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
       <h1 className="text-2xl font-semibold">Content planner</h1>
-      <p className="mt-1 text-sm text-zinc-600">
+      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
         Research keywords, cluster by topic, then open the editor or queue AI articles.
       </p>
 
@@ -102,7 +102,7 @@ export default function ContentPlannerPage() {
         onSubmit={(e) => void runPlanner(e)}
       >
         <label className="block text-sm md:col-span-2">
-          <span className="text-zinc-600">Project</span>
+          <span className="text-[var(--color-text-secondary)]">Project</span>
           <select
             className="mt-1 w-full rounded-lg border px-3 py-2"
             value={projectId}
@@ -116,7 +116,7 @@ export default function ContentPlannerPage() {
           </select>
         </label>
         <label className="block text-sm md:col-span-2">
-          <span className="text-zinc-600">Seed keyword</span>
+          <span className="text-[var(--color-text-secondary)]">Seed keyword</span>
           <input
             className="mt-1 w-full rounded-lg border px-3 py-2"
             value={seed}
@@ -126,7 +126,7 @@ export default function ContentPlannerPage() {
           />
         </label>
         <label className="block text-sm">
-          <span className="text-zinc-600">Location</span>
+          <span className="text-[var(--color-text-secondary)]">Location</span>
           <input
             className="mt-1 w-full rounded-lg border px-3 py-2"
             value={location}
@@ -134,7 +134,7 @@ export default function ContentPlannerPage() {
           />
         </label>
         <label className="block text-sm">
-          <span className="text-zinc-600">Mode</span>
+          <span className="text-[var(--color-text-secondary)]">Mode</span>
           <select
             className="mt-1 w-full rounded-lg border px-3 py-2"
             value={mode}
@@ -147,7 +147,7 @@ export default function ContentPlannerPage() {
         <button
           type="submit"
           disabled={loading}
-          className="md:col-span-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-50"
+          className="md:col-span-2 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm text-white disabled:opacity-50"
         >
           {loading ? 'Researching…' : 'Run planner'}
         </button>
@@ -163,7 +163,7 @@ export default function ContentPlannerPage() {
             <article key={c.clusterName} className="rounded-xl border bg-white p-5 shadow-sm">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h3 className="font-medium">{c.clusterName}</h3>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-[var(--color-text-secondary)]">
                   Pillar: {c.pillarKeyword} · avg vol {Math.round(c.averageVolume)} · KD{' '}
                   {c.averageDifficulty.toFixed(0)}
                 </p>
@@ -176,12 +176,12 @@ export default function ContentPlannerPage() {
                   return (
                     <li
                       key={kw}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-zinc-50 px-3 py-2 text-sm"
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[var(--color-surface-muted)] px-3 py-2 text-sm"
                     >
                       <span>
                         {kw}
                         {metric ? (
-                          <span className="ml-2 text-zinc-500">
+                          <span className="ml-2 text-[var(--color-text-secondary)]">
                             {metric.searchVolume.toLocaleString()} vol · KD {metric.keywordDifficulty}
                           </span>
                         ) : null}
@@ -189,21 +189,21 @@ export default function ContentPlannerPage() {
                       <span className="flex gap-2">
                         <button
                           type="button"
-                          className="rounded border bg-white px-2 py-1 text-xs hover:bg-zinc-100"
+                          className="rounded border bg-white px-2 py-1 text-xs hover:bg-[var(--color-surface-muted)]"
                           onClick={() => void createEditor(kw)}
                         >
                           Editor
                         </button>
                         <button
                           type="button"
-                          className="rounded border border-zinc-900 bg-zinc-900 px-2 py-1 text-xs text-white hover:bg-zinc-800"
+                          className="rounded border border-[var(--color-accent)] bg-[var(--color-accent)] px-2 py-1 text-xs text-white hover:bg-[var(--color-accent-hover)]"
                           onClick={() => void queueFullArticle(kw)}
                         >
                           AI article
                         </button>
                         <Link
                           href={`/app/briefs/new?keyword=${encodeURIComponent(kw)}`}
-                          className="rounded border px-2 py-1 text-xs hover:bg-zinc-100"
+                          className="rounded border px-2 py-1 text-xs hover:bg-[var(--color-surface-muted)]"
                         >
                           Brief
                         </Link>

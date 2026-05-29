@@ -38,12 +38,12 @@ export function ScoreSidebar({
   const ringOffset = 283 - (283 * score) / 100;
 
   return (
-    <aside className="w-full shrink-0 border-t bg-zinc-50 p-6 lg:w-96 lg:border-t-0 lg:border-l">
+    <aside className="w-full shrink-0 border-t bg-[var(--color-bg)] p-6 lg:w-96 lg:border-t-0 lg:border-l">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold tracking-tight">Content score</h2>
         <span
           className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-            connected ? 'bg-emerald-100 text-emerald-800' : 'bg-zinc-200 text-zinc-600'
+            connected ? 'bg-emerald-100 text-emerald-800' : 'bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)]'
           }`}
         >
           {connected ? 'Live' : 'Offline'}
@@ -52,7 +52,7 @@ export function ScoreSidebar({
 
       <button
         type="button"
-        className="mt-3 text-xs text-zinc-500 underline hover:text-zinc-800"
+        className="mt-3 text-xs text-[var(--color-text-secondary)] underline hover:text-[var(--color-text-primary)]"
         onClick={onRefreshSerp}
       >
         Refresh SERP benchmarks
@@ -90,7 +90,7 @@ export function ScoreSidebar({
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="8"
-                  className="text-zinc-200"
+                  className="text-[var(--color-border)]"
                 />
                 <circle
                   cx="50"
@@ -102,19 +102,19 @@ export function ScoreSidebar({
                   strokeLinecap="round"
                   strokeDasharray="283"
                   strokeDashoffset={ringOffset}
-                  className="text-zinc-900 transition-[stroke-dashoffset] duration-300 ease-out"
+                  className="text-[var(--color-accent)] transition-[stroke-dashoffset] duration-300 ease-out"
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold tabular-nums">{scoreUpdate.score}</span>
-                <span className="text-[10px] text-zinc-500">/ 100</span>
+                <span className="text-2xl font-bold tabular-nums text-[var(--color-metric-blue)]">{scoreUpdate.score}</span>
+                <span className="text-[10px] text-[var(--color-text-secondary)]">/ 100</span>
               </div>
             </div>
             <div>
-              <span className="inline-block rounded-lg bg-zinc-900 px-3 py-1 text-lg font-semibold text-white">
+              <span className="inline-block rounded-lg bg-[var(--color-accent)] px-3 py-1 text-lg font-semibold text-white">
                 {scoreUpdate.grade}
               </span>
-              <p className="mt-2 text-xs text-zinc-500">Transparent 6-component score</p>
+              <p className="mt-2 text-xs text-[var(--color-text-secondary)]">Transparent 6-component score</p>
             </div>
           </div>
 
@@ -125,14 +125,14 @@ export function ScoreSidebar({
               return (
                 <li key={key}>
                   <div className="mb-1 flex justify-between text-xs">
-                    <span className="font-medium text-zinc-700">{meta.label}</span>
-                    <span className="tabular-nums text-zinc-600">
+                    <span className="font-medium text-[var(--color-text-primary)]">{meta.label}</span>
+                    <span className="tabular-nums text-[var(--color-text-secondary)]">
                       {value}/{meta.max}
                     </span>
                   </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-zinc-200">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-muted)]">
                     <div
-                      className="h-full rounded-full bg-zinc-800 transition-all duration-300"
+                      className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-300"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -151,10 +151,10 @@ export function ScoreSidebar({
                   .map((s, index) => (
                     <li
                       key={`${s.component}-${index}`}
-                      className="rounded-lg border border-zinc-200 bg-white p-3 shadow-sm"
+                      className="rounded-lg border border-[var(--color-border)] bg-white p-3 shadow-sm"
                     >
                       <span className="text-xs font-medium text-emerald-700">+{s.pointValue} pts</span>
-                      <p className="mt-1 text-zinc-700">{s.actionText}</p>
+                      <p className="mt-1 text-[var(--color-text-primary)]">{s.actionText}</p>
                     </li>
                   ))}
               </ul>
@@ -166,7 +166,7 @@ export function ScoreSidebar({
               <h3 className="text-sm font-semibold">E-E-A-T advisories</h3>
               <ul className="mt-2 space-y-2 text-sm">
                 {scoreUpdate.eeatAdvisories.map((a) => (
-                  <li key={a.code} className="rounded-lg border border-amber-100 bg-amber-50/90 p-2 text-zinc-800">
+                  <li key={a.code} className="rounded-lg border border-amber-100 bg-amber-50/90 p-2 text-[var(--color-text-primary)]">
                     {a.actionText}
                   </li>
                 ))}
@@ -177,7 +177,7 @@ export function ScoreSidebar({
           {scoreUpdate.serpFeatures.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold">SERP features</h3>
-              <ul className="mt-2 space-y-1.5 text-sm text-zinc-700">
+              <ul className="mt-2 space-y-1.5 text-sm text-[var(--color-text-primary)]">
                 {scoreUpdate.serpFeatures.map((f) => (
                   <li key={f.feature} className="rounded-lg border bg-white px-2 py-1.5">
                     {f.actionText}
@@ -189,7 +189,7 @@ export function ScoreSidebar({
         </div>
       ) : (
         !loading && (
-          <p className="mt-6 text-sm text-zinc-500">
+          <p className="mt-6 text-sm text-[var(--color-text-secondary)]">
             {keyword
               ? 'Edit content or wait for the first score.'
               : 'Add a target keyword, then edit to see your score.'}
@@ -199,11 +199,11 @@ export function ScoreSidebar({
 
       <div className="mt-8 hidden border-t pt-4 lg:block">
         <h3 className="text-sm font-semibold">Export</h3>
-        <p className="mt-1 text-xs text-zinc-500">Copy HTML for any CMS.</p>
+        <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Copy HTML for any CMS.</p>
         {onCopyHtml && (
           <button
             type="button"
-            className="mt-3 w-full rounded-lg border bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50"
+            className="mt-3 w-full rounded-lg border bg-white px-3 py-2 text-sm font-medium hover:bg-[var(--color-surface-muted)]"
             onClick={onCopyHtml}
           >
             Copy HTML
@@ -211,7 +211,7 @@ export function ScoreSidebar({
         )}
         <Link
           href="/pricing"
-          className="mt-3 block text-center text-xs text-zinc-500 underline hover:text-zinc-800"
+          className="mt-3 block text-center text-xs text-[var(--color-text-secondary)] underline hover:text-[var(--color-text-primary)]"
         >
           Plans &amp; limits
         </Link>

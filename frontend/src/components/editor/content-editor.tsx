@@ -35,7 +35,7 @@ export function ContentEditor({ html, onChange, placeholder = 'Write your articl
     if (editor.getHTML() !== html) editor.commands.setContent(html, { emitUpdate: false });
   }, [editor, html]);
 
-  if (!editor) return <div className="min-h-[420px] animate-pulse rounded border bg-zinc-50" />;
+  if (!editor) return <div className="min-h-[420px] animate-pulse rounded border bg-[var(--color-surface-muted)]" />;
 
   return (
     <div className="flex flex-col gap-2">
@@ -79,7 +79,7 @@ function ToolbarButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded border px-2 py-1 text-xs ${active ? 'bg-zinc-900 text-white' : 'bg-white hover:bg-zinc-50'}`}
+      className={`rounded border px-2 py-1 text-xs ${active ? 'bg-[var(--color-accent)] text-white' : 'bg-white hover:bg-[var(--color-surface-muted)]'}`}
     >
       {label}
     </button>

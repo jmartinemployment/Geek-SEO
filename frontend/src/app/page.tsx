@@ -1,26 +1,24 @@
-import Link from 'next/link';
+import { Suspense } from 'react';
+import { HomeHero } from '@/components/marketing/home-hero';
+import { MarketingShell } from '@/components/layout/marketing-shell';
+import { Skeleton } from '@/components/ui/skeleton';
+
+function HomeHeroFallback() {
+  return (
+    <div className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-center px-6 py-16">
+      <Skeleton className="h-4 w-48" />
+      <Skeleton className="mt-6 h-12 w-full max-w-3xl" />
+      <Skeleton className="mt-4 h-12 w-full max-w-xl" />
+    </div>
+  );
+}
 
 export default function Home() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-6 p-8">
-      <h1 className="text-4xl font-semibold tracking-tight">Geek SEO</h1>
-      <p className="text-lg text-zinc-600">
-        AI content optimization for small businesses — transparent scoring, local SERP, WordPress publish.
-      </p>
-      <div className="flex gap-3">
-        <Link
-          href="/api/auth/start"
-          className="inline-flex w-fit rounded-lg bg-zinc-900 px-5 py-3 text-white hover:bg-zinc-800"
-        >
-          Sign in
-        </Link>
-        <Link
-          href="/app/projects"
-          className="inline-flex w-fit rounded-lg border px-5 py-3 hover:bg-zinc-50"
-        >
-          Dashboard
-        </Link>
-      </div>
-    </main>
+    <MarketingShell>
+      <Suspense fallback={<HomeHeroFallback />}>
+        <HomeHero />
+      </Suspense>
+    </MarketingShell>
   );
 }

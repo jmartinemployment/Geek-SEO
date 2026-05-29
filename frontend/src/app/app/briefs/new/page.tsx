@@ -26,11 +26,11 @@ export default function NewBriefPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
-      <Link href="/app/projects" className="text-sm text-zinc-500 hover:text-zinc-800">
+      <Link href="/app/projects" className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
         ← Projects
       </Link>
       <h1 className="mt-4 text-2xl font-semibold">Content brief</h1>
-      <p className="mt-1 text-sm text-zinc-600">SERP-backed outline before you write.</p>
+      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">SERP-backed outline before you write.</p>
 
       <form
         className="mt-8 space-y-4 rounded-xl border bg-white p-6 shadow-sm"
@@ -75,7 +75,7 @@ export default function NewBriefPage() {
         <button
           type="submit"
           disabled={loading}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-50"
+          className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm text-white disabled:opacity-50"
         >
           {loading ? 'Generating…' : 'Generate brief'}
         </button>
@@ -87,17 +87,17 @@ export default function NewBriefPage() {
         <article className="mt-10 space-y-6 rounded-xl border bg-white p-6 shadow-sm text-sm">
           <div>
             <h2 className="font-semibold">Target</h2>
-            <p className="text-zinc-600">
+            <p className="text-[var(--color-text-secondary)]">
               {brief.keyword} · {brief.location} · ~{brief.targetWordCount} words
             </p>
           </div>
           <div>
             <h2 className="font-semibold">Recommended terms</h2>
-            <p className="mt-2 text-zinc-700">{brief.recommendedTerms.join(', ')}</p>
+            <p className="mt-2 text-[var(--color-text-primary)]">{brief.recommendedTerms.join(', ')}</p>
           </div>
           <div>
             <h2 className="font-semibold">Suggested headings</h2>
-            <ul className="mt-2 list-inside list-disc text-zinc-700">
+            <ul className="mt-2 list-inside list-disc text-[var(--color-text-primary)]">
               {brief.suggestedHeadings.map((h) => (
                 <li key={h}>{h}</li>
               ))}
@@ -105,7 +105,7 @@ export default function NewBriefPage() {
           </div>
           <div>
             <h2 className="font-semibold">Top competitors</h2>
-            <ul className="mt-2 space-y-1 text-zinc-700">
+            <ul className="mt-2 space-y-1 text-[var(--color-text-primary)]">
               {brief.topCompetitors.map((c) => (
                 <li key={c.url}>
                   #{c.position} {c.title ?? c.url}

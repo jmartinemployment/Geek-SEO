@@ -10,19 +10,19 @@ const tiers = [
 export default function PricingPage() {
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
-      <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Geek SEO pricing</h1>
-      <p className="mt-2 text-zinc-600">
+      <h1 className="text-3xl font-semibold tracking-tight text-[var(--color-text-primary)]">Geek SEO pricing</h1>
+      <p className="mt-2 text-[var(--color-text-secondary)]">
         PayPal subscription checkout ships in Step 51. Tier enforcement runs on GeekSeoBackend today.
       </p>
       <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {tiers.map((tier) => (
           <article
             key={tier.name}
-            className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm"
+            className="rounded-xl border border-[var(--color-border)] bg-white p-6 shadow-sm"
           >
             <h2 className="text-lg font-semibold">{tier.name}</h2>
-            <p className="mt-1 text-2xl font-bold text-zinc-900">{tier.price}</p>
-            <ul className="mt-4 space-y-2 text-sm text-zinc-600">
+            <p className="mt-1 text-2xl font-bold text-[var(--color-text-primary)]">{tier.price}</p>
+            <ul className="mt-4 space-y-2 text-sm text-[var(--color-text-secondary)]">
               {tier.highlights.map((item) => (
                 <li key={item}>• {item}</li>
               ))}
@@ -30,14 +30,14 @@ export default function PricingPage() {
             <button
               type="button"
               disabled
-              className="mt-6 w-full cursor-not-allowed rounded-lg bg-zinc-200 px-4 py-2 text-sm font-medium text-zinc-500"
+              className="mt-6 w-full cursor-not-allowed rounded-lg bg-[var(--color-surface-muted)] px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)]"
             >
               Subscribe (coming soon)
             </button>
           </article>
         ))}
       </div>
-      <Link href="/app/dashboard" className="mt-10 inline-block text-sm text-zinc-600 hover:text-zinc-900">
+      <Link href="/app/dashboard" className="mt-10 inline-block text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
         ← Back to app
       </Link>
     </main>

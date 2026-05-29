@@ -81,14 +81,14 @@ export function GoogleProjectPanel({ title, description, mode }: GoogleProjectPa
   }, [projectId, authLoading, loadData]);
 
   if (authLoading || loading) {
-    return <main className="p-8 text-sm text-zinc-500">Loading…</main>;
+    return <main className="p-8 text-sm text-[var(--color-text-secondary)]">Loading…</main>;
   }
 
   if (projects.length === 0) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16">
         <h1 className="text-2xl font-semibold">{title}</h1>
-        <p className="mt-2 text-sm text-zinc-600">Create a project first, then connect Google.</p>
+        <p className="mt-2 text-sm text-[var(--color-text-secondary)]">Create a project first, then connect Google.</p>
         <Link href="/app/projects" className="mt-6 inline-block text-sm underline">
           Go to projects
         </Link>
@@ -99,15 +99,15 @@ export function GoogleProjectPanel({ title, description, mode }: GoogleProjectPa
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
       <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-      <p className="mt-1 text-sm text-zinc-600">{description}</p>
+      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{description}</p>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        <label className="text-sm text-zinc-600" htmlFor="google-project-select">
+        <label className="text-sm text-[var(--color-text-secondary)]" htmlFor="google-project-select">
           Project
         </label>
         <select
           id="google-project-select"
-          className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+          className="rounded-lg border border-[var(--color-border-strong)] px-3 py-2 text-sm"
           value={projectId}
           onChange={(e) => setProjectId(e.target.value)}
         >
@@ -119,7 +119,7 @@ export function GoogleProjectPanel({ title, description, mode }: GoogleProjectPa
         </select>
         <button
           type="button"
-          className="rounded-lg border px-3 py-2 text-sm hover:bg-zinc-50"
+          className="rounded-lg border px-3 py-2 text-sm hover:bg-[var(--color-surface-muted)]"
           onClick={() => void loadData()}
         >
           Refresh
@@ -138,11 +138,11 @@ export function GoogleProjectPanel({ title, description, mode }: GoogleProjectPa
 
       {connected && mode === 'rankings' && rankings && (
         <div className="mt-8 overflow-x-auto rounded-xl border bg-white shadow-sm">
-          <p className="border-b px-4 py-3 text-xs text-zinc-500">
+          <p className="border-b px-4 py-3 text-xs text-[var(--color-text-secondary)]">
             {rankings.siteUrl} · {rankings.startDate} → {rankings.endDate}
           </p>
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
+            <thead className="bg-[var(--color-surface-muted)] text-xs uppercase text-[var(--color-text-secondary)]">
               <tr>
                 <th className="px-4 py-2">Query</th>
                 <th className="px-4 py-2">Page</th>
@@ -156,7 +156,7 @@ export function GoogleProjectPanel({ title, description, mode }: GoogleProjectPa
               {rankings.rows.map((row) => (
                 <tr key={`${row.query}-${row.page}`} className="border-t">
                   <td className="px-4 py-2 font-medium">{row.query}</td>
-                  <td className="max-w-xs truncate px-4 py-2 text-zinc-600">{row.page}</td>
+                  <td className="max-w-xs truncate px-4 py-2 text-[var(--color-text-secondary)]">{row.page}</td>
                   <td className="px-4 py-2">{row.clicks}</td>
                   <td className="px-4 py-2">{row.impressions}</td>
                   <td className="px-4 py-2">{(row.ctr * 100).toFixed(1)}%</td>
@@ -166,18 +166,18 @@ export function GoogleProjectPanel({ title, description, mode }: GoogleProjectPa
             </tbody>
           </table>
           {rankings.rows.length === 0 ? (
-            <p className="p-6 text-sm text-zinc-500">No Search Console rows for this range.</p>
+            <p className="p-6 text-sm text-[var(--color-text-secondary)]">No Search Console rows for this range.</p>
           ) : null}
         </div>
       )}
 
       {connected && mode === 'analytics' && landingPages && (
         <div className="mt-8 overflow-x-auto rounded-xl border bg-white shadow-sm">
-          <p className="border-b px-4 py-3 text-xs text-zinc-500">
+          <p className="border-b px-4 py-3 text-xs text-[var(--color-text-secondary)]">
             Property {landingPages.propertyId} · {landingPages.startDate} → {landingPages.endDate}
           </p>
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
+            <thead className="bg-[var(--color-surface-muted)] text-xs uppercase text-[var(--color-text-secondary)]">
               <tr>
                 <th className="px-4 py-2">Landing page</th>
                 <th className="px-4 py-2">Sessions</th>
@@ -197,7 +197,7 @@ export function GoogleProjectPanel({ title, description, mode }: GoogleProjectPa
             </tbody>
           </table>
           {landingPages.rows.length === 0 ? (
-            <p className="p-6 text-sm text-zinc-500">No GA4 landing page data for this range.</p>
+            <p className="p-6 text-sm text-[var(--color-text-secondary)]">No GA4 landing page data for this range.</p>
           ) : null}
         </div>
       )}

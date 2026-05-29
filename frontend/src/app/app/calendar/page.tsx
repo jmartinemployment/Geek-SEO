@@ -89,34 +89,34 @@ export default function ContentCalendarPage() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Content calendar</h1>
-          <p className="mt-1 text-sm text-zinc-600">
+          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
             Drag cards between columns or drop on a column to update workflow status.
           </p>
         </div>
         <Link
           href="/app/guided"
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800"
+          className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm text-white hover:bg-[var(--color-accent-hover)]"
         >
           New article
         </Link>
       </header>
 
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-      {loading && <p className="mt-8 text-sm text-zinc-500">Loading board…</p>}
+      {loading && <p className="mt-8 text-sm text-[var(--color-text-secondary)]">Loading board…</p>}
 
       {!loading && cards.length === 0 && (
-        <div className="mt-10 rounded-xl border border-dashed bg-zinc-50 p-12 text-center">
-          <p className="text-sm text-zinc-600">No content yet. Start with guided mode or a project.</p>
+        <div className="mt-10 rounded-xl border border-dashed bg-[var(--color-bg)] p-12 text-center">
+          <p className="text-sm text-[var(--color-text-secondary)]">No content yet. Start with guided mode or a project.</p>
           <div className="mt-4 flex justify-center gap-3">
             <Link
               href="/app/guided"
-              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800"
+              className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm text-white hover:bg-[var(--color-accent-hover)]"
             >
               Guided flow
             </Link>
             <Link
               href="/app/projects"
-              className="rounded-lg border bg-white px-4 py-2 text-sm hover:bg-zinc-50"
+              className="rounded-lg border bg-white px-4 py-2 text-sm hover:bg-[var(--color-surface-muted)]"
             >
               Projects
             </Link>
@@ -131,7 +131,7 @@ export default function ContentCalendarPage() {
             return (
               <section
                 key={col.id}
-                className="flex min-h-[320px] flex-col rounded-xl border bg-zinc-50/80"
+                className="flex min-h-[320px] flex-col rounded-xl border bg-[var(--color-surface-muted)]/80"
                 onDragOver={(e) => {
                   e.preventDefault();
                   e.dataTransfer.dropEffect = 'move';
@@ -146,8 +146,8 @@ export default function ContentCalendarPage() {
               >
                 <div className="rounded-t-xl border-b bg-white px-3 py-3">
                   <h2 className="text-sm font-semibold">{col.label}</h2>
-                  <p className="text-xs text-zinc-500">{col.hint}</p>
-                  <span className="mt-1 inline-block rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+                  <p className="text-xs text-[var(--color-text-secondary)]">{col.hint}</p>
+                  <span className="mt-1 inline-block rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-secondary)]">
                     {columnCards.length}
                   </span>
                 </div>
@@ -168,20 +168,20 @@ export default function ContentCalendarPage() {
                     >
                       <Link
                         href={`/app/content/${card.id}`}
-                        className="block text-sm font-medium text-zinc-900 hover:underline"
+                        className="block text-sm font-medium text-[var(--color-text-primary)] hover:underline"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {card.title || 'Untitled'}
                       </Link>
-                      <p className="mt-1 text-xs text-zinc-500">{card.projectName}</p>
+                      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{card.projectName}</p>
                       {card.targetKeyword && (
-                        <p className="mt-1 truncate text-xs text-zinc-400">{card.targetKeyword}</p>
+                        <p className="mt-1 truncate text-xs text-[var(--color-text-muted)]">{card.targetKeyword}</p>
                       )}
                       <div className="mt-2 flex items-center justify-between text-xs">
-                        <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-medium text-zinc-700">
+                        <span className="rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 font-medium text-[var(--color-text-primary)]">
                           {card.seoScore > 0 ? `Score ${card.seoScore}` : 'Not scored'}
                         </span>
-                        <span className="text-zinc-400">{card.wordCount} words</span>
+                        <span className="text-[var(--color-text-muted)]">{card.wordCount} words</span>
                       </div>
                     </li>
                   ))}

@@ -79,6 +79,7 @@ app.Logger.LogInformation("CORS origins: {Origins}", string.Join(", ", corsOrigi
 app.Logger.LogInformation("Data gateway: {Url} (providers run on GeekSeoBackend)", gatewayUrl);
 
 app.UseCors();
+app.UseMiddleware<PublicRateLimitMiddleware>();
 app.UseExceptionHandler(errApp => errApp.Run(async ctx =>
 {
     ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;

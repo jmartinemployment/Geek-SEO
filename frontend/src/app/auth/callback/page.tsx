@@ -58,18 +58,18 @@ function CallbackInner() {
     <main className="mx-auto max-w-md p-8">
       {error ? (
         <>
-          <p className="rounded border border-red-500/50 bg-red-950/50 p-3 text-sm text-red-300">
+          <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
             {error}
           </p>
           <Link
             href="/api/auth/start"
-            className="mt-6 inline-block rounded bg-white px-4 py-2 text-sm font-medium text-zinc-900"
+            className="mt-6 inline-block rounded-[var(--radius-button)] bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover)]"
           >
             Log in
           </Link>
         </>
       ) : (
-        <p className="text-zinc-300">Completing sign-in…</p>
+        <p className="text-[var(--color-text-secondary)]">Completing sign-in…</p>
       )}
     </main>
   );
@@ -77,7 +77,7 @@ function CallbackInner() {
 
 export default function AuthCallbackPage() {
   return (
-    <Suspense fallback={<main className="p-8 text-zinc-300">Completing sign-in…</main>}>
+    <Suspense fallback={<main className="p-8 text-[var(--color-text-secondary)]">Completing sign-in…</main>}>
       <CallbackInner />
     </Suspense>
   );
