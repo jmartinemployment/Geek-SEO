@@ -10,9 +10,22 @@ Surfer / ContentShake-style SEO content SaaS.
 |------|------|
 | `frontend/` | Next.js app |
 | `GeekSeoBackend/` | SEO product API + SignalR |
+| `GeekBackend/` | Git submodule — shared `GeekApplication` contracts (same code local + Railway) |
 | `plan-documents/` | Product spec |
 
 **GeekAPI is not the SEO product.** Planning excluded GeekAPI from SEO; product code belongs in **this repo**, not `GeekBackend/GeekAPI`.
+
+### First-time clone
+
+```bash
+git clone --recurse-submodules https://github.com/jmartinemployment/Geek-SEO.git
+```
+
+Already cloned without submodules?
+
+```bash
+git submodule update --init --recursive
+```
 
 ## Status
 
@@ -24,9 +37,10 @@ Surfer / ContentShake-style SEO content SaaS.
 
 ## Build
 
-From repo root (requires sibling `GeekBackend/GeekApplication`):
+From repo root (requires `GeekBackend` submodule — see above):
 
 ```bash
+git submodule update --init --recursive
 dotnet build GeekSEO.slnx
 dotnet run --project GeekSeoBackend
 ```

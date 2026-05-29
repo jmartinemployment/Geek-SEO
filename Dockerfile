@@ -1,5 +1,10 @@
 # GeekSeoBackend — Railway / Docker
-# Build context: Geek-SEO repo root. Clones GeekApplication from GeekBackend (sibling path in csproj).
+# Build context: Geek-SEO repo root (includes GeekBackend git submodule).
+#
+# Clone this repo with submodules:
+#   git clone --recurse-submodules <url>
+# Or after clone:
+#   git submodule update --init --recursive
 #
 # Railway service settings:
 #   Root directory: /
@@ -7,13 +12,9 @@
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
-RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-ARG GEEKBACKEND_REF=main
-RUN git clone --depth 1 --branch "${GEEKBACKEND_REF}" https://github.com/jmartinemployment/GeekBackend.git GeekBackend \
-    && test -f GeekBackend/GeekApplication/Interfaces/Seo/IBrandVoiceRepository.cs
 COPY . Geek-SEO/
 WORKDIR /src/Geek-SEO/GeekSeoBackend
+RUN test -f ../GeekBackend/GeekApplication/GeekApplication.csproj
 RUN dotnet publish GeekSeoBackend.csproj \
     -c Release \
     -r linux-x64 \
