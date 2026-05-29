@@ -51,20 +51,11 @@ npm run dev
 
 geek-OAuth — see `scripts/OAUTH_SETUP.md`. Optional `NEXT_PUBLIC_DEV_USER_ID` for dev.
 
-## GeekBackend submodule
+## GeekBackend (sibling repo)
 
-`GeekBackend/` lives **inside this repo** as a git submodule (not a sibling folder). Local builds and Railway Docker use the **same** `GeekApplication` commit.
+GeekSeoBackend references `../GeekBackend/GeekApplication` — the **GeekBackend** repo must sit next to **Geek-SEO** on disk.
 
-```bash
-git submodule update --init --recursive
-```
-
-To update shared contracts after GeekBackend changes:
-
-```bash
-cd GeekBackend && git pull origin main && cd ..
-git add GeekBackend && git commit -m "chore: bump GeekBackend submodule"
-```
+Railway Docker clones that repo at the SHA in `GeekBackend.commit`. After pushing contract changes to GeekBackend, bump that file and redeploy.
 
 ## GeekBackend platform (Jeff)
 

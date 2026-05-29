@@ -1,4 +1,4 @@
 <Solution>
-  <Project Path="GeekBackend/GeekApplication/GeekApplication.csproj" />
+  <Project Path="../GeekBackend/GeekApplication/GeekApplication.csproj" />
   <Project Path="GeekSeoBackend/GeekSeoBackend.csproj" />
 </Solution>

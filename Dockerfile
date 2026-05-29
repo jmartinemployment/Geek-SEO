@@ -1,20 +1,24 @@
 # GeekSeoBackend — Railway / Docker
-# Build context: Geek-SEO repo root (includes GeekBackend git submodule).
 #
-# Clone this repo with submodules:
-#   git clone --recurse-submodules <url>
-# Or after clone:
-#   git submodule update --init --recursive
+# Local: GeekBackend is a sibling repo (../GeekBackend) — same relative path as below.
+# Railway: Dockerfile clones GeekBackend before build. Pin commit in GeekBackend.commit.
 #
-# Railway service settings:
-#   Root directory: /
-#   Dockerfile: Dockerfile
+# Railway: root directory /, Dockerfile Dockerfile
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY GeekBackend.commit .
+RUN set -eu; \
+    REF="$(tr -d '[:space:]' < GeekBackend.commit)"; \
+    git clone --filter=blob:none --no-checkout https://github.com/jmartinemployment/GeekBackend.git GeekBackend; \
+    cd GeekBackend; \
+    git fetch --depth 1 origin "${REF}"; \
+    git checkout FETCH_HEAD; \
+    test -f GeekApplication/GeekApplication.csproj
 COPY . Geek-SEO/
 WORKDIR /src/Geek-SEO/GeekSeoBackend
-RUN test -f ../GeekBackend/GeekApplication/GeekApplication.csproj
 RUN dotnet publish GeekSeoBackend.csproj \
     -c Release \
     -r linux-x64 \
