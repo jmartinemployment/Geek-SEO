@@ -1,6 +1,7 @@
 using GeekSeoBackend.Auth;
 using GeekApplication.Constants.Seo;
 using GeekApplication.Interfaces.Seo;
+using GeekApplication.Results;
 
 namespace GeekSeoBackend.Middleware;
 
@@ -32,7 +33,16 @@ public sealed class SeoUsageGateMiddleware(RequestDelegate next)
             return;
         }
 
-        var tierResult = await subscriptions.GetActiveTierAsync(userId);
+        Result<SubscriptionTier> tierResult;
+        try
+        {
+            tierResult = await subscriptions.GetActiveTierAsync(userId);
+        }
+        catch
+        {
+            tierResult = Result<SubscriptionTier>.Success(SubscriptionTier.Starter);
+        }
+
         if (!tierResult.IsSuccess)
         {
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
@@ -40,7 +50,15 @@ public sealed class SeoUsageGateMiddleware(RequestDelegate next)
             return;
         }
 
-        var ensure = await metering.EnsureWithinLimitAsync(userId, tierResult.Value!, feature);
+        Result ensure;
+        try
+        {
+            ensure = await metering.EnsureWithinLimitAsync(userId, tierResult.Value!, feature);
+        }
+        catch
+        {
+            ensure = Result.Success();
+        }
         if (!ensure.IsSuccess)
         {
             var usage = await metering.GetUsageAsync(userId, feature);

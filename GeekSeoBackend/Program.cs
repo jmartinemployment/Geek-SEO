@@ -79,6 +79,11 @@ app.Logger.LogInformation("CORS origins: {Origins}", string.Join(", ", corsOrigi
 app.Logger.LogInformation("Data gateway: {Url} (providers run on GeekSeoBackend)", gatewayUrl);
 
 app.UseCors();
+app.UseExceptionHandler(errApp => errApp.Run(async ctx =>
+{
+    ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;
+    await ctx.Response.WriteAsJsonAsync(new { error = "An unexpected error occurred. Please try again." });
+}));
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<SeoFeatureGateMiddleware>();
