@@ -1,6 +1,7 @@
 # Local development
 
-**Plan:** `plan-documents/GEEKSEO-PLAN.md`
+**Plan:** `plan-documents/GEEKSEO-PLAN.md`  
+**Decoupling:** `plan-documents/PLATFORM-DECOUPLING.md` (M2 = in-repo contracts; M7 = no Docker GeekBackend clone)
 
 ## What runs from this repo
 
@@ -34,6 +35,8 @@ dotnet run
 
 If `geek_seo` was dropped by an older migration, restart GeekRepository once — EF `InitialSeoSchema` recreates it.
 
+**Schema changes (product-owned):** run `dotnet ef` from Geek-SEO against `GeekSeo.Persistence` (see `GeekSeo.Persistence/CLAUDE.md`). GeekRepository applies the same migrations at startup.
+
 **Background jobs:** `FullArticleJobWorker` runs inside GeekSeoBackend (polls every 5s). `POST /api/seo/writing/full-article` enqueues; poll `GET /api/seo/jobs/{id}`.
 
 ## Frontend
@@ -49,15 +52,20 @@ npm run dev
 
 ## Auth
 
-geek-OAuth — see `scripts/OAUTH_SETUP.md`. Optional `NEXT_PUBLIC_DEV_USER_ID` for dev.
+**GeekOAuth** (issuer) — see `scripts/OAUTH_SETUP.md`. Frontend PKCE uses Next.js routes `/api/auth/start` and `/api/auth/token` (not GeekAPI `/api/auth/*`). Optional `NEXT_PUBLIC_DEV_USER_ID` for dev.
 
-## GeekBackend (sibling repo)
+## GeekBackend (sibling repo — E2E + transitional build)
 
-GeekSeoBackend references `../GeekBackend/GeekApplication` — the **GeekBackend** repo must sit next to **Geek-SEO** on disk.
+**Runtime E2E:** GeekAPI + GeekRepository must run for persistence (GeekSeoBackend has no `DATABASE_URL`).
 
-Railway Docker clones that repo at the SHA in `GeekBackend.commit`. After pushing contract changes to GeekBackend, bump that file and redeploy.
+**Build (transitional until PLATFORM-DECOUPLING M2):** GeekSeoBackend references `../GeekBackend/GeekApplication` — clone GeekBackend next to Geek-SEO for `dotnet build`.
 
-## GeekBackend platform (Jeff)
+**Railway (transitional until M7):** Docker clones GeekBackend at `GeekBackend.commit`. After M7, product image builds from this repo only.
 
-- **GeekAPI:** issuer + `/api/seo/internal/*` gateway; holds `REPO_URL`
-- **GeekRepository:** `geek_seo` schema — not called directly from this repo
+## GeekBackend platform roles
+
+| Service | Role |
+|---------|------|
+| **GeekOAuth** | Login + JWT issuance (`GEEK_OAUTH_AUTHORITY`) |
+| **GeekAPI** | `/api/seo/internal/*` gateway; holds `REPO_URL` — **not** the issuer |
+| **GeekRepository** | Only service with DB access to schema **`geek_seo`** |

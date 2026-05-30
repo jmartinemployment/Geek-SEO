@@ -1,6 +1,6 @@
 # Geek SEO — project status
 
-Last updated: May 27, 2026
+Last updated: May 30, 2026
 
 ## Identity (geek-OAuth)
 
@@ -20,7 +20,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 
 | Flow | Backend | Frontend | Needs |
 |------|---------|----------|-------|
-| Platform login (geek-OAuth) | ✅ JWT validation | ✅ PKCE + `/api/auth/*` | `NEXT_PUBLIC_AUTH_*`, `GEEK_OAUTH_AUTHORITY` |
+| Platform login (GeekOAuth) | ✅ JWT validation | ✅ PKCE via GeekOAuth; Next.js `/api/auth/start` + `/api/auth/token` (local routes, not GeekAPI) | `NEXT_PUBLIC_AUTH_*`, `GEEK_OAUTH_AUTHORITY` |
 | Projects CRUD | ✅ | ✅ | `GEEK_API_URL`, `GEEK_BACKEND_API_KEY`, auth |
 | Content editor + live score | ✅ | ✅ | DataForSEO, Anthropic, Playwright (optional) |
 | SERP-backed briefs | ✅ | ✅ | DataForSEO |
@@ -59,3 +59,5 @@ If Postgres previously ran migration `0004` that dropped `geek_seo`, restart Gee
 ## Plan reference
 
 Master plan: `plan-documents/GEEKSEO-PLAN.md` (31 features / 34 steps). This repo implements the **Surfer-style content core** end-to-end; GSC/GA4/monetization/integrations remain separate workstreams.
+
+Platform decoupling: `plan-documents/PLATFORM-DECOUPLING.md` — **M3** `GeekSeo.Persistence` (schema in this repo) **implemented**; **M2/M7** next; **O1/O2** optional.

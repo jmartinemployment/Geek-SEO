@@ -15,7 +15,7 @@ These are **sibling-repo dependencies** — out of scope for Geek-SEO per [BOUND
 |--------------|------|-----------------|-------|
 | GeekAPI internal routes (§8.5) | GeekAPI | Phase 4, Phase 6 | Topical map, audits, dashboard overview persistence |
 | EF Core migrations (§8.2) | GeekRepository | Phase 4, Phase 6 | `seo_topical_maps`, `seo_site_audits` on `SeoDbContext` |
-| `ScoreUpdate` + `nlpTerms[]` contract | GeekApplication (GeekBackend) | Phase 7 | `ContentScoringService` lives in GeekApplication — not in this repo |
+| `ScoreUpdate` + `nlpTerms[]` contract | **GeekSeo.Application** (this repo after PLATFORM-DECOUPLING M2) | Phase 7 | `ContentScoringService` moves in-repo; transitional: GeekBackend GeekApplication until M2 |
 | DataForSEO plan covers backlink/traffic APIs | — | Phase 2b-full | Confirm before shipping public DataForSEO-heavy tools |
 | `GOOGLE_PSI_API_KEY` on Railway | — | Phase 2 | Without key: 400 PSI req/day — production will exhaust immediately |
 
@@ -823,7 +823,7 @@ See Phase 8 in §10. Keep `/app/geo` as placeholder until then.
 - [ ] Phase 2b split: 2b-min (5 tools) before dashboard; 2b-full after Phase 6
 - [ ] Backend tables include job status + indexes (§8.2)
 - [ ] GeekAPI internal routes coordinated before Phase 4/6 (§8.5)
-- [ ] GeekApplication `nlpTerms[]` coordinated before Phase 7 (§0, §9.1)
+- [ ] `GeekSeo.Application` `nlpTerms[]` coordinated before Phase 7 (§0, §9.1; see PLATFORM-DECOUPLING M2)
 - [ ] Rate limiting: IMemoryCache single-instance assumption documented (§8.6)
 - [ ] `GOOGLE_PSI_API_KEY` on Railway before Phase 2
 - [ ] Phase 3 CopilotAI scoped to content-score data; full data in Phase 7
