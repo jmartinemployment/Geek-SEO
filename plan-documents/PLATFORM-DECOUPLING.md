@@ -68,15 +68,26 @@ Browser → GeekOAuth → GeekSeoBackend (GeekSeo.Application)
 
 ## Mandatory phases
 
-### M0 — Consumer audit (gate)
+### M0 — Consumer audit (gate) — complete (2026-05-30)
 
-Unchanged. **Blocks O2 only** — does **not** block M3, M2, or M4–M9.
+Searched active sibling repos under `development-new/` for `api.geekatyourspot.com/api/auth`, `/api/auth/users|devices|register|2fa`, and `/hubs/sync`.
+
+| Repo | Legacy GeekAPI auth client? |
+|------|----------------------------|
+| **Geek-SEO** | No — Next.js `/api/auth/*` is local PKCE only |
+| **GeekOAuth** | No |
+| **get-order-stack-platform** | No matches |
+| **GeekBackend** (code) | No — docs/README only |
+
+**Conclusion:** No production Geek app in this workspace still calls legacy platform auth HTTP APIs. **O2** (drop auth DB tables) is unblocked from a client perspective; verify staging logs before dropping schema.
 
 ---
 
-### M1 — Freeze legacy auth (optional safety net)
+### M1 — Freeze legacy auth (optional safety net) — complete
 
-Unchanged.
+**GeekAPI:** `LegacyAuthRetiredMiddleware` → **410 Gone** for `/api/auth/*` and `/hubs/sync`.
+
+**GeekRepository:** **410 Gone** for `/repo/auth/*`.
 
 ---
 
@@ -249,12 +260,15 @@ flowchart TD
 | Track | Phases | Status |
 |-------|--------|--------|
 | Mandatory | M0, **M3**, **M2**, **M4–M6**, **M7**, **M8**, **M9** | **All mandatory phases done** (M0 still only gates O2) |
-| Optional safety | M1 | skip unless needed |
+| Optional safety | **M1** | **Done** — 410 on legacy paths |
+| Optional audit | **M0** | **Done** — no workspace consumers |
 | Optional future | O1, O2 | defer (O2 needs M0) |
 
 ---
 
 ## Session notes
+
+**2026-05-30 (rev. 8, session):** **M0 + M1.** Consumer audit: no legacy auth API callers in workspace. **410 Gone** middleware on GeekAPI (`/api/auth/*`, `/hubs/sync`) and GeekRepository (`/repo/auth/*`).
 
 **2026-05-30 (rev. 7, session):** **M8–M9 complete.** Docs: ARCHITECTURE, BOUNDARIES, PROJECT_STATUS, Persistence CLAUDE. Verification: three-service health + EF migrations list; Geek-SEO `e7b2d34`+.
 
