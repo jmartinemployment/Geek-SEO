@@ -59,7 +59,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 | Copyscape / plagiarism | **Not built** |
 | Chrome extension, WP plugin, Google Docs | **Not built** |
 | Public API keys for agencies | **Not built** |
-| E2E Playwright smoke | **`frontend/e2e/smoke.spec.ts`** — `npm run test:e2e` (production URLs by default) |
+| E2E Playwright | **Smoke:** `npm run test:e2e:smoke` (4 tests, no credentials). **Auth:** `npm run test:e2e:auth` with `PLAYWRIGHT_TEST_EMAIL` / `PASSWORD` in `.env.playwright.local` |
 | Production Railway deploy checklist | docs only |
 
 ## Local run

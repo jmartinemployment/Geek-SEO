@@ -6,8 +6,24 @@ Smoke tests against deployed Geek SEO (default: production). No mock data.
 
 ```bash
 cd frontend
-npm run test:e2e
+npm run test:e2e          # all specs
+npm run test:e2e:smoke    # public smoke only (no credentials)
 ```
+
+### Authenticated tests (optional)
+
+Requires a **GeekOAuth** user without 2FA. Copy `.env.playwright.example` → `.env.playwright.local` and set:
+
+- `PLAYWRIGHT_TEST_EMAIL`
+- `PLAYWRIGHT_TEST_PASSWORD`
+
+Load env when running (zsh/bash):
+
+```bash
+set -a && source .env.playwright.local && set +a && npm run test:e2e:auth
+```
+
+Without credentials, authenticated specs are **skipped** (not failed).
 
 ## Targets
 
