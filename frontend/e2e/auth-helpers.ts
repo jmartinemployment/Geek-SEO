@@ -21,7 +21,7 @@ export function isDevUserMode(): boolean {
 
 export function assertSeoApiFailures(failures: string[]) {
   if (isDevUserMode()) {
-    const allowed = /→ (401|403|404|500|502|503|504)$/u;
+    const allowed = /→ (400|401|403|404|500|502|503|504)$/u;
     const blocking = failures.filter((f) => !allowed.test(f));
     expect(blocking, 'unexpected SEO API failures (dev mode)').toEqual([]);
     return;

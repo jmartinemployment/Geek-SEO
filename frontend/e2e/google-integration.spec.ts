@@ -9,15 +9,20 @@ const apiURL = (process.env.PLAYWRIGHT_API_URL ?? 'https://geekseobackend-produc
 const devUserId = process.env.NEXT_PUBLIC_DEV_USER_ID ?? '00000000-0000-0000-0000-000000000001';
 const isLocalBase = /localhost|127\.0\.0\.1/u.test(baseURL);
 const devMode = isDevUserMode();
+const isLocalApi = /localhost|127\.0\.0\.1/u.test(apiURL);
 
 const skipReason = !devMode
   ? 'Set PLAYWRIGHT_USE_DEV_USER=true (see npm run test:e2e:google).'
   : !isLocalBase
     ? 'Google UI test requires PLAYWRIGHT_BASE_URL=http://localhost:3000'
-    : null;
+    : isLocalApi
+      ? 'Google UI test needs production API — run npm run test:e2e:google (not auth:local).'
+      : null;
 
 test.describe('Google GSC/GA4 integration', () => {
   test.skip(Boolean(skipReason), skipReason ?? '');
+
+  test.describe.configure({ mode: 'serial' });
 
   let projectId: string;
 

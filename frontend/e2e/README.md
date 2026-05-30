@@ -33,7 +33,7 @@ If `frontend/.env.local` has `NEXT_PUBLIC_DEV_USER_ID` and GeekSeoBackend is rea
 npm run test:e2e:auth:local
 ```
 
-Starts backend/frontend if needed, then runs authenticated specs against `http://127.0.0.1:3000`.
+Starts backend/frontend if needed (restarts Next on `:3000` if occupied), then runs authenticated specs against `http://localhost:3000`.
 
 `PLAYWRIGHT_TEST_PASSWORD` must be non-empty for production OAuth login. Without credentials, tests are **skipped** (not “No tests found”).
 

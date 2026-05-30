@@ -35,6 +35,7 @@ cleanup() {
   if [[ -n "${FRONT_PID}" ]] && kill -0 "${FRONT_PID}" 2>/dev/null; then
     kill "${FRONT_PID}" 2>/dev/null || true
   fi
+  kill_port 3000
 }
 trap cleanup EXIT
 
@@ -55,4 +56,5 @@ wait_http http://localhost:3000/ "Next.js" 180
 export PLAYWRIGHT_USE_DEV_USER=true
 export PLAYWRIGHT_BASE_URL=http://localhost:3000
 export PLAYWRIGHT_API_URL="$PROD_API"
-exec npx playwright test e2e/google-integration.spec.ts --project=authenticated "$@"
+npx playwright test e2e/google-integration.spec.ts --project=authenticated "$@"
+exit $?

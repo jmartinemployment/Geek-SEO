@@ -9,7 +9,7 @@ Complements `scripts/E2E_SMOKE.md` (API-only, no browser).
 | `npm run test:e2e:smoke` | Production (default) | None |
 | `npm run test:integration:google` | Production API | Dev user header (see script) |
 | `npm run test:e2e:google` | `localhost:3000` + production API | `NEXT_PUBLIC_DEV_USER_ID` in `.env.local` |
-| `npm run test:e2e:auth:local` | `127.0.0.1:3000` + `:5051` | `NEXT_PUBLIC_DEV_USER_ID` in `.env.local` |
+| `npm run test:e2e:auth:local` | `localhost:3000` + `:5051` | `NEXT_PUBLIC_DEV_USER_ID` in `.env.local` |
 | `npm run test:e2e:auth` | Production | `PLAYWRIGHT_TEST_*` in `.env.playwright.local` |
 
 ## Local authenticated (recommended for dev)
