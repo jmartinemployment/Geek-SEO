@@ -85,6 +85,16 @@ public static class SeoBackendExtensions
         services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
         services.AddScoped<IGoogleDataService, GoogleDataService>();
 
+        services.AddHttpClient("PayPal");
+        services.AddSingleton(_ => new PayPalOptions
+        {
+            ClientId = ReadEnv("PAYPAL_CLIENT_ID"),
+            ClientSecret = ReadEnv("PAYPAL_CLIENT_SECRET"),
+            WebhookId = ReadEnv("PAYPAL_WEBHOOK_ID"),
+            UseSandbox = !string.Equals(ReadEnv("PAYPAL_ENVIRONMENT"), "live", StringComparison.OrdinalIgnoreCase),
+        });
+        services.AddScoped<IPayPalBillingService, PayPalBillingService>();
+
         services.AddHttpClient("PublicScanPage", client =>
         {
             client.Timeout = TimeSpan.FromSeconds(15);

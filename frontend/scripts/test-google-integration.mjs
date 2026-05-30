@@ -76,6 +76,11 @@ try {
   assert(typeof subscription.json?.tier === 'string', 'subscription tier should be a string');
   console.log(`✓ subscription tier (${subscription.json.tier})`);
 
+  const plans = await request('GET', '/api/seo/subscription/plans');
+  assert(plans.status === 200, `subscription plans expected 200, got ${plans.status}`);
+  assert(typeof plans.json?.configured === 'boolean', 'plans.configured should be boolean');
+  console.log(`✓ subscription plans (configured=${plans.json.configured})`);
+
   console.log('\nAll Google integration API checks passed.');
 } catch (error) {
   console.error('\nGoogle integration test FAILED:', error instanceof Error ? error.message : error);

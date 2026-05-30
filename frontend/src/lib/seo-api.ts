@@ -480,12 +480,46 @@ export async function startBulkArticles(
 export async function getSubscriptionTier(
   accessToken?: string | null,
 ): Promise<{ tier: string }> {
+  const summary = await getSubscription(accessToken);
+  return { tier: summary.tier };
+}
+
+export type SubscriptionSummary = {
+  tier: string;
+  status: string;
+  paypalSubscriptionId?: string | null;
+  currentPeriodEnd?: string | null;
+};
+
+export type BillingPlansResponse = {
+  configured: boolean;
+  clientId?: string;
+  planIds?: Record<string, string>;
+};
+
+export async function getSubscription(
+  accessToken?: string | null,
+): Promise<SubscriptionSummary> {
   const res = await fetch(`${API_URL}/api/seo/subscription`, {
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
+  return seoJson<SubscriptionSummary>(res);
+}
+
+export async function getBillingPlans(): Promise<BillingPlansResponse> {
+  const res = await fetch(`${API_URL}/api/seo/subscription/plans`, {
+    cache: 'no-store',
+  });
+  return seoJson<BillingPlansResponse>(res);
+}
+
+export async function cancelSubscription(accessToken?: string | null): Promise<void> {
+  const res = await fetch(`${API_URL}/api/seo/subscription/cancel`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+  });
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
-  return res.json() as Promise<{ tier: string }>;
 }
 
 export async function deleteSerpCache(

@@ -46,7 +46,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 | Deep SERP analysis | ✅ `GET /api/seo/serp/deep` | — | DataForSEO |
 | Google integrations (GSC + GA4) | ✅ OAuth + data endpoints | ✅ connect on project / rankings / analytics | `GOOGLE_*` on GeekSeoBackend; GSC/GA4 data needs user OAuth + Professional tier |
 | Internal link suggestions | ✅ | — | sibling docs in project |
-| Usage gates + subscription tier read | ✅ | partial | `GET /api/seo/subscription` returns tier string (defaults `starter`) |
+| Usage gates + subscription tier read | ✅ | ✅ pricing + settings | `GET /api/seo/subscription`; PayPal checkout when env configured |
 
 ## Honest gaps (not stubbed — blocked or not built)
 
@@ -54,7 +54,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 |------|--------|
 | Google Search Console OAuth | **Backend + frontend wired** — connect on project page or Rankings; needs `GOOGLE_*` env on GeekSeoBackend + GeekAPI internal Google routes |
 | Google Analytics 4 | **Backend + frontend wired** — same connect flow; data on `/app/analytics` |
-| PayPal billing + webhooks | **Not built** |
+| PayPal billing + webhooks | **Built** — `/pricing` PayPal buttons, `POST /api/seo/subscription/webhooks/paypal`, cancel flow; requires `PAYPAL_*` + plan IDs on GeekSeoBackend and subscription upsert on GeekRepository |
 | Site-wide technical audit crawl | **Not built** |
 | Copyscape / plagiarism | **Not built** |
 | Chrome extension, WP plugin, Google Docs | **Not built** |

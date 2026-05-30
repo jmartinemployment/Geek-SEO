@@ -1,10 +1,31 @@
 import Link from 'next/link';
+import { PricingCheckout } from '@/components/billing/pricing-checkout';
 
 const tiers = [
-  { name: 'Starter', price: '$29', highlights: ['20 documents', '3 full articles', 'Local SERP on every tier'] },
-  { name: 'Professional', price: '$59', highlights: ['GSC + GA4', 'Topical map', 'Content audit'] },
-  { name: 'Team', price: '$89', highlights: ['Bulk jobs', 'Content Guard', 'Higher GEO limits'] },
-  { name: 'Agency', price: '$149', highlights: ['Public API', 'Unlimited caps', 'White-label reports'] },
+  {
+    key: 'starter',
+    name: 'Starter',
+    price: '$29',
+    highlights: ['20 documents', '3 full articles', 'Local SERP on every tier'],
+  },
+  {
+    key: 'professional',
+    name: 'Professional',
+    price: '$59',
+    highlights: ['GSC + GA4', 'Topical map', 'Content audit'],
+  },
+  {
+    key: 'team',
+    name: 'Team',
+    price: '$89',
+    highlights: ['Bulk jobs', 'Content Guard', 'Higher GEO limits'],
+  },
+  {
+    key: 'agency',
+    name: 'Agency',
+    price: '$149',
+    highlights: ['Public API', 'Unlimited caps', 'White-label reports'],
+  },
 ];
 
 export default function PricingPage() {
@@ -12,32 +33,14 @@ export default function PricingPage() {
     <main className="mx-auto max-w-5xl px-6 py-16">
       <h1 className="text-3xl font-semibold tracking-tight text-[var(--color-text-primary)]">Geek SEO pricing</h1>
       <p className="mt-2 text-[var(--color-text-secondary)]">
-        PayPal subscription checkout ships in Step 51. Tier enforcement runs on GeekSeoBackend today.
+        Subscribe with PayPal. Tier enforcement runs on GeekSeoBackend — upgrades apply after PayPal activates your
+        subscription.
       </p>
-      <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {tiers.map((tier) => (
-          <article
-            key={tier.name}
-            className="rounded-xl border border-[var(--color-border)] bg-white p-6 shadow-sm"
-          >
-            <h2 className="text-lg font-semibold">{tier.name}</h2>
-            <p className="mt-1 text-2xl font-bold text-[var(--color-text-primary)]">{tier.price}</p>
-            <ul className="mt-4 space-y-2 text-sm text-[var(--color-text-secondary)]">
-              {tier.highlights.map((item) => (
-                <li key={item}>• {item}</li>
-              ))}
-            </ul>
-            <button
-              type="button"
-              disabled
-              className="mt-6 w-full cursor-not-allowed rounded-lg bg-[var(--color-surface-muted)] px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)]"
-            >
-              Subscribe (coming soon)
-            </button>
-          </article>
-        ))}
-      </div>
-      <Link href="/app/dashboard" className="mt-10 inline-block text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
+      <PricingCheckout tiers={tiers} />
+      <Link
+        href="/app/dashboard"
+        className="mt-10 inline-block text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+      >
         ← Back to app
       </Link>
     </main>
