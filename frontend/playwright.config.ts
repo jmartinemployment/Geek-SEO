@@ -65,7 +65,7 @@ export default defineConfig({
     },
     {
       name: 'authenticated',
-      testMatch: /authenticated\.spec\.ts/,
+      testMatch: /(authenticated|google-integration)\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         ...(useOAuthStorage ? { storageState: authFile } : {}),

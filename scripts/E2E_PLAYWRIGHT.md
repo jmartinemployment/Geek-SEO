@@ -7,6 +7,8 @@ Complements `scripts/E2E_SMOKE.md` (API-only, no browser).
 | Command | Target | Credentials |
 |---------|--------|-------------|
 | `npm run test:e2e:smoke` | Production (default) | None |
+| `npm run test:integration:google` | Production API | Dev user header (see script) |
+| `npm run test:e2e:google` | `localhost:3000` + production API | `NEXT_PUBLIC_DEV_USER_ID` in `.env.local` |
 | `npm run test:e2e:auth:local` | `127.0.0.1:3000` + `:5051` | `NEXT_PUBLIC_DEV_USER_ID` in `.env.local` |
 | `npm run test:e2e:auth` | Production | `PLAYWRIGHT_TEST_*` in `.env.playwright.local` |
 
@@ -19,6 +21,18 @@ npm run test:e2e:auth:local
 
 Starts GeekSeoBackend and Next.js if they are not already running. Expect **4 passed** (projects, dashboard, rankings, analytics).
 
+## Google GSC/GA4 integration
+
+Verifies connect-url and status against production GeekSeoBackend (does **not** complete Google sign-in).
+
+```bash
+cd frontend
+npm run test:integration:google   # API only (~1s)
+npm run test:e2e:google             # API + browser redirect to accounts.google.com
+```
+
+The UI test uses `http://localhost:3000` (not `127.0.0.1`) so production CORS allows browser calls.
+
 ## Production authenticated (optional)
 
 1. Copy `frontend/.env.playwright.example` → `frontend/.env.playwright.local`
@@ -30,6 +44,7 @@ Starts GeekSeoBackend and Next.js if they are not already running. Expect **4 pa
 | Workflow | Trigger | Status |
 |----------|---------|--------|
 | `e2e-smoke.yml` | Every push/PR touching `frontend/**` | No secrets — **must stay green** |
+| `e2e-google-integration.yml` | Push/PR touching `frontend/**` or GeekSeoBackend | API-only Google OAuth wiring — no secrets |
 | `e2e-authenticated.yml` | Weekly + manual | Requires repo secrets (see below) |
 
 ### One-time: enable prod login in CI

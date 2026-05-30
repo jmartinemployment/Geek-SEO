@@ -1,6 +1,7 @@
 using GeekSeoBackend.Auth;
 using GeekSeo.Application.Constants.Seo;
 using GeekSeo.Application.Interfaces.Seo;
+using GeekSeo.Application.Results;
 
 namespace GeekSeoBackend.Middleware;
 
@@ -34,7 +35,16 @@ public sealed class SeoFeatureGateMiddleware(RequestDelegate next)
             return;
         }
 
-        var tierResult = await subscriptions.GetActiveTierAsync(userId);
+        Result<SubscriptionTier> tierResult;
+        try
+        {
+            tierResult = await subscriptions.GetActiveTierAsync(userId);
+        }
+        catch
+        {
+            tierResult = Result<SubscriptionTier>.Success(SubscriptionTier.Starter);
+        }
+
         if (!tierResult.IsSuccess)
         {
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;

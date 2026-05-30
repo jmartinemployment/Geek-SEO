@@ -16,7 +16,7 @@ Details: [`plan-documents/PLATFORM-DECOUPLING.md`](plan-documents/PLATFORM-DECOU
 
 ## Identity (geek-OAuth)
 
-Platform login for Geek SEO (**OAuth 2.1 + PKCE** via **geek-OAuth**) is **complete** for production: issuer, `geekseo` client, redirect URIs, and JWT validation on GeekSeoBackend (`GEEK_OAUTH_AUTHORITY`). This is unrelated to **Google** OAuth for GSC / GA4 integrations (still not built).
+Platform login for Geek SEO (**OAuth 2.1 + PKCE** via **geek-OAuth**) is **complete** for production: issuer, `geekseo` client, redirect URIs, and JWT validation on GeekSeoBackend (`GEEK_OAUTH_AUTHORITY`). **Google** OAuth for GSC / GA4 is separate — backend + frontend connect flow is wired; automated checks in `npm run test:integration:google` (CI: `e2e-google-integration.yml`).
 
 ## Architecture (target state — implemented)
 
@@ -44,7 +44,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 | Brand voice CRUD | ✅ | ✅ /app/brand-voice | Postgres |
 | Humanize / AI detect / auto-optimize | ✅ | ✅ toolbar | Anthropic |
 | Deep SERP analysis | ✅ `GET /api/seo/serp/deep` | — | DataForSEO |
-| Google integrations (GSC + GA4) | ✅ OAuth + data endpoints | partial (`IntegrationRequired` pages not yet wired) | Google OAuth env vars + GeekAPI internal Google routes |
+| Google integrations (GSC + GA4) | ✅ OAuth + data endpoints | ✅ connect on project / rankings / analytics | `GOOGLE_*` on GeekSeoBackend; GSC/GA4 data needs user OAuth + Professional tier |
 | Internal link suggestions | ✅ | — | sibling docs in project |
 | Usage gates + subscription tier read | ✅ | partial | subscription row in DB |
 
@@ -59,7 +59,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 | Copyscape / plagiarism | **Not built** |
 | Chrome extension, WP plugin, Google Docs | **Not built** |
 | Public API keys for agencies | **Not built** |
-| E2E Playwright | **Smoke:** `npm run test:e2e:smoke` + CI on PR. **Auth local:** `npm run test:e2e:auth:local` (dev user, no password). **Auth prod:** `test:e2e:auth` + weekly CI when `PLAYWRIGHT_TEST_*` secrets set |
+| E2E Playwright | **Smoke:** `test:e2e:smoke` + CI. **Google:** `test:integration:google` + `test:e2e:google` + CI. **Auth local:** `test:e2e:auth:local`. **Auth prod:** `test:e2e:auth` when `PLAYWRIGHT_TEST_*` secrets set |
 | Production Railway deploy checklist | docs only |
 
 ## Local run

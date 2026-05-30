@@ -8,6 +8,8 @@ Smoke tests against deployed Geek SEO (default: production). No mock data.
 cd frontend
 npm run test:e2e          # all specs
 npm run test:e2e:smoke    # public smoke only (no credentials)
+npm run test:integration:google  # Google connect-url API (production backend)
+npm run test:e2e:google   # Google UI + OAuth redirect (local Next + prod API)
 ```
 
 ### Authenticated tests (optional)
@@ -42,6 +44,7 @@ Starts backend/frontend if needed, then runs authenticated specs against `http:/
 | Workflow | When | Secrets |
 |----------|------|---------|
 | `e2e-smoke.yml` | Push/PR to `main` (frontend changes) | None |
+| `e2e-google-integration.yml` | Push/PR (frontend or GeekSeoBackend) | None |
 | `e2e-authenticated.yml` | Weekly + manual | `PLAYWRIGHT_TEST_EMAIL`, `PLAYWRIGHT_TEST_PASSWORD` in repo secrets |
 
 ## Targets
