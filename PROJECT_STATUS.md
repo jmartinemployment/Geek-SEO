@@ -52,8 +52,8 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 
 | Area | Status |
 |------|--------|
-| Google Search Console OAuth | **Backend implemented in GeekSeoBackend** (`/api/seo/integrations/google/*`, `/api/seo/rankings/{projectId}`) — frontend wiring and GeekAPI internal Google routes must be live |
-| Google Analytics 4 | **Backend implemented in GeekSeoBackend** (`/api/seo/analytics/ga4/{projectId}/landing-pages`) — frontend wiring and internal Google routes must be live |
+| Google Search Console OAuth | **Backend + frontend wired** — connect on project page or Rankings; needs `GOOGLE_*` env on GeekSeoBackend + GeekAPI internal Google routes |
+| Google Analytics 4 | **Backend + frontend wired** — same connect flow; data on `/app/analytics` |
 | PayPal billing + webhooks | **Not built** |
 | Site-wide technical audit crawl | **Not built** |
 | Copyscape / plagiarism | **Not built** |

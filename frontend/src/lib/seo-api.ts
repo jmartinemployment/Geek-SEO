@@ -54,6 +54,17 @@ export async function listProjects(accessToken?: string | null): Promise<SeoProj
   return seoJson<SeoProject[]>(res);
 }
 
+export async function getProject(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<SeoProject> {
+  const res = await fetch(`${API_URL}/api/seo/projects/${projectId}`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson<SeoProject>(res);
+}
+
 export type BackgroundJobStatus = {
   jobId: string;
   jobType: string;
@@ -546,9 +557,13 @@ export async function getGoogleIntegrationStatus(
 export async function getGoogleConnectUrl(
   projectId: string,
   accessToken?: string | null,
+  options?: { siteUrl?: string; propertyId?: string },
 ): Promise<{ url: string; expiresAt: string }> {
+  const params = new URLSearchParams({ projectId });
+  if (options?.siteUrl) params.set('siteUrl', options.siteUrl);
+  if (options?.propertyId) params.set('propertyId', options.propertyId);
   const res = await fetch(
-    `${API_URL}/api/seo/integrations/google/connect-url?projectId=${projectId}`,
+    `${API_URL}/api/seo/integrations/google/connect-url?${params.toString()}`,
     { headers: apiHeaders(accessToken), cache: 'no-store' },
   );
   return seoJson<{ url: string; expiresAt: string }>(res);

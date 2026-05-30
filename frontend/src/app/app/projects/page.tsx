@@ -120,10 +120,41 @@ export default function ProjectsPage() {
         <ul className="mt-8 space-y-3">
           {projects.map((p) => (
             <li key={p.id} className="rounded-xl border bg-white p-4 shadow-sm transition hover:border-[var(--color-border-strong)]">
-              <Link href={`/app/projects/${p.id}`} className="font-medium hover:underline">
-                {p.name}
-              </Link>
-              <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{p.url}</p>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <Link href={`/app/projects/${p.id}`} className="font-medium hover:underline">
+                    {p.name}
+                  </Link>
+                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{p.url}</p>
+                  <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+                    {p.gscConnected ? (
+                      <span className="rounded-full bg-green-50 px-2 py-0.5 text-green-800">GSC connected</span>
+                    ) : (
+                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-900">Google not connected</span>
+                    )}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <Link
+                    href={`/app/projects/${p.id}`}
+                    className="rounded-lg border px-2.5 py-1.5 hover:bg-[var(--color-surface-muted)]"
+                  >
+                    Documents
+                  </Link>
+                  <Link
+                    href="/app/rankings"
+                    className="rounded-lg border px-2.5 py-1.5 hover:bg-[var(--color-surface-muted)]"
+                  >
+                    Rankings
+                  </Link>
+                  <Link
+                    href="/app/analytics"
+                    className="rounded-lg border px-2.5 py-1.5 hover:bg-[var(--color-surface-muted)]"
+                  >
+                    Analytics
+                  </Link>
+                </div>
+              </div>
             </li>
           ))}
         </ul>

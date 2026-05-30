@@ -11,9 +11,11 @@ import {
 type GoogleSettingsProps = Readonly<{
   projectId: string;
   accessToken: string | null;
+  /** Pre-fills GSC site URL in OAuth state when connecting. */
+  projectSiteUrl?: string;
 }>;
 
-export function GoogleSettings({ projectId, accessToken }: GoogleSettingsProps) {
+export function GoogleSettings({ projectId, accessToken, projectSiteUrl }: GoogleSettingsProps) {
   const [status, setStatus] = useState<GoogleIntegrationStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -39,7 +41,9 @@ export function GoogleSettings({ projectId, accessToken }: GoogleSettingsProps) 
     setLoading(true);
     setError(null);
     try {
-      const { url } = await getGoogleConnectUrl(projectId, accessToken);
+      const { url } = await getGoogleConnectUrl(projectId, accessToken, {
+        siteUrl: projectSiteUrl,
+      });
       globalThis.location.href = url;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not start Google connect');

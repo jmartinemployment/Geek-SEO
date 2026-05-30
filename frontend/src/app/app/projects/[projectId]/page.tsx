@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { GoogleSettings } from '@/components/google/google-settings';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
-import { createContent, listContent, type SeoContentDocument } from '@/lib/seo-api';
+import { createContent, getProject, listContent, type SeoContentDocument, type SeoProject } from '@/lib/seo-api';
 
 export default function ProjectDocumentsPage() {
   const { accessToken, isLoading: authLoading } = useAuth();
@@ -17,6 +17,7 @@ export default function ProjectDocumentsPage() {
   const googleNotice = searchParams.get('google');
   const googleMessage = searchParams.get('message');
   const [documents, setDocuments] = useState<SeoContentDocument[]>([]);
+  const [project, setProject] = useState<SeoProject | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -27,7 +28,12 @@ export default function ProjectDocumentsPage() {
     setLoading(true);
     try {
       setError(null);
-      setDocuments(await listContent(projectId, accessToken));
+      const [docs, proj] = await Promise.all([
+        listContent(projectId, accessToken),
+        getProject(projectId, accessToken),
+      ]);
+      setDocuments(docs);
+      setProject(proj);
     } catch (e) {
       setError(e);
     } finally {
@@ -68,12 +74,25 @@ export default function ProjectDocumentsPage() {
       <Link href="/app/projects" className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
         ← Projects
       </Link>
-      <h1 className="mt-4 text-2xl font-semibold tracking-tight">Content documents</h1>
+      <h1 className="mt-4 text-2xl font-semibold tracking-tight">
+        {project?.name ?? 'Content documents'}
+      </h1>
+      {project?.url ? (
+        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{project.url}</p>
+      ) : null}
 
       {googleNotice === 'connected' ? (
-        <p className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
-          Google Search Console and Analytics are connected for this project.
-        </p>
+        <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+          <p>Google Search Console and Analytics are connected for this project.</p>
+          <p className="mt-2 flex flex-wrap gap-4">
+            <Link href="/app/rankings" className="font-medium underline-offset-2 hover:underline">
+              View GSC rankings →
+            </Link>
+            <Link href="/app/analytics" className="font-medium underline-offset-2 hover:underline">
+              View GA4 analytics →
+            </Link>
+          </p>
+        </div>
       ) : null}
       {googleNotice === 'error' ? (
         <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -82,7 +101,11 @@ export default function ProjectDocumentsPage() {
       ) : null}
 
       <div className="mt-6">
-        <GoogleSettings projectId={projectId} accessToken={accessToken} />
+        <GoogleSettings
+          projectId={projectId}
+          accessToken={accessToken}
+          projectSiteUrl={project?.url}
+        />
       </div>
 
       {error ? <div className="mt-4"><SeoErrorBanner error={error} /></div> : null}

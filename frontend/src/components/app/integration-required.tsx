@@ -25,12 +25,26 @@ export function IntegrationRequired({
           environment. Until then, this screen shows what will appear once data is available — no mock metrics.
         </p>
       </div>
-      <Link
-        href="/app/projects"
-        className="mt-6 inline-block text-sm font-medium text-[var(--color-text-primary)] underline-offset-2 hover:underline"
-      >
-        ← Back to projects
-      </Link>
+      <div className="mt-8 flex flex-wrap gap-4 text-sm">
+        <Link
+          href="/app/projects"
+          className="font-medium text-[var(--color-text-primary)] underline-offset-2 hover:underline"
+        >
+          ← Projects (connect Google)
+        </Link>
+        <Link
+          href="/app/rankings"
+          className="font-medium text-[var(--color-text-primary)] underline-offset-2 hover:underline"
+        >
+          GSC rankings
+        </Link>
+        <Link
+          href="/app/analytics"
+          className="font-medium text-[var(--color-text-primary)] underline-offset-2 hover:underline"
+        >
+          GA4 analytics
+        </Link>
+      </div>
       {docsHref ? (
         <p className="mt-4 text-xs text-[var(--color-text-secondary)]">{docsHref}</p>
       ) : (

@@ -127,7 +127,11 @@ export function GoogleProjectPanel({ title, description, mode }: GoogleProjectPa
       </div>
 
       <div className="mt-6">
-        <GoogleSettings projectId={projectId} accessToken={accessToken} />
+        <GoogleSettings
+          projectId={projectId}
+          accessToken={accessToken}
+          projectSiteUrl={projects.find((p) => p.id === projectId)?.url}
+        />
       </div>
 
       {error ? (
