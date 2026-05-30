@@ -248,6 +248,8 @@ flowchart TD
 
 ## Session notes
 
+**2026-05-30 (rev. 4, session):** **M2+M7 done.** `GeekSeo.Application` in Geek-SEO; GeekSeoBackend off GeekApplication. Dockerfile product-only. Pushed Geek-SEO `697f7b0`, GeekBackend `9254c71` (pin bump). Railway **GeekSeoBackend** + **GeekRepository** deploy **SUCCESS**.
+
 **2026-05-30 (rev. 3, session):** Pushed Geek-SEO `9aad30b` (Persistence), GeekBackend `beae18a`+`217f250` (M3 + Docker layout fix). Railway GeekRepository deploy **SUCCESS**; pin `Geek-SEO.commit` = `9aad30bd4967898fdb81d4b67f901c484a12b4a5`.
 
 **2026-05-30 (rev. 3):** Plan aligned with codebase audit (Claude Code critique). M3 steps 3.1–3.6, 3.8 marked done; 3.2 N/A; 3.7 urgent verify (`Dockerfile.repository` + `Geek-SEO.commit`; warn `GeekRepository/Dockerfile`). Flowchart: M0 does not gate M3; M0 gates O2 only; M2 ∥ M4–M6. M8 CLAUDE.md already exists. DRY violation framed as acknowledged, deferred to O1.
