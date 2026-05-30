@@ -8,9 +8,6 @@ on:
 jobs:
   authenticated:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
     steps:
       - name: Check credentials configured
         id: creds
@@ -34,14 +31,17 @@ jobs:
 
       - name: Install dependencies
         if: steps.creds.outputs.configured == 'true'
+        working-directory: frontend
         run: npm ci
 
       - name: Install Playwright Chromium
         if: steps.creds.outputs.configured == 'true'
+        working-directory: frontend
         run: npx playwright install --with-deps chromium
 
       - name: Authenticated tests
         if: steps.creds.outputs.configured == 'true'
+        working-directory: frontend
         run: npm run test:e2e:auth -- --project=authenticated
         env:
           PLAYWRIGHT_BASE_URL: https://seo.geekatyourspot.com
