@@ -1,5 +1,5 @@
 <Solution>
   <Project Path="GeekSeo.Persistence/GeekSeo.Persistence.csproj" />
-  <Project Path="../GeekBackend/GeekApplication/GeekApplication.csproj" />
+  <Project Path="GeekSeo.Application/GeekSeo.Application.csproj" />
   <Project Path="GeekSeoBackend/GeekSeoBackend.csproj" />
 </Solution>

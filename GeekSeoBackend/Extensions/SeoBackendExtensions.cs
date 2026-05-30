@@ -1,6 +1,6 @@
 using System.Text;
-using GeekApplication.Interfaces.Seo;
-using GeekApplication.Services.Seo;
+using GeekSeo.Application.Interfaces.Seo;
+using GeekSeo.Application.Services.Seo;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.HttpClients.Repo;
 using GeekSeoBackend.Infrastructure;
@@ -8,7 +8,7 @@ using GeekSeoBackend.Providers.Seo;
 using GeekSeoBackend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using SubscriptionService = GeekApplication.Services.Seo.SubscriptionService;
+using SubscriptionService = GeekSeo.Application.Services.Seo.SubscriptionService;
 
 namespace GeekSeoBackend.Extensions;
 

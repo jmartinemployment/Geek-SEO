@@ -1,5 +1,5 @@
-using GeekApplication.Entities.Seo;
-using GeekApplication.Results;
+using GeekSeo.Persistence.Entities;
+using GeekSeo.Application.Results;
 
 namespace GeekSeoBackend.Services;
 

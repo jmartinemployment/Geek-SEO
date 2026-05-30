@@ -1,6 +1,6 @@
 using GeekSeoBackend.Auth;
-using GeekApplication.Constants.Seo;
-using GeekApplication.Interfaces.Seo;
+using GeekSeo.Application.Constants.Seo;
+using GeekSeo.Application.Interfaces.Seo;
 
 namespace GeekSeoBackend.Middleware;
 

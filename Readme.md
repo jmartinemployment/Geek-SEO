@@ -15,7 +15,7 @@ Surfer / ContentShake-style SEO content SaaS.
 | `GeekBackend.commit` | *(transitional)* Pinned GeekBackend SHA for Railway Docker — **removed in PLATFORM-DECOUPLING M7** |
 | `plan-documents/` | Product spec + platform decoupling plan |
 
-**Contracts (transitional → in-repo):** GeekSeoBackend currently references **[GeekBackend](https://github.com/jmartinemployment/GeekBackend)/GeekApplication** for SEO types. **Target:** `GeekSeo.Application` in this repo only (**M2**); Railway build without cloning GeekBackend (**M7**). See [`PLATFORM-DECOUPLING.md`](plan-documents/PLATFORM-DECOUPLING.md).
+**Contracts:** In-repo **`GeekSeo.Application`** + **`GeekSeo.Persistence`** — GeekSeoBackend does not reference GeekBackend. See [`PLATFORM-DECOUPLING.md`](plan-documents/PLATFORM-DECOUPLING.md).
 
 **GeekAPI is not the SEO product.** Product code belongs in **this repo**, not `GeekBackend/GeekAPI`.
 

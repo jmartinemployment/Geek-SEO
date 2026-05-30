@@ -1,7 +1,7 @@
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Extensions;
-using GeekApplication.Interfaces.Seo;
-using GeekApplication.Models.Seo;
+using GeekSeo.Application.Interfaces.Seo;
+using GeekSeo.Application.Models.Seo;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GeekSeoBackend.Controllers.Seo;

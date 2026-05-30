@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using GeekApplication.Entities.Seo;
-using GeekApplication.Results;
+using GeekSeo.Persistence.Entities;
+using GeekSeo.Application.Results;
 using GeekSeoBackend.Infrastructure;
 using GeekSeoBackend.Services;
 

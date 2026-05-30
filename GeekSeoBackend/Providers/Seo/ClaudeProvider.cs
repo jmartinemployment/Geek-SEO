@@ -1,8 +1,8 @@
 using System.Net.Http.Json;
 using System.Text.Json;
-using GeekApplication.Interfaces.Seo;
-using GeekApplication.Models.Seo;
-using GeekApplication.Results;
+using GeekSeo.Application.Interfaces.Seo;
+using GeekSeo.Application.Models.Seo;
+using GeekSeo.Application.Results;
 
 namespace GeekSeoBackend.Providers.Seo;
 

@@ -1,7 +1,7 @@
 # Platform decoupling — Geek SEO contracts & legacy auth cleanup
 
-**Status:** **M3 complete** (including Railway deploy); **M2 / M4–M9** next  
-**Date:** 2026-05-30 (rev. 3)  
+**Status:** **M2 + M7 complete** in tree; **M4–M6 / M8–M9** next (M0 for O2)  
+**Date:** 2026-05-30 (rev. 4)  
 **Related:** [`ARCHITECTURE.md`](ARCHITECTURE.md), [`BOUNDARIES.md`](../BOUNDARIES.md), [`GEEKSEO-PLAN.md`](GEEKSEO-PLAN.md)
 
 ---
@@ -240,7 +240,7 @@ flowchart TD
 
 | Track | Phases | Status |
 |-------|--------|--------|
-| Mandatory | M0, **M3**, M2, M4–M9 | **M3 done**; next **M2** ∥ **M4–M6** |
+| Mandatory | M0, **M3**, **M2**, **M7**, M4–M9 | **M3, M2, M7 done**; next **M4–M6** ∥ **M8–M9** |
 | Optional safety | M1 | skip unless needed |
 | Optional future | O1, O2 | defer (O2 needs M0) |
 

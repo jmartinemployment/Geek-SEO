@@ -2,9 +2,9 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using GeekApplication.Entities.Seo;
-using GeekApplication.Infrastructure;
-using GeekApplication.Interfaces.Seo;
+using GeekSeo.Persistence.Entities;
+using GeekSeo.Application.Infrastructure;
+using GeekSeo.Application.Interfaces.Seo;
 using GeekSeoBackend.Models;
 
 namespace GeekSeoBackend.Services;

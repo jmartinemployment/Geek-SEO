@@ -1,4 +1,4 @@
-using GeekApplication.Interfaces.Seo;
+using GeekSeo.Application.Interfaces.Seo;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Extensions;
 using Microsoft.AspNetCore.Mvc;

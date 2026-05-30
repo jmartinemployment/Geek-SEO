@@ -58,7 +58,7 @@ npm run dev
 
 **Runtime E2E:** GeekAPI + GeekRepository must run for persistence (GeekSeoBackend has no `DATABASE_URL`).
 
-**Build (transitional until PLATFORM-DECOUPLING M2):** GeekSeoBackend references `../GeekBackend/GeekApplication` — clone GeekBackend next to Geek-SEO for `dotnet build`.
+**Build:** `dotnet build GeekSEO.slnx` from repo root — uses in-repo `GeekSeo.Application` + `GeekSeo.Persistence` (no GeekBackend clone).
 
 **Railway (transitional until M7):** Docker clones GeekBackend at `GeekBackend.commit`. After M7, product image builds from this repo only.
 

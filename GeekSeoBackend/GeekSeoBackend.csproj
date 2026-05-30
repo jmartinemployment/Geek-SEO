@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\GeekBackend\GeekApplication\GeekApplication.csproj" />
+    <ProjectReference Include="..\GeekSeo.Application\GeekSeo.Application.csproj" />
   </ItemGroup>
 
 </Project>

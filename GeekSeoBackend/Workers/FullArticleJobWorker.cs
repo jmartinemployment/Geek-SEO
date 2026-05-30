@@ -1,6 +1,6 @@
 using System.Text.Json;
-using GeekApplication.Interfaces.Seo;
-using GeekApplication.Models.Seo;
+using GeekSeo.Application.Interfaces.Seo;
+using GeekSeo.Application.Models.Seo;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Services;
 

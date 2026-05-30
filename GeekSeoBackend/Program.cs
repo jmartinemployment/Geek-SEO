@@ -1,5 +1,5 @@
 using DotNetEnv;
-using GeekApplication.Interfaces.Seo;
+using GeekSeo.Application.Interfaces.Seo;
 using GeekSeoBackend.Extensions;
 using GeekSeoBackend.Hubs;
 using GeekSeoBackend.Infrastructure;

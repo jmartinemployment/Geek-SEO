@@ -1,6 +1,6 @@
 using System.Net.Http.Json;
-using GeekApplication.Interfaces.Seo;
-using GeekApplication.Results;
+using GeekSeo.Application.Interfaces.Seo;
+using GeekSeo.Application.Results;
 using GeekSeoBackend.Infrastructure;
 
 namespace GeekSeoBackend.HttpClients.Repo;

@@ -2,10 +2,10 @@ using GeekSeoBackend.Infrastructure;
 using System.Net;
 using System.Net.Http.Json;
 using GeekSeoBackend.Auth;
-using GeekApplication.Entities.Seo;
-using GeekApplication.Interfaces.Seo;
-using GeekApplication.Models.Seo;
-using GeekApplication.Results;
+using GeekSeo.Persistence.Entities;
+using GeekSeo.Application.Interfaces.Seo;
+using GeekSeo.Application.Models.Seo;
+using GeekSeo.Application.Results;
 
 namespace GeekSeoBackend.HttpClients.Repo;
 

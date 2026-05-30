@@ -1,8 +1,8 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using GeekApplication.Interfaces.Seo;
-using GeekApplication.Models.Seo;
-using GeekApplication.Results;
+using GeekSeo.Application.Interfaces.Seo;
+using GeekSeo.Application.Models.Seo;
+using GeekSeo.Application.Results;
 using Microsoft.Playwright;
 
 namespace GeekSeoBackend.Providers.Seo;
