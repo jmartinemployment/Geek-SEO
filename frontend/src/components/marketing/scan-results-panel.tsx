@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { AuthStartLink } from '@/components/auth/auth-start-link';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -220,12 +220,9 @@ export function ScanResultsPanel({ url }: ScanResultsPanelProps) {
             </li>
           ))}
         </ul>
-        <Link
-          href="/api/auth/start"
-          className="mt-4 inline-flex h-10 items-center rounded-[var(--radius-button)] bg-[var(--color-accent)] px-5 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover)]"
-        >
+        <AuthStartLink className="mt-4 inline-flex h-10 items-center rounded-[var(--radius-button)] bg-[var(--color-accent)] px-5 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover)]">
           Sign up free to unlock full analysis →
-        </Link>
+        </AuthStartLink>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { AuthStartLink } from '@/components/auth/auth-start-link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
@@ -61,12 +61,9 @@ function CallbackInner() {
           <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
             {error}
           </p>
-          <Link
-            href="/api/auth/start"
-            className="mt-6 inline-block rounded-[var(--radius-button)] bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover)]"
-          >
+          <AuthStartLink className="mt-6 inline-block rounded-[var(--radius-button)] bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover)]">
             Log in
-          </Link>
+          </AuthStartLink>
         </>
       ) : (
         <p className="text-[var(--color-text-secondary)]">Completing sign-in…</p>

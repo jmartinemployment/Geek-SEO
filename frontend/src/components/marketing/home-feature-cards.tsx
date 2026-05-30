@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { AuthStartLink } from '@/components/auth/auth-start-link';
 import { FEATURE_MODULES } from '@/components/dashboard/dashboard.constants';
 
 export function HomeFeatureCards() {
@@ -9,9 +9,8 @@ export function HomeFeatureCards() {
       </h2>
       <div className="mt-6 flex gap-3 overflow-x-auto pb-2">
         {FEATURE_MODULES.map((module) => (
-          <Link
+          <AuthStartLink
             key={module.id}
-            href="/api/auth/start"
             className="group flex w-40 shrink-0 flex-col rounded-[var(--radius-card)] border border-[var(--color-border)] bg-white p-4 shadow-[var(--shadow-card)] transition-[border-color,box-shadow] hover:border-[var(--color-border-strong)] hover:shadow-[var(--shadow-card-hover)]"
           >
             <div
@@ -26,7 +25,7 @@ export function HomeFeatureCards() {
             <p className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--color-text-secondary)]">
               {module.description}
             </p>
-          </Link>
+          </AuthStartLink>
         ))}
       </div>
     </div>

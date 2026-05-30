@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { AuthStartLink } from '@/components/auth/auth-start-link';
 import { ArrowRight, Globe } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useRef, useState } from 'react';
@@ -123,15 +124,12 @@ export function HomeHero() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <Link
-                href="/api/auth/start"
-                className="inline-flex h-10 items-center rounded-[var(--radius-button)] bg-[var(--color-accent)] px-5 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover)]"
-              >
+              <AuthStartLink className="inline-flex h-10 items-center rounded-[var(--radius-button)] bg-[var(--color-accent)] px-5 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover)]">
                 Create free account →
-              </Link>
-              <Link href="/api/auth/start" className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
+              </AuthStartLink>
+              <AuthStartLink className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
                 Sign in
-              </Link>
+              </AuthStartLink>
             </div>
           </div>
         </section>

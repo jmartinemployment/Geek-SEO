@@ -59,7 +59,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 | Copyscape / plagiarism | **Not built** |
 | Chrome extension, WP plugin, Google Docs | **Not built** |
 | Public API keys for agencies | **Not built** |
-| E2E Playwright test suite | **Not built** |
+| E2E Playwright test suite | **Not in repo** — Playwright 1.59 + browsers installed globally on dev machine |
 | Production Railway deploy checklist | docs only |
 
 ## Local run
@@ -72,4 +72,4 @@ If Postgres previously ran migration `0004` that dropped `geek_seo`, restart Gee
 
 Master plan: `plan-documents/GEEKSEO-PLAN.md` (31 features / 34 steps). This repo implements the **Surfer-style content core** end-to-end; GSC/GA4/monetization/integrations remain separate workstreams.
 
-Platform decoupling: `plan-documents/PLATFORM-DECOUPLING.md` — **M3** `GeekSeo.Persistence` (schema in this repo) **implemented**; **M2/M7** next; **O1/O2** optional.
+Platform decoupling: `plan-documents/PLATFORM-DECOUPLING.md` — **complete** (M0–M9, M1, O2). Optional future: **O1** standalone contracts repo.

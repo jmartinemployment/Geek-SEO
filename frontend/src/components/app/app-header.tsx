@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { AuthStartLink } from '@/components/auth/auth-start-link';
 import { Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -49,15 +50,12 @@ export function AppHeaderActions() {
   if (!isAuthenticated) {
     return (
       <div className="flex items-center gap-3">
-        <Link
-          href="/api/auth/start"
-          className="inline-flex h-8 items-center rounded-[var(--radius-button)] bg-[var(--color-accent)] px-3 text-xs font-semibold text-white hover:bg-[var(--color-accent-hover)]"
-        >
+        <AuthStartLink className="inline-flex h-8 items-center rounded-[var(--radius-button)] bg-[var(--color-accent)] px-3 text-xs font-semibold text-white hover:bg-[var(--color-accent-hover)]">
           Start free →
-        </Link>
-        <Link href="/api/auth/start" className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
+        </AuthStartLink>
+        <AuthStartLink className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
           Sign in
-        </Link>
+        </AuthStartLink>
       </div>
     );
   }

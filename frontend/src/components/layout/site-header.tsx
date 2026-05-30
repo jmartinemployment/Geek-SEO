@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { AuthStartLink } from '@/components/auth/auth-start-link';
 import { Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -89,18 +90,12 @@ export function SiteHeader({ variant, className }: SiteHeaderProps) {
           </>
         ) : (
           <>
-            <Link
-              href="/api/auth/start"
-              className="inline-flex h-9 items-center rounded-[var(--radius-button)] bg-[var(--color-accent)] px-4 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover)]"
-            >
+            <AuthStartLink className="inline-flex h-9 items-center rounded-[var(--radius-button)] bg-[var(--color-accent)] px-4 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover)]">
               Start free →
-            </Link>
-            <Link
-              href="/api/auth/start"
-              className="hidden text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] sm:inline"
-            >
+            </AuthStartLink>
+            <AuthStartLink className="hidden text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] sm:inline">
               Sign in
-            </Link>
+            </AuthStartLink>
           </>
         )}
       </div>

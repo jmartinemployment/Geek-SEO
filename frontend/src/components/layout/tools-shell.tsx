@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { AuthStartLink } from '@/components/auth/auth-start-link';
 import { SiteHeader } from '@/components/layout/site-header';
 
 export function ToolsShell({ children }: { children: React.ReactNode }) {
@@ -16,12 +16,9 @@ export function ToolsShell({ children }: { children: React.ReactNode }) {
               Sign up free to unlock topical maps, audits, and the content editor.
             </p>
           </div>
-          <Link
-            href="/api/auth/start"
-            className="inline-flex h-10 items-center rounded-[var(--radius-button)] bg-[var(--color-accent)] px-5 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover)]"
-          >
+          <AuthStartLink className="inline-flex h-10 items-center rounded-[var(--radius-button)] bg-[var(--color-accent)] px-5 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover)]">
             Create free account →
-          </Link>
+          </AuthStartLink>
         </div>
       </footer>
     </div>
