@@ -12,7 +12,7 @@ Last updated: May 30, 2026
 | M4–M6 Legacy platform auth | ✅ Removed from GeekAPI / GeekRepository / GeekApplication |
 | Production | ✅ GeekSeoBackend, GeekAPI, GeekRepository `/health` OK; GeekSeoBackend `gateway: ok` |
 
-Details: [`plan-documents/PLATFORM-DECOUPLING.md`](plan-documents/PLATFORM-DECOUPLING.md). Optional next: **M0** (audit) → **O2** (drop auth DB tables).
+Details: [`plan-documents/PLATFORM-DECOUPLING.md`](plan-documents/PLATFORM-DECOUPLING.md). **M0** audit + **M1** (410 on legacy paths) done. Optional next: **O2** (drop auth DB tables after staging log review).
 
 ## Identity (geek-OAuth)
 
