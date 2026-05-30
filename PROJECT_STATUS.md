@@ -46,7 +46,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 | Deep SERP analysis | ✅ `GET /api/seo/serp/deep` | — | DataForSEO |
 | Google integrations (GSC + GA4) | ✅ OAuth + data endpoints | ✅ connect on project / rankings / analytics | `GOOGLE_*` on GeekSeoBackend; GSC/GA4 data needs user OAuth + Professional tier |
 | Internal link suggestions | ✅ | — | sibling docs in project |
-| Usage gates + subscription tier read | ✅ | partial | subscription row in DB |
+| Usage gates + subscription tier read | ✅ | partial | `GET /api/seo/subscription` returns tier string (defaults `starter`) |
 
 ## Honest gaps (not stubbed — blocked or not built)
 
