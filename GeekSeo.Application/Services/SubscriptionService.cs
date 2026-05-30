@@ -18,7 +18,7 @@ public sealed class SubscriptionService(ISubscriptionRepository subscriptions) :
         if (!string.Equals(row.Value.Status, "active", StringComparison.OrdinalIgnoreCase))
             return Result<SubscriptionTier>.Success(SubscriptionTier.None);
 
-        return Result<SubscriptionTier>.Success(ParseTier(row.Value.Tier));
+        return Result<SubscriptionTier>.Success(ParseTier(row.Value.Tier ?? "none"));
     }
 
     private static SubscriptionTier ParseTier(string tier) => tier.ToLowerInvariant() switch

@@ -1,6 +1,6 @@
 using GeekSeoBackend.Infrastructure;
 using System.Net;
-using System.Net.Http.Json;
+using System.Text.Json;
 using GeekSeo.Persistence.Entities;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Results;
@@ -14,11 +14,23 @@ public sealed class HttpSubscriptionRepository(IHttpClientFactory factory) : ISu
     public async Task<Result<SeoSubscription?>> GetByUserIdAsync(Guid userId, CancellationToken ct = default)
     {
         var response = await _http.GetAsync($"api/seo/internal/subscriptions?userId={userId}", ct);
-        if (response.StatusCode == HttpStatusCode.NotFound)
+        if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.NoContent)
             return Result<SeoSubscription?>.Success(null);
         if (!response.IsSuccessStatusCode)
             return Result<SeoSubscription?>.Failure(await response.Content.ReadAsStringAsync(ct));
-        var value = await response.Content.ReadFromJsonAsync<SeoSubscription>(ct);
-        return Result<SeoSubscription?>.Success(value);
+
+        var body = await response.Content.ReadAsStringAsync(ct);
+        if (string.IsNullOrWhiteSpace(body))
+            return Result<SeoSubscription?>.Success(null);
+
+        try
+        {
+            var value = JsonSerializer.Deserialize<SeoSubscription>(body);
+            return Result<SeoSubscription?>.Success(value);
+        }
+        catch (JsonException)
+        {
+            return Result<SeoSubscription?>.Failure("Invalid subscription response from internal API.");
+        }
     }
 }

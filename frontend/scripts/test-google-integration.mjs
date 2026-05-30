@@ -71,6 +71,11 @@ try {
   assert(oauthUrl.searchParams.get('redirect_uri')?.includes('/api/seo/integrations/google/callback'), 'unexpected redirect_uri');
   console.log('✓ google connect-url (valid OAuth consent URL)');
 
+  const subscription = await request('GET', '/api/seo/subscription');
+  assert(subscription.status === 200, `subscription expected 200, got ${subscription.status}: ${JSON.stringify(subscription.json)}`);
+  assert(typeof subscription.json?.tier === 'string', 'subscription tier should be a string');
+  console.log(`✓ subscription tier (${subscription.json.tier})`);
+
   console.log('\nAll Google integration API checks passed.');
 } catch (error) {
   console.error('\nGoogle integration test FAILED:', error instanceof Error ? error.message : error);
