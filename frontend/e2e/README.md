@@ -17,13 +17,13 @@ Requires a **GeekOAuth** user without 2FA. Copy `.env.playwright.example` → `.
 - `PLAYWRIGHT_TEST_EMAIL`
 - `PLAYWRIGHT_TEST_PASSWORD`
 
-Load env when running (zsh/bash):
+Playwright auto-loads `frontend/.env.playwright.local` (you can still `source` it if you prefer).
 
 ```bash
-set -a && source .env.playwright.local && set +a && npm run test:e2e:auth
+npm run test:e2e:auth
 ```
 
-Without credentials, authenticated specs are **skipped** (not failed).
+`PLAYWRIGHT_TEST_PASSWORD` must be non-empty. Without credentials, tests are **skipped** (not “No tests found”).
 
 `global-setup.ts` logs in once and saves `e2e/.auth/user.json` so the authenticated project reuses the session.
 

@@ -7,7 +7,7 @@ export type TestCredentials = {
 
 export function getTestCredentials(): TestCredentials | null {
   const email = process.env.PLAYWRIGHT_TEST_EMAIL?.trim();
-  const password = process.env.PLAYWRIGHT_TEST_PASSWORD;
+  const password = process.env.PLAYWRIGHT_TEST_PASSWORD?.trim();
   if (!email || !password) {
     return null;
   }

@@ -7,11 +7,14 @@ const authFile = path.join(__dirname, '.auth/user.json');
 const credentials = getTestCredentials();
 const hasAuthState = fs.existsSync(authFile);
 
+const skipReason = !credentials
+  ? 'Add PLAYWRIGHT_TEST_EMAIL and PLAYWRIGHT_TEST_PASSWORD to frontend/.env.playwright.local (password must not be empty).'
+  : !hasAuthState
+    ? 'global-setup did not create e2e/.auth/user.json — check credentials and GeekOAuth (no 2FA).'
+    : null;
+
 test.describe('authenticated app', () => {
-  test.skip(
-    !credentials || !hasAuthState,
-    'Set PLAYWRIGHT_TEST_EMAIL and PLAYWRIGHT_TEST_PASSWORD; global-setup saves session to e2e/.auth/user.json.',
-  );
+  test.skip(Boolean(skipReason), skipReason ?? '');
 
   test.use({ storageState: authFile });
 
