@@ -1,6 +1,6 @@
 # Platform decoupling — Geek SEO contracts & legacy auth cleanup
 
-**Status:** **M3 complete in tree** — verify/deploy **Step 3.7** before M2; M2/M4–M9 pending  
+**Status:** **M3 complete** (including Railway deploy); **M2 / M4–M9** next  
 **Date:** 2026-05-30 (rev. 3)  
 **Related:** [`ARCHITECTURE.md`](ARCHITECTURE.md), [`BOUNDARIES.md`](../BOUNDARIES.md), [`GEEKSEO-PLAN.md`](GEEKSEO-PLAN.md)
 
@@ -94,7 +94,7 @@ Unchanged.
 | 3.4 | Move `Migrations/Seo` from GeekRepository | **Done** — `GeekSeo.Persistence/Migrations/` (GeekRepository has SQL note only) |
 | 3.5 | GeekApplication → `ProjectReference` GeekSeo.Persistence | **Done** — `GeekApplication.csproj` |
 | 3.6 | GeekRepository → reference GeekSeo.Persistence | **Done** — `GeekRepository.csproj`; local `Data/Seo*` and `Migrations/Seo` removed |
-| 3.7 | Deploy: `Geek-SEO.commit` + `Dockerfile.repository` clone | **Done in working tree** — **verify Railway/CI** (see urgent note below) |
+| 3.7 | Deploy: `Geek-SEO.commit` + `Dockerfile.repository` clone | **Done** — Railway `SUCCESS` on `217f250` (Docker uses `GeekBackend/` subfolder for `../../Geek-SEO` paths) |
 | 3.8 | `dotnet ef` from Geek-SEO | **Done** — `--project GeekSeo.Persistence --startup-project GeekSeo.Persistence` |
 
 **Approach:** **O3a only** (not O3b). **Acknowledged DRY violation (already in codebase):** `GeekApplication` and `GeekRepository` both reference `GeekSeo.Persistence` at build time. Accept until **O1** (standalone contracts repo) if multi-app sharing is needed.
@@ -108,7 +108,7 @@ Unchanged.
 | `Dockerfile.repository` (Railway doc target) | **Yes** — `Geek-SEO.commit` + shallow `git clone` | Updated in GeekBackend working tree |
 | `GeekRepository/Dockerfile` | **No** | Legacy path; **broken** if Railway or local build uses this file — align service config to `Dockerfile.repository` or update this file in 3.7 |
 
-**Remaining 3.7 work:** Confirm Geek-Repository Railway service uses `Dockerfile.repository`; push GeekBackend + pin; trigger deploy; confirm build log shows Geek-SEO checkout.
+**3.7 note:** Docker build context uses `/src/Geek-SEO` + `/src/GeekBackend/{GeekApplication,GeekRepository}` so `../../Geek-SEO` in csproj matches local sibling layout. `railway.toml` / `railway.json` set `dockerfilePath: Dockerfile.repository`.
 
 #### `Geek-SEO.commit` ownership (GeekBackend repo)
 
@@ -240,13 +240,15 @@ flowchart TD
 
 | Track | Phases | Status |
 |-------|--------|--------|
-| Mandatory | M0, **M3**, M2, M4–M9 | **M3 code done**; **3.7 deploy verify urgent** |
+| Mandatory | M0, **M3**, M2, M4–M9 | **M3 done**; next **M2** ∥ **M4–M6** |
 | Optional safety | M1 | skip unless needed |
 | Optional future | O1, O2 | defer (O2 needs M0) |
 
 ---
 
 ## Session notes
+
+**2026-05-30 (rev. 3, session):** Pushed Geek-SEO `9aad30b` (Persistence), GeekBackend `beae18a`+`217f250` (M3 + Docker layout fix). Railway GeekRepository deploy **SUCCESS**; pin `Geek-SEO.commit` = `9aad30bd4967898fdb81d4b67f901c484a12b4a5`.
 
 **2026-05-30 (rev. 3):** Plan aligned with codebase audit (Claude Code critique). M3 steps 3.1–3.6, 3.8 marked done; 3.2 N/A; 3.7 urgent verify (`Dockerfile.repository` + `Geek-SEO.commit`; warn `GeekRepository/Dockerfile`). Flowchart: M0 does not gate M3; M0 gates O2 only; M2 ∥ M4–M6. M8 CLAUDE.md already exists. DRY violation framed as acknowledged, deferred to O1.
 
