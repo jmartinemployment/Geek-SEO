@@ -1,7 +1,7 @@
 # Platform decoupling — Geek SEO contracts & legacy auth cleanup
 
-**Status:** **M2–M7 complete** in tree; **M8–M9** next (M0 for O2)  
-**Date:** 2026-05-30 (rev. 5)  
+**Status:** **M2–M7 + M4–M6 deployed**; **M8–M9** in progress (M0 for O2)  
+**Date:** 2026-05-30 (rev. 6)  
 **Related:** [`ARCHITECTURE.md`](ARCHITECTURE.md), [`BOUNDARIES.md`](../BOUNDARIES.md), [`GEEKSEO-PLAN.md`](GEEKSEO-PLAN.md)
 
 ---
@@ -240,7 +240,7 @@ flowchart TD
 
 | Track | Phases | Status |
 |-------|--------|--------|
-| Mandatory | M0, **M3**, **M2**, **M4–M6**, **M7**, M8–M9 | **M3–M7 done** in tree; next **M8–M9**; deploy **GeekAPI** after push |
+| Mandatory | M0, **M3**, **M2**, **M4–M6**, **M7**, M8–M9 | **M3–M7 + M4–M6** shipped (`GeekBackend` `c960c0e`, Railway OK); **M8–M9** |
 | Optional safety | M1 | skip unless needed |
 | Optional future | O1, O2 | defer (O2 needs M0) |
 
@@ -248,7 +248,9 @@ flowchart TD
 
 ## Session notes
 
-**2026-05-30 (rev. 5, session):** **M4–M6 done** in GeekBackend tree. Removed `/api/auth/*`, `SyncHub`, auth HttpClients/DI from **GeekAPI**; `repo/auth/*` controllers + auth repositories from **GeekRepository**; auth entities/interfaces/services from **GeekApplication** (content + `Result` remain). `dotnet build GEEKBACKEND.slnx` + `GeekSEO.slnx` OK. **Next:** commit/push GeekBackend, redeploy **GeekAPI** + **GeekRepository**, then **M8–M9**.
+**2026-05-30 (rev. 6, session):** **M4–M6 shipped.** Pushed GeekBackend `c960c0e` (auth removal), `acb695c` (Railway: root `railway.toml` broke GeekAPI — use `Dockerfile` for GeekAPI, `railway.geekrepository.toml` for GeekRepository). Production: `api.geekatyourspot.com/health` + `geekrepository-production.up.railway.app/health` OK. Geek-SEO plan `eb33041`.
+
+**2026-05-30 (rev. 5, session):** **M4–M6 done** in GeekBackend tree (local).
 
 **2026-05-30 (rev. 4, session):** **M2+M7 done.** `GeekSeo.Application` in Geek-SEO; GeekSeoBackend off GeekApplication. Dockerfile product-only. Pushed Geek-SEO `697f7b0`, GeekBackend `9254c71` (pin bump). Railway **GeekSeoBackend** + **GeekRepository** deploy **SUCCESS**.
 
