@@ -33,7 +33,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Production smoke tests
-        run: npm run test:e2e:smoke
+        run: npm run test:e2e:smoke -- --project=smoke
         env:
           PLAYWRIGHT_BASE_URL: https://seo.geekatyourspot.com
           PLAYWRIGHT_API_URL: https://geekseobackend-production.up.railway.app

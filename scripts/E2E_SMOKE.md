@@ -30,3 +30,7 @@ node scripts/e2e-smoke.mjs
 ```
 
 Provider env vars must be set on **GeekSeoBackend**, not on this frontend repo.
+
+## Browser E2E (Playwright)
+
+See [`E2E_PLAYWRIGHT.md`](./E2E_PLAYWRIGHT.md) — smoke on every CI push, local auth via `npm run test:e2e:auth:local`.
