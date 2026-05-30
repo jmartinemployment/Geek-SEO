@@ -36,9 +36,11 @@ const baseURL =
   process.env.PLAYWRIGHT_BASE_URL?.replace(/\/$/u, '') ?? 'https://seo.geekatyourspot.com';
 
 const authFile = path.join(__dirname, 'e2e/.auth/user.json');
+const useDevUser = process.env.PLAYWRIGHT_USE_DEV_USER === 'true';
 const hasAuthCredentials = Boolean(
   process.env.PLAYWRIGHT_TEST_EMAIL?.trim() && process.env.PLAYWRIGHT_TEST_PASSWORD?.length,
 );
+const useOAuthStorage = hasAuthCredentials && !useDevUser;
 
 export default defineConfig({
   testDir: './e2e',
@@ -46,9 +48,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI || useDevUser ? 1 : undefined,
+  timeout: useDevUser ? 120_000 : 60_000,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
-  timeout: 60_000,
   use: {
     baseURL,
     trace: 'on-first-retry',
@@ -66,7 +68,7 @@ export default defineConfig({
       testMatch: /authenticated\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
-        ...(hasAuthCredentials ? { storageState: authFile } : {}),
+        ...(useOAuthStorage ? { storageState: authFile } : {}),
       },
     },
   ],

@@ -29,6 +29,7 @@ curl -s https://auth.geekatyourspot.com/health       # geek-OAuth
 
 - **Smoke (every PR):** `.github/workflows/e2e-smoke.yml` — no secrets.
 - **Authenticated (weekly / manual):** `.github/workflows/e2e-authenticated.yml` — add repo secrets `PLAYWRIGHT_TEST_EMAIL` and `PLAYWRIGHT_TEST_PASSWORD` (GeekOAuth user, no 2FA).
+- **Local (developer):** `npm run test:e2e:auth:local` — uses `NEXT_PUBLIC_DEV_USER_ID` in `.env.local`; no OAuth password. See `e2e/README.md`.
 
 ## Vercel
 

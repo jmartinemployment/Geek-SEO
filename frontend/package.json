@@ -10,6 +10,7 @@
     "test:e2e": "playwright test",
     "test:e2e:smoke": "playwright test e2e/smoke.spec.ts",
     "test:e2e:auth": "playwright test --project=authenticated",
+    "test:e2e:auth:local": "bash scripts/run-e2e-auth-local.sh",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed"
   },

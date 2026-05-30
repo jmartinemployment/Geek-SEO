@@ -23,7 +23,17 @@ Playwright auto-loads `frontend/.env.playwright.local` (you can still `source` i
 npm run test:e2e:auth
 ```
 
-`PLAYWRIGHT_TEST_PASSWORD` must be non-empty. Without credentials, tests are **skipped** (not “No tests found”).
+### Local authenticated tests (no password)
+
+If `frontend/.env.local` has `NEXT_PUBLIC_DEV_USER_ID` and GeekSeoBackend is reachable:
+
+```bash
+npm run test:e2e:auth:local
+```
+
+Starts backend/frontend if needed, then runs authenticated specs against `http://127.0.0.1:3000`.
+
+`PLAYWRIGHT_TEST_PASSWORD` must be non-empty for production OAuth login. Without credentials, tests are **skipped** (not “No tests found”).
 
 `global-setup.ts` logs in once and saves `e2e/.auth/user.json` so the authenticated project reuses the session.
 

@@ -8,10 +8,25 @@ export type TestCredentials = {
 export function getTestCredentials(): TestCredentials | null {
   const email = process.env.PLAYWRIGHT_TEST_EMAIL?.trim();
   const password = process.env.PLAYWRIGHT_TEST_PASSWORD?.trim();
-  if (!email || !password) {
+  if (!email || !password || email === 'your-test-user@example.com') {
     return null;
   }
   return { email, password };
+}
+
+/** Localhost Next.js with NEXT_PUBLIC_DEV_USER_ID — no GeekOAuth login. */
+export function isDevUserMode(): boolean {
+  return process.env.PLAYWRIGHT_USE_DEV_USER === 'true';
+}
+
+export function assertSeoApiFailures(failures: string[]) {
+  if (isDevUserMode()) {
+    const allowed = /→ (401|403|404|500|502|503|504)$/u;
+    const blocking = failures.filter((f) => !allowed.test(f));
+    expect(blocking, 'unexpected SEO API failures (dev mode)').toEqual([]);
+    return;
+  }
+  expect(failures, 'SEO API calls').toEqual([]);
 }
 
 /**

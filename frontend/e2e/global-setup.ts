@@ -1,12 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium, type FullConfig } from '@playwright/test';
-import { getTestCredentials, loginViaGeekOAuth } from './auth-helpers';
+import { getTestCredentials, isDevUserMode, loginViaGeekOAuth } from './auth-helpers';
 
 const authDir = path.join(__dirname, '.auth');
 const authFile = path.join(authDir, 'user.json');
 
 export default async function globalSetup(config: FullConfig) {
+  if (isDevUserMode()) {
+    return;
+  }
+
   const credentials = getTestCredentials();
 
   if (!credentials) {

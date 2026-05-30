@@ -22,6 +22,8 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const DEV_USER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [accessToken, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -81,6 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void (async () => {
+      if (DEV_USER_ID) {
+        setIsLoading(false);
+        return;
+      }
       const path = globalThis.location?.pathname ?? '';
       if (!path.startsWith('/auth')) await refreshAccessToken();
       setIsLoading(false);
@@ -94,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       accessToken,
       isLoading,
-      isAuthenticated: Boolean(accessToken),
+      isAuthenticated: Boolean(accessToken) || Boolean(DEV_USER_ID),
       setAccessToken,
       refreshAccessToken,
       logout,
