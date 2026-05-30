@@ -197,7 +197,7 @@ Update all docs for **product-owned processes** and M3 `dotnet ef` commands. `Ge
 | GeekRepository Railway | Online — `Dockerfile.repository` + pin `697f7b0` |
 | GeekAPI Railway | Online — `./Dockerfile` (not shared root `railway.toml`) |
 | Production health | GeekSeoBackend + GeekAPI + GeekRepository 200; product `gateway: ok` |
-| Manual E2E (login → project) | Operator — not automated in CI |
+| Manual E2E (login → project) | **Automated** — `frontend/e2e/authenticated.spec.ts` when GitHub secrets set; smoke in CI on every PR |
 
 ---
 

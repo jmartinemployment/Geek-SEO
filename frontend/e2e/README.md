@@ -25,6 +25,15 @@ set -a && source .env.playwright.local && set +a && npm run test:e2e:auth
 
 Without credentials, authenticated specs are **skipped** (not failed).
 
+`global-setup.ts` logs in once and saves `e2e/.auth/user.json` so the authenticated project reuses the session.
+
+## CI (GitHub Actions)
+
+| Workflow | When | Secrets |
+|----------|------|---------|
+| `e2e-smoke.yml` | Push/PR to `main` (frontend changes) | None |
+| `e2e-authenticated.yml` | Weekly + manual | `PLAYWRIGHT_TEST_EMAIL`, `PLAYWRIGHT_TEST_PASSWORD` in repo secrets |
+
 ## Targets
 
 | Variable | Default |

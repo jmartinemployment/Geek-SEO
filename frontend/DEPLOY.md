@@ -25,6 +25,11 @@ curl -s https://seo-api.geekatyourspot.com/health    # GeekSeoBackend
 curl -s https://auth.geekatyourspot.com/health       # geek-OAuth
 ```
 
+## E2E in CI
+
+- **Smoke (every PR):** `.github/workflows/e2e-smoke.yml` — no secrets.
+- **Authenticated (weekly / manual):** `.github/workflows/e2e-authenticated.yml` — add repo secrets `PLAYWRIGHT_TEST_EMAIL` and `PLAYWRIGHT_TEST_PASSWORD` (GeekOAuth user, no 2FA).
+
 ## Vercel
 
 1. Import `Geek-SEO/frontend`

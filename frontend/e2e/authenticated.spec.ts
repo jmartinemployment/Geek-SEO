@@ -1,22 +1,24 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { test, expect } from '@playwright/test';
-import {
-  getTestCredentials,
-  loginViaGeekOAuth,
-  trackSeoApiFailures,
-} from './auth-helpers';
+import { getTestCredentials, trackSeoApiFailures } from './auth-helpers';
 
+const authFile = path.join(__dirname, '.auth/user.json');
 const credentials = getTestCredentials();
+const hasAuthState = fs.existsSync(authFile);
 
 test.describe('authenticated app', () => {
-  test.skip(!credentials, 'Set PLAYWRIGHT_TEST_EMAIL and PLAYWRIGHT_TEST_PASSWORD to run.');
+  test.skip(
+    !credentials || !hasAuthState,
+    'Set PLAYWRIGHT_TEST_EMAIL and PLAYWRIGHT_TEST_PASSWORD; global-setup saves session to e2e/.auth/user.json.',
+  );
 
-  test.beforeEach(async ({ page, baseURL }) => {
-    await loginViaGeekOAuth(page, baseURL!, credentials!);
-  });
+  test.use({ storageState: authFile });
 
   test('projects page loads project list or empty state', async ({ page }) => {
     const apiFailures = trackSeoApiFailures(page);
 
+    await page.goto('/app/projects');
     await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
     await expect(page.getByText('Loading projects…')).toBeHidden({ timeout: 20_000 });
 
@@ -28,6 +30,16 @@ test.describe('authenticated app', () => {
 
     expect(hasList || hasEmpty).toBeTruthy();
     expect(apiFailures, 'SEO API calls from projects page').toEqual([]);
+  });
+
+  test('dashboard loads for authenticated user', async ({ page }) => {
+    const apiFailures = trackSeoApiFailures(page);
+
+    await page.goto('/app/dashboard');
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({
+      timeout: 20_000,
+    });
+    expect(apiFailures.filter((f) => f.includes(' 500'))).toEqual([]);
   });
 
   test('rankings page renders Google integration UI', async ({ page }) => {
