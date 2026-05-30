@@ -1,7 +1,7 @@
 # Platform decoupling — Geek SEO contracts & legacy auth cleanup
 
-**Status:** **Mandatory track complete** (M2–M9); optional **M0 / M1 / O1 / O2** remain  
-**Date:** 2026-05-30 (rev. 7)  
+**Status:** **Complete** — mandatory M2–M9, M0, M1, and **O2** (legacy auth tables dropped)  
+**Date:** 2026-05-30 (rev. 9)  
 **Related:** [`ARCHITECTURE.md`](ARCHITECTURE.md), [`BOUNDARIES.md`](../BOUNDARIES.md), [`GEEKSEO-PLAN.md`](GEEKSEO-PLAN.md)
 
 ---
@@ -207,11 +207,15 @@ Update all docs for **product-owned processes** and M3 `dotnet ef` commands. `Ge
 
 For multiple Geek apps when in-repo `GeekSeo.Application` duplication hurts. **Not** needed for Geek SEO independence after M2+M3. May also resolve Persistence cross-reference DRY.
 
-### O2 — Retire platform auth storage
+### O2 — Retire platform auth storage — complete (2026-05-30)
 
-`/api/auth/*`, `users`, `devices_oauth` — **requires M0 complete**.
+SQL migration `GeekRepository/Migrations/Sql/0006_drop_legacy_platform_auth.sql` drops legacy `public` auth tables (users, devices_oauth, rbac, sync, audit, etc.). Identity remains in **GeekOAuth** only. HTTP paths already **410** (M1).
 
 ~~O3~~ — **Promoted to mandatory M3.**
+
+### O1 — Standalone shared contracts repo (deferred)
+
+Not required for Geek SEO independence. Pursue when a second product needs shared contracts outside Geek-SEO.
 
 ---
 
@@ -259,14 +263,17 @@ flowchart TD
 
 | Track | Phases | Status |
 |-------|--------|--------|
-| Mandatory | M0, **M3**, **M2**, **M4–M6**, **M7**, **M8**, **M9** | **All mandatory phases done** (M0 still only gates O2) |
+| Mandatory | M0, **M3**, **M2**, **M4–M6**, **M7**, **M8**, **M9** | **Done** |
 | Optional safety | **M1** | **Done** — 410 on legacy paths |
 | Optional audit | **M0** | **Done** — no workspace consumers |
-| Optional future | O1, O2 | defer (O2 needs M0) |
+| Optional storage cleanup | **O2** | **Done** — `0006_drop_legacy_platform_auth.sql` |
+| Optional future | O1 | Deferred — multi-app contracts repo |
 
 ---
 
 ## Session notes
+
+**2026-05-30 (rev. 9, session):** **O2 complete.** `0006_drop_legacy_platform_auth.sql`; `PostgreSchema.txt` updated; `GeekApplication` no longer references `GeekSeo.Persistence`; removed unused `BCrypt` from GeekRepository; `Architecture.md` pruned legacy auth/sync sections.
 
 **2026-05-30 (rev. 8, session):** **M0 + M1.** Consumer audit: no legacy auth API callers in workspace. **410 Gone** middleware on GeekAPI (`/api/auth/*`, `/hubs/sync`) and GeekRepository (`/repo/auth/*`).
 
