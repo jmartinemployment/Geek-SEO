@@ -2,6 +2,18 @@
 
 Last updated: May 30, 2026
 
+## Platform decoupling (M2–M7 + M4–M6)
+
+| Phase | Status |
+|-------|--------|
+| M3 `GeekSeo.Persistence` | ✅ Product-owned schema + migrations |
+| M2 `GeekSeo.Application` | ✅ No `GeekApplication` on GeekSeoBackend |
+| M7 Product Docker | ✅ No GeekBackend clone |
+| M4–M6 Legacy platform auth | ✅ Removed from GeekAPI / GeekRepository / GeekApplication |
+| Production | ✅ GeekSeoBackend, GeekAPI, GeekRepository `/health` OK; GeekSeoBackend `gateway: ok` |
+
+Details: [`plan-documents/PLATFORM-DECOUPLING.md`](plan-documents/PLATFORM-DECOUPLING.md). Optional next: **M0** (audit) → **O2** (drop auth DB tables).
+
 ## Identity (geek-OAuth)
 
 Platform login for Geek SEO (**OAuth 2.1 + PKCE** via **geek-OAuth**) is **complete** for production: issuer, `geekseo` client, redirect URIs, and JWT validation on GeekSeoBackend (`GEEK_OAUTH_AUTHORITY`). This is unrelated to **Google** OAuth for GSC / GA4 integrations (still not built).

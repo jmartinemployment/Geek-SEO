@@ -1,7 +1,7 @@
 # Platform decoupling — Geek SEO contracts & legacy auth cleanup
 
-**Status:** **M2–M7 + M4–M6 deployed**; **M8–M9** in progress (M0 for O2)  
-**Date:** 2026-05-30 (rev. 6)  
+**Status:** **Mandatory track complete** (M2–M9); optional **M0 / M1 / O1 / O2** remain  
+**Date:** 2026-05-30 (rev. 7)  
 **Related:** [`ARCHITECTURE.md`](ARCHITECTURE.md), [`BOUNDARIES.md`](../BOUNDARIES.md), [`GEEKSEO-PLAN.md`](GEEKSEO-PLAN.md)
 
 ---
@@ -176,9 +176,17 @@ Update all docs for **product-owned processes** and M3 `dotnet ef` commands. `Ge
 
 ---
 
-### M9 — Verification (required)
+### M9 — Verification (required) — complete
 
-Add: migration add smoke from Geek-SEO; GeekRepository deploy with `Geek-SEO.commit`; confirm Railway uses `Dockerfile.repository`.
+| Check | Result (2026-05-30) |
+|-------|---------------------|
+| `dotnet build GeekSEO.slnx` | OK |
+| `dotnet build GEEKBACKEND.slnx` | OK |
+| `dotnet ef migrations list` (Persistence only) | OK — lists `InitialSeoSchema` |
+| GeekRepository Railway | Online — `Dockerfile.repository` + pin `697f7b0` |
+| GeekAPI Railway | Online — `./Dockerfile` (not shared root `railway.toml`) |
+| Production health | GeekSeoBackend + GeekAPI + GeekRepository 200; product `gateway: ok` |
+| Manual E2E (login → project) | Operator — not automated in CI |
 
 ---
 
@@ -240,13 +248,15 @@ flowchart TD
 
 | Track | Phases | Status |
 |-------|--------|--------|
-| Mandatory | M0, **M3**, **M2**, **M4–M6**, **M7**, M8–M9 | **M3–M7 + M4–M6** shipped (`GeekBackend` `c960c0e`, Railway OK); **M8–M9** |
+| Mandatory | M0, **M3**, **M2**, **M4–M6**, **M7**, **M8**, **M9** | **All mandatory phases done** (M0 still only gates O2) |
 | Optional safety | M1 | skip unless needed |
 | Optional future | O1, O2 | defer (O2 needs M0) |
 
 ---
 
 ## Session notes
+
+**2026-05-30 (rev. 7, session):** **M8–M9 complete.** Docs: ARCHITECTURE, BOUNDARIES, PROJECT_STATUS, Persistence CLAUDE. Verification: three-service health + EF migrations list; Geek-SEO `e7b2d34`+.
 
 **2026-05-30 (rev. 6, session):** **M4–M6 shipped.** Pushed GeekBackend `c960c0e` (auth removal), `acb695c` (Railway: root `railway.toml` broke GeekAPI — use `Dockerfile` for GeekAPI, `railway.geekrepository.toml` for GeekRepository). Production: `api.geekatyourspot.com/health` + `geekrepository-production.up.railway.app/health` OK. Geek-SEO plan `eb33041`.
 

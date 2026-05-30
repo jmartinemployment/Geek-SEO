@@ -40,7 +40,7 @@ Browser → **GeekSeoBackend** (`NEXT_PUBLIC_SEO_API_URL`). Never GeekRepository
 
 GeekSeoBackend **does not** issue tokens, host login UI, or store platform `users` rows.
 
-Legacy platform auth storage (`GeekApplication` user types, GeekAPI `/api/auth/*`) is **deprecated** — removal tracked in [`PLATFORM-DECOUPLING.md`](PLATFORM-DECOUPLING.md) (optional phase O2).
+Legacy platform auth **APIs** (`GeekAPI /api/auth/*`, `SyncHub`, `repo/auth/*`) were **removed** (M4–M6, May 2026). Auth **database tables** may remain until optional phase **O2** after **M0** consumer audit.
 
 ---
 
@@ -66,11 +66,9 @@ Data calls: forward the user's `Authorization: Bearer` to GeekAPI internal route
 | ~~`REPO_URL`~~ | **Never on GeekSeoBackend** |
 | ~~`DATABASE_URL`~~ | **Never on GeekSeoBackend** |
 
-### Contracts (target — mandatory M2)
+### Contracts (`GeekSeo.Application` — M2 complete)
 
-SEO interfaces, models, and in-process services (e.g. `ContentScoringService`) live in **`GeekSeo.Application` inside this repo**. GeekSeoBackend must **not** depend on `GeekBackend/GeekApplication` after M2/M7.
-
-Until M2 ships, a transitional `ProjectReference` to sibling GeekBackend exists for builds only — see decoupling plan.
+SEO interfaces, models, and in-process services (e.g. `ContentScoringService`) live in **`GeekSeo.Application`**. **GeekSeoBackend** references only that project — **not** `GeekBackend/GeekApplication`. Product Docker builds **without** cloning GeekBackend (M7).
 
 ---
 
@@ -97,15 +95,19 @@ GeekRepository repo/seo/*
 
 ---
 
-## GeekBackend (sibling repo — platform persistence today)
+## GeekBackend (sibling repo — platform gateway + data plane)
 
 | Piece | Role |
 |-------|------|
-| **GeekAPI** | `/api/seo/internal/*` proxy; holds `REPO_URL` |
-| **GeekRepository** | `geek_seo` schema, migrations, `repo/seo/*` |
-| **GeekApplication** | Legacy mixed library — **being removed from Geek-SEO dependency** (M2) |
+| **GeekAPI** | `/api/seo/internal/*` proxy; content reads; holds `REPO_URL` — **no** `/api/auth/*` |
+| **GeekRepository** | `geek_seo` runtime + `repo/seo/*`; clones **Geek-SEO** at `Geek-SEO.commit` |
+| **GeekApplication** | Content contracts + `Result` only (auth types removed M6) |
 
-Coordinated GeekBackend edits for M3–M6 are allowed when executing an approved [`PLATFORM-DECOUPLING.md`](PLATFORM-DECOUPLING.md) phase.
+**Railway:** GeekAPI → `./Dockerfile`; GeekRepository → `./Dockerfile.repository` + `railway.geekrepository.toml` (see GeekBackend `README.md`).
+
+**M3:** `GeekSeo.Persistence` in this repo — `dotnet ef` here; GeekRepository applies migrations at startup.
+
+Optional **O1** (standalone contracts repo), **O2** (drop auth DB tables after **M0**) — [`PLATFORM-DECOUPLING.md`](PLATFORM-DECOUPLING.md).
 
 ---
 
@@ -116,7 +118,3 @@ Additional Geek apps should:
 - Use **GeekOAuth** (or their own issuer) — not GeekAPI as issuer.
 - Keep **one data service** with DB credentials per schema.
 - Avoid `ProjectReference` to the full GeekBackend repo for product builds.
-
-**M3 (done/in progress):** `GeekSeo.Persistence` — product-owned migrations. GeekRepository references this project; Docker uses `Geek-SEO.commit` in GeekBackend.
-
-Optional **O1** (standalone contracts repo), **O2** (retire platform auth) — see decoupling plan.

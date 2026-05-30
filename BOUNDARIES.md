@@ -18,7 +18,7 @@ Agents and contributors **must not**:
 
 - Edit, scaffold, or document implementation steps for **any sibling platform repo**
 - Reference platform services by name in code comments, errors, or “you need to add X there” implementation checklists
-- Add `ProjectReference` paths into other repos (no shared `.csproj` bleed) — **target state** after PLATFORM-DECOUPLING **M2**; transitional reference to `GeekBackend/GeekApplication` exists until M2/M7 ship
+- Add `ProjectReference` paths into other repos (no shared `.csproj` bleed) — **M2/M7 complete**: GeekSeoBackend uses only `GeekSeo.Application` in this repo
 - Configure `REPO_URL`, repository URLs, or database connection strings on **GeekSeoBackend**
 - Implement OpenIddict, `oauth_users`, password hashing, or Dapper auth stores here
 
@@ -37,7 +37,7 @@ See [`scripts/OAUTH_SETUP.md`](scripts/OAUTH_SETUP.md) for GeekOAuth setup.
 
 ## Coordinated platform work
 
-When [`PLATFORM-DECOUPLING.md`](plan-documents/PLATFORM-DECOUPLING.md) phases **M3–M6** are explicitly approved, agents may edit **GeekBackend** (GeekAPI, GeekRepository, GeekApplication cleanup) as required by that phase — still **no** `DATABASE_URL` on GeekSeoBackend.
+Phases **M3–M6** are **complete** (May 2026). Further GeekBackend edits require a new approved phase (e.g. **O2** after **M0**). GeekSeoBackend still has **no** `DATABASE_URL`.
 
 ## Multi-app rule
 

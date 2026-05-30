@@ -35,7 +35,9 @@ dotnet run
 
 If `geek_seo` was dropped by an older migration, restart GeekRepository once — EF `InitialSeoSchema` recreates it.
 
-**Schema changes (product-owned):** run `dotnet ef` from Geek-SEO against `GeekSeo.Persistence` (see `GeekSeo.Persistence/CLAUDE.md`). GeekRepository applies the same migrations at startup.
+**Schema changes (product-owned):** run `dotnet ef` from Geek-SEO against `GeekSeo.Persistence` only (see `GeekSeo.Persistence/CLAUDE.md` — no `--startup-project GeekSeoBackend`). GeekRepository applies the same migrations at startup.
+
+**GeekBackend Railway:** GeekAPI uses `./Dockerfile`; GeekRepository uses `./Dockerfile.repository` + `railway.geekrepository.toml` — do not add a root `railway.toml` that applies to both.
 
 **Background jobs:** `FullArticleJobWorker` runs inside GeekSeoBackend (polls every 5s). `POST /api/seo/writing/full-article` enqueues; poll `GET /api/seo/jobs/{id}`.
 

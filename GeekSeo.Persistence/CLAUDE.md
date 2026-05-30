@@ -21,10 +21,16 @@ dotnet ef migrations add MigrationName \
   --project GeekSeo.Persistence/GeekSeo.Persistence.csproj \
   --context SeoDbContext
 
+dotnet ef migrations list \
+  --project GeekSeo.Persistence/GeekSeo.Persistence.csproj \
+  --context SeoDbContext
+
 dotnet ef database update \
   --project GeekSeo.Persistence/GeekSeo.Persistence.csproj \
   --context SeoDbContext
 ```
+
+Uses `SeoDbContextDesignTimeFactory` — do **not** pass `--startup-project GeekSeoBackend` (no Design package there).
 
 GeekRepository at runtime uses the same context types; apply migrations from here before or as part of deploy.
 
@@ -34,8 +40,8 @@ GeekRepository at runtime uses the same context types; apply migrations from her
 |----------|-----------|
 | `GeekSeo.Application` (M2) | Entity types for interfaces |
 | `GeekRepository` (GeekBackend) | `ProjectReference` to this project; sibling path locally |
-| `GeekApplication` (transitional) | References this project until M6 removes SEO from platform DLL |
+| `GeekApplication` (GeekBackend) | May reference for build layout; SEO types are not in platform DLL after M6 |
 
 ## Plan
 
-[`plan-documents/PLATFORM-DECOUPLING.md`](../plan-documents/PLATFORM-DECOUPLING.md) — **M3**
+[`plan-documents/PLATFORM-DECOUPLING.md`](../plan-documents/PLATFORM-DECOUPLING.md) — **M3 complete**
