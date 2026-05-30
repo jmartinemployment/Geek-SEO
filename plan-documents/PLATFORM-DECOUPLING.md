@@ -213,10 +213,6 @@ SQL migration `GeekRepository/Migrations/Sql/0006_drop_legacy_platform_auth.sql`
 
 ~~O3~~ — **Promoted to mandatory M3.**
 
-### O1 — Standalone shared contracts repo (deferred)
-
-Not required for Geek SEO independence. Pursue when a second product needs shared contracts outside Geek-SEO.
-
 ---
 
 ## Execution order
