@@ -12,6 +12,7 @@ on:
       - 'frontend/**'
       - 'GeekSeoBackend/**'
       - '.github/workflows/e2e-google-integration.yml'
+  workflow_dispatch:
 
 jobs:
   google-api:
