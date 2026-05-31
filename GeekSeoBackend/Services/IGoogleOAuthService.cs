@@ -23,4 +23,10 @@ public interface IGoogleOAuthService
         Guid userId,
         Guid projectId,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Re-resolves the stored GSC site URL against the user's accessible Search Console properties.
+    /// Updates the connection when Google returns a different canonical siteUrl string.
+    /// </summary>
+    Task<string?> SyncGscSiteUrlAsync(Guid userId, Guid projectId, CancellationToken ct = default);
 }

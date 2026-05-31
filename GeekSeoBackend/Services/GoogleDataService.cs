@@ -26,18 +26,42 @@ public sealed class GoogleDataService(
             throw new GoogleIntegrationException("Google Search Console is not connected for this project.");
 
         var token = await oauth.GetGscAccessTokenAsync(userId, projectId, ct);
-        var rows = await QueryGscRowsAsync(
-            token,
-            gscConnection.Value.SiteUrl,
-            from,
-            to,
-            Math.Clamp(rowLimit ?? 250, 1, 1000),
-            ct);
+        var siteUrl = gscConnection.Value.SiteUrl;
+        IReadOnlyList<GoogleRankingRow> rows;
+        try
+        {
+            rows = await QueryGscRowsAsync(
+                token,
+                siteUrl,
+                from,
+                to,
+                Math.Clamp(rowLimit ?? 250, 1, 1000),
+                ct);
+        }
+        catch (GoogleIntegrationException ex) when (ex.Message.Contains("(403)", StringComparison.Ordinal))
+        {
+            var syncedSiteUrl = await oauth.SyncGscSiteUrlAsync(userId, projectId, ct);
+            if (string.IsNullOrWhiteSpace(syncedSiteUrl)
+                || string.Equals(syncedSiteUrl, siteUrl, StringComparison.Ordinal))
+            {
+                throw;
+            }
+
+            siteUrl = syncedSiteUrl;
+            token = await oauth.GetGscAccessTokenAsync(userId, projectId, ct);
+            rows = await QueryGscRowsAsync(
+                token,
+                siteUrl,
+                from,
+                to,
+                Math.Clamp(rowLimit ?? 250, 1, 1000),
+                ct);
+        }
 
         return new GoogleRankingsResponse
         {
             ProjectId = projectId,
-            SiteUrl = gscConnection.Value.SiteUrl,
+            SiteUrl = siteUrl,
             StartDate = from.ToString("yyyy-MM-dd"),
             EndDate = to.ToString("yyyy-MM-dd"),
             Rows = rows,
@@ -94,7 +118,30 @@ public sealed class GoogleDataService(
         using var response = await client.SendAsync(request, ct);
         var raw = await response.Content.ReadAsStringAsync(ct);
         if (!response.IsSuccessStatusCode)
-            throw new GoogleIntegrationException($"GSC rankings request failed ({(int)response.StatusCode}).", StatusCodes.Status502BadGateway);
+        {
+            // #region agent log
+            WriteDebugLog(new
+            {
+                sessionId = "c1ee28",
+                runId = "gsc-403",
+                hypothesisId = "H1-site-url-format",
+                location = "GoogleDataService.cs:QueryGscRowsAsync",
+                message = "GSC searchAnalytics non-success",
+                data = new
+                {
+                    siteUrl,
+                    statusCode = (int)response.StatusCode,
+                    endpoint,
+                    rawPreview = raw.Length > 240 ? raw[..240] : raw,
+                },
+                timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            });
+            // #endregion
+            var detail = FormatGoogleApiError(raw);
+            throw new GoogleIntegrationException(
+                $"GSC rankings request failed ({(int)response.StatusCode}) for site {siteUrl}.{detail}",
+                StatusCodes.Status502BadGateway);
+        }
 
         using var doc = JsonDocument.Parse(raw);
         if (!doc.RootElement.TryGetProperty("rows", out var rows) || rows.ValueKind != JsonValueKind.Array)
@@ -218,5 +265,43 @@ public sealed class GoogleDataService(
             return 0;
         var raw = rawValue.GetString();
         return double.TryParse(raw, out var parsed) ? parsed : 0;
+    }
+
+    private static string FormatGoogleApiError(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return string.Empty;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(raw);
+            if (doc.RootElement.TryGetProperty("error", out var error)
+                && error.TryGetProperty("message", out var message))
+            {
+                var text = message.GetString();
+                return string.IsNullOrWhiteSpace(text) ? string.Empty : $" Google says: {text}";
+            }
+        }
+        catch
+        {
+            // Ignore malformed error payloads.
+        }
+
+        return $" Body: {raw[..Math.Min(raw.Length, 160)]}";
+    }
+
+    private static void WriteDebugLog(object payload)
+    {
+        try
+        {
+            var line = JsonSerializer.Serialize(payload) + Environment.NewLine;
+            File.AppendAllText(
+                "/Users/jeffmartin/Library/Mobile Documents/com~apple~CloudDocs/development-new/Geek-SEO/.cursor/debug-c1ee28.log",
+                line);
+        }
+        catch
+        {
+            // Debug logging must never break API responses.
+        }
     }
 }

@@ -77,14 +77,15 @@ public sealed class GoogleOAuthService(
         var refreshToken = token.RefreshToken!;
         var (tokenCipher, tokenIv, tokenTag) = SeoCredentialProtector.Encrypt(refreshToken);
 
-        var siteUrl = payload.SiteUrl;
-        if (string.IsNullOrWhiteSpace(siteUrl))
-            siteUrl = await ResolveFirstSiteUrlAsync(token.AccessToken, ct);
+        var accessibleSites = await ListAccessibleSiteUrlsAsync(token.AccessToken, ct);
+        var siteUrl = GscSiteUrlMatcher.Match(accessibleSites, payload.SiteUrl);
 
         if (string.IsNullOrWhiteSpace(siteUrl))
         {
             throw new GoogleIntegrationException(
-                "No Search Console property was returned for this Google account.",
+                accessibleSites.Count == 0
+                    ? "No Search Console property was returned for this Google account. Verify the site in Search Console, then reconnect."
+                    : "No Search Console property matches this project URL. Add the site in Search Console, then reconnect.",
                 StatusCodes.Status400BadRequest);
         }
 
@@ -191,6 +192,34 @@ public sealed class GoogleOAuthService(
         return await RefreshAccessTokenAsync(refreshToken, ct);
     }
 
+    public async Task<string?> SyncGscSiteUrlAsync(Guid userId, Guid projectId, CancellationToken ct = default)
+    {
+        EnsureConfigured();
+        await EnsureProjectOwnershipAsync(userId, projectId, ct);
+        var gsc = await integrations.GetGscConnectionAsync(projectId, userId, ct);
+        if (!gsc.IsSuccess)
+            throw new GoogleIntegrationException(gsc.Error ?? "Failed to load GSC connection.");
+        if (gsc.Value is null)
+            return null;
+
+        var refreshToken = SeoCredentialProtector.Decrypt(
+            gsc.Value.EncryptedRefreshToken,
+            gsc.Value.EncryptionIv,
+            gsc.Value.EncryptionTag);
+        var accessToken = await RefreshAccessTokenAsync(refreshToken, ct);
+        var accessibleSites = await ListAccessibleSiteUrlsAsync(accessToken, ct);
+        var resolved = GscSiteUrlMatcher.Match(accessibleSites, gsc.Value.SiteUrl);
+        if (string.IsNullOrWhiteSpace(resolved) || string.Equals(resolved, gsc.Value.SiteUrl, StringComparison.Ordinal))
+            return gsc.Value.SiteUrl;
+
+        gsc.Value.SiteUrl = resolved;
+        var upsert = await integrations.UpsertGscConnectionAsync(gsc.Value, ct);
+        if (!upsert.IsSuccess)
+            throw new GoogleIntegrationException(upsert.Error ?? "Failed to update GSC site URL.");
+
+        return resolved;
+    }
+
     public async Task<(string AccessToken, string PropertyId)> GetGa4AccessTokenAsync(
         Guid userId,
         Guid projectId,
@@ -281,30 +310,31 @@ public sealed class GoogleOAuthService(
         return token;
     }
 
-    private async Task<string?> ResolveFirstSiteUrlAsync(string accessToken, CancellationToken ct)
+    private async Task<IReadOnlyList<string>> ListAccessibleSiteUrlsAsync(string accessToken, CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient("GoogleApis");
         using var request = new HttpRequestMessage(HttpMethod.Get, "https://www.googleapis.com/webmasters/v3/sites");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var response = await client.SendAsync(request, ct);
         if (!response.IsSuccessStatusCode)
-            return null;
+            return [];
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
         if (!doc.RootElement.TryGetProperty("siteEntry", out var entries) || entries.ValueKind != JsonValueKind.Array)
-            return null;
+            return [];
 
+        var sites = new List<string>();
         foreach (var entry in entries.EnumerateArray())
         {
             if (!entry.TryGetProperty("siteUrl", out var siteUrl))
                 continue;
             var value = siteUrl.GetString();
             if (!string.IsNullOrWhiteSpace(value))
-                return value;
+                sites.Add(value);
         }
 
-        return null;
+        return sites;
     }
 
     private async Task<string?> ResolveFirstGa4PropertyIdAsync(string accessToken, CancellationToken ct)
