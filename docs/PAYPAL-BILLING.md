@@ -53,6 +53,12 @@ Until all plan IDs + webhook + client credentials exist, `/pricing` shows checko
 From repo root, using Railway credentials:
 
 ```bash
+bash scripts/paypal-setup-sandbox.sh
+```
+
+Or manually:
+
+```bash
 cd GeekSeoBackend
 railway run -- node ../scripts/paypal-create-subscription-plans.mjs
 railway run -- node ../scripts/paypal-create-webhook.mjs

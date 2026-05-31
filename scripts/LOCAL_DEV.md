@@ -56,6 +56,23 @@ npm run dev
 
 **GeekOAuth** (issuer) — see `scripts/OAUTH_SETUP.md`. Frontend PKCE uses Next.js routes `/api/auth/start` and `/api/auth/token` (not GeekAPI `/api/auth/*`). Optional `NEXT_PUBLIC_DEV_USER_ID` for dev.
 
+## Billing (PayPal)
+
+Production is on **sandbox** checkout (test payments only). Full runbook:
+
+- [`docs/PAYPAL-BILLING.md`](../docs/PAYPAL-BILLING.md) — sandbox test steps, operator email, **going live later** checklist
+
+One-time setup per PayPal environment (from `GeekSeoBackend/` with Railway linked):
+
+```bash
+railway run -- node ../scripts/paypal-create-subscription-plans.mjs
+railway run -- node ../scripts/paypal-create-webhook.mjs
+```
+
+Or: `bash scripts/paypal-setup-sandbox.sh` (same commands).
+
+GeekSeoBackend env: `PAYPAL_*`, `SUBSCRIPTION_FULL_ACCESS_EMAILS` (your login = full access without subscribing).
+
 ## GeekBackend (sibling repo — E2E + transitional build)
 
 **Runtime E2E:** GeekAPI + GeekRepository must run for persistence (GeekSeoBackend has no `DATABASE_URL`).

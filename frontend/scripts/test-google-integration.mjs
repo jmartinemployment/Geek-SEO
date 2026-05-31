@@ -79,8 +79,18 @@ try {
   const plans = await request('GET', '/api/seo/subscription/plans');
   assert(plans.status === 200, `subscription plans expected 200, got ${plans.status}`);
   assert(Array.isArray(plans.json?.tiers) && plans.json.tiers.length >= 4, 'plans should include tier catalog');
-  assert(typeof plans.json?.checkout?.deferred === 'boolean', 'checkout.deferred should be boolean');
-  console.log(`✓ subscription plans (${plans.json.tiers.length} tiers, checkout deferred=${plans.json.checkout.deferred})`);
+  const checkout = plans.json?.checkout;
+  assert(typeof checkout?.deferred === 'boolean', 'checkout.deferred should be boolean');
+  assert(typeof checkout?.available === 'boolean', 'checkout.available should be boolean');
+  if (apiBase.includes('geekatyourspot.com') || apiBase.includes('railway.app')) {
+    assert(checkout.available === true, 'production API should have PayPal checkout configured');
+    assert(checkout.deferred === false, 'production checkout should not be deferred');
+    assert(checkout.environment === 'sandbox' || checkout.environment === 'live', 'checkout.environment missing');
+    assert(checkout.planIds && Object.keys(checkout.planIds).length >= 4, 'checkout.planIds should list four tiers');
+  }
+  console.log(
+    `✓ subscription plans (${plans.json.tiers.length} tiers, available=${checkout.available}, env=${checkout.environment ?? 'n/a'})`,
+  );
 
   console.log('\nAll Google integration API checks passed.');
 } catch (error) {
