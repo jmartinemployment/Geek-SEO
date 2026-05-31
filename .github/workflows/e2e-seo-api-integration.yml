@@ -1,4 +1,4 @@
-name: E2E Plagiarism integration (API)
+name: E2E SEO API integration
 
 on:
   push:
@@ -7,13 +7,13 @@ on:
       - 'frontend/**'
       - 'GeekSeoBackend/**'
       - 'GeekSeo.Application/**'
-      - '.github/workflows/e2e-plagiarism-integration.yml'
+      - '.github/workflows/e2e-seo-api-integration.yml'
   pull_request:
     paths:
       - 'frontend/**'
       - 'GeekSeoBackend/**'
       - 'GeekSeo.Application/**'
-      - '.github/workflows/e2e-plagiarism-integration.yml'
+      - '.github/workflows/e2e-seo-api-integration.yml'
   workflow_dispatch:
 
 jobs:
