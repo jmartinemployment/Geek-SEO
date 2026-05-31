@@ -5,6 +5,17 @@
 **Date:** 2026-05-29  
 **Reference:** Semrush home screenshot (semrush.com/home)
 
+### Shipped in Geek-SEO (May 2026)
+
+Partial progress against this plan — see `PROJECT_STATUS.md` for live status.
+
+| Plan item | Shipped | Remaining |
+|-----------|---------|-----------|
+| Phase 1 design tokens + app shell | ✅ | Full dark polish |
+| Phase 6 site audit (core) | ✅ `/app/audit`, Playwright crawl, Professional tier | Per-project `/app/audit/[projectId]`, dashboard SEO/health columns, header URL → audit route |
+| Copyscape plagiarism (optional) | ✅ Editor panel + API | Not in REDESIGN scope originally |
+| `/app/audit` → dashboard redirect | ❌ removed | — |
+
 ---
 
 ## 0. External Prerequisites (blocked until live)
@@ -451,7 +462,7 @@ Add in Phase 1 (path renames) and Phase 3 (projects deprecation):
 | From | To |
 |------|-----|
 | `/app/strategy/topical-map` | `/app/dashboard` (until Phase 5; then project picker) |
-| `/app/audit` | `/app/dashboard` (until Phase 6) |
+| `/app/audit` | ~~`/app/dashboard` (until Phase 6)~~ **Live at `/app/audit`** (May 2026) |
 | `/app/projects` | `/app/dashboard` |
 | `/app/projects/:projectId` | `/app/content?projectId=:projectId` |
 
@@ -674,11 +685,15 @@ Ship with Phase 2 or immediately after — **before** Phase 3 dashboard.
 
 ### Phase 6 — Site Audit (~1–2 weeks)
 
+**May 2026 — core shipped:** `SiteAuditService` (Playwright crawl, async `Task.Run`), `HttpSiteAuditRepository`, `SiteAuditController`, `/app/audit` UI. Professional tier gate. Redirect from `/app/audit` removed in `next.config.ts`.
+
+**Still open (this plan):**
+
 1. **Prerequisite:** GeekAPI internal audit routes live (§8.5); GeekRepository migration applied
-2. Build `HttpSiteAuditRepository` HTTP client
-3. Build `SiteAuditService` — Playwright crawl (50-page cap, 10-min timeout) + PageSpeed API
-4. Build `SiteAuditJobWorker`
-5. Build audit results page at `frontend/src/app/app/audit/[projectId]/page.tsx`
+2. ~~Build `HttpSiteAuditRepository` HTTP client~~ ✅
+3. ~~Build `SiteAuditService` — Playwright crawl (50-page cap, 10-min timeout) + PageSpeed API~~ ✅ (PageSpeed wiring TBD)
+4. Build `SiteAuditJobWorker` (optional — today uses in-process background task)
+5. ~~Build audit results page~~ ✅ at `/app/audit` (not yet per-project `/app/audit/[projectId]`)
 6. Update header search: authenticated URL → `/app/audit/[projectId]` (replaces Phase 1–5 dashboard fallback)
 7. Wire audit scores into dashboard domain row (SEO, Site Health columns)
 8. Update `GeekSeoBackend/CLAUDE.md`

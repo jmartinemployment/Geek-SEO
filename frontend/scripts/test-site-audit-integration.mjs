@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 /**
  * Verifies site audit API wiring on GeekSeoBackend (Professional tier gate).
- * Uses X-User-Id dev user — expects 402 unless SUBSCRIPTION_FULL_ACCESS_USER_IDS includes dev user.
+ * Uses X-User-Id (INTEGRATION_USER_ID or NEXT_PUBLIC_DEV_USER_ID) — expects 402 unless
+ * SUBSCRIPTION_FULL_ACCESS_USER_IDS or SUBSCRIPTION_FULL_ACCESS_EMAILS grants Agency access.
  *
  * Live crawl: SITE_AUDIT_LIVE=1 npm run test:integration:site-audit
+ * Override user: INTEGRATION_USER_ID=<guid> SITE_AUDIT_LIVE=1 npm run test:integration:site-audit
  */
 const apiBase = (process.env.PLAYWRIGHT_API_URL ?? process.env.NEXT_PUBLIC_SEO_API_URL ?? 'https://geekseobackend-production.up.railway.app').replace(/\/$/u, '');
-const devUserId = process.env.NEXT_PUBLIC_DEV_USER_ID ?? '00000000-0000-0000-0000-000000000001';
+const devUserId = process.env.INTEGRATION_USER_ID ?? process.env.NEXT_PUBLIC_DEV_USER_ID ?? '00000000-0000-0000-0000-000000000001';
 const liveAudit = process.env.SITE_AUDIT_LIVE === '1' || process.env.SITE_AUDIT_LIVE === 'true';
 
 const headers = {

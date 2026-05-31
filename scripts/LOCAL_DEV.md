@@ -75,7 +75,7 @@ GeekSeoBackend env: `PAYPAL_*`, `SUBSCRIPTION_FULL_ACCESS_EMAILS` (your login = 
 
 **Plagiarism (Copyscape):** Optional — `COPYSCAPE_USERNAME`, `COPYSCAPE_API_KEY` on GeekSeoBackend. Optional `COPYSCAPE_SPEND_LIMIT_USD` (default `0.50` per check). Without credentials the editor shows “not configured” and publishing is unaffected. Verify: `npm run test:integration:plagiarism`. Optional live API call: `COPYSCAPE_LIVE_CHECK=1 npm run test:integration:plagiarism`.
 
-**Site audit:** `/app/audit` (Professional tier). Requires Playwright on GeekSeoBackend (not `DISABLE_PLAYWRIGHT=true`). Verify: `npm run test:integration:site-audit`. Live crawl: `SITE_AUDIT_LIVE=1 npm run test:integration:site-audit` (operator login or Agency tier).
+**Site audit:** `/app/audit` (Professional tier). Requires Playwright on GeekSeoBackend (not `DISABLE_PLAYWRIGHT=true`). Verify: `npm run test:integration:site-audit`. Live crawl: `SITE_AUDIT_LIVE=1 npm run test:integration:site-audit` (requires Professional+ tier for `INTEGRATION_USER_ID` — add dev user to `SUBSCRIPTION_FULL_ACCESS_USER_IDS` on Railway or use operator email in `SUBSCRIPTION_FULL_ACCESS_EMAILS`).
 
 ## GeekBackend (sibling repo — E2E + transitional build)
 
