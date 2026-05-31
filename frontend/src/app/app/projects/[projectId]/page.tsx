@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { GoogleSettings } from '@/components/google/google-settings';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import { createContent, getProject, listContent, type SeoContentDocument, type SeoProject } from '@/lib/seo-api';
 
-export default function ProjectDocumentsPage() {
+function ProjectDocumentsPageInner() {
   const { accessToken, isLoading: authLoading } = useAuth();
   const params = useParams();
   const router = useRouter();
@@ -159,5 +159,17 @@ export default function ProjectDocumentsPage() {
         </ul>
       )}
     </main>
+  );
+}
+
+export default function ProjectDocumentsPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto max-w-4xl p-8 text-[var(--color-text-secondary)]">Loading…</main>
+      }
+    >
+      <ProjectDocumentsPageInner />
+    </Suspense>
   );
 }

@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import { createContent } from '@/lib/seo-api';
 import { loadAllContentDocuments, type ProjectWithDocuments, type RecentDocument } from '@/lib/dashboard-data';
 
-export default function ContentListPage() {
+function ContentListPageInner() {
   const { accessToken, isLoading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -178,5 +178,17 @@ export default function ContentListPage() {
         </ul>
       )}
     </main>
+  );
+}
+
+export default function ContentListPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto max-w-4xl p-8 text-[var(--color-text-secondary)]">Loading…</main>
+      }
+    >
+      <ContentListPageInner />
+    </Suspense>
   );
 }

@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { analyzeDeepSerp, type DeepSerpResult } from '@/lib/seo-api';
 
-export default function DeepSerpPage() {
+function DeepSerpPageInner() {
   const { accessToken, isLoading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const [keyword, setKeyword] = useState(() => searchParams.get('q') ?? '');
@@ -185,5 +185,13 @@ export default function DeepSerpPage() {
         </div>
       ) : null}
     </main>
+  );
+}
+
+export default function DeepSerpPage() {
+  return (
+    <Suspense fallback={<main className="p-8 text-[var(--color-text-secondary)]">Loading…</main>}>
+      <DeepSerpPageInner />
+    </Suspense>
   );
 }
