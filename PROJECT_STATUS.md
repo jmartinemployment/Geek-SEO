@@ -1,6 +1,16 @@
 # Geek SEO — project status
 
-Last updated: May 31, 2026
+Last updated: May 31, 2026 (post `2497bfc` on `main`)
+
+## Latest release
+
+| Item | Detail |
+|------|--------|
+| **Git** | `2497bfc` — `feat(seo): dashboard overview, GSC tools, auth refactor, and unit tests` (pushed to `origin/main`) |
+| **New app routes** | `/app/content`, `/app/bulk`, `/app/serp`, `/app/cannibalization`, `/app/content-guard`, `/app/geo`, `/app/audit/[projectId]` |
+| **New backend APIs** | `GET /api/seo/dashboard/overview`, topical map, cannibalization, content-audit, geo probe, links auto-insert |
+| **Auth** | OAuth modules split under `frontend/src/lib/auth/*`; `UserIdResolver` on backend |
+| **CI** | `.github/workflows/unit-tests.yml` — Vitest (13) + xUnit (5) on push/PR |
 
 ## Platform decoupling (M2–M7 + M4–M6)
 
@@ -17,6 +27,8 @@ Details: [`plan-documents/PLATFORM-DECOUPLING.md`](plan-documents/PLATFORM-DECOU
 ## Identity (geek-OAuth)
 
 Platform login for Geek SEO (**OAuth 2.1 + PKCE** via **geek-OAuth**) is **complete** for production: issuer, `geekseo` client, redirect URIs, and JWT validation on GeekSeoBackend (`GEEK_OAUTH_AUTHORITY`). **Google** OAuth for GSC / GA4 is separate — backend + frontend connect flow is wired; automated checks in `npm run test:integration:google` (CI: `e2e-google-integration.yml`).
+
+**Auth refactor (May 31):** Testable modules — `cookies`, `session-policy`, `token-exchange`, `authorize-url`, `api-headers`. Routes: `/api/auth/start`, `/api/auth/token`, `/api/auth/logout`. Middleware uses `geekseo_refresh` cookie + dev bypass (`NEXT_PUBLIC_DEV_USER_ID`). Unit tests: `npm run test` (Vitest), `dotnet test GeekSEO.slnx` (`GeekSeoBackend.Tests`).
 
 ## Architecture (target state — implemented)
 
@@ -101,12 +113,32 @@ Honest status against `plan-documents/geekseo-plan.md`. **~22/31 shipped end-to-
 | PayPal production go-live | Sandbox wired — see [`docs/PAYPAL-BILLING.md`](docs/PAYPAL-BILLING.md) |
 | E2E Playwright | Smoke + Google + SEO API integration CI; auth local `test:e2e:auth:local` |
 
+## Testing
+
+| Layer | Command | CI workflow |
+|-------|---------|-------------|
+| Frontend unit (auth) | `cd frontend && npm run test` | `unit-tests.yml` (vitest job) |
+| Backend unit | `dotnet test GeekSEO.slnx` | `unit-tests.yml` (dotnet job) |
+| Production API (plagiarism status) | `npm run test:integration:plagiarism` | `e2e-seo-api-integration.yml` |
+| Production API (site audit gate) | `npm run test:integration:site-audit` | `e2e-seo-api-integration.yml` |
+| Google OAuth + GSC/GA4 | `npm run test:integration:google` | `e2e-google-integration.yml` |
+| Playwright smoke | `npm run test:e2e:smoke` | `e2e-smoke.yml` |
+| Playwright authenticated | `npm run test:e2e:auth:local` or `test:e2e:auth` | `e2e-authenticated.yml` |
+
 ## Local run
 
 See `scripts/LOCAL_DEV.md`. Minimum: all three backend services + frontend. **Geek-SEO repo configures only GeekSeoBackend** (`GEEK_API_URL`, `GEEK_BACKEND_API_KEY`, provider keys). `DATABASE_URL` / `REPO_*` belong on Jeff’s GeekAPI + GeekRepository only.
 
 ## Plan reference
 
-Master plan: `plan-documents/geekseo-plan.md` (31 features / 34 steps). Redesign: `plan-documents/REDESIGN-PLAN.md` — Phase 6 in-repo items complete; Phases 4–5 topical persistence and Phase 8 GEO remain.
+Master plan: `plan-documents/geekseo-plan.md` (31 features / 34 steps). Redesign: `plan-documents/REDESIGN-PLAN.md` — Phase 1 shell + Phase 6 audit shipped; dashboard overview + content list + SERP/cannibalization/GEO/content-guard UIs shipped in-repo (on-demand backends; workers/DB persist still open).
 
 Platform decoupling: `plan-documents/PLATFORM-DECOUPLING.md` — **complete** (M0–M9, M1, O2).
+
+## Next (in-repo, highest impact)
+
+1. Deploy **GeekSeoBackend** + **frontend** so `2497bfc` APIs are live in production.
+2. Topical map **14d worker + DB persist** (GeekAPI/GeekRepository internal routes if not already deployed).
+3. Content Guard **auto-patch + WP draft** pipeline (#19 full).
+4. GEO **daily multi-LLM worker + snapshots** (#20 full).
+5. Dual SEO+GEO scoring rings in editor (#21–23).

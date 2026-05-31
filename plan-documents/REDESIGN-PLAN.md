@@ -13,10 +13,13 @@ Partial progress against this plan — see `PROJECT_STATUS.md` for live status.
 |-----------|---------|-----------|
 | Phase 1 design tokens + app shell | ✅ | Full dark polish |
 | Phase 6 site audit (core) | ✅ `/app/audit`, `/app/audit/[projectId]`, Playwright crawl, Professional tier, dashboard SEO/health columns, header URL → audit | Lighthouse-specific health score (uses crawl overall score today) |
-| Editor: AI toolbar + internal links + plagiarism | ✅ | Auto-insert internal links (#8), GPTZero badge (#6) |
-| `/app/content` flat list | ✅ filter by project | `GET /api/seo/dashboard/overview` aggregate (N+1 today) |
-| Deep SERP UI | ✅ `/app/serp` | 50-result matrix + CSV export (#13 full parity) |
+| Editor: AI toolbar + internal links + plagiarism | ✅ | GPTZero badge (#6) branding only |
+| `/app/content` flat list | ✅ filter by project | — |
+| Dashboard overview API | ✅ `GET /api/seo/dashboard/overview` | Persisted site metrics / sparklines (sibling repo) |
+| Deep SERP UI | ✅ `/app/serp` + CSV export | Term matrix heatmap (#13 full parity) |
+| GSC strategy surfaces | ✅ topical map, cannibalization, content-guard, geo (on-demand) | Scheduled workers + DB persist |
 | `/app/audit` → dashboard redirect | ❌ removed | — |
+| Auth unit tests | ✅ Vitest + `GeekSeoBackend.Tests` | CI `unit-tests.yml` |
 
 ---
 

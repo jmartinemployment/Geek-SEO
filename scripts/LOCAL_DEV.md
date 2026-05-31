@@ -77,6 +77,18 @@ GeekSeoBackend env: `PAYPAL_*`, `SUBSCRIPTION_FULL_ACCESS_EMAILS` (your login = 
 
 **Site audit:** `/app/audit` (Professional tier). Requires Playwright on GeekSeoBackend (not `DISABLE_PLAYWRIGHT=true`). Verify: `npm run test:integration:site-audit`. Live crawl: `SITE_AUDIT_LIVE=1 npm run test:integration:site-audit` (requires Professional+ tier for `INTEGRATION_USER_ID` — add dev user to `SUBSCRIPTION_FULL_ACCESS_USER_IDS` on Railway or use operator email in `SUBSCRIPTION_FULL_ACCESS_EMAILS`).
 
+## Unit tests
+
+```bash
+# From repo root
+dotnet test GeekSEO.slnx
+
+cd frontend
+npm run test    # Vitest — auth modules (13 tests)
+```
+
+CI: `.github/workflows/unit-tests.yml` on push/PR to `main`.
+
 ## E2E (frontend)
 
 ```bash
