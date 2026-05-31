@@ -259,8 +259,9 @@ public sealed class GoogleOAuthService(
         var raw = await response.Content.ReadAsStringAsync(ct);
         if (!response.IsSuccessStatusCode)
         {
+            var detail = FormatGoogleTokenError(raw);
             throw new GoogleIntegrationException(
-                $"Google token endpoint failed ({(int)response.StatusCode}).",
+                $"Google token endpoint failed ({(int)response.StatusCode}){detail}.",
                 StatusCodes.Status502BadGateway);
         }
 
@@ -358,6 +359,32 @@ public sealed class GoogleOAuthService(
         }
 
         return new Uri(sb.ToString(), UriKind.Absolute);
+    }
+
+    private static string FormatGoogleTokenError(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return string.Empty;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(raw);
+            var root = doc.RootElement;
+            if (!root.TryGetProperty("error", out var errorProp))
+                return $": {raw[..Math.Min(raw.Length, 120)]}";
+
+            var code = errorProp.GetString();
+            var description = root.TryGetProperty("error_description", out var descProp)
+                ? descProp.GetString()
+                : null;
+            return description is not null
+                ? $": {code} — {description}"
+                : $": {code}";
+        }
+        catch
+        {
+            return $": {raw[..Math.Min(raw.Length, 120)]}";
+        }
     }
 
     private void EnsureConfigured()

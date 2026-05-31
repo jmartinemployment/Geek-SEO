@@ -7,6 +7,7 @@ using GeekSeoBackend.Middleware;
 using GeekSeoBackend.Providers.Seo;
 using GeekSeoBackend.Services;
 using GeekSeoBackend.Workers;
+using Microsoft.AspNetCore.Diagnostics;
 
 Env.TraversePath().Load();
 
@@ -83,6 +84,14 @@ app.UseCors();
 app.UseMiddleware<PublicRateLimitMiddleware>();
 app.UseExceptionHandler(errApp => errApp.Run(async ctx =>
 {
+    var ex = ctx.Features.Get<IExceptionHandlerFeature>()?.Error;
+    if (ex is UnauthorizedAccessException)
+    {
+        ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        await ctx.Response.WriteAsJsonAsync(new { error = "Unauthorized." });
+        return;
+    }
+
     ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;
     await ctx.Response.WriteAsJsonAsync(new { error = "An unexpected error occurred. Please try again." });
 }));

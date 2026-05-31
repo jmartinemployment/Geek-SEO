@@ -27,6 +27,12 @@ describe('token-exchange helpers', () => {
     expect(params.get('client_id')).toBe('geekseo-test');
   });
 
+  it('detects invalid_grant token errors', async () => {
+    const { isInvalidGrantError } = await import('@/lib/auth/token-exchange');
+    expect(isInvalidGrantError(new Error('{"error":"invalid_grant"}'))).toBe(true);
+    expect(isInvalidGrantError(new Error('other'))).toBe(false);
+  });
+
   it('maps provider token payload to client shape', () => {
     const mapped = toClientTokenPayload({
       access_token: 'access',

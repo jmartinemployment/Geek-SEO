@@ -33,4 +33,18 @@ public sealed class InMemoryGoogleOAuthStateStore(IMemoryCache cache) : IGoogleO
         cache.Remove(key);
         return payload;
     }
+
+    public bool TryPeek(string state, out GoogleOAuthStatePayload? payload)
+    {
+        payload = null;
+        if (string.IsNullOrWhiteSpace(state))
+            return false;
+
+        var key = StatePrefix + state.Trim();
+        if (!cache.TryGetValue<GoogleOAuthStatePayload>(key, out var found) || found is null)
+            return false;
+
+        payload = found;
+        return true;
+    }
 }

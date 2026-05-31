@@ -15,6 +15,7 @@ import {
   isAuthenticated,
   shouldBootstrapSession,
 } from '@/lib/auth/session-policy';
+import { agentDebugLog } from '@/lib/agent-debug-log';
 
 type AuthContextValue = {
   accessToken: string | null;
@@ -50,11 +51,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ grantType: 'refresh_token' }),
       });
       if (!res.ok) {
+        let errorPreview = '';
+        try {
+          errorPreview = (await res.clone().text()).slice(0, 200);
+        } catch {
+          errorPreview = '';
+        }
+        const sessionExpired =
+          res.status === 401 || errorPreview.includes('invalid_grant') || errorPreview.includes('sessionExpired');
+        // #region agent log
+        agentDebugLog(
+          'H-A',
+          'auth-provider.tsx:refresh-failed',
+          'client refresh token request failed',
+          { status: res.status, sessionExpired, errorPreview },
+        );
+        // #endregion
+        if (sessionExpired) {
+          await fetch('/api/auth/logout', { method: 'POST' });
+          // #region agent log
+          agentDebugLog('H-A', 'auth-provider.tsx:session-cleared', 'cleared stale session after refresh failure', {});
+          agentDebugLog('H-A', 'auth-provider.tsx:redirect-login', 'redirecting to login after session expiry', {
+            status: res.status,
+          });
+          // #endregion
+          setToken(null);
+          globalThis.location.assign('/auth/login?reason=session-expired');
+          return null;
+        }
         setToken(null);
         return null;
       }
       const data = (await res.json()) as { accessToken: string | null; expiresIn: number };
       if (!data.accessToken) {
+        // #region agent log
+        agentDebugLog(
+          'H-A',
+          'auth-provider.tsx:refresh-null-token',
+          'refresh returned no access token',
+          { expiresIn: data.expiresIn },
+        );
+        // #endregion
         setToken(null);
         return null;
       }

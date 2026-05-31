@@ -8,7 +8,7 @@ namespace GeekSeoBackend.Controllers.Seo;
 
 [ApiController]
 [Route("api/seo/integrations/google")]
-public sealed class GoogleIntegrationsController(IGoogleOAuthService google, ICurrentUserContext user) : ControllerBase
+public sealed class GoogleIntegrationsController(IGoogleOAuthService google, ICurrentUserContext user, IGoogleOAuthStateStore stateStore) : ControllerBase
 {
     [HttpGet("connect-url")]
     public async Task<IActionResult> GetConnectUrl(
@@ -49,13 +49,21 @@ public sealed class GoogleIntegrationsController(IGoogleOAuthService google, ICu
         }
         catch (GoogleIntegrationException ex)
         {
-            return Redirect($"{appBase}/app/projects?google=error&message={Uri.EscapeDataString(ex.Message)}");
+            return Redirect(BuildGoogleErrorRedirect(appBase, state, ex.Message));
         }
         catch (Exception ex)
         {
             var msg = ex.Message.Length > 200 ? ex.Message[..200] : ex.Message;
-            return Redirect($"{appBase}/app/projects?google=error&message={Uri.EscapeDataString($"Unexpected error: {msg}")}");
+            return Redirect(BuildGoogleErrorRedirect(appBase, state, $"Unexpected error: {msg}"));
         }
+    }
+
+    private string BuildGoogleErrorRedirect(string appBase, string? state, string message)
+    {
+        var projectPath = stateStore.TryPeek(state ?? string.Empty, out var payload) && payload is not null
+            ? $"/app/projects/{payload.ProjectId}"
+            : "/app/projects";
+        return $"{appBase}{projectPath}?google=error&message={Uri.EscapeDataString(message)}";
     }
 
     private static string ResolveAppBaseUrl()

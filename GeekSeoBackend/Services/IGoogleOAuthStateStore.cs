@@ -12,4 +12,5 @@ public interface IGoogleOAuthStateStore
 {
     (string State, DateTimeOffset ExpiresAt) Create(GoogleOAuthStatePayload payload);
     GoogleOAuthStatePayload Consume(string state);
+    bool TryPeek(string state, out GoogleOAuthStatePayload? payload);
 }

@@ -7,6 +7,7 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { GoogleSettings } from '@/components/google/google-settings';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import { createContent, getProject, listContent, type SeoContentDocument, type SeoProject } from '@/lib/seo-api';
+import { agentDebugLog } from '@/lib/agent-debug-log';
 
 function ProjectDocumentsPageInner() {
   const { accessToken, isLoading: authLoading } = useAuth();
@@ -48,6 +49,17 @@ function ProjectDocumentsPageInner() {
     }, 0);
     return () => clearTimeout(timer);
   }, [authLoading, load]);
+
+  useEffect(() => {
+    if (!googleNotice) return;
+    // #region agent log
+    agentDebugLog('H-C', 'project-page:google-callback', 'Google OAuth return params', {
+      projectId,
+      googleNotice,
+      messagePreview: googleMessage?.slice(0, 200) ?? null,
+    });
+    // #endregion
+  }, [googleNotice, googleMessage, projectId]);
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();

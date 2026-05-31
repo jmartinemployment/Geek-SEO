@@ -7,6 +7,7 @@ import {
   getGoogleIntegrationStatus,
   type GoogleIntegrationStatus,
 } from '@/lib/seo-api';
+import { agentDebugLog } from '@/lib/agent-debug-log';
 
 type GoogleSettingsProps = Readonly<{
   projectId: string;
@@ -40,13 +41,39 @@ export function GoogleSettings({ projectId, accessToken, projectSiteUrl }: Googl
   async function onConnect() {
     setLoading(true);
     setError(null);
+    // #region agent log
+    agentDebugLog('H-B', 'google-settings.tsx:onConnect-start', 'Connect Google clicked', {
+      projectId,
+      hasAccessToken: Boolean(accessToken),
+    });
+    // #endregion
     try {
       const { url } = await getGoogleConnectUrl(projectId, accessToken, {
         siteUrl: projectSiteUrl,
       });
+      // #region agent log
+      agentDebugLog('H-B', 'google-settings.tsx:onConnect-redirect', 'connect-url ok, redirecting', {
+        projectId,
+        oauthHost: (() => {
+          try {
+            return new URL(url).hostname;
+          } catch {
+            return 'invalid-url';
+          }
+        })(),
+      });
+      // #endregion
       globalThis.location.href = url;
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not start Google connect');
+      const msg = e instanceof Error ? e.message : 'Could not start Google connect';
+      // #region agent log
+      agentDebugLog('H-B', 'google-settings.tsx:onConnect-error', 'connect-url failed', {
+        projectId,
+        hasAccessToken: Boolean(accessToken),
+        errorPreview: msg.slice(0, 200),
+      });
+      // #endregion
+      setError(msg);
       setLoading(false);
     }
   }

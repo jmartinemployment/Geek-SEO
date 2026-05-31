@@ -14,6 +14,7 @@
     "test:e2e:auth": "playwright test --project=authenticated",
     "test:e2e:auth:local": "bash scripts/run-e2e-auth-local.sh",
     "test:integration:google": "node scripts/test-google-integration.mjs",
+    "debug:google-connect": "node scripts/debug-google-connect-playwright.mjs",
     "test:integration:plagiarism": "node scripts/test-plagiarism-integration.mjs",
     "test:integration:site-audit": "node scripts/test-site-audit-integration.mjs",
     "test:integration:content-guard": "node scripts/test-content-guard-integration.mjs",

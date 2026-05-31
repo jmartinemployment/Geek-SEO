@@ -45,6 +45,11 @@ export async function exchangeOAuthToken(params: URLSearchParams): Promise<OAuth
   return response.json() as Promise<OAuthTokenResponse>;
 }
 
+export function isInvalidGrantError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('invalid_grant');
+}
+
 export function toClientTokenPayload(tokens: OAuthTokenResponse) {
   return {
     accessToken: tokens.access_token,
