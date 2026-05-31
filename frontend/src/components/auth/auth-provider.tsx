@@ -15,7 +15,6 @@ import {
   isAuthenticated,
   shouldBootstrapSession,
 } from '@/lib/auth/session-policy';
-import { agentDebugLog } from '@/lib/agent-debug-log';
 
 type AuthContextValue = {
   accessToken: string | null;
@@ -58,23 +57,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           errorPreview = '';
         }
         const sessionExpired =
-          res.status === 401 || errorPreview.includes('invalid_grant') || errorPreview.includes('sessionExpired');
+          res.status === 401 ||
+          errorPreview.includes('invalid_grant') ||
+          errorPreview.includes('invalid_token') ||
+          errorPreview.includes('expired_token') ||
+          errorPreview.includes('sessionExpired');
         // #region agent log
-        agentDebugLog(
-          'H-A',
-          'auth-provider.tsx:refresh-failed',
-          'client refresh token request failed',
-          { status: res.status, sessionExpired, errorPreview },
-        );
+        fetch('http://127.0.0.1:7734/ingest/0871e8fa-3f7a-47da-bc93-ba8ad5f03982', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c1ee28' },
+          body: JSON.stringify({
+            sessionId: 'c1ee28',
+            runId: 'auth-provider',
+            hypothesisId: 'H-C',
+            location: 'auth-provider.tsx:refreshAccessToken',
+            message: 'refresh token request failed',
+            data: { status: res.status, sessionExpired, errorPreview: errorPreview.slice(0, 120) },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
         // #endregion
         if (sessionExpired) {
           await fetch('/api/auth/logout', { method: 'POST' });
-          // #region agent log
-          agentDebugLog('H-A', 'auth-provider.tsx:session-cleared', 'cleared stale session after refresh failure', {});
-          agentDebugLog('H-A', 'auth-provider.tsx:redirect-login', 'redirecting to login after session expiry', {
-            status: res.status,
-          });
-          // #endregion
           setToken(null);
           globalThis.location.assign('/auth/login?reason=session-expired');
           return null;
@@ -84,14 +88,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const data = (await res.json()) as { accessToken: string | null; expiresIn: number };
       if (!data.accessToken) {
-        // #region agent log
-        agentDebugLog(
-          'H-A',
-          'auth-provider.tsx:refresh-null-token',
-          'refresh returned no access token',
-          { expiresIn: data.expiresIn },
-        );
-        // #endregion
         setToken(null);
         return null;
       }

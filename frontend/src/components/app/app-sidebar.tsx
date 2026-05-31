@@ -39,7 +39,6 @@ const overflowItems: SidebarItem[] = [
   { href: '/app/planner', label: 'Planner', icon: Map },
   { href: '/app/brand-voice', label: 'Brand voice', icon: FileText },
   { href: '/app/briefs/new', label: 'Briefs', icon: FileText },
-  { href: '/app/calendar', label: 'Calendar', icon: Globe },
   { href: '/app/geo', label: 'GEO', icon: Globe },
   { href: '/app/content-guard', label: 'Content guard', icon: ShieldCheck },
 ];

@@ -2,14 +2,18 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import { createProject, getSeoApiUrl, listProjects, type SeoProject } from '@/lib/seo-api';
 
-export default function ProjectsPage() {
+function ProjectsPageInner() {
   const { accessToken, isLoading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const googleNotice = searchParams.get('google');
+  const googleMessage = searchParams.get('message');
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [error, setError] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
@@ -67,6 +71,17 @@ export default function ProjectsPage() {
       <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
         API: <code className="rounded bg-[var(--color-surface-muted)] px-1">{getSeoApiUrl()}</code>
       </p>
+
+      {googleNotice === 'connected' ? (
+        <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+          Google Search Console and Analytics are connected. Open a project to view rankings and analytics.
+        </div>
+      ) : null}
+      {googleNotice === 'error' ? (
+        <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          Google connect failed{googleMessage ? `: ${googleMessage}` : '.'}
+        </p>
+      ) : null}
 
       {error ? <div className="mt-4"><SeoErrorBanner error={error} /></div> : null}
 
@@ -160,5 +175,19 @@ export default function ProjectsPage() {
         </ul>
       )}
     </main>
+  );
+}
+
+export default function ProjectsPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto max-w-3xl p-8">
+          <div className="h-8 w-48 animate-pulse rounded bg-[var(--color-surface-muted)]" />
+        </main>
+      }
+    >
+      <ProjectsPageInner />
+    </Suspense>
   );
 }

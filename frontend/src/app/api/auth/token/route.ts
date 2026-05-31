@@ -9,10 +9,20 @@ import {
 import {
   buildTokenExchangeParams,
   exchangeOAuthToken,
-  isInvalidGrantError,
+  isAuthorizationCodeExpiredError,
+  isRefreshSessionExpiredError,
+  parseOAuthError,
   toClientTokenPayload,
 } from '@/lib/auth/token-exchange';
-import { agentDebugLog } from '@/lib/agent-debug-log';
+
+function sessionExpiredResponse(): NextResponse {
+  const res = NextResponse.json(
+    { accessToken: null, expiresIn: 0, sessionExpired: true },
+    { status: 401 },
+  );
+  res.cookies.set(REFRESH_COOKIE, '', clearAuthCookieOptions());
+  return res;
+}
 
 export async function POST(request: Request) {
   let grantType: string = 'unknown';
@@ -22,7 +32,11 @@ export async function POST(request: Request) {
       code?: string;
       codeVerifier?: string;
     };
-    grantType = json.grantType;
+    grantType = json.grantType ?? 'unknown';
+
+    if (grantType !== 'authorization_code' && grantType !== 'refresh_token') {
+      return NextResponse.json({ error: 'Unsupported grant type' }, { status: 400 });
+    }
 
     if (json.grantType === 'authorization_code') {
       if (!json.code) return NextResponse.json({ error: 'code required' }, { status: 400 });
@@ -54,15 +68,6 @@ export async function POST(request: Request) {
 
     const refresh = (await cookies()).get(REFRESH_COOKIE)?.value;
     if (!refresh) {
-      // #region agent log
-      agentDebugLog(
-        'H-A',
-        'api/auth/token/route.ts:refresh-missing',
-        'refresh cookie absent',
-        { grantType: 'refresh_token' },
-        'server',
-      );
-      // #endregion
       return NextResponse.json({ accessToken: null, expiresIn: 0 });
     }
 
@@ -70,15 +75,6 @@ export async function POST(request: Request) {
       buildTokenExchangeParams({ grantType: 'refresh_token', refreshToken: refresh }),
     );
     const payload = toClientTokenPayload(tokens);
-    // #region agent log
-    agentDebugLog(
-      'H-A',
-      'api/auth/token/route.ts:refresh-ok',
-      'refresh token exchange succeeded',
-      { grantType: 'refresh_token', expiresIn: payload.expiresIn },
-      'server',
-    );
-    // #endregion
     const res = NextResponse.json({
       accessToken: payload.accessToken,
       expiresIn: payload.expiresIn,
@@ -90,33 +86,35 @@ export async function POST(request: Request) {
 
     return res;
   } catch (error) {
+    const parsed = parseOAuthError(error);
     const message = error instanceof Error ? error.message : 'Token error';
-    if (grantType === 'refresh_token' && isInvalidGrantError(error)) {
-      // #region agent log
-      agentDebugLog(
-        'H-A',
-        'api/auth/token/route.ts:invalid-grant',
-        'clearing invalid refresh cookie',
-        { grantType },
-        'server',
-      );
-      // #endregion
-      const res = NextResponse.json(
-        { accessToken: null, expiresIn: 0, sessionExpired: true },
-        { status: 401 },
-      );
-      res.cookies.set(REFRESH_COOKIE, '', clearAuthCookieOptions());
-      return res;
-    }
     // #region agent log
-    agentDebugLog(
-      'H-A',
-      'api/auth/token/route.ts:catch',
-      'token exchange failed',
-      { grantType, errorPreview: message.slice(0, 200) },
-      'server',
-    );
+    fetch('http://127.0.0.1:7734/ingest/0871e8fa-3f7a-47da-bc93-ba8ad5f03982', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c1ee28' },
+      body: JSON.stringify({
+        sessionId: 'c1ee28',
+        runId: 'token-route',
+        hypothesisId: grantType === 'authorization_code' ? 'H-F' : 'H-C',
+        location: 'api/auth/token/route.ts:catch',
+        message: 'token exchange failed',
+        data: { grantType, oauthError: parsed.code ?? 'unparsed' },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
     // #endregion
+
+    if (grantType === 'refresh_token' && isRefreshSessionExpiredError(error)) {
+      return sessionExpiredResponse();
+    }
+
+    if (grantType === 'authorization_code' && isAuthorizationCodeExpiredError(error)) {
+      return NextResponse.json(
+        { error: 'Sign-in code expired or already used. Go to Log in and try again.' },
+        { status: 400 },
+      );
+    }
+
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

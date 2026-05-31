@@ -3,7 +3,8 @@
  * Verifies Content Guard API wiring on GeekSeoBackend (Professional tier gate).
  * Uses X-User-Id (INTEGRATION_USER_ID or NEXT_PUBLIC_DEV_USER_ID).
  *
- * Live scan (GSC decay analysis, no WP draft): CONTENT_GUARD_LIVE=1 npm run test:integration:content-guard
+ * Live scan (GSC decay analysis): CONTENT_GUARD_LIVE=1 npm run test:integration:content-guard
+ * WP draft push is not exercised here — requires a connected WordPress site (operator currently has none).
  */
 const apiBase = (process.env.PLAYWRIGHT_API_URL ?? process.env.NEXT_PUBLIC_SEO_API_URL ?? 'https://seo-api.geekatyourspot.com').replace(/\/$/u, '');
 const devUserId = process.env.INTEGRATION_USER_ID ?? process.env.NEXT_PUBLIC_DEV_USER_ID ?? '00000000-0000-0000-0000-000000000001';

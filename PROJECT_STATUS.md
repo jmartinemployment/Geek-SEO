@@ -92,7 +92,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 | Full article job (brief→outline→draft) | ✅ worker | ✅ guided | Anthropic + DataForSEO |
 | Bulk article job | ✅ worker | ✅ `/app/bulk` | Professional tier |
 | Competitor crawl + insights | ✅ | ✅ sidebar | Playwright |
-| WordPress connect/publish | ✅ | ✅ project | WP app password |
+| WordPress connect/publish | ✅ | ✅ project | **Operator has no WP site** — feature code exists; cannot verify publish/draft in production |
 | Brand voice CRUD | ✅ | ✅ /app/brand-voice | Postgres |
 | Humanize / AI detect / auto-optimize | ✅ | ✅ toolbar | Anthropic |
 | Deep SERP analysis | ✅ 50 organic results | ✅ `/app/serp` + CSV export | DataForSEO |
@@ -102,7 +102,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 | Topical map (GSC clusters) | ✅ generate + GET cached | ✅ `/app/strategy/topical-map` | GSC connected; 14d TTL + `SeoMaintenanceWorker` refresh |
 | Published content decay audit | ✅ GSC compare + sparkline DB | ✅ `/app/content-guard` | Weekly snapshots via worker when `WORKER_SERVICE_USER_ID` set |
 | GEO / AI visibility probe | ✅ probe + query CRUD + 30d trends | ✅ `/app/geo` | DataForSEO; daily worker snapshots enabled queries |
-| Content Guard | ✅ decay scan + AI patch + WP draft | ✅ policy, runs, approve/rollback | Requires WP connection for drafts |
+| Content Guard | ✅ decay scan + AI patch in DB | ✅ policy, runs, approve/rollback | GSC for decay; **WP draft N/A** — operator has no WordPress site |
 | Content calendar kanban | ✅ status PATCH | ✅ `/app/calendar` | Postgres |
 | Site-wide technical audit | ✅ Playwright crawl | ✅ `/app/audit`, `/app/audit/[projectId]` | Professional tier |
 | Copyscape / plagiarism (optional) | ✅ when `COPYSCAPE_*` set | ✅ editor panel | Optional provider |
@@ -127,11 +127,11 @@ Honest status against `plan-documents/geekseo-plan.md`. **~27/31 shipped end-to-
 | 12 | Topical map | ✅ | ✅ | GSC clusters; 14d TTL persist + worker refresh |
 | 13 | Deep SERP analyzer | ✅ | ✅ | 50 results + CSV + **term matrix heatmap** + 7d cache |
 | 14 | Cannibalization | ✅ | ✅ | `/app/cannibalization` |
-| 15 | WordPress publish | ✅ | ✅ | Project page + editor |
+| 15 | WordPress publish | ✅ | ✅ | **Operator has no WP site** — not verifiable in production |
 | 16 | Content calendar | ✅ | ✅ | `/app/calendar` kanban |
 | 17 | Guided SMB wizard | ✅ | ✅ | `/app/guided` |
 | 18 | Published content audit | ✅ | ✅ | GSC decay + sparkline snapshots in Postgres |
-| 19 | Content Guard | ✅ | ✅ | Auto-patch → WP draft; approve/rollback runs |
+| 19 | Content Guard | ✅ | ✅ | Decay scan + AI patch + runs; **WP draft N/A** (no WordPress site for operator) |
 | 20 | GEO / AI visibility | ✅ | ✅ | Query tracking + daily AIO probe worker + 30d trends |
 | 21–23 | Dual GEO + E-E-A-T + SERP features in score | ✅ | ✅ | SEO + GEO rings; 6 E-E-A-T advisories; SERP feature guidance |
 | 24 | Internal link suggestions | ✅ | ✅ | Editor panel |
@@ -150,7 +150,8 @@ Honest status against `plan-documents/geekseo-plan.md`. **~27/31 shipped end-to-
 | Production DB migration | ✅ `AddContentGuardTables` applied on GeekRepository Postgres (May 31, 2026) |
 | Scheduled workers in production | ✅ `WORKER_SERVICE_USER_ID` set on Railway. **TODO later:** `@geekatyourspot.com` service account |
 | Production API regression (May 31) | ✅ Fixed — `UseSnakeCaseNamingConvention` removed from GeekRepository runtime (PascalCase `geek_seo` columns) |
-| Content Guard E2E (WP draft) | Blocked — no `seo_wordpress_connections` on production projects yet; API wiring verified via `npm run test:integration:content-guard` |
+| WordPress publish + Content Guard WP drafts (#15, #19) | **Not testable** — operator no longer has access to a WordPress site. Decay detection, GSC audit, AI patch HTML, and run approve/rollback still work without WP. |
+| Content Guard API wiring | ✅ Verified via `npm run test:integration:content-guard` (401, tier gate, policy CRUD when tier allows) |
 | E2E Playwright | Smoke + Google + SEO API integration CI; auth local `test:e2e:auth:local` |
 
 ## Testing
@@ -180,6 +181,7 @@ Platform decoupling: `plan-documents/PLATFORM-DECOUPLING.md` — **complete** (M
 ## Next (highest impact)
 
 1. **TODO (later):** Migrate production identity from personal Gmail to a dedicated **`@geekatyourspot.com`** GeekOAuth account; update `WORKER_SERVICE_USER_ID` and project ownership (see **Identity & worker service account** above).
-2. Connect WordPress on a production project, then smoke-test Content Guard end-to-end (decay scan → WP draft → approve).
+2. Smoke-test Content Guard **without WordPress**: GSC connected → enable policy → `POST /scan` or wait for daily worker → confirm decay runs and `PatchedHtml` in UI (`CONTENT_GUARD_LIVE=1 npm run test:integration:content-guard` with Agency tier / full-access user).
 3. Optional: add ChatGPT/Gemini/Perplexity probe providers when API keys are available (#20 stretch).
 4. Separate products #28–31 if/when scoped (WP plugin, Chrome extension, Docs add-on, Public API).
+5. **Future (needs WP host):** WordPress publish (#15) and Content Guard WP draft push — requires a site the operator controls again, or a staging WP instance for QA only.

@@ -1,0 +1,35 @@
+{
+  "name": "geek-seo",
+  "version": "1.0.0",
+  "description": "Surfer / ContentShake-style SEO content SaaS.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jmartinemployment/Geek-SEO.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jmartinemployment/Geek-SEO/issues"
+  },
+  "homepage": "https://github.com/jmartinemployment/Geek-SEO#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^25.9.1",
+    "vitest": "^4.1.7"
+  },
+  "dependencies": {
+    "@forad/puppeteer-humanize": "^1.1.8",
+    "ghost-cursor": "^1.4.2",
+    "puppeteer": "^25.1.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-human-typing": "^1.0.2",
+    "vite": "^8.0.14"
+  }
+}

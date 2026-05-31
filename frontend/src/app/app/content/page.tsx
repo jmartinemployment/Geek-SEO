@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
+import { GoogleSettings } from '@/components/google/google-settings';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import { createContent } from '@/lib/seo-api';
 import { loadAllContentDocuments, type ProjectWithDocuments, type RecentDocument } from '@/lib/dashboard-data';
@@ -13,6 +14,8 @@ function ContentListPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const filterProjectId = searchParams.get('projectId') ?? '';
+  const googleNotice = searchParams.get('google');
+  const googleMessage = searchParams.get('message');
 
   const [projects, setProjects] = useState<ProjectWithDocuments[]>([]);
   const [documents, setDocuments] = useState<RecentDocument[]>([]);
@@ -49,7 +52,12 @@ function ContentListPageInner() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, authLoading]);
+  }, [accessToken, authLoading, filterProjectId]);
+
+  const filteredProject = useMemo(
+    () => projects.find((p) => p.id === filterProjectId),
+    [projects, filterProjectId],
+  );
 
   const filtered = useMemo(() => {
     if (!filterProjectId) return documents;
@@ -114,6 +122,27 @@ function ContentListPageInner() {
       {error ? (
         <div className="mt-4">
           <SeoErrorBanner error={error} />
+        </div>
+      ) : null}
+
+      {googleNotice === 'connected' ? (
+        <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+          Google Search Console and Analytics are connected for this project.
+        </div>
+      ) : null}
+      {googleNotice === 'error' ? (
+        <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          Google connect failed{googleMessage ? `: ${googleMessage}` : '.'}
+        </p>
+      ) : null}
+
+      {filterProjectId && filteredProject ? (
+        <div className="mt-6">
+          <GoogleSettings
+            projectId={filterProjectId}
+            accessToken={accessToken}
+            projectSiteUrl={filteredProject.url}
+          />
         </div>
       ) : null}
 

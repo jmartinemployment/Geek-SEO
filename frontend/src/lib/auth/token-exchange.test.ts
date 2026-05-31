@@ -28,9 +28,19 @@ describe('token-exchange helpers', () => {
   });
 
   it('detects invalid_grant token errors', async () => {
-    const { isInvalidGrantError } = await import('@/lib/auth/token-exchange');
-    expect(isInvalidGrantError(new Error('{"error":"invalid_grant"}'))).toBe(true);
+    const {
+      isInvalidGrantError,
+      isRefreshSessionExpiredError,
+      isAuthorizationCodeExpiredError,
+      parseOAuthError,
+    } = await import('@/lib/auth/token-exchange');
+    const invalidGrant = new Error('{"error":"invalid_grant","error_description":"bad"}');
+    expect(isInvalidGrantError(invalidGrant)).toBe(true);
     expect(isInvalidGrantError(new Error('other'))).toBe(false);
+    expect(isRefreshSessionExpiredError(invalidGrant)).toBe(true);
+    expect(isAuthorizationCodeExpiredError(invalidGrant)).toBe(true);
+    expect(parseOAuthError(invalidGrant).code).toBe('invalid_grant');
+    expect(isRefreshSessionExpiredError(new Error('{"error":"invalid_token"}'))).toBe(true);
   });
 
   it('maps provider token payload to client shape', () => {

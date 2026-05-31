@@ -50,6 +50,36 @@ export function isInvalidGrantError(error: unknown): boolean {
   return message.includes('invalid_grant');
 }
 
+export type ParsedOAuthError = {
+  code?: string;
+  description?: string;
+};
+
+export function parseOAuthError(error: unknown): ParsedOAuthError {
+  const message = error instanceof Error ? error.message : String(error);
+  try {
+    const parsed = JSON.parse(message) as { error?: string; error_description?: string };
+    return { code: parsed.error, description: parsed.error_description };
+  } catch {
+    return {};
+  }
+}
+
+const REFRESH_SESSION_ERRORS = new Set(['invalid_grant', 'invalid_token', 'expired_token']);
+
+/** Refresh token is no longer valid — clear cookie and send user back to login. */
+export function isRefreshSessionExpiredError(error: unknown): boolean {
+  if (isInvalidGrantError(error)) return true;
+  const { code } = parseOAuthError(error);
+  return code !== undefined && REFRESH_SESSION_ERRORS.has(code);
+}
+
+/** Authorization code exchange failed — user must restart login. */
+export function isAuthorizationCodeExpiredError(error: unknown): boolean {
+  const { code } = parseOAuthError(error);
+  return code === 'invalid_grant' || code === 'expired_token';
+}
+
 export function toClientTokenPayload(tokens: OAuthTokenResponse) {
   return {
     accessToken: tokens.access_token,
