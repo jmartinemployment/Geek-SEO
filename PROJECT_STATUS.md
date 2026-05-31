@@ -148,7 +148,9 @@ Honest status against `plan-documents/geekseo-plan.md`. **~27/31 shipped end-to-
 | Chrome extension, WP plugin, Google Docs, Public API (#28–31) | Separate repos / not started |
 | PayPal production go-live | Sandbox wired — see [`docs/PAYPAL-BILLING.md`](docs/PAYPAL-BILLING.md) |
 | Production DB migration | ✅ `AddContentGuardTables` applied on GeekRepository Postgres (May 31, 2026) |
-| Scheduled workers in production | ✅ `WORKER_SERVICE_USER_ID=92b274f5-2fcb-4935-ba2d-cd8c03e1b21b` on Railway GeekSeoBackend. **TODO later:** `@geekatyourspot.com` service account |
+| Scheduled workers in production | ✅ `WORKER_SERVICE_USER_ID` set on Railway. **TODO later:** `@geekatyourspot.com` service account |
+| Production API regression (May 31) | ✅ Fixed — `UseSnakeCaseNamingConvention` removed from GeekRepository runtime (PascalCase `geek_seo` columns) |
+| Content Guard E2E (WP draft) | Blocked — no `seo_wordpress_connections` on production projects yet; API wiring verified via `npm run test:integration:content-guard` |
 | E2E Playwright | Smoke + Google + SEO API integration CI; auth local `test:e2e:auth:local` |
 
 ## Testing
@@ -158,7 +160,7 @@ Honest status against `plan-documents/geekseo-plan.md`. **~27/31 shipped end-to-
 | Frontend unit (auth) | `cd frontend && npm run test` | `unit-tests.yml` (vitest job) |
 | Backend unit | `dotnet test GeekSEO.slnx` | `unit-tests.yml` (dotnet job) |
 | Production API (plagiarism status) | `npm run test:integration:plagiarism` | `e2e-seo-api-integration.yml` |
-| Production API (site audit gate) | `npm run test:integration:site-audit` | `e2e-seo-api-integration.yml` |
+| Production API (content guard gate + 401) | `npm run test:integration:content-guard` | `e2e-seo-api-integration.yml` |
 | Google OAuth + GSC/GA4 | `npm run test:integration:google` | `e2e-google-integration.yml` |
 | Playwright smoke | `npm run test:e2e:smoke` | `e2e-smoke.yml` |
 | Playwright authenticated | `npm run test:e2e:auth:local` or `test:e2e:auth` | `e2e-authenticated.yml` |
@@ -178,6 +180,6 @@ Platform decoupling: `plan-documents/PLATFORM-DECOUPLING.md` — **complete** (M
 ## Next (highest impact)
 
 1. **TODO (later):** Migrate production identity from personal Gmail to a dedicated **`@geekatyourspot.com`** GeekOAuth account; update `WORKER_SERVICE_USER_ID` and project ownership (see **Identity & worker service account** above).
-2. Smoke-test Content Guard end-to-end (decay scan → WP draft → approve) on a connected project.
+2. Connect WordPress on a production project, then smoke-test Content Guard end-to-end (decay scan → WP draft → approve).
 3. Optional: add ChatGPT/Gemini/Perplexity probe providers when API keys are available (#20 stretch).
 4. Separate products #28–31 if/when scoped (WP plugin, Chrome extension, Docs add-on, Public API).
