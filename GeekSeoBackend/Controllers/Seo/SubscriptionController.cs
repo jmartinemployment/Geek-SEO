@@ -13,6 +13,7 @@ namespace GeekSeoBackend.Controllers.Seo;
 public sealed class SubscriptionController(
     ISubscriptionService subscriptions,
     IPayPalBillingService paypal,
+    PayPalOptions payPalOptions,
     ICurrentUserContext user) : ControllerBase
 {
     [HttpGet]
@@ -56,9 +57,11 @@ public sealed class SubscriptionController(
                 deferred = !billing.CheckoutAvailable,
                 clientId = checkout?.ClientId,
                 planIds = checkout?.PlanIds,
+                environment = payPalOptions.UseSandbox ? "sandbox" : "live",
                 missing = billing.MissingConfiguration,
-                plansSetupHint =
-                    "PayPal does not provide PAYPAL_PLAN_* variables. Run: node scripts/paypal-create-subscription-plans.mjs",
+                plansSetupHint = billing.CheckoutAvailable
+                    ? null
+                    : "Run: node scripts/paypal-create-subscription-plans.mjs and node scripts/paypal-create-webhook.mjs",
             },
             manualTierChangeEnabled = ManualTierChangeEnabled(),
         });

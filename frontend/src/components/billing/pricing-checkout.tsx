@@ -51,6 +51,10 @@ export function PricingCheckout() {
   const billingUserId = useMemo(() => resolveBillingUserId(accessToken), [accessToken]);
   const tiers = plans?.tiers ?? [];
   const checkoutAvailable = plans?.checkout.available === true;
+  const payPalSdkHost =
+    plans?.checkout.environment === 'live'
+      ? 'https://www.paypal.com'
+      : 'https://www.sandbox.paypal.com';
 
   const refreshSubscription = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -138,10 +142,17 @@ export function PricingCheckout() {
     <>
       {checkoutAvailable && plans?.checkout.clientId ? (
         <Script
-          src={`https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(plans.checkout.clientId)}&vault=true&intent=subscription`}
+          src={`${payPalSdkHost}/sdk/js?client-id=${encodeURIComponent(plans.checkout.clientId)}&vault=true&intent=subscription`}
           strategy="afterInteractive"
           onLoad={() => setSdkReady(true)}
         />
+      ) : null}
+
+      {checkoutAvailable && plans?.checkout.environment === 'sandbox' ? (
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          PayPal is in <strong>sandbox</strong> mode — use a PayPal sandbox buyer account to test. No real charges
+          until live credentials are configured on the server.
+        </p>
       ) : null}
 
       {loadError ? (

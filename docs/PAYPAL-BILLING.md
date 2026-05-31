@@ -17,18 +17,21 @@ Geek SEO tier names (**Starter**, **Professional**, **Team**, **Agency**) are **
 
 Until all plan IDs exist, checkout stays **deferred**; the app still works via manual tier (see below).
 
-## Create the four plan IDs (one-time)
+## Enable checkout (one-time per environment)
 
-From repo root, with your sandbox credentials:
+From repo root with Railway credentials (or export vars locally):
 
 ```bash
-export PAYPAL_CLIENT_ID='your-sandbox-client-id'
-export PAYPAL_CLIENT_SECRET='your-sandbox-secret'
-export PAYPAL_ENVIRONMENT=sandbox
-node scripts/paypal-create-subscription-plans.mjs
+cd GeekSeoBackend
+railway run -- node ../scripts/paypal-create-subscription-plans.mjs
+railway run -- node ../scripts/paypal-create-webhook.mjs
 ```
 
-The script calls PayPal's Subscriptions API, creates one product + four monthly plans, and prints the `PAYPAL_PLAN_*` lines for Railway.
+Then set the printed `PAYPAL_PLAN_*` and `PAYPAL_WEBHOOK_ID` on GeekSeoBackend (or use `railway variables set`).
+
+**Sandbox** (`PAYPAL_ENVIRONMENT=sandbox`): test checkout with PayPal sandbox buyer accounts — no real money.
+
+**Live** (`PAYPAL_ENVIRONMENT=live` + live app credentials): re-run both scripts against live API, update Railway vars, redeploy — real charges.
 
 Docs: https://developer.paypal.com/docs/subscriptions/integrate/
 

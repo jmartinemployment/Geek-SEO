@@ -138,7 +138,7 @@ async function main() {
   console.log(`PAYPAL_ENVIRONMENT=${environment}`);
   console.log(`PAYPAL_CLIENT_ID=${clientId}`);
   console.log('PAYPAL_CLIENT_SECRET=<keep your existing secret>');
-  console.log('PAYPAL_WEBHOOK_ID=<create webhook in PayPal, then set>');
+  console.log('PAYPAL_WEBHOOK_ID=<run: node scripts/paypal-create-webhook.mjs>');
   for (const tier of TIERS) {
     console.log(`${tier.env}=${planIds[tier.env]}`);
   }

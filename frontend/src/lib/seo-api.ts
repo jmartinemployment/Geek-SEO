@@ -507,6 +507,7 @@ export type BillingPlansResponse = {
     deferred: boolean;
     clientId?: string;
     planIds?: Record<string, string>;
+    environment?: 'sandbox' | 'live';
     missing: string[];
     plansSetupHint?: string;
   };
