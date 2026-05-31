@@ -14,6 +14,7 @@ public sealed record TopicalMapResult
 {
     public required Guid ProjectId { get; init; }
     public required string GeneratedAt { get; init; }
+    public string? ExpiresAt { get; init; }
     public required IReadOnlyList<TopicalMapTopic> Topics { get; init; }
     public required int CoveredCount { get; init; }
     public required int GapCount { get; init; }

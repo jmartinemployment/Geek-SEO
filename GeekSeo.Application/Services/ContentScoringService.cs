@@ -137,6 +137,9 @@ public sealed class ContentScoringService(
         var grade = ScoreToGrade(total);
         var suggestions = BuildSuggestions(wordCount, benchmarks.AvgWordCount, termScore, titleScore, keyword);
 
+        var geo = GeoScoringCalculator.Calculate(plainText, contentHtml, wordCount, benchmarks.AvgWordCount);
+        var allSuggestions = suggestions.Concat(geo.Suggestions).OrderByDescending(s => s.PointValue).ToList();
+
         var update = new ScoreUpdateMessage
         {
             Score = total,
@@ -150,9 +153,12 @@ public sealed class ContentScoringService(
                 metaDescription = metaScore,
                 readability = readabilityScore,
             },
-            Suggestions = suggestions,
+            Suggestions = allSuggestions,
             SerpFeatures = SerpFeatureGuidanceBuilder.Build(serpFeatures),
             EeatAdvisories = EeatAdvisoryBuilder.Build(plainText, contentHtml),
+            GeoScore = geo.TotalScore,
+            GeoGrade = geo.Grade,
+            GeoComponents = geo.Components,
             BenchmarkQuality = benchmarks.BenchmarkQuality,
             Timestamp = DateTimeOffset.UtcNow,
         };

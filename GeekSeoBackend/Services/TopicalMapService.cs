@@ -1,3 +1,4 @@
+using System.Text.Json;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Persistence.Entities;
@@ -8,16 +9,43 @@ namespace GeekSeoBackend.Services;
 public sealed class TopicalMapService(
     IGoogleDataService googleData,
     IContentDocumentRepository documents,
-    IProjectRepository projects)
+    IProjectRepository projects,
+    ITopicalMapRepository topicalMaps)
 {
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private static readonly TimeSpan MapTtl = TimeSpan.FromDays(14);
+    private static readonly TimeSpan RefreshCooldown = TimeSpan.FromHours(24);
+
+    public async Task<TopicalMapResult?> GetCachedAsync(
+        Guid userId,
+        Guid projectId,
+        CancellationToken ct = default)
+    {
+        await EnsureProjectAsync(userId, projectId, ct);
+        var stored = await topicalMaps.GetByProjectAsync(projectId, ct);
+        if (!stored.IsSuccess || stored.Value is null)
+            return null;
+        if (stored.Value.ExpiresAt is null || stored.Value.ExpiresAt <= DateTimeOffset.UtcNow)
+            return null;
+
+        return DeserializeMap(stored.Value);
+    }
+
     public async Task<TopicalMapResult> GenerateAsync(
         Guid userId,
         Guid projectId,
         CancellationToken ct = default)
     {
-        var project = await projects.GetByIdAsync(projectId, userId, ct);
-        if (!project.IsSuccess || project.Value is null)
-            throw new InvalidOperationException("Project not found");
+        await EnsureProjectAsync(userId, projectId, ct);
+
+        var existing = await topicalMaps.GetByProjectAsync(projectId, ct);
+        if (existing.IsSuccess && existing.Value?.GeneratedAt is not null
+            && DateTimeOffset.UtcNow - existing.Value.GeneratedAt < RefreshCooldown)
+        {
+            var cached = DeserializeMap(existing.Value);
+            if (cached is not null)
+                return cached;
+        }
 
         var docsResult = await documents.GetByProjectAsync(projectId, ct);
         var docs = docsResult.IsSuccess && docsResult.Value is not null
@@ -26,16 +54,59 @@ public sealed class TopicalMapService(
 
         var rankings = await googleData.GetRankingsAsync(userId, projectId, null, null, 1000, ct);
         var topics = BuildTopics(rankings.Rows, docs);
+        var now = DateTimeOffset.UtcNow;
 
-        return new TopicalMapResult
+        var result = new TopicalMapResult
         {
             ProjectId = projectId,
-            GeneratedAt = DateTimeOffset.UtcNow.ToString("O"),
+            GeneratedAt = now.ToString("O"),
+            ExpiresAt = now.Add(MapTtl).ToString("O"),
             Topics = topics,
             CoveredCount = topics.Count(t => t.Coverage == "covered"),
             GapCount = topics.Count(t => t.Coverage == "gap"),
             PartialCount = topics.Count(t => t.Coverage == "partial"),
         };
+
+        await topicalMaps.UpsertAsync(new SeoTopicalMap
+        {
+            ProjectId = projectId,
+            Status = "ready",
+            ClustersJson = JsonSerializer.Serialize(topics, JsonOptions),
+            ContentGapsJson = JsonSerializer.Serialize(topics.Where(t => t.Coverage == "gap").ToList(), JsonOptions),
+            GeneratedAt = now,
+            ExpiresAt = now.Add(MapTtl),
+        }, ct);
+
+        return result;
+    }
+
+    private async Task EnsureProjectAsync(Guid userId, Guid projectId, CancellationToken ct)
+    {
+        var project = await projects.GetByIdAsync(projectId, userId, ct);
+        if (!project.IsSuccess || project.Value is null)
+            throw new InvalidOperationException("Project not found");
+    }
+
+    private static TopicalMapResult? DeserializeMap(SeoTopicalMap row)
+    {
+        try
+        {
+            var topics = JsonSerializer.Deserialize<List<TopicalMapTopic>>(row.ClustersJson, JsonOptions) ?? [];
+            return new TopicalMapResult
+            {
+                ProjectId = row.ProjectId,
+                GeneratedAt = row.GeneratedAt?.ToString("O") ?? DateTimeOffset.UtcNow.ToString("O"),
+                ExpiresAt = row.ExpiresAt?.ToString("O"),
+                Topics = topics,
+                CoveredCount = topics.Count(t => t.Coverage == "covered"),
+                GapCount = topics.Count(t => t.Coverage == "gap"),
+                PartialCount = topics.Count(t => t.Coverage == "partial"),
+            };
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     internal static IReadOnlyList<TopicalMapTopic> BuildTopics(

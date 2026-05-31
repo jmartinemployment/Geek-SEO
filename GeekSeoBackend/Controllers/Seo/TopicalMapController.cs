@@ -11,6 +11,20 @@ public sealed class TopicalMapController(
     TopicalMapService topicalMap,
     ICurrentUserContext user) : ControllerBase
 {
+    [HttpGet("{projectId:guid}")]
+    public async Task<IActionResult> Get(Guid projectId, CancellationToken ct)
+    {
+        try
+        {
+            var cached = await topicalMap.GetCachedAsync(user.RequireUserId(), projectId, ct);
+            return cached is null ? NotFound() : Ok(cached);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
     [HttpPost("{projectId:guid}/generate")]
     public async Task<IActionResult> Generate(Guid projectId, CancellationToken ct)
     {

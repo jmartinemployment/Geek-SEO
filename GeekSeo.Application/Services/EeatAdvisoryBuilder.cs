@@ -31,6 +31,49 @@ public static class EeatAdvisoryBuilder
             });
         }
 
+        if (!lower.Contains("about the author", StringComparison.Ordinal) && !lower.Contains("written by", StringComparison.Ordinal))
+        {
+            advisories.Add(new EeatAdvisory
+            {
+                Code = "author_bio",
+                ActionText = "Include a visible author bio with relevant credentials or local expertise.",
+            });
+        }
+
+        if (!HasOutboundCitation(contentHtml))
+        {
+            advisories.Add(new EeatAdvisory
+            {
+                Code = "source_citations",
+                ActionText = "Cite reputable external sources to support factual claims.",
+            });
+        }
+
+        if (CountOccurrences(contentHtml, "<img") == 0)
+        {
+            advisories.Add(new EeatAdvisory
+            {
+                Code = "original_media",
+                ActionText = "Add original photos or diagrams — stock-only pages weaken E-E-A-T signals.",
+            });
+        }
+
+        if (!lower.Contains("updated", StringComparison.Ordinal) && !lower.Contains("reviewed", StringComparison.Ordinal))
+        {
+            advisories.Add(new EeatAdvisory
+            {
+                Code = "freshness_signal",
+                ActionText = "Add a visible last-updated or reviewed date for YMYL topics.",
+            });
+        }
+
         return advisories;
     }
+
+    private static bool HasOutboundCitation(string html) =>
+        html.Contains("href=\"http", StringComparison.OrdinalIgnoreCase)
+        && !html.Contains("geekatyourspot", StringComparison.OrdinalIgnoreCase);
+
+    private static int CountOccurrences(string haystack, string needle) =>
+        haystack.Split(needle, StringSplitOptions.None).Length - 1;
 }

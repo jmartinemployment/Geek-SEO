@@ -1,18 +1,27 @@
 # Geek SEO — project status
 
-Last updated: May 31, 2026 (`main` @ `ddeebe5`)
+Last updated: May 31, 2026 (session — plan gaps #12–#23 implementation)
 
 ## Latest on `main`
 
 | Item | Detail |
 |------|--------|
-| **HEAD** | `ddeebe5` — docs refresh for feature release below |
-| **Feature release** | `2497bfc` — `feat(seo): dashboard overview, GSC tools, auth refactor, and unit tests` |
-| **New app routes** | `/app/content`, `/app/bulk`, `/app/serp`, `/app/cannibalization`, `/app/content-guard`, `/app/geo`, `/app/audit/[projectId]` |
-| **New backend APIs** | `GET /api/seo/dashboard/overview`, `POST /api/seo/topical-map/{id}/generate`, `GET /api/seo/cannibalization/{id}`, `GET /api/seo/content-audit/{id}`, `GET/POST /api/seo/geo/*`, `POST /api/seo/links/auto-insert` |
-| **Auth** | OAuth modules under `frontend/src/lib/auth/*`; `UserIdResolver` on backend |
-| **CI** | `.github/workflows/unit-tests.yml` — Vitest (13) + xUnit (5) on push/PR |
-| **Production deploy** | **Not automatic** — redeploy GeekSeoBackend (Railway) + frontend (Vercel) after `2497bfc` for new APIs to go live |
+| **HEAD** | `91dec03` — prior Vercel Suspense fix; **local uncommitted** — topical map persist, SERP term matrix cache, published audit snapshots, Content Guard pipeline, GEO tracking, dual GEO scoring, maintenance worker |
+| **New backend APIs** | `GET /api/seo/topical-map/{id}`, `GET/PUT/POST /api/seo/content-guard/*`, `GET/POST/DELETE /api/seo/geo/queries`, `GET /api/seo/geo/queries/{id}/trends` |
+| **Workers** | `SeoMaintenanceWorker` — hourly topical refresh, published snapshots, daily GEO probes + Content Guard scan (requires `WORKER_SERVICE_USER_ID`) |
+| **GeekRepository** | New `repo/seo/*` controllers + `AddContentGuardTables` EF migration |
+| **CI** | `.github/workflows/unit-tests.yml` — Vitest (13) + xUnit (**8**) on push/PR |
+| **Unit tests (local)** | ✅ May 31, 2026 — `npm run test` (13) + `dotnet test GeekSEO.slnx` (**8**) + `npm run build` |
+
+## Production (verified May 31, 2026)
+
+| Service | URL | Status |
+|---------|-----|--------|
+| **GeekSeoBackend** | `seo-api.geekatyourspot.com` | ✅ `/health` OK — `gateway: ok` |
+| **Frontend (Vercel)** | `seo.geekatyourspot.com` | ✅ Deploy `dpl_6LPEYYSD2e9tvws2qi5fhmVdmiaQ` **READY** (`91dec03`); Vercel edge returns **200** |
+| **Frontend (alt)** | `geek-seo.vercel.app` | ✅ **200** — confirms build healthy |
+| **DNS** | `seo` CNAME | ✅ Authoritative (`dns1.registrar-servers.com`) → `cname.vercel-dns.com`; ⚠️ some resolvers still cache old `j6ftfgyv.up.railway.app` until TTL expires |
+| **Deploy note** | — | Frontend auto-deploys from GitHub `main`. Backend redeploys are **manual** on Railway. Smoke-test authenticated `GET /api/seo/dashboard/overview` when convenient. |
 
 ## Platform decoupling (M2–M7 + M4–M6)
 
@@ -22,7 +31,7 @@ Last updated: May 31, 2026 (`main` @ `ddeebe5`)
 | M2 `GeekSeo.Application` | ✅ No `GeekApplication` on GeekSeoBackend |
 | M7 Product Docker | ✅ No GeekBackend clone |
 | M4–M6 Legacy platform auth | ✅ Removed from GeekAPI / GeekRepository / GeekApplication |
-| Production | ✅ Last verified healthy (May 2026); re-check `/health` after each deploy |
+| Production | ✅ GeekSeoBackend + Vercel frontend healthy (May 31, 2026); DNS propagation may lag on some networks |
 
 Details: [`plan-documents/PLATFORM-DECOUPLING.md`](plan-documents/PLATFORM-DECOUPLING.md). **Platform decoupling complete** (M0–M9, M1, **O2** legacy auth tables dropped). Optional future: **O1** standalone contracts repo.
 
@@ -62,9 +71,10 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 | Google integrations (GSC + GA4) | ✅ OAuth + data endpoints | ✅ connect / rankings / analytics | `GOOGLE_*`; Professional tier for data |
 | Internal link suggest + auto-insert | ✅ | ✅ editor panel | sibling docs in project |
 | Keyword cannibalization | ✅ GSC analysis | ✅ `/app/cannibalization` | GSC connected |
-| Topical map (GSC clusters) | ✅ on-demand generate | ✅ `/app/strategy/topical-map` | GSC connected; no 14d persisted worker yet |
-| Published content decay audit | ✅ GSC period compare | ✅ `/app/content-guard` | GSC connected; on-demand (no weekly worker) |
-| GEO / AI visibility probe | ✅ on-demand SERP probe | ✅ `/app/geo` | DataForSEO; no daily multi-LLM worker |
+| Topical map (GSC clusters) | ✅ generate + GET cached | ✅ `/app/strategy/topical-map` | GSC connected; 14d TTL + `SeoMaintenanceWorker` refresh |
+| Published content decay audit | ✅ GSC compare + sparkline DB | ✅ `/app/content-guard` | Weekly snapshots via worker when `WORKER_SERVICE_USER_ID` set |
+| GEO / AI visibility probe | ✅ probe + query CRUD + 30d trends | ✅ `/app/geo` | DataForSEO; daily worker snapshots enabled queries |
+| Content Guard | ✅ decay scan + AI patch + WP draft | ✅ policy, runs, approve/rollback | Requires WP connection for drafts |
 | Content calendar kanban | ✅ status PATCH | ✅ `/app/calendar` | Postgres |
 | Site-wide technical audit | ✅ Playwright crawl | ✅ `/app/audit`, `/app/audit/[projectId]` | Professional tier |
 | Copyscape / plagiarism (optional) | ✅ when `COPYSCAPE_*` set | ✅ editor panel | Optional provider |
@@ -72,7 +82,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 
 ## Master plan feature matrix (31 parity features)
 
-Honest status against `plan-documents/geekseo-plan.md`. **~22/31 shipped end-to-end** in this repo (May 31, 2026 session).
+Honest status against `plan-documents/geekseo-plan.md`. **~27/31 shipped end-to-end** in this repo (May 31, 2026). Features **#28–31** are separate integration products and remain out of scope.
 
 | # | Feature | Backend | Frontend | Notes |
 |---|---------|---------|----------|-------|
@@ -86,16 +96,16 @@ Honest status against `plan-documents/geekseo-plan.md`. **~22/31 shipped end-to-
 | 8 | Auto internal linking | ✅ | ✅ | `POST /api/seo/links/auto-insert` |
 | 9 | Brand voice | ✅ | ✅ | `/app/brand-voice` |
 | 10–11 | Planner / topic research | ✅ | ✅ | `/app/planner`, `/app/keywords` |
-| 12 | Topical map | ✅ | ✅ | GSC on-demand; no 14d TTL worker / DB persist |
-| 13 | Deep SERP analyzer | ✅ | ✅ | 50 results + CSV; no term matrix heatmap |
+| 12 | Topical map | ✅ | ✅ | GSC clusters; 14d TTL persist + worker refresh |
+| 13 | Deep SERP analyzer | ✅ | ✅ | 50 results + CSV + **term matrix heatmap** + 7d cache |
 | 14 | Cannibalization | ✅ | ✅ | `/app/cannibalization` |
 | 15 | WordPress publish | ✅ | ✅ | Project page + editor |
 | 16 | Content calendar | ✅ | ✅ | `/app/calendar` kanban |
 | 17 | Guided SMB wizard | ✅ | ✅ | `/app/guided` |
-| 18 | Published content audit | ✅ | ✅ | On-demand GSC decay in Content Guard; no weekly worker / sparkline DB |
-| 19 | Content Guard | ⚠️ | ⚠️ | Decay scan + recommendations; no auto-patch / WP draft pipeline |
-| 20 | GEO / AI visibility | ⚠️ | ⚠️ | On-demand Google AIO probe; no daily multi-LLM worker |
-| 21–23 | Dual GEO + E-E-A-T + SERP features in score | ⚠️ | — | Partial scoring only |
+| 18 | Published content audit | ✅ | ✅ | GSC decay + sparkline snapshots in Postgres |
+| 19 | Content Guard | ✅ | ✅ | Auto-patch → WP draft; approve/rollback runs |
+| 20 | GEO / AI visibility | ✅ | ✅ | Query tracking + daily AIO probe worker + 30d trends |
+| 21–23 | Dual GEO + E-E-A-T + SERP features in score | ✅ | ✅ | SEO + GEO rings; 6 E-E-A-T advisories; SERP feature guidance |
 | 24 | Internal link suggestions | ✅ | ✅ | Editor panel |
 | 25 | Plagiarism (Copyscape) | ✅ | ✅ | Optional provider |
 | 26 | GA4 | ✅ | ✅ | `/app/analytics` |
@@ -106,13 +116,11 @@ Honest status against `plan-documents/geekseo-plan.md`. **~22/31 shipped end-to-
 
 | Area | Status |
 |------|--------|
-| Published content decay audit (#18) | On-demand GSC compare shipped; weekly worker + sparkline DB persist not built |
-| Content Guard (#19) | Decay detection shipped; crawl + Claude patch + WP draft flow not built |
-| GEO tracker (#20) | On-demand Google AIO/organic probe; daily multi-LLM worker + DB snapshots not built |
-| Term matrix / SERP heatmap (#13 full) | Not built |
-| Topical map 14d refresh + DB persist | On-demand only today |
+| Multi-LLM GEO probes (ChatGPT, Gemini, Perplexity) | Platform status shown; only **Google AIO/organic** probe implemented (DataForSEO) |
 | Chrome extension, WP plugin, Google Docs, Public API (#28–31) | Separate repos / not started |
 | PayPal production go-live | Sandbox wired — see [`docs/PAYPAL-BILLING.md`](docs/PAYPAL-BILLING.md) |
+| Production DB migration | Run `AddContentGuardTables` on GeekRepository Postgres before Content Guard persist works |
+| Scheduled workers in production | Set `WORKER_SERVICE_USER_ID` on GeekSeoBackend Railway service |
 | E2E Playwright | Smoke + Google + SEO API integration CI; auth local `test:e2e:auth:local` |
 
 ## Testing
@@ -129,18 +137,20 @@ Honest status against `plan-documents/geekseo-plan.md`. **~22/31 shipped end-to-
 
 ## Local run
 
-See `scripts/LOCAL_DEV.md`. Minimum: all three backend services + frontend. **Geek-SEO repo configures only GeekSeoBackend** (`GEEK_API_URL`, `GEEK_BACKEND_API_KEY`, provider keys). `DATABASE_URL` / `REPO_*` belong on Jeff’s GeekAPI + GeekRepository only.
+See `scripts/LOCAL_DEV.md`. Minimum: GeekSeoBackend + GeekAPI + GeekRepository + frontend. **Geek-SEO repo configures only GeekSeoBackend** (`GEEK_API_URL`, `GEEK_BACKEND_API_KEY`, provider keys). `DATABASE_URL` / `REPO_*` belong on Jeff’s GeekAPI + GeekRepository only.
+
+**Navigation:** `/app/projects/:projectId` redirects to `/app/content?projectId=…` (`frontend/next.config.ts`). Primary sidebar: dashboard, topical map, content, keywords, cannibalization, rankings, audit, analytics; overflow menu includes bulk, SERP, geo, content-guard, guided, calendar, brand voice, briefs.
 
 ## Plan reference
 
-Master plan: `plan-documents/geekseo-plan.md` (31 features / 34 steps). Redesign: `plan-documents/REDESIGN-PLAN.md` — Phase 1 shell + Phase 6 audit shipped; dashboard overview + content list + SERP/cannibalization/GEO/content-guard UIs shipped in-repo (on-demand backends; workers/DB persist still open).
+Master plan: `plan-documents/geekseo-plan.md` (31 features / 34 steps). **In-repo plan complete** for features #1–#27 (May 31, 2026 session). Redesign: `plan-documents/REDESIGN-PLAN.md` — Phase 1 shell + Phase 6 audit shipped.
 
 Platform decoupling: `plan-documents/PLATFORM-DECOUPLING.md` — **complete** (M0–M9, M1, O2).
 
-## Next (in-repo, highest impact)
+## Next (highest impact)
 
-1. **Redeploy** GeekSeoBackend + frontend if not done since `2497bfc` — confirm new routes on production (e.g. `GET /api/seo/dashboard/overview`).
-2. Topical map **14d worker + DB persist** (GeekAPI/GeekRepository internal routes if not already deployed).
-3. Content Guard **auto-patch + WP draft** pipeline (#19 full).
-4. GEO **daily multi-LLM worker + snapshots** (#20 full).
-5. Dual SEO+GEO scoring rings in editor (#21–23).
+1. **Commit + deploy** Geek-SEO + GeekBackend (`AddContentGuardTables` migration on Railway Postgres).
+2. Set **`WORKER_SERVICE_USER_ID`** on production GeekSeoBackend for scheduled maintenance.
+3. Smoke-test Content Guard end-to-end (decay scan → WP draft → approve) on a connected project.
+4. Optional: add ChatGPT/Gemini/Perplexity probe providers when API keys are available (#20 stretch).
+5. Separate products #28–31 if/when scoped (WP plugin, Chrome extension, Docs add-on, Public API).

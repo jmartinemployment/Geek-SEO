@@ -3,6 +3,7 @@ namespace GeekSeo.Application.Models.Seo;
 public sealed record PublishedPageMetrics
 {
     public required string Url { get; init; }
+    public Guid? PublishedPageId { get; init; }
     public required long RecentClicks { get; init; }
     public required long BaselineClicks { get; init; }
     public required long RecentImpressions { get; init; }
@@ -13,6 +14,15 @@ public sealed record PublishedPageMetrics
     public required double PositionChange { get; init; }
     public required string Status { get; init; }
     public required string Recommendation { get; init; }
+    public IReadOnlyList<PerformanceSnapshotPoint> Sparkline { get; init; } = [];
+}
+
+public sealed record PerformanceSnapshotPoint
+{
+    public required string Date { get; init; }
+    public required int Clicks { get; init; }
+    public required int Impressions { get; init; }
+    public decimal? Position { get; init; }
 }
 
 public sealed record PublishedContentAuditReport

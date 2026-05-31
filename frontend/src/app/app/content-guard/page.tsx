@@ -4,8 +4,16 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import {
+  approveContentGuardRun,
+  getContentGuardPolicy,
   getPublishedContentAudit,
+  listContentGuardRuns,
   listProjects,
+  rollbackContentGuardRun,
+  scanContentGuard,
+  upsertContentGuardPolicy,
+  type ContentGuardRun,
+  type PerformanceSnapshotPoint,
   type PublishedPageMetrics,
   type SeoProject,
 } from '@/lib/seo-api';
@@ -16,14 +24,36 @@ function statusClass(status: PublishedPageMetrics['status']): string {
   return 'bg-green-50 text-green-800 border-green-200';
 }
 
+function Sparkline({ points }: { points: PerformanceSnapshotPoint[] }) {
+  if (points.length < 2) return null;
+  const maxClicks = Math.max(1, ...points.map((p) => p.clicks));
+  const width = 120;
+  const height = 32;
+  const coords = points.map((p, index) => {
+    const x = (index / (points.length - 1)) * width;
+    const y = height - (p.clicks / maxClicks) * height;
+    return `${x},${y}`;
+  });
+
+  return (
+    <svg width={width} height={height} className="text-[var(--color-accent)]" aria-hidden>
+      <polyline fill="none" stroke="currentColor" strokeWidth="2" points={coords.join(' ')} />
+    </svg>
+  );
+}
+
 export default function ContentGuardPage() {
   const { accessToken, isLoading: authLoading } = useAuth();
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [projectId, setProjectId] = useState('');
   const [pages, setPages] = useState<PublishedPageMetrics[]>([]);
+  const [runs, setRuns] = useState<ContentGuardRun[]>([]);
+  const [enabled, setEnabled] = useState(false);
+  const [autoPatch, setAutoPatch] = useState(false);
   const [decayingCount, setDecayingCount] = useState(0);
   const [rangeLabel, setRangeLabel] = useState('');
   const [loading, setLoading] = useState(false);
+  const [savingPolicy, setSavingPolicy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
 
@@ -33,6 +63,32 @@ export default function ContentGuardPage() {
       if (list[0]) setProjectId(list[0].id);
     });
   }, [accessToken]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    void getContentGuardPolicy(projectId, accessToken)
+      .then((policy) => {
+        setEnabled(policy?.enabled ?? false);
+        setAutoPatch(policy?.autoPatch ?? false);
+      })
+      .catch(() => undefined);
+    void listContentGuardRuns(projectId, accessToken)
+      .then(setRuns)
+      .catch(() => setRuns([]));
+  }, [projectId, accessToken]);
+
+  async function savePolicy() {
+    if (!projectId) return;
+    setSavingPolicy(true);
+    setError(null);
+    try {
+      await upsertContentGuardPolicy(projectId, { enabled, autoPatch }, accessToken);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save policy');
+    } finally {
+      setSavingPolicy(false);
+    }
+  }
 
   async function analyze() {
     if (!projectId) return;
@@ -45,11 +101,33 @@ export default function ContentGuardPage() {
       setRangeLabel(
         `Recent ${report.recentStartDate} → ${report.recentEndDate} vs baseline ${report.baselineStartDate} → ${report.baselineEndDate}`,
       );
+      await scanContentGuard(projectId, accessToken);
+      setRuns(await listContentGuardRuns(projectId, accessToken));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Content audit failed');
       setPages([]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function onApprove(runId: string) {
+    setError(null);
+    try {
+      await approveContentGuardRun(runId, accessToken);
+      setRuns(await listContentGuardRuns(projectId, accessToken));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Approve failed');
+    }
+  }
+
+  async function onRollback(runId: string) {
+    setError(null);
+    try {
+      await rollbackContentGuardRun(runId, accessToken);
+      setRuns(await listContentGuardRuns(projectId, accessToken));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Rollback failed');
     }
   }
 
@@ -63,10 +141,31 @@ export default function ContentGuardPage() {
     <main className="mx-auto max-w-6xl px-6 py-10">
       <h1 className="text-2xl font-semibold tracking-tight">Content Guard</h1>
       <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        GSC-backed decay detection for published URLs — flags pages losing clicks or rankings vs the
-        prior period. Auto-patch and WordPress draft workflow is not yet wired; use recommendations
-        and open content to refresh manually.
+        GSC-backed decay detection with optional AI refresh drafts in WordPress. Enable auto-patch to
+        queue draft posts when decay is detected.
       </p>
+
+      <section className="mt-6 rounded-xl border bg-white p-5 shadow-sm">
+        <h2 className="text-sm font-semibold">Automation policy</h2>
+        <div className="mt-3 flex flex-wrap gap-6 text-sm">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+            Daily scan enabled
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={autoPatch} onChange={(e) => setAutoPatch(e.target.checked)} />
+            Auto-patch decaying pages (WP draft)
+          </label>
+          <button
+            type="button"
+            disabled={savingPolicy || !projectId}
+            onClick={() => void savePolicy()}
+            className="rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+          >
+            {savingPolicy ? 'Saving…' : 'Save policy'}
+          </button>
+        </div>
+      </section>
 
       <div className="mt-6 flex flex-wrap items-end gap-3">
         <label className="text-sm font-medium">
@@ -98,6 +197,50 @@ export default function ContentGuardPage() {
 
       {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
       {rangeLabel ? <p className="mt-4 text-xs text-[var(--color-text-muted)]">{rangeLabel}</p> : null}
+
+      {runs.length > 0 ? (
+        <section className="mt-8 rounded-xl border bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">Guard runs</h2>
+          <ul className="mt-4 space-y-3">
+            {runs.map((run) => (
+              <li key={run.id} className="rounded-lg border px-4 py-3 text-sm">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium break-all">{run.url}</p>
+                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                      Status: {run.status}
+                      {run.wordPressDraftPostId ? ` · WP draft #${run.wordPressDraftPostId}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    {run.status === 'draft_ready' ? (
+                      <button
+                        type="button"
+                        className="rounded-lg border border-green-200 bg-green-50 px-3 py-1 text-xs font-medium text-green-900"
+                        onClick={() => void onApprove(run.id)}
+                      >
+                        Approve
+                      </button>
+                    ) : null}
+                    {run.status === 'approved' || run.status === 'draft_ready' ? (
+                      <button
+                        type="button"
+                        className="rounded-lg border px-3 py-1 text-xs font-medium hover:bg-slate-50"
+                        onClick={() => void onRollback(run.id)}
+                      >
+                        Rollback
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                {run.recommendation ? (
+                  <p className="mt-2 text-xs text-[var(--color-text-secondary)]">{run.recommendation}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {pages.length > 0 ? (
         <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
@@ -143,9 +286,14 @@ export default function ContentGuardPage() {
                 </Link>
                 <p className="mt-2 text-xs text-[var(--color-text-secondary)]">{page.recommendation}</p>
               </div>
-              <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${statusClass(page.status)}`}>
-                {page.status}
-              </span>
+              <div className="flex shrink-0 flex-col items-end gap-2">
+                <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusClass(page.status)}`}>
+                  {page.status}
+                </span>
+                {page.sparkline && page.sparkline.length > 1 ? (
+                  <Sparkline points={page.sparkline} />
+                ) : null}
+              </div>
             </div>
             <dl className="mt-4 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
               <div>

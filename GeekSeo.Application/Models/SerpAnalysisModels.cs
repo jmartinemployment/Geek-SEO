@@ -16,6 +16,22 @@ public sealed record DeepSerpResult
     public required IReadOnlyList<string> PeopleAlsoAsk { get; init; }
     public required IReadOnlyList<string> RelatedSearches { get; init; }
     public required SerpIntentSummary Intent { get; init; }
+    public SerpTermMatrix? TermMatrix { get; init; }
+    public string? CachedAt { get; init; }
+}
+
+public sealed record SerpTermMatrix
+{
+    public required IReadOnlyList<string> Terms { get; init; }
+    public required IReadOnlyList<SerpTermMatrixRow> Rows { get; init; }
+}
+
+public sealed record SerpTermMatrixRow
+{
+    public required int Position { get; init; }
+    public required string Url { get; init; }
+    public string? Title { get; init; }
+    public required IReadOnlyList<int> Counts { get; init; }
 }
 
 public sealed record DeepSerpOrganic

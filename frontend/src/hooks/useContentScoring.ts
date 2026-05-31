@@ -19,10 +19,21 @@ export type ScoreSuggestion = {
   actionText: string;
 };
 
+export type GeoScoreComponents = {
+  authority: number;
+  readability: number;
+  structure: number;
+  citations: number;
+  depth: number;
+};
+
 export type ScoreUpdate = {
   score: number;
   grade: string;
   components: ScoreComponents;
+  geoScore?: number;
+  geoGrade?: string;
+  geoComponents?: GeoScoreComponents;
   suggestions: ScoreSuggestion[];
   serpFeatures: { feature: string; actionText: string }[];
   eeatAdvisories: { code: string; actionText: string }[];

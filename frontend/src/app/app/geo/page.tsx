@@ -4,11 +4,17 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import {
+  createGeoQuery,
+  deleteGeoQuery,
   getGeoPlatforms,
+  getGeoTrends,
+  listGeoQueries,
   listProjects,
   probeGeoVisibility,
   type GeoPlatformStatus,
   type GeoProbeResult,
+  type GeoTrackingQuery,
+  type GeoTrendsResponse,
   type SeoProject,
 } from '@/lib/seo-api';
 
@@ -18,6 +24,9 @@ export default function GeoPage() {
   const [projectId, setProjectId] = useState('');
   const [query, setQuery] = useState('');
   const [platforms, setPlatforms] = useState<GeoPlatformStatus[]>([]);
+  const [trackedQueries, setTrackedQueries] = useState<GeoTrackingQuery[]>([]);
+  const [selectedQueryId, setSelectedQueryId] = useState('');
+  const [trends, setTrends] = useState<GeoTrendsResponse | null>(null);
   const [result, setResult] = useState<GeoProbeResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +40,26 @@ export default function GeoPage() {
       .then((res) => setPlatforms(res.platforms))
       .catch(() => undefined);
   }, [accessToken]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    void listGeoQueries(projectId, accessToken)
+      .then((queries) => {
+        setTrackedQueries(queries);
+        if (queries[0]) setSelectedQueryId(queries[0].id);
+      })
+      .catch(() => setTrackedQueries([]));
+  }, [projectId, accessToken]);
+
+  useEffect(() => {
+    if (!selectedQueryId) {
+      setTrends(null);
+      return;
+    }
+    void getGeoTrends(selectedQueryId, accessToken)
+      .then(setTrends)
+      .catch(() => setTrends(null));
+  }, [selectedQueryId, accessToken]);
 
   async function onProbe(e: React.FormEvent) {
     e.preventDefault();
@@ -49,14 +78,36 @@ export default function GeoPage() {
     }
   }
 
+  async function onTrackQuery() {
+    if (!projectId || !query.trim()) return;
+    setError(null);
+    try {
+      const created = await createGeoQuery({ projectId, queryText: query.trim() }, accessToken);
+      setTrackedQueries((prev) => [...prev, created]);
+      setSelectedQueryId(created.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to track query');
+    }
+  }
+
+  async function onDeleteQuery(id: string) {
+    setError(null);
+    try {
+      await deleteGeoQuery(id, accessToken);
+      setTrackedQueries((prev) => prev.filter((q) => q.id !== id));
+      if (selectedQueryId === id) setSelectedQueryId('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete query');
+    }
+  }
+
   if (authLoading) return <main className="p-8">Loading…</main>;
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
       <h1 className="text-2xl font-semibold tracking-tight">GEO visibility</h1>
       <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        On-demand Google AI Overview and organic visibility checks via DataForSEO. Daily multi-LLM
-        tracking requires configured probe workers (not yet scheduled).
+        Track queries for daily Google AIO probes and review 30-day mention trends. On-demand probes run immediately.
       </p>
 
       <section className="mt-6 rounded-xl border bg-white p-5 shadow-sm">
@@ -114,16 +165,73 @@ export default function GeoPage() {
             required
           />
         </label>
-        <button
-          type="submit"
-          disabled={loading || !projectId}
-          className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
-        >
-          {loading ? 'Probing…' : 'Probe Google AIO + organic'}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="submit"
+            disabled={loading || !projectId}
+            className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
+          >
+            {loading ? 'Probing…' : 'Probe Google AIO + organic'}
+          </button>
+          <button
+            type="button"
+            disabled={!projectId || !query.trim()}
+            onClick={() => void onTrackQuery()}
+            className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+          >
+            Track daily
+          </button>
+        </div>
       </form>
 
       {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
+
+      {trackedQueries.length > 0 ? (
+        <section className="mt-8 rounded-xl border bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold">Tracked queries</h2>
+          <ul className="mt-4 space-y-2">
+            {trackedQueries.map((q) => (
+              <li key={q.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm">
+                <button
+                  type="button"
+                  className={`text-left font-medium ${selectedQueryId === q.id ? 'text-[var(--color-brand)]' : ''}`}
+                  onClick={() => setSelectedQueryId(q.id)}
+                >
+                  {q.queryText}
+                </button>
+                <button
+                  type="button"
+                  className="text-xs text-red-600 hover:underline"
+                  onClick={() => void onDeleteQuery(q.id)}
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+          {trends ? (
+            <div className="mt-6">
+              <h3 className="text-sm font-semibold">
+                30-day trends — {trends.queryText}
+              </h3>
+              <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                Mention rate: {trends.mentionRate30d}%
+              </p>
+              <div className="mt-3 flex flex-wrap gap-1">
+                {trends.points.map((point) => (
+                  <span
+                    key={`${point.date}-${point.platform}`}
+                    title={`${point.date}: ${point.mentioned ? 'mentioned' : 'not mentioned'}`}
+                    className={`h-6 w-6 rounded-sm border ${
+                      point.mentioned ? 'bg-emerald-500 border-emerald-600' : 'bg-slate-100 border-slate-200'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       {result ? (
         <section className="mt-8 rounded-xl border bg-white p-6 shadow-sm">

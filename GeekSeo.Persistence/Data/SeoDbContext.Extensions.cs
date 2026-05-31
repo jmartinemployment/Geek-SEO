@@ -96,7 +96,12 @@ public partial class SeoDbContext
             e.HasIndex(x => new { x.PublishedPageId, x.Date }).IsUnique();
         });
 
-        modelBuilder.Entity<SeoTopicalMap>(e => { e.ToTable("seo_topical_maps"); e.HasKey(x => x.Id); });
+        modelBuilder.Entity<SeoTopicalMap>(e =>
+        {
+            e.ToTable("seo_topical_maps");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId).IsUnique();
+        });
         modelBuilder.Entity<SeoSitePageInventory>(e => { e.ToTable("seo_site_page_inventory"); e.HasKey(x => x.Id); e.HasIndex(x => new { x.ProjectId, x.Url }).IsUnique(); });
         modelBuilder.Entity<SeoBrandVoice>(e => { e.ToTable("seo_brand_voices"); e.HasKey(x => x.Id); });
         modelBuilder.Entity<SeoBulkJob>(e => { e.ToTable("seo_bulk_jobs"); e.HasKey(x => x.Id); });
@@ -117,6 +122,20 @@ public partial class SeoDbContext
             e.ToTable("seo_serp_deep_cache");
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.Keyword, x.Location, x.ResultCount }).IsUnique();
+        });
+
+        modelBuilder.Entity<SeoContentGuardPolicy>(e =>
+        {
+            e.ToTable("seo_content_guard_policies");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ProjectId).IsUnique();
+        });
+
+        modelBuilder.Entity<SeoContentGuardRun>(e =>
+        {
+            e.ToTable("seo_content_guard_runs");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.Status });
         });
 
         modelBuilder.Entity<SeoOrganization>(e => { e.ToTable("seo_organizations"); e.HasKey(x => x.Id); e.HasIndex(x => x.Slug).IsUnique(); });

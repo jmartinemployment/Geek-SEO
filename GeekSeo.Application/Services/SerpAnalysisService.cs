@@ -1,21 +1,39 @@
+using System.Text.Json;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
+using GeekSeo.Application.Services.Seo;
+using GeekSeo.Persistence.Entities;
 
 namespace GeekSeo.Application.Services.Seo;
 
-public sealed class SerpAnalysisService(ISerpProvider serp) : ISerpAnalysisService
+public sealed class SerpAnalysisService(ISerpProvider serp, ISerpDeepCacheRepository deepCache) : ISerpAnalysisService
 {
+    private const int DeepResultCount = 50;
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromDays(7);
+
     public async Task<Result<DeepSerpResult>> AnalyzeAsync(
         Guid userId, DeepSerpRequest request, CancellationToken ct = default)
     {
         _ = userId;
+        var keyword = request.Keyword.Trim();
+        var location = request.Location.Trim();
+
+        var cached = await deepCache.GetAsync(keyword, location, DeepResultCount, ct);
+        if (cached.IsSuccess && cached.Value is not null && cached.Value.ExpiresAt > DateTimeOffset.UtcNow)
+        {
+            var fromCache = DeserializeCache(cached.Value);
+            if (fromCache is not null)
+                return Result<DeepSerpResult>.Success(fromCache);
+        }
+
         var serpResult = await serp.GetSerpResultsAsync(new SerpRequest
         {
-            Keyword = request.Keyword.Trim(),
-            Location = request.Location,
+            Keyword = keyword,
+            Location = location,
             LanguageCode = request.LanguageCode,
-            ResultCount = 50,
+            ResultCount = DeepResultCount,
         }, ct);
 
         if (!serpResult.IsSuccess || serpResult.Value is null)
@@ -36,7 +54,10 @@ public sealed class SerpAnalysisService(ISerpProvider serp) : ISerpAnalysisServi
             .Where(len => len > 0)
             .ToList();
 
-        return Result<DeepSerpResult>.Success(new DeepSerpResult
+        var termMatrix = SerpTermMatrixBuilder.Build(organic);
+        var now = DateTimeOffset.UtcNow;
+
+        var result = new DeepSerpResult
         {
             Keyword = value.Keyword,
             Location = value.Location,
@@ -44,8 +65,35 @@ public sealed class SerpAnalysisService(ISerpProvider serp) : ISerpAnalysisServi
             Organic = organic,
             PeopleAlsoAsk = value.PeopleAlsoAsk.Select(p => p.Question).ToList(),
             RelatedSearches = value.RelatedSearches.ToList(),
-            Intent = InferIntent(request.Keyword, value, snippetLengths),
-        });
+            Intent = InferIntent(keyword, value, snippetLengths),
+            TermMatrix = termMatrix,
+            CachedAt = now.ToString("O"),
+        };
+
+        await deepCache.UpsertAsync(new SeoSerpDeepCache
+        {
+            Keyword = keyword,
+            Location = location,
+            ResultCount = DeepResultCount,
+            ResultsJson = JsonSerializer.Serialize(result, JsonOptions),
+            TermMatrixJson = JsonSerializer.Serialize(termMatrix, JsonOptions),
+            FetchedAt = now,
+            ExpiresAt = now.Add(CacheTtl),
+        }, ct);
+
+        return Result<DeepSerpResult>.Success(result);
+    }
+
+    private static DeepSerpResult? DeserializeCache(SeoSerpDeepCache row)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<DeepSerpResult>(row.ResultsJson, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static SerpIntentSummary InferIntent(string keyword, SerpResult serp, IReadOnlyList<int> snippetLengths)

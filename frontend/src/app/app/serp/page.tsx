@@ -182,6 +182,57 @@ function DeepSerpPageInner() {
               </div>
             </section>
           ) : null}
+
+          {result.termMatrix && result.termMatrix.terms.length > 0 ? (
+            <section className="rounded-xl border bg-white p-6 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold">Term matrix heatmap</h2>
+                {result.cachedAt ? (
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    Cached {new Date(result.cachedAt).toLocaleString()}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+                Shared terms across top organic titles and snippets — darker cells mean higher frequency on that URL.
+              </p>
+              <div className="mt-4 overflow-x-auto">
+                <table className="min-w-full border-collapse text-xs">
+                  <thead>
+                    <tr>
+                      <th className="sticky left-0 border bg-[var(--color-surface-muted)] px-2 py-2 text-left">#</th>
+                      {result.termMatrix.terms.map((term) => (
+                        <th key={term} className="border px-2 py-2 text-center font-medium">
+                          {term}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.termMatrix.rows.map((row) => (
+                      <tr key={row.url}>
+                        <td className="sticky left-0 border bg-white px-2 py-2 font-medium">{row.position}</td>
+                        {row.counts.map((count, index) => {
+                          const intensity = count === 0 ? 0 : Math.min(1, count / 3);
+                          const bg = count === 0 ? 'transparent' : `rgba(37, 99, 235, ${0.15 + intensity * 0.65})`;
+                          return (
+                            <td
+                              key={`${row.url}-${index}`}
+                              className="border px-2 py-2 text-center tabular-nums"
+                              style={{ backgroundColor: bg }}
+                              title={`${result.termMatrix?.terms[index]}: ${count}`}
+                            >
+                              {count > 0 ? count : '·'}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
         </div>
       ) : null}
     </main>

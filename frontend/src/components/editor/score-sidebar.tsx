@@ -3,6 +3,14 @@
 import Link from 'next/link';
 import type { ScoreUpdate } from '@/hooks/useContentScoring';
 
+const GEO_COMPONENT_META: Record<string, { label: string; max: number }> = {
+  authority: { label: 'Authority signals', max: 20 },
+  readability: { label: 'AI readability', max: 20 },
+  structure: { label: 'Answer structure', max: 20 },
+  citations: { label: 'Citations', max: 20 },
+  depth: { label: 'Topic depth', max: 20 },
+};
+
 const COMPONENT_META: Record<string, { label: string; max: number }> = {
   termCoverage: { label: 'Term coverage', max: 35 },
   wordCount: { label: 'Word count', max: 20 },
@@ -186,6 +194,58 @@ export function ScoreSidebar({
               </ul>
             </div>
           )}
+
+          {scoreUpdate.geoScore != null && scoreUpdate.geoComponents ? (
+            <div className="rounded-xl border border-purple-100 bg-purple-50/40 p-4">
+              <div className="flex items-center gap-4">
+                <div className="relative h-16 w-16 shrink-0">
+                  <svg className="h-16 w-16 -rotate-90" viewBox="0 0 100 100" aria-hidden>
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="8" className="text-purple-100" />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="45"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray="283"
+                      strokeDashoffset={283 - (283 * scoreUpdate.geoScore) / 100}
+                      className="text-purple-600 transition-[stroke-dashoffset] duration-300 ease-out"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-lg font-bold tabular-nums text-purple-900">{scoreUpdate.geoScore}</span>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-purple-950">GEO score</h3>
+                  <span className="mt-1 inline-block rounded-lg bg-purple-600 px-2 py-0.5 text-sm font-semibold text-white">
+                    {scoreUpdate.geoGrade ?? '—'}
+                  </span>
+                </div>
+              </div>
+              <ul className="mt-4 space-y-2 text-sm">
+                {Object.entries(scoreUpdate.geoComponents).map(([key, value]) => {
+                  const meta = GEO_COMPONENT_META[key] ?? { label: key, max: 20 };
+                  const pct = Math.min(100, Math.round((value / meta.max) * 100));
+                  return (
+                    <li key={key}>
+                      <div className="mb-1 flex justify-between text-xs">
+                        <span className="font-medium text-purple-950">{meta.label}</span>
+                        <span className="tabular-nums text-purple-800">
+                          {value}/{meta.max}
+                        </span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-purple-100">
+                        <div className="h-full rounded-full bg-purple-600 transition-all duration-300" style={{ width: `${pct}%` }} />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : null}
         </div>
       ) : (
         !loading && (

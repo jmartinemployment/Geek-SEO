@@ -38,6 +38,11 @@ public static class SeoBackendExtensions
         services.AddScoped<ISiteAuditRepository, HttpSiteAuditRepository>();
         services.AddScoped<IPlagiarismRepository, HttpPlagiarismRepository>();
         services.AddScoped<IGoogleIntegrationRepository, HttpGoogleIntegrationRepository>();
+        services.AddScoped<ITopicalMapRepository, HttpTopicalMapRepository>();
+        services.AddScoped<ISerpDeepCacheRepository, HttpSerpDeepCacheRepository>();
+        services.AddScoped<IPublishedPageRepository, HttpPublishedPageRepository>();
+        services.AddScoped<IGeoTrackingRepository, HttpGeoTrackingRepository>();
+        services.AddScoped<IContentGuardRepository, HttpContentGuardRepository>();
 
         services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<IContentDocumentService, ContentDocumentService>();
@@ -94,6 +99,7 @@ public static class SeoBackendExtensions
         services.AddScoped<TopicalMapService>();
         services.AddScoped<PublishedContentAuditService>();
         services.AddScoped<GeoVisibilityService>();
+        services.AddScoped<ContentGuardService>();
 
         services.AddHttpClient("PayPal");
         services.AddSingleton(_ => new PayPalOptions

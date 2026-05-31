@@ -834,6 +834,20 @@ export type DeepSerpResult = {
   peopleAlsoAsk: string[];
   relatedSearches: string[];
   intent: SerpIntentSummary;
+  termMatrix?: SerpTermMatrix;
+  cachedAt?: string;
+};
+
+export type SerpTermMatrix = {
+  terms: string[];
+  rows: SerpTermMatrixRow[];
+};
+
+export type SerpTermMatrixRow = {
+  position: number;
+  url: string;
+  title?: string;
+  counts: number[];
 };
 
 export async function analyzeDeepSerp(
@@ -954,8 +968,21 @@ export async function generateTopicalMap(
   return seoJson<TopicalMapResult>(res);
 }
 
+export async function getTopicalMap(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<TopicalMapResult | null> {
+  const res = await fetch(`${API_URL}/api/seo/topical-map/${projectId}`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (res.status === 404) return null;
+  return seoJson<TopicalMapResult>(res);
+}
+
 export type PublishedPageMetrics = {
   url: string;
+  publishedPageId?: string;
   recentClicks: number;
   baselineClicks: number;
   recentImpressions: number;
@@ -966,6 +993,14 @@ export type PublishedPageMetrics = {
   positionChange: number;
   status: 'stable' | 'decaying' | 'critical';
   recommendation: string;
+  sparkline?: PerformanceSnapshotPoint[];
+};
+
+export type PerformanceSnapshotPoint = {
+  date: string;
+  clicks: number;
+  impressions: number;
+  position?: number;
 };
 
 export type PublishedContentAuditReport = {
@@ -1029,4 +1064,145 @@ export async function probeGeoVisibility(
     body: JSON.stringify(body),
   });
   return seoJson<GeoProbeResult>(res);
+}
+
+export type GeoTrackingQuery = {
+  id: string;
+  projectId: string;
+  queryText: string;
+  platforms: string[];
+  enabled: boolean;
+};
+
+export type GeoTrendPoint = {
+  date: string;
+  platform: string;
+  mentioned: boolean;
+};
+
+export type GeoTrendsResponse = {
+  queryId: string;
+  queryText: string;
+  points: GeoTrendPoint[];
+  mentionRate30d: number;
+};
+
+export async function listGeoQueries(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<GeoTrackingQuery[]> {
+  const res = await fetch(`${API_URL}/api/seo/geo/queries?projectId=${projectId}`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson<GeoTrackingQuery[]>(res);
+}
+
+export async function createGeoQuery(
+  body: { projectId: string; queryText: string; platforms?: string[] },
+  accessToken?: string | null,
+): Promise<GeoTrackingQuery> {
+  const res = await fetch(`${API_URL}/api/seo/geo/queries`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+  });
+  return seoJson<GeoTrackingQuery>(res);
+}
+
+export async function deleteGeoQuery(queryId: string, accessToken?: string | null): Promise<void> {
+  const res = await fetch(`${API_URL}/api/seo/geo/queries/${queryId}`, {
+    method: 'DELETE',
+    headers: apiHeaders(accessToken),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+}
+
+export async function getGeoTrends(
+  queryId: string,
+  accessToken?: string | null,
+): Promise<GeoTrendsResponse> {
+  const res = await fetch(`${API_URL}/api/seo/geo/queries/${queryId}/trends`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson<GeoTrendsResponse>(res);
+}
+
+export type ContentGuardPolicy = {
+  projectId: string;
+  enabled: boolean;
+  autoPatch: boolean;
+};
+
+export type ContentGuardRun = {
+  id: string;
+  projectId: string;
+  documentId?: string;
+  url: string;
+  status: string;
+  recommendation?: string;
+  wordPressDraftPostId?: number;
+  detectedAt: string;
+  completedAt?: string;
+};
+
+export async function getContentGuardPolicy(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<ContentGuardPolicy | null> {
+  const res = await fetch(`${API_URL}/api/seo/content-guard/${projectId}/policy`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (res.status === 404) return null;
+  return seoJson<ContentGuardPolicy>(res);
+}
+
+export async function upsertContentGuardPolicy(
+  projectId: string,
+  body: { enabled: boolean; autoPatch: boolean },
+  accessToken?: string | null,
+): Promise<ContentGuardPolicy> {
+  const res = await fetch(`${API_URL}/api/seo/content-guard/${projectId}/policy`, {
+    method: 'PUT',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+  });
+  return seoJson<ContentGuardPolicy>(res);
+}
+
+export async function listContentGuardRuns(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<ContentGuardRun[]> {
+  const res = await fetch(`${API_URL}/api/seo/content-guard/${projectId}/runs`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson<ContentGuardRun[]>(res);
+}
+
+export async function scanContentGuard(projectId: string, accessToken?: string | null): Promise<void> {
+  const res = await fetch(`${API_URL}/api/seo/content-guard/${projectId}/scan`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+}
+
+export async function approveContentGuardRun(runId: string, accessToken?: string | null): Promise<ContentGuardRun> {
+  const res = await fetch(`${API_URL}/api/seo/content-guard/runs/${runId}/approve`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+  });
+  return seoJson<ContentGuardRun>(res);
+}
+
+export async function rollbackContentGuardRun(runId: string, accessToken?: string | null): Promise<ContentGuardRun> {
+  const res = await fetch(`${API_URL}/api/seo/content-guard/runs/${runId}/rollback`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+  });
+  return seoJson<ContentGuardRun>(res);
 }

@@ -158,3 +158,31 @@ public sealed class SeoSerpDeepCache
     public DateTimeOffset FetchedAt { get; set; }
     public DateTimeOffset ExpiresAt { get; set; }
 }
+
+public sealed class SeoContentGuardPolicy
+{
+    public Guid Id { get; set; }
+    public Guid ProjectId { get; set; }
+    public Guid UserId { get; set; }
+    public bool Enabled { get; set; } = true;
+    public bool AutoPatch { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
+public sealed class SeoContentGuardRun
+{
+    public Guid Id { get; set; }
+    public Guid ProjectId { get; set; }
+    public Guid UserId { get; set; }
+    public Guid? DocumentId { get; set; }
+    public Guid? PublishedPageId { get; set; }
+    public required string Url { get; set; }
+    public required string Status { get; set; }
+    public string? PrePatchHtml { get; set; }
+    public string? PatchedHtml { get; set; }
+    public int? WordPressDraftPostId { get; set; }
+    public string? Recommendation { get; set; }
+    public DateTimeOffset DetectedAt { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
+}

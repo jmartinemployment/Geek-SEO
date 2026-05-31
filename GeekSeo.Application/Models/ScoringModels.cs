@@ -14,6 +14,9 @@ public sealed record ScoreUpdateMessage
     public required IReadOnlyList<ScoreSuggestion> Suggestions { get; init; }
     public IReadOnlyList<SerpFeatureGuidance> SerpFeatures { get; init; } = [];
     public IReadOnlyList<EeatAdvisory> EeatAdvisories { get; init; } = [];
+    public int? GeoScore { get; init; }
+    public string? GeoGrade { get; init; }
+    public object? GeoComponents { get; init; }
     public string BenchmarkQuality { get; init; } = "good";
     public required DateTimeOffset Timestamp { get; init; }
 }

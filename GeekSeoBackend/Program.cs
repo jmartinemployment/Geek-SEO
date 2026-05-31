@@ -40,6 +40,7 @@ if (!disablePlaywright)
 builder.Services.AddGeekSeoBackend(builder.Configuration, playwrightHolder);
 builder.Services.AddHostedService<FullArticleJobWorker>();
 builder.Services.AddHostedService<BulkArticleJobWorker>();
+builder.Services.AddHostedService<SeoMaintenanceWorker>();
 
 var corsOrigins = CorsOriginParser.GetAllowedOrigins();
 builder.Services.AddCors(options =>
