@@ -62,21 +62,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           errorPreview.includes('invalid_token') ||
           errorPreview.includes('expired_token') ||
           errorPreview.includes('sessionExpired');
-        // #region agent log
-        fetch('http://127.0.0.1:7734/ingest/0871e8fa-3f7a-47da-bc93-ba8ad5f03982', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c1ee28' },
-          body: JSON.stringify({
-            sessionId: 'c1ee28',
-            runId: 'auth-provider',
-            hypothesisId: 'H-C',
-            location: 'auth-provider.tsx:refreshAccessToken',
-            message: 'refresh token request failed',
-            data: { status: res.status, sessionExpired, errorPreview: errorPreview.slice(0, 120) },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
         if (sessionExpired) {
           await fetch('/api/auth/logout', { method: 'POST' });
           setToken(null);

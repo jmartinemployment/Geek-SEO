@@ -30,22 +30,6 @@ function CallbackInner() {
       }
 
       try {
-        // #region agent log
-        fetch('http://127.0.0.1:7734/ingest/0871e8fa-3f7a-47da-bc93-ba8ad5f03982', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c1ee28' },
-          body: JSON.stringify({
-            sessionId: 'c1ee28',
-            runId: 'callback',
-            hypothesisId: 'H-F',
-            location: 'auth/callback/page.tsx:exchange',
-            message: 'authorization_code exchange started',
-            data: { hasCode: Boolean(code) },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
-
         const res = await fetch('/api/auth/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
