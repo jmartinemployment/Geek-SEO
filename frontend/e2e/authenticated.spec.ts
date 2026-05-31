@@ -123,4 +123,20 @@ test.describe('authenticated app', () => {
       timeout: 15_000,
     });
   });
+
+  test('pricing page shows sandbox PayPal subscribe targets', async ({ page }) => {
+    test.skip(devMode, 'PayPal checkout UI test runs against production (sandbox) only.');
+
+    const apiFailures = trackSeoApiFailures(page);
+    await page.goto('/pricing', { waitUntil: 'domcontentloaded' });
+
+    await expect(page.getByText(/paypal is in.*sandbox mode/i)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/checkout coming soon/i)).toHaveCount(0);
+
+    for (const tier of ['starter', 'professional', 'team', 'agency']) {
+      await expect(page.locator(`#paypal-${tier}`)).toBeVisible({ timeout: 20_000 });
+    }
+
+    expect(apiFailures.filter((f) => f.includes('/subscription/plans'))).toEqual([]);
+  });
 });

@@ -100,6 +100,8 @@ curl -sS https://seo-api.geekatyourspot.com/api/seo/subscription/plans | python3
 
 Expect: `checkout.available: true`, `checkout.deferred: false`, four entries in `checkout.planIds`.
 
+**CI:** `npm run test:e2e:smoke` and `npm run test:integration:google` assert this on production. With GitHub secrets, `npm run test:e2e:auth` also checks `/pricing` sandbox PayPal button containers.
+
 ---
 
 ## Going live later (real money)

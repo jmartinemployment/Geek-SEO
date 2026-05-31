@@ -65,4 +65,33 @@ test.describe('production smoke', () => {
     expect(body.service).toBe('GeekSeoBackend');
     expect(body.gateway).toBe('ok');
   });
+
+  test('pricing page shows plan catalog', async ({ page }) => {
+    await page.goto('/pricing');
+    await expect(page.getByRole('heading', { name: /geek seo pricing/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Starter' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Professional' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Team' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Agency' })).toBeVisible();
+  });
+
+  test('subscription plans API exposes sandbox checkout', async ({ request }) => {
+    const response = await request.get(`${apiBaseUrl}/api/seo/subscription/plans`);
+    expect(response.ok()).toBeTruthy();
+
+    const body = (await response.json()) as {
+      tiers?: unknown[];
+      checkout?: {
+        available?: boolean;
+        deferred?: boolean;
+        environment?: string;
+        planIds?: Record<string, string>;
+      };
+    };
+    expect(body.tiers?.length).toBeGreaterThanOrEqual(4);
+    expect(body.checkout?.available).toBe(true);
+    expect(body.checkout?.deferred).toBe(false);
+    expect(body.checkout?.environment).toBe('sandbox');
+    expect(Object.keys(body.checkout?.planIds ?? {}).length).toBeGreaterThanOrEqual(4);
+  });
 });

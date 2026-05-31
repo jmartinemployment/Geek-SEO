@@ -7,7 +7,7 @@ Smoke tests against deployed Geek SEO (default: production). No mock data.
 ```bash
 cd frontend
 npm run test:e2e          # all specs
-npm run test:e2e:smoke    # public smoke only (no credentials)
+npm run test:e2e:smoke    # public smoke only (pricing catalog + sandbox checkout API)
 npm run test:integration:google  # Google connect-url API (production backend)
 npm run test:e2e:google   # Google UI + OAuth redirect (local Next + prod API)
 ```
