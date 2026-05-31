@@ -35,6 +35,8 @@ public static class SeoBackendExtensions
         services.AddScoped<IWordPressConnectionRepository, HttpWordPressConnectionRepository>();
         services.AddScoped<IWordPressPublishRepository, HttpWordPressPublishRepository>();
         services.AddScoped<IBrandVoiceRepository, HttpBrandVoiceRepository>();
+        services.AddScoped<ISiteAuditRepository, HttpSiteAuditRepository>();
+        services.AddScoped<IPlagiarismRepository, HttpPlagiarismRepository>();
         services.AddScoped<IGoogleIntegrationRepository, HttpGoogleIntegrationRepository>();
 
         services.AddScoped<IProjectService, ProjectService>();
@@ -73,6 +75,8 @@ public static class SeoBackendExtensions
         services.AddScoped<IBrandVoiceService, BrandVoiceService>();
         services.AddScoped<ISerpAnalysisService, SerpAnalysisService>();
         services.AddScoped<IInternalLinkService, InternalLinkService>();
+        services.AddScoped<ISiteAuditService, SiteAuditService>();
+        services.AddScoped<IPlagiarismService, PlagiarismService>();
         services.AddMemoryCache();
         services.AddHttpClient("GoogleOAuth");
         services.AddHttpClient("GoogleApis");
@@ -95,6 +99,15 @@ public static class SeoBackendExtensions
             UseSandbox = !string.Equals(ReadEnv("PAYPAL_ENVIRONMENT"), "live", StringComparison.OrdinalIgnoreCase),
         });
         services.AddScoped<IPayPalBillingService, PayPalBillingService>();
+
+        services.AddHttpClient("Copyscape", client => client.Timeout = TimeSpan.FromSeconds(90));
+        services.AddSingleton(_ => new CopyscapeOptions
+        {
+            Username = ReadEnv("COPYSCAPE_USERNAME"),
+            ApiKey = ReadEnv("COPYSCAPE_API_KEY"),
+            SpendLimitUsd = decimal.TryParse(ReadEnv("COPYSCAPE_SPEND_LIMIT_USD"), out var limit) ? limit : 0.50m,
+        });
+        services.AddScoped<IPlagiarismProvider, CopyscapePlagiarismProvider>();
 
         services.AddHttpClient("PublicScanPage", client =>
         {

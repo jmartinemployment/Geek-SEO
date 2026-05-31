@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { CompetitorPanel } from '@/components/editor/competitor-panel';
+import { PlagiarismPanel } from '@/components/editor/plagiarism-panel';
 import { ContentEditor } from '@/components/editor/content-editor';
 import { ScoreSidebar } from '@/components/editor/score-sidebar';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
@@ -213,6 +214,7 @@ export default function ContentEditorPage() {
         </div>
         <div className="bg-[var(--color-bg)] px-6 pb-6 lg:w-96">
           <CompetitorPanel documentId={documentId} accessToken={accessToken} />
+          <PlagiarismPanel documentId={documentId} accessToken={accessToken} />
         </div>
       </div>
     </div>

@@ -676,3 +676,125 @@ export async function getGa4LandingPages(
   );
   return seoJson<Ga4LandingPagesResponse>(res);
 }
+
+export type SiteAuditIssue = {
+  code: string;
+  severity: string;
+  message: string;
+  field?: string;
+};
+
+export type SiteAuditSummary = {
+  id: string;
+  projectId: string;
+  status: string;
+  pagesCrawled: number;
+  overallScore: number | null;
+  errorMessage: string | null;
+  startedAt: string;
+  completedAt: string | null;
+};
+
+export type SiteAuditPage = {
+  id: string;
+  url: string;
+  score: number;
+  issues: SiteAuditIssue[];
+  crawledAt: string;
+};
+
+export type SiteAuditDetail = SiteAuditSummary & {
+  pages: SiteAuditPage[];
+};
+
+export async function listSiteAudits(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<SiteAuditSummary[]> {
+  const res = await fetch(`${API_URL}/api/seo/audit/site?projectId=${projectId}`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson<SiteAuditSummary[]>(res);
+}
+
+export async function getSiteAudit(
+  auditId: string,
+  accessToken?: string | null,
+): Promise<SiteAuditDetail> {
+  const res = await fetch(`${API_URL}/api/seo/audit/site/${auditId}`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson<SiteAuditDetail>(res);
+}
+
+export async function startSiteAudit(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<SiteAuditSummary> {
+  const res = await fetch(`${API_URL}/api/seo/audit/site`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify({ projectId }),
+  });
+  return seoJson<SiteAuditSummary>(res);
+}
+
+export type PlagiarismMatch = {
+  url: string;
+  title?: string;
+  matchPercent: number;
+  wordsMatched: number;
+  viewUrl?: string;
+};
+
+export type PlagiarismCheckResult = {
+  id: string;
+  documentId: string;
+  matchPercent: number;
+  publishBlocked: boolean;
+  cached: boolean;
+  checkedAt: string;
+  matches: PlagiarismMatch[];
+};
+
+export type PlagiarismStatus = {
+  configured: boolean;
+  provider: string;
+};
+
+export async function getPlagiarismStatus(
+  accessToken?: string | null,
+): Promise<PlagiarismStatus> {
+  const res = await fetch(`${API_URL}/api/seo/plagiarism/status`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson<PlagiarismStatus>(res);
+}
+
+export async function getLatestPlagiarismCheck(
+  documentId: string,
+  accessToken?: string | null,
+): Promise<PlagiarismCheckResult | null> {
+  const res = await fetch(`${API_URL}/api/seo/plagiarism/check/${documentId}`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (res.status === 204) return null;
+  return seoJson<PlagiarismCheckResult>(res);
+}
+
+export async function checkPlagiarism(
+  documentId: string,
+  accessToken?: string | null,
+  forceRefresh = false,
+): Promise<PlagiarismCheckResult> {
+  const res = await fetch(`${API_URL}/api/seo/plagiarism/check`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify({ documentId, forceRefresh }),
+  });
+  return seoJson<PlagiarismCheckResult>(res);
+}
