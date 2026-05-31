@@ -1,6 +1,6 @@
 # Geek SEO — project status
 
-Last updated: May 31, 2026 (session — plan gaps #12–#23 implementation)
+Last updated: May 31, 2026 (session — worker env + identity documentation)
 
 ## Latest on `main`
 
@@ -8,7 +8,7 @@ Last updated: May 31, 2026 (session — plan gaps #12–#23 implementation)
 |------|--------|
 | **HEAD** | `91dec03` — prior Vercel Suspense fix; **local uncommitted** — topical map persist, SERP term matrix cache, published audit snapshots, Content Guard pipeline, GEO tracking, dual GEO scoring, maintenance worker |
 | **New backend APIs** | `GET /api/seo/topical-map/{id}`, `GET/PUT/POST /api/seo/content-guard/*`, `GET/POST/DELETE /api/seo/geo/queries`, `GET /api/seo/geo/queries/{id}/trends` |
-| **Workers** | `SeoMaintenanceWorker` — hourly topical refresh, published snapshots, daily GEO probes + Content Guard scan (requires `WORKER_SERVICE_USER_ID`) |
+| **Workers** | `SeoMaintenanceWorker` — hourly topical refresh, published snapshots, daily GEO probes + Content Guard scan | ✅ `WORKER_SERVICE_USER_ID` set on Railway (see **Identity & worker service account**). **TODO later:** migrate to `@geekatyourspot.com` service account. |
 | **GeekRepository** | New `repo/seo/*` controllers + `AddContentGuardTables` EF migration |
 | **CI** | `.github/workflows/unit-tests.yml` — Vitest (13) + xUnit (**8**) on push/PR |
 | **Unit tests (local)** | ✅ May 31, 2026 — `npm run test` (13) + `dotnet test GeekSEO.slnx` (**8**) + `npm run build` |
@@ -40,6 +40,34 @@ Details: [`plan-documents/PLATFORM-DECOUPLING.md`](plan-documents/PLATFORM-DECOU
 Platform login for Geek SEO (**OAuth 2.1 + PKCE** via **geek-OAuth**) is **complete** for production: issuer, `geekseo` client, redirect URIs, and JWT validation on GeekSeoBackend (`GEEK_OAUTH_AUTHORITY`). **Google** OAuth for GSC / GA4 is separate — backend + frontend connect flow is wired; automated checks in `npm run test:integration:google` (CI: `e2e-google-integration.yml`).
 
 **Auth refactor (May 31):** Testable modules — `cookies`, `session-policy`, `token-exchange`, `authorize-url`, `api-headers`. Routes: `/api/auth/start`, `/api/auth/token`, `/api/auth/logout`. Middleware uses `geekseo_refresh` cookie + dev bypass (`NEXT_PUBLIC_DEV_USER_ID`). Unit tests: `npm run test` (Vitest), `dotnet test GeekSEO.slnx` (`GeekSeoBackend.Tests`).
+
+## Identity & worker service account
+
+GeekOAuth stores users in **Railway Postgres** (`DATABASE_URL` on the GeekOAuth service), table **`asp_net_users`** — **not** Supabase `auth.users` and not the shared OrderStack Supabase project.
+
+**Production today (single user):**
+
+| Field | Value |
+|-------|--------|
+| `id` (JWT `sub`, use for `WORKER_SERVICE_USER_ID`) | `92b274f5-2fcb-4935-ba2d-cd8c03e1b21b` |
+| `email` / `user_name` | `jmartinemployment@gmail.com` |
+
+Lookup on GeekOAuth DB:
+
+```sql
+SELECT id, email, user_name, display_name FROM asp_net_users;
+```
+
+All `geek_seo.seo_projects."UserId"` rows currently reference this id.
+
+**TODO (later):** Create a dedicated **`@geekatyourspot.com`** GeekOAuth account for production operations (background workers, full-access bypass, future team seats). Then:
+
+1. Register the new user in GeekOAuth (`asp_net_users`).
+2. Re-assign or re-create SEO projects under the new `UserId` (or add a migration path).
+3. Update Railway GeekSeoBackend: `WORKER_SERVICE_USER_ID`, and `SUBSCRIPTION_FULL_ACCESS_EMAILS` if used.
+4. Re-test `SeoMaintenanceWorker` and subscription bypass after cutover.
+
+Schema reference: `GeekOAuth/src/GeekOAuth.Server/Data/identity_tables.sql`.
 
 ## Architecture (target state — implemented)
 
@@ -119,8 +147,8 @@ Honest status against `plan-documents/geekseo-plan.md`. **~27/31 shipped end-to-
 | Multi-LLM GEO probes (ChatGPT, Gemini, Perplexity) | Platform status shown; only **Google AIO/organic** probe implemented (DataForSEO) |
 | Chrome extension, WP plugin, Google Docs, Public API (#28–31) | Separate repos / not started |
 | PayPal production go-live | Sandbox wired — see [`docs/PAYPAL-BILLING.md`](docs/PAYPAL-BILLING.md) |
-| Production DB migration | Run `AddContentGuardTables` on GeekRepository Postgres before Content Guard persist works |
-| Scheduled workers in production | Set `WORKER_SERVICE_USER_ID` on GeekSeoBackend Railway service |
+| Production DB migration | ✅ `AddContentGuardTables` applied on GeekRepository Postgres (May 31, 2026) |
+| Scheduled workers in production | ✅ `WORKER_SERVICE_USER_ID=92b274f5-2fcb-4935-ba2d-cd8c03e1b21b` on Railway GeekSeoBackend. **TODO later:** `@geekatyourspot.com` service account |
 | E2E Playwright | Smoke + Google + SEO API integration CI; auth local `test:e2e:auth:local` |
 
 ## Testing
@@ -149,8 +177,7 @@ Platform decoupling: `plan-documents/PLATFORM-DECOUPLING.md` — **complete** (M
 
 ## Next (highest impact)
 
-1. **Commit + deploy** Geek-SEO + GeekBackend (`AddContentGuardTables` migration on Railway Postgres).
-2. Set **`WORKER_SERVICE_USER_ID`** on production GeekSeoBackend for scheduled maintenance.
-3. Smoke-test Content Guard end-to-end (decay scan → WP draft → approve) on a connected project.
-4. Optional: add ChatGPT/Gemini/Perplexity probe providers when API keys are available (#20 stretch).
-5. Separate products #28–31 if/when scoped (WP plugin, Chrome extension, Docs add-on, Public API).
+1. **TODO (later):** Migrate production identity from personal Gmail to a dedicated **`@geekatyourspot.com`** GeekOAuth account; update `WORKER_SERVICE_USER_ID` and project ownership (see **Identity & worker service account** above).
+2. Smoke-test Content Guard end-to-end (decay scan → WP draft → approve) on a connected project.
+3. Optional: add ChatGPT/Gemini/Perplexity probe providers when API keys are available (#20 stretch).
+4. Separate products #28–31 if/when scoped (WP plugin, Chrome extension, Docs add-on, Public API).

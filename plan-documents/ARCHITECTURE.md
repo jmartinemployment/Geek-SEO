@@ -40,6 +40,8 @@ Browser → **GeekSeoBackend** (`NEXT_PUBLIC_SEO_API_URL`). Never GeekRepository
 
 GeekSeoBackend **does not** issue tokens, host login UI, or store platform `users` rows.
 
+**User records:** GeekOAuth Postgres table **`asp_net_users`** (`GeekOAuth/src/GeekOAuth.Server/Data/identity_tables.sql`). JWT `sub` = `id`. Background jobs use `WORKER_SERVICE_USER_ID` on GeekSeoBackend (same id). **Not** Supabase `auth.users`. Production today: single user (`jmartinemployment@gmail.com`). **TODO later:** dedicated `@geekatyourspot.com` service account — see `PROJECT_STATUS.md` → *Identity & worker service account*.
+
 Legacy platform auth **APIs** (`GeekAPI /api/auth/*`, `SyncHub`, `repo/auth/*`) were **removed** (M4–M6, May 2026). Auth **database tables** may remain until optional phase **O2** after **M0** consumer audit.
 
 ---

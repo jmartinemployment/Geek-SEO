@@ -16,6 +16,7 @@
     "test:integration:google": "node scripts/test-google-integration.mjs",
     "test:integration:plagiarism": "node scripts/test-plagiarism-integration.mjs",
     "test:integration:site-audit": "node scripts/test-site-audit-integration.mjs",
+    "test:integration:content-guard": "node scripts/test-content-guard-integration.mjs",
     "test:e2e:google": "bash scripts/run-e2e-google-integration.sh",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed"

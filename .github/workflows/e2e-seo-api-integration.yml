@@ -45,3 +45,9 @@ jobs:
         env:
           PLAYWRIGHT_API_URL: https://geekseobackend-production.up.railway.app
           NEXT_PUBLIC_DEV_USER_ID: 00000000-0000-0000-0000-000000000001
+
+      - name: Content Guard API integration (production, tier gate + 401)
+        run: npm run test:integration:content-guard
+        env:
+          PLAYWRIGHT_API_URL: https://seo-api.geekatyourspot.com
+          NEXT_PUBLIC_DEV_USER_ID: 00000000-0000-0000-0000-000000000001
