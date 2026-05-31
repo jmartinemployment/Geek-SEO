@@ -56,7 +56,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 | Google Analytics 4 | **Backend + frontend wired** — same connect flow; data on `/app/analytics` |
 | PayPal billing + webhooks | **Sandbox live** — see [`docs/PAYPAL-BILLING.md`](docs/PAYPAL-BILLING.md) (sandbox test steps + **Going live later** checklist). Operator: `SUBSCRIPTION_FULL_ACCESS_EMAILS=jmartinemployment@gmail.com` |
 | Site-wide technical audit crawl | **Not built** |
-| Copyscape / plagiarism | **Built (optional)** — Copyscape API when `COPYSCAPE_*` env set; editor panel + 24h cache; publish warning &gt; 15% only when configured |
+| Copyscape / plagiarism | **Built (optional)** — Copyscape API when `COPYSCAPE_*` env set; editor panel + 24h cache; publish warning &gt; 15% when configured. **Production:** credentials deployed; add Copyscape account credit to run checks |
 | Chrome extension, WP plugin, Google Docs | **Not built** |
 | Public API keys for agencies | **Not built** |
 | E2E Playwright | **Smoke:** `test:e2e:smoke` + CI. **Google:** `test:integration:google` + `test:e2e:google` + CI. **Auth local:** `test:e2e:auth:local`. **Auth prod:** `test:e2e:auth` when `PLAYWRIGHT_TEST_*` secrets set |

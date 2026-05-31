@@ -73,7 +73,7 @@ Or: `bash scripts/paypal-setup-sandbox.sh` (same commands).
 
 GeekSeoBackend env: `PAYPAL_*`, `SUBSCRIPTION_FULL_ACCESS_EMAILS` (your login = full access without subscribing).
 
-**Plagiarism (Copyscape):** `COPYSCAPE_USERNAME`, `COPYSCAPE_API_KEY` on GeekSeoBackend. Optional `COPYSCAPE_SPEND_LIMIT_USD` (default `0.50` per check). Editor sidebar → **Plagiarism** panel; `POST /api/seo/plagiarism/check`.
+**Plagiarism (Copyscape):** `COPYSCAPE_USERNAME`, `COPYSCAPE_API_KEY` on GeekSeoBackend. Optional `COPYSCAPE_SPEND_LIMIT_USD` (default `0.50` per check). Editor sidebar → **Plagiarism** panel; `GET /api/seo/plagiarism/status`, `POST /api/seo/plagiarism/check`. Verify: `cd frontend && npm run test:integration:plagiarism`. Live Copyscape call (costs money): `COPYSCAPE_LIVE_CHECK=1 npm run test:integration:plagiarism`.
 
 ## GeekBackend (sibling repo — E2E + transitional build)
 
