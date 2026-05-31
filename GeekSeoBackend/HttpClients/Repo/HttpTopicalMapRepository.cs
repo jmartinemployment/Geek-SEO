@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Results;
 using GeekSeo.Persistence.Entities;
@@ -17,12 +18,24 @@ public sealed class HttpTopicalMapRepository(IHttpClientFactory factory, ICurren
         var response = await _http.GetAsync(
             $"api/seo/internal/topical-maps/{projectId}?userId={user.UserId}",
             ct);
-        if (response.StatusCode == HttpStatusCode.NotFound)
+        if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.NoContent)
             return Result<SeoTopicalMap?>.Success(null);
         if (!response.IsSuccessStatusCode)
             return Result<SeoTopicalMap?>.Failure(await response.Content.ReadAsStringAsync(ct));
-        var value = await response.Content.ReadFromJsonAsync<SeoTopicalMap>(ct);
-        return Result<SeoTopicalMap?>.Success(value);
+
+        var raw = await response.Content.ReadAsStringAsync(ct);
+        if (string.IsNullOrWhiteSpace(raw))
+            return Result<SeoTopicalMap?>.Success(null);
+
+        try
+        {
+            var value = JsonSerializer.Deserialize<SeoTopicalMap>(raw);
+            return Result<SeoTopicalMap?>.Success(value);
+        }
+        catch (JsonException ex)
+        {
+            return Result<SeoTopicalMap?>.Failure($"Invalid topical map response: {ex.Message}");
+        }
     }
 
     public async Task<Result<SeoTopicalMap>> UpsertAsync(SeoTopicalMap map, CancellationToken ct = default)
