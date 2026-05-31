@@ -77,6 +77,18 @@ GeekSeoBackend env: `PAYPAL_*`, `SUBSCRIPTION_FULL_ACCESS_EMAILS` (your login = 
 
 **Site audit:** `/app/audit` (Professional tier). Requires Playwright on GeekSeoBackend (not `DISABLE_PLAYWRIGHT=true`). Verify: `npm run test:integration:site-audit`. Live crawl: `SITE_AUDIT_LIVE=1 npm run test:integration:site-audit` (requires Professional+ tier for `INTEGRATION_USER_ID` — add dev user to `SUBSCRIPTION_FULL_ACCESS_USER_IDS` on Railway or use operator email in `SUBSCRIPTION_FULL_ACCESS_EMAILS`).
 
+## E2E (frontend)
+
+```bash
+cd frontend
+npm run test:e2e:smoke
+npm run test:integration:plagiarism
+npm run test:integration:site-audit
+npm run test:e2e:auth:local   # needs GeekSeoBackend :5051 + GEEK_API_URL + GEEK_BACKEND_API_KEY for content/plagiarism test
+```
+
+Without a working data gateway locally, `test:e2e:auth:local` still passes but **skips** the content-editor plagiarism panel test (gateway probe returns 400). Production integration scripts hit Railway directly and do not need local GeekAPI.
+
 ## GeekBackend (sibling repo — E2E + transitional build)
 
 **Runtime E2E:** GeekAPI + GeekRepository must run for persistence (GeekSeoBackend has no `DATABASE_URL`).
