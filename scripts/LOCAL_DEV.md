@@ -73,7 +73,7 @@ Or: `bash scripts/paypal-setup-sandbox.sh` (same commands).
 
 GeekSeoBackend env: `PAYPAL_*`, `SUBSCRIPTION_FULL_ACCESS_EMAILS` (your login = full access without subscribing).
 
-**Plagiarism (Copyscape):** `COPYSCAPE_USERNAME`, `COPYSCAPE_API_KEY` on GeekSeoBackend. Optional `COPYSCAPE_SPEND_LIMIT_USD` (default `0.50` per check). Editor sidebar → **Plagiarism** panel; `GET /api/seo/plagiarism/status`, `POST /api/seo/plagiarism/check`. Verify: `cd frontend && npm run test:integration:plagiarism`. Live Copyscape call (costs money + needs Copyscape account credit): `COPYSCAPE_LIVE_CHECK=1 npm run test:integration:plagiarism`.
+**Plagiarism (Copyscape):** Optional — `COPYSCAPE_USERNAME`, `COPYSCAPE_API_KEY` on GeekSeoBackend. Optional `COPYSCAPE_SPEND_LIMIT_USD` (default `0.50` per check). Without credentials the editor shows “not configured” and publishing is unaffected. Verify: `npm run test:integration:plagiarism`. Optional live API call: `COPYSCAPE_LIVE_CHECK=1 npm run test:integration:plagiarism`.
 
 **Site audit:** `/app/audit` (Professional tier). Requires Playwright on GeekSeoBackend (not `DISABLE_PLAYWRIGHT=true`). Verify: `npm run test:integration:site-audit`. Live crawl: `SITE_AUDIT_LIVE=1 npm run test:integration:site-audit` (operator login or Agency tier).
 

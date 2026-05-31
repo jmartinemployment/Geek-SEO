@@ -124,6 +124,23 @@ test.describe('authenticated app', () => {
     });
   });
 
+  test('site audit page loads (not redirected to dashboard)', async ({ page }) => {
+    const apiFailures = trackSeoApiFailures(page);
+
+    await page.goto('/app/audit', { waitUntil: 'domcontentloaded' });
+    await expect(page).not.toHaveURL(/\/app\/dashboard/u);
+    await expect(page.getByRole('heading', { name: 'Site audit' })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByRole('button', { name: /run site audit/i })).toBeVisible();
+
+    if (!devMode) {
+      expect(apiFailures.filter((f) => f.includes(' 500'))).toEqual([]);
+    } else {
+      assertSeoApiFailures(apiFailures);
+    }
+  });
+
   test('pricing page shows sandbox PayPal subscribe targets', async ({ page }) => {
     test.skip(devMode, 'PayPal checkout UI test runs against production (sandbox) only.');
 

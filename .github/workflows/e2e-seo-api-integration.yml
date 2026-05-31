@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  plagiarism-api:
+  seo-api:
     runs-on: ubuntu-latest
     defaults:
       run:

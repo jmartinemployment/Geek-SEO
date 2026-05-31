@@ -1,6 +1,6 @@
 # Geek SEO — project status
 
-Last updated: May 30, 2026
+Last updated: May 31, 2026
 
 ## Platform decoupling (M2–M7 + M4–M6)
 
@@ -46,6 +46,8 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 | Deep SERP analysis | ✅ `GET /api/seo/serp/deep` | — | DataForSEO |
 | Google integrations (GSC + GA4) | ✅ OAuth + data endpoints | ✅ connect on project / rankings / analytics | `GOOGLE_*` on GeekSeoBackend; GSC/GA4 data needs user OAuth + Professional tier |
 | Internal link suggestions | ✅ | — | sibling docs in project |
+| Site-wide technical audit | ✅ Playwright crawl | ✅ `/app/audit` | Professional tier; Playwright on GeekSeoBackend |
+| Copyscape / plagiarism (optional) | ✅ when `COPYSCAPE_*` set | ✅ editor panel | Optional provider; app works without it |
 | Usage gates + subscription tier read | ✅ | ✅ pricing + settings | `GET /api/seo/subscription`; operator full access via `SUBSCRIPTION_FULL_ACCESS_EMAILS` |
 
 ## Honest gaps (not stubbed — blocked or not built)
@@ -55,11 +57,9 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 | Google Search Console OAuth | **Backend + frontend wired** — connect on project page or Rankings; needs `GOOGLE_*` env on GeekSeoBackend + GeekAPI internal Google routes |
 | Google Analytics 4 | **Backend + frontend wired** — same connect flow; data on `/app/analytics` |
 | PayPal billing + webhooks | **Sandbox live** — see [`docs/PAYPAL-BILLING.md`](docs/PAYPAL-BILLING.md) (sandbox test steps + **Going live later** checklist). Operator: `SUBSCRIPTION_FULL_ACCESS_EMAILS=jmartinemployment@gmail.com` |
-| Site-wide technical audit crawl | **Built** — Playwright crawl + `/app/audit` UI; Professional tier; `POST /api/seo/audit/site` |
-| Copyscape / plagiarism | **Built (optional)** — Copyscape API when `COPYSCAPE_*` env set; editor panel + 24h cache; publish warning &gt; 15% when configured. **Production:** credentials deployed; add Copyscape account credit to run checks |
 | Chrome extension, WP plugin, Google Docs | **Not built** |
 | Public API keys for agencies | **Not built** |
-| E2E Playwright | **Smoke:** `test:e2e:smoke` + CI. **Google:** `test:integration:google` + `test:e2e:google` + CI. **Auth local:** `test:e2e:auth:local`. **Auth prod:** `test:e2e:auth` when `PLAYWRIGHT_TEST_*` secrets set |
+| E2E Playwright | **Smoke:** `test:e2e:smoke` + CI. **Google:** `test:integration:google` + `test:e2e:google` + CI. **SEO API:** `test:integration:plagiarism`, `test:integration:site-audit` + CI (`e2e-seo-api-integration.yml`). **Auth local:** `test:e2e:auth:local`. **Auth prod:** `test:e2e:auth` when `PLAYWRIGHT_TEST_*` secrets set |
 | Production Railway deploy checklist | docs only |
 
 ## Local run

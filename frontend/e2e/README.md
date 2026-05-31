@@ -9,6 +9,8 @@ cd frontend
 npm run test:e2e          # all specs
 npm run test:e2e:smoke    # public smoke only (pricing catalog + sandbox checkout API)
 npm run test:integration:google  # Google connect-url API (production backend)
+npm run test:integration:plagiarism  # Copyscape status (optional provider)
+npm run test:integration:site-audit  # Site audit tier gate (production backend)
 npm run test:e2e:google   # Google UI + OAuth redirect (local Next + prod API)
 ```
 
@@ -45,6 +47,7 @@ Starts backend/frontend if needed (restarts Next on `:3000` if occupied), then r
 |----------|------|---------|
 | `e2e-smoke.yml` | Push/PR to `main` (frontend changes) | None |
 | `e2e-google-integration.yml` | Push/PR (frontend or GeekSeoBackend) | None |
+| `e2e-seo-api-integration.yml` | Push/PR (frontend, GeekSeoBackend, GeekSeo.Application) | None |
 | `e2e-authenticated.yml` | Weekly + manual | `PLAYWRIGHT_TEST_EMAIL`, `PLAYWRIGHT_TEST_PASSWORD` in repo secrets |
 
 ## Targets
