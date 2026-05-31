@@ -2,13 +2,11 @@ using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Extensions;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GeekSeoBackend.Controllers.Seo;
 
 [ApiController]
-[Authorize]
 [Route("api/seo/plagiarism")]
 public sealed class PlagiarismController(IPlagiarismService plagiarism, ICurrentUserContext user) : ControllerBase
 {
