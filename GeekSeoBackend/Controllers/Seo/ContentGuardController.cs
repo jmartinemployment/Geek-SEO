@@ -20,6 +20,10 @@ public sealed class ContentGuardController(
             var policy = await guard.GetPolicyAsync(user.RequireUserId(), projectId, ct);
             return policy is null ? NotFound() : Ok(policy);
         }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new { error = "Authentication required" });
+        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
@@ -37,6 +41,10 @@ public sealed class ContentGuardController(
             var policy = await guard.UpsertPolicyAsync(user.RequireUserId(), projectId, request, ct);
             return Ok(policy);
         }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new { error = "Authentication required" });
+        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
@@ -50,6 +58,10 @@ public sealed class ContentGuardController(
         {
             var runs = await guard.ListRunsAsync(user.RequireUserId(), projectId, ct);
             return Ok(runs);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new { error = "Authentication required" });
         }
         catch (InvalidOperationException ex)
         {
@@ -66,6 +78,10 @@ public sealed class ContentGuardController(
             await guard.ScanProjectAsync(user.RequireUserId(), projectId, policy?.AutoPatch ?? false, ct);
             return Accepted();
         }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new { error = "Authentication required" });
+        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
@@ -80,6 +96,10 @@ public sealed class ContentGuardController(
             var run = await guard.ApproveRunAsync(user.RequireUserId(), runId, ct);
             return Ok(run);
         }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new { error = "Authentication required" });
+        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
@@ -93,6 +113,10 @@ public sealed class ContentGuardController(
         {
             var run = await guard.RollbackRunAsync(user.RequireUserId(), runId, ct);
             return Ok(run);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new { error = "Authentication required" });
         }
         catch (InvalidOperationException ex)
         {

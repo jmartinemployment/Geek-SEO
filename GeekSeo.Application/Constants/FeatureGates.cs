@@ -11,6 +11,7 @@ public static class FeatureGates
         ("/api/seo/reports", SubscriptionTier.Professional),
         ("/api/seo/analytics/ga4", SubscriptionTier.Professional),
         ("/api/seo/content-audit", SubscriptionTier.Professional),
+        ("/api/seo/content-guard", SubscriptionTier.Professional),
         ("/api/seo/topical-map", SubscriptionTier.Professional),
         ("/api/seo/cannibalization", SubscriptionTier.Professional),
         ("/api/seo/geo", SubscriptionTier.Professional),
