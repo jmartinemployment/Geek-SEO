@@ -1,16 +1,18 @@
 # Geek SEO — project status
 
-Last updated: May 31, 2026 (post `2497bfc` on `main`)
+Last updated: May 31, 2026 (`main` @ `ddeebe5`)
 
-## Latest release
+## Latest on `main`
 
 | Item | Detail |
 |------|--------|
-| **Git** | `2497bfc` — `feat(seo): dashboard overview, GSC tools, auth refactor, and unit tests` (pushed to `origin/main`) |
+| **HEAD** | `ddeebe5` — docs refresh for feature release below |
+| **Feature release** | `2497bfc` — `feat(seo): dashboard overview, GSC tools, auth refactor, and unit tests` |
 | **New app routes** | `/app/content`, `/app/bulk`, `/app/serp`, `/app/cannibalization`, `/app/content-guard`, `/app/geo`, `/app/audit/[projectId]` |
-| **New backend APIs** | `GET /api/seo/dashboard/overview`, topical map, cannibalization, content-audit, geo probe, links auto-insert |
-| **Auth** | OAuth modules split under `frontend/src/lib/auth/*`; `UserIdResolver` on backend |
+| **New backend APIs** | `GET /api/seo/dashboard/overview`, `POST /api/seo/topical-map/{id}/generate`, `GET /api/seo/cannibalization/{id}`, `GET /api/seo/content-audit/{id}`, `GET/POST /api/seo/geo/*`, `POST /api/seo/links/auto-insert` |
+| **Auth** | OAuth modules under `frontend/src/lib/auth/*`; `UserIdResolver` on backend |
 | **CI** | `.github/workflows/unit-tests.yml` — Vitest (13) + xUnit (5) on push/PR |
+| **Production deploy** | **Not automatic** — redeploy GeekSeoBackend (Railway) + frontend (Vercel) after `2497bfc` for new APIs to go live |
 
 ## Platform decoupling (M2–M7 + M4–M6)
 
@@ -20,7 +22,7 @@ Last updated: May 31, 2026 (post `2497bfc` on `main`)
 | M2 `GeekSeo.Application` | ✅ No `GeekApplication` on GeekSeoBackend |
 | M7 Product Docker | ✅ No GeekBackend clone |
 | M4–M6 Legacy platform auth | ✅ Removed from GeekAPI / GeekRepository / GeekApplication |
-| Production | ✅ GeekSeoBackend, GeekAPI, GeekRepository `/health` OK; GeekSeoBackend `gateway: ok` |
+| Production | ✅ Last verified healthy (May 2026); re-check `/health` after each deploy |
 
 Details: [`plan-documents/PLATFORM-DECOUPLING.md`](plan-documents/PLATFORM-DECOUPLING.md). **Platform decoupling complete** (M0–M9, M1, **O2** legacy auth tables dropped). Optional future: **O1** standalone contracts repo.
 
@@ -45,7 +47,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 | Flow | Backend | Frontend | Needs |
 |------|---------|----------|-------|
 | Platform login (GeekOAuth) | ✅ JWT validation | ✅ PKCE via GeekOAuth; Next.js `/api/auth/start` + `/api/auth/token` | `NEXT_PUBLIC_AUTH_*`, `GEEK_OAUTH_AUTHORITY` |
-| Dashboard overview | ✅ `GET /api/seo/dashboard/overview` | ✅ dashboard + `/app/content` | GeekAPI + Postgres |
+| Dashboard overview | ✅ `GET /api/seo/dashboard/overview` | ✅ `/app/dashboard` and `/app/content` (both use overview API) | GeekAPI + Postgres |
 | Projects CRUD | ✅ | ✅ | `GEEK_API_URL`, `GEEK_BACKEND_API_KEY`, auth |
 | Content editor + live score | ✅ | ✅ | DataForSEO, Anthropic, Playwright (optional) |
 | SERP-backed briefs | ✅ | ✅ | DataForSEO |
@@ -137,7 +139,7 @@ Platform decoupling: `plan-documents/PLATFORM-DECOUPLING.md` — **complete** (M
 
 ## Next (in-repo, highest impact)
 
-1. Deploy **GeekSeoBackend** + **frontend** so `2497bfc` APIs are live in production.
+1. **Redeploy** GeekSeoBackend + frontend if not done since `2497bfc` — confirm new routes on production (e.g. `GET /api/seo/dashboard/overview`).
 2. Topical map **14d worker + DB persist** (GeekAPI/GeekRepository internal routes if not already deployed).
 3. Content Guard **auto-patch + WP draft** pipeline (#19 full).
 4. GEO **daily multi-LLM worker + snapshots** (#20 full).
