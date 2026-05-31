@@ -39,3 +39,9 @@ jobs:
         env:
           PLAYWRIGHT_API_URL: https://geekseobackend-production.up.railway.app
           NEXT_PUBLIC_DEV_USER_ID: 00000000-0000-0000-0000-000000000001
+
+      - name: Site audit API integration (production, tier gate)
+        run: npm run test:integration:site-audit
+        env:
+          PLAYWRIGHT_API_URL: https://geekseobackend-production.up.railway.app
+          NEXT_PUBLIC_DEV_USER_ID: 00000000-0000-0000-0000-000000000001

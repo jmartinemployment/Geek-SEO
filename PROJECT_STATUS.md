@@ -55,7 +55,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 | Google Search Console OAuth | **Backend + frontend wired** — connect on project page or Rankings; needs `GOOGLE_*` env on GeekSeoBackend + GeekAPI internal Google routes |
 | Google Analytics 4 | **Backend + frontend wired** — same connect flow; data on `/app/analytics` |
 | PayPal billing + webhooks | **Sandbox live** — see [`docs/PAYPAL-BILLING.md`](docs/PAYPAL-BILLING.md) (sandbox test steps + **Going live later** checklist). Operator: `SUBSCRIPTION_FULL_ACCESS_EMAILS=jmartinemployment@gmail.com` |
-| Site-wide technical audit crawl | **Not built** |
+| Site-wide technical audit crawl | **Built** — Playwright crawl + `/app/audit` UI; Professional tier; `POST /api/seo/audit/site` |
 | Copyscape / plagiarism | **Built (optional)** — Copyscape API when `COPYSCAPE_*` env set; editor panel + 24h cache; publish warning &gt; 15% when configured. **Production:** credentials deployed; add Copyscape account credit to run checks |
 | Chrome extension, WP plugin, Google Docs | **Not built** |
 | Public API keys for agencies | **Not built** |
