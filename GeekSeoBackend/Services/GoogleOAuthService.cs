@@ -400,10 +400,4 @@ public sealed class GoogleOAuthService(
             "Google OAuth is not configured. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI.",
             StatusCodes.Status503ServiceUnavailable);
     }
-
-    private sealed record GoogleTokenResponse
-    {
-        public string AccessToken { get; init; } = string.Empty;
-        public string? RefreshToken { get; init; }
-    }
 }

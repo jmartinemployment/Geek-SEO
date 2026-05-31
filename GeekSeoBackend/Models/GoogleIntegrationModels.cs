@@ -1,5 +1,7 @@
 namespace GeekSeoBackend.Models;
 
+using System.Text.Json.Serialization;
+
 public sealed record GoogleConnectUrlResponse
 {
     public required string Url { get; init; }
@@ -60,3 +62,13 @@ public sealed record GoogleCallbackOutcome
     public string? SiteUrl { get; init; }
     public string? PropertyId { get; init; }
 };
+
+/** Google OAuth token endpoint JSON uses snake_case field names. */
+public sealed record GoogleTokenResponse
+{
+    [JsonPropertyName("access_token")]
+    public string AccessToken { get; init; } = string.Empty;
+
+    [JsonPropertyName("refresh_token")]
+    public string? RefreshToken { get; init; }
+}
