@@ -32,44 +32,81 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 
 | Flow | Backend | Frontend | Needs |
 |------|---------|----------|-------|
-| Platform login (GeekOAuth) | ✅ JWT validation | ✅ PKCE via GeekOAuth; Next.js `/api/auth/start` + `/api/auth/token` (local routes, not GeekAPI) | `NEXT_PUBLIC_AUTH_*`, `GEEK_OAUTH_AUTHORITY` |
+| Platform login (GeekOAuth) | ✅ JWT validation | ✅ PKCE via GeekOAuth; Next.js `/api/auth/start` + `/api/auth/token` | `NEXT_PUBLIC_AUTH_*`, `GEEK_OAUTH_AUTHORITY` |
+| Dashboard overview | ✅ `GET /api/seo/dashboard/overview` | ✅ dashboard + `/app/content` | GeekAPI + Postgres |
 | Projects CRUD | ✅ | ✅ | `GEEK_API_URL`, `GEEK_BACKEND_API_KEY`, auth |
 | Content editor + live score | ✅ | ✅ | DataForSEO, Anthropic, Playwright (optional) |
 | SERP-backed briefs | ✅ | ✅ | DataForSEO |
 | Keyword research + cluster | ✅ | ✅ Planner, Keywords | DataForSEO |
 | Full article job (brief→outline→draft) | ✅ worker | ✅ guided | Anthropic + DataForSEO |
-| Bulk article job (up to 20 kw) | ✅ worker | API only | same |
+| Bulk article job | ✅ worker | ✅ `/app/bulk` | Professional tier |
 | Competitor crawl + insights | ✅ | ✅ sidebar | Playwright |
 | WordPress connect/publish | ✅ | ✅ project | WP app password |
 | Brand voice CRUD | ✅ | ✅ /app/brand-voice | Postgres |
 | Humanize / AI detect / auto-optimize | ✅ | ✅ toolbar | Anthropic |
-| Deep SERP analysis | ✅ `GET /api/seo/serp/deep` | — | DataForSEO |
-| Google integrations (GSC + GA4) | ✅ OAuth + data endpoints | ✅ connect on project / rankings / analytics | `GOOGLE_*` on GeekSeoBackend; GSC/GA4 data needs user OAuth + Professional tier |
-| Internal link suggestions | ✅ | — | sibling docs in project |
-| Site-wide technical audit | ✅ Playwright crawl | ✅ `/app/audit` | Professional tier; Playwright on GeekSeoBackend |
-| Copyscape / plagiarism (optional) | ✅ when `COPYSCAPE_*` set | ✅ editor panel | Optional provider; app works without it |
-| Usage gates + subscription tier read | ✅ | ✅ pricing + settings | `GET /api/seo/subscription`; operator full access via `SUBSCRIPTION_FULL_ACCESS_EMAILS` |
+| Deep SERP analysis | ✅ 50 organic results | ✅ `/app/serp` + CSV export | DataForSEO |
+| Google integrations (GSC + GA4) | ✅ OAuth + data endpoints | ✅ connect / rankings / analytics | `GOOGLE_*`; Professional tier for data |
+| Internal link suggest + auto-insert | ✅ | ✅ editor panel | sibling docs in project |
+| Keyword cannibalization | ✅ GSC analysis | ✅ `/app/cannibalization` | GSC connected |
+| Topical map (GSC clusters) | ✅ on-demand generate | ✅ `/app/strategy/topical-map` | GSC connected; no 14d persisted worker yet |
+| Published content decay audit | ✅ GSC period compare | ✅ `/app/content-guard` | GSC connected; on-demand (no weekly worker) |
+| GEO / AI visibility probe | ✅ on-demand SERP probe | ✅ `/app/geo` | DataForSEO; no daily multi-LLM worker |
+| Content calendar kanban | ✅ status PATCH | ✅ `/app/calendar` | Postgres |
+| Site-wide technical audit | ✅ Playwright crawl | ✅ `/app/audit`, `/app/audit/[projectId]` | Professional tier |
+| Copyscape / plagiarism (optional) | ✅ when `COPYSCAPE_*` set | ✅ editor panel | Optional provider |
+| Usage gates + subscription tier read | ✅ | ✅ pricing + settings | PayPal sandbox live |
+
+## Master plan feature matrix (31 parity features)
+
+Honest status against `plan-documents/geekseo-plan.md`. **~22/31 shipped end-to-end** in this repo (May 31, 2026 session).
+
+| # | Feature | Backend | Frontend | Notes |
+|---|---------|---------|----------|-------|
+| 1 | Live content editor + score | ✅ | ✅ | SignalR optional |
+| 2 | Content brief generator | ✅ | ✅ | `/app/briefs/new` |
+| 3 | One-click full article | ✅ | ✅ | Guided flow |
+| 4 | Bulk articles | ✅ | ✅ | `/app/bulk` |
+| 5 | AI humanizer | ✅ | ✅ | Editor AI toolbar |
+| 6 | AI content detection | ✅ | ✅ | Editor AI toolbar (not GPTZero-branded) |
+| 7 | Auto-optimize | ✅ | ✅ | Editor AI toolbar |
+| 8 | Auto internal linking | ✅ | ✅ | `POST /api/seo/links/auto-insert` |
+| 9 | Brand voice | ✅ | ✅ | `/app/brand-voice` |
+| 10–11 | Planner / topic research | ✅ | ✅ | `/app/planner`, `/app/keywords` |
+| 12 | Topical map | ✅ | ✅ | GSC on-demand; no 14d TTL worker / DB persist |
+| 13 | Deep SERP analyzer | ✅ | ✅ | 50 results + CSV; no term matrix heatmap |
+| 14 | Cannibalization | ✅ | ✅ | `/app/cannibalization` |
+| 15 | WordPress publish | ✅ | ✅ | Project page + editor |
+| 16 | Content calendar | ✅ | ✅ | `/app/calendar` kanban |
+| 17 | Guided SMB wizard | ✅ | ✅ | `/app/guided` |
+| 18 | Published content audit | ✅ | ✅ | On-demand GSC decay in Content Guard; no weekly worker / sparkline DB |
+| 19 | Content Guard | ⚠️ | ⚠️ | Decay scan + recommendations; no auto-patch / WP draft pipeline |
+| 20 | GEO / AI visibility | ⚠️ | ⚠️ | On-demand Google AIO probe; no daily multi-LLM worker |
+| 21–23 | Dual GEO + E-E-A-T + SERP features in score | ⚠️ | — | Partial scoring only |
+| 24 | Internal link suggestions | ✅ | ✅ | Editor panel |
+| 25 | Plagiarism (Copyscape) | ✅ | ✅ | Optional provider |
+| 26 | GA4 | ✅ | ✅ | `/app/analytics` |
+| 27 | GSC | ✅ | ✅ | `/app/rankings` |
+| 28–31 | WP plugin, Chrome ext, Docs, Public API | — | — | **Not built** (separate products) |
 
 ## Honest gaps (not stubbed — blocked or not built)
 
 | Area | Status |
 |------|--------|
-| Google Search Console OAuth | **Backend + frontend wired** — connect on project page or Rankings; needs `GOOGLE_*` env on GeekSeoBackend + GeekAPI internal Google routes |
-| Google Analytics 4 | **Backend + frontend wired** — same connect flow; data on `/app/analytics` |
-| PayPal billing + webhooks | **Sandbox live** — see [`docs/PAYPAL-BILLING.md`](docs/PAYPAL-BILLING.md) (sandbox test steps + **Going live later** checklist). Operator: `SUBSCRIPTION_FULL_ACCESS_EMAILS=jmartinemployment@gmail.com` |
-| Chrome extension, WP plugin, Google Docs | **Not built** |
-| Public API keys for agencies | **Not built** |
-| E2E Playwright | **Smoke:** `test:e2e:smoke` + CI. **Google:** `test:integration:google` + `test:e2e:google` + CI. **SEO API:** `test:integration:plagiarism`, `test:integration:site-audit` + CI (`e2e-seo-api-integration.yml`). **Auth local:** `test:e2e:auth:local`. **Auth prod:** `test:e2e:auth` when `PLAYWRIGHT_TEST_*` secrets set |
-| Production Railway deploy checklist | docs only |
+| Published content decay audit (#18) | On-demand GSC compare shipped; weekly worker + sparkline DB persist not built |
+| Content Guard (#19) | Decay detection shipped; crawl + Claude patch + WP draft flow not built |
+| GEO tracker (#20) | On-demand Google AIO/organic probe; daily multi-LLM worker + DB snapshots not built |
+| Term matrix / SERP heatmap (#13 full) | Not built |
+| Topical map 14d refresh + DB persist | On-demand only today |
+| Chrome extension, WP plugin, Google Docs, Public API (#28–31) | Separate repos / not started |
+| PayPal production go-live | Sandbox wired — see [`docs/PAYPAL-BILLING.md`](docs/PAYPAL-BILLING.md) |
+| E2E Playwright | Smoke + Google + SEO API integration CI; auth local `test:e2e:auth:local` |
 
 ## Local run
 
 See `scripts/LOCAL_DEV.md`. Minimum: all three backend services + frontend. **Geek-SEO repo configures only GeekSeoBackend** (`GEEK_API_URL`, `GEEK_BACKEND_API_KEY`, provider keys). `DATABASE_URL` / `REPO_*` belong on Jeff’s GeekAPI + GeekRepository only.
 
-If Postgres previously ran migration `0004` that dropped `geek_seo`, restart GeekRepository so EF recreates the schema.
-
 ## Plan reference
 
-Master plan: `plan-documents/GEEKSEO-PLAN.md` (31 features / 34 steps). This repo implements the **Surfer-style content core** end-to-end; GSC/GA4/monetization/integrations remain separate workstreams.
+Master plan: `plan-documents/geekseo-plan.md` (31 features / 34 steps). Redesign: `plan-documents/REDESIGN-PLAN.md` — Phase 6 in-repo items complete; Phases 4–5 topical persistence and Phase 8 GEO remain.
 
-Platform decoupling: `plan-documents/PLATFORM-DECOUPLING.md` — **complete** (M0–M9, M1, O2). Optional future: **O1** standalone contracts repo.
+Platform decoupling: `plan-documents/PLATFORM-DECOUPLING.md` — **complete** (M0–M9, M1, O2).

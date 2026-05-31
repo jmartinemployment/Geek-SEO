@@ -16,19 +16,36 @@ function formatDomain(url: string) {
   }
 }
 
-function SiteMetricCell({ label }: { label: string }) {
+function formatMetric(value: number | null): string {
+  return value == null ? '—' : String(Math.round(value));
+}
+
+function SiteMetricCell({ label, value }: { label: string; value: number | null }) {
   return (
     <div className="min-w-24 flex-1">
       <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-secondary)]">
         {label}
       </p>
-      <p className="mt-1 text-[22px] font-bold text-[var(--color-metric-blue)]">—</p>
+      <p className="mt-1 text-[22px] font-bold text-[var(--color-metric-blue)]">{formatMetric(value)}</p>
     </div>
   );
 }
 
 function SiteRow({ project }: { project: ProjectWithDocuments }) {
   const domain = formatDomain(project.url);
+  const scored = project.documents.filter((d) => d.seoScore > 0);
+  const avgDocScore =
+    scored.length === 0
+      ? null
+      : scored.reduce((sum, d) => sum + d.seoScore, 0) / scored.length;
+
+  const metricsByLabel: Record<(typeof SITE_METRIC_COLUMNS)[number], number | null> = {
+    SEO: project.metrics.seoScore,
+    'Topical Coverage': avgDocScore && avgDocScore > 0 ? avgDocScore : null,
+    'Site Health': project.metrics.siteHealthScore,
+    'Organic Keywords': null,
+    Backlinks: null,
+  };
 
   return (
     <Card className="shadow-none hover:shadow-[var(--shadow-card-hover)]">
@@ -54,23 +71,32 @@ function SiteRow({ project }: { project: ProjectWithDocuments }) {
               <p className="text-xs text-[var(--color-text-secondary)]">
                 {project.documents.length} documents
                 {project.gscConnected ? ' · GSC connected' : ''}
+                {project.metrics.latestAuditAt
+                  ? ` · Last audit ${new Date(project.metrics.latestAuditAt).toLocaleDateString()}`
+                  : ''}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant="accent">{project.name}</Badge>
             <Link
-              href={`/app/projects/${project.id}`}
+              href={`/app/content?projectId=${project.id}`}
               className="inline-flex h-8 items-center rounded-[var(--radius-button)] border border-[var(--color-border-strong)] bg-white px-3 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)]"
             >
               Open content
+            </Link>
+            <Link
+              href={`/app/audit/${project.id}`}
+              className="inline-flex h-8 items-center rounded-[var(--radius-button)] bg-[var(--color-accent)] px-3 text-xs font-semibold text-white hover:bg-[var(--color-accent-hover)]"
+            >
+              Site audit
             </Link>
           </div>
         </div>
         <Separator />
         <div className="flex gap-4 overflow-x-auto pb-1">
           {SITE_METRIC_COLUMNS.map((label) => (
-            <SiteMetricCell key={label} label={label} />
+            <SiteMetricCell key={label} label={label} value={metricsByLabel[label]} />
           ))}
         </div>
       </CardContent>

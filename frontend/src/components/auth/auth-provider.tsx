@@ -10,6 +10,11 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import {
+  computeRefreshDelayMs,
+  isAuthenticated,
+  shouldBootstrapSession,
+} from '@/lib/auth/session-policy';
 
 type AuthContextValue = {
   accessToken: string | null;
@@ -32,10 +37,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const scheduleRefresh = useCallback((expiresInSeconds: number) => {
     if (refreshTimer.current) clearTimeout(refreshTimer.current);
-    const ms = Math.max(30_000, (expiresInSeconds - 60) * 1000);
     refreshTimer.current = setTimeout(() => {
       void refreshAccessTokenRef.current();
-    }, ms);
+    }, computeRefreshDelayMs(expiresInSeconds));
   }, []);
 
   const refreshAccessToken = useCallback(async () => {
@@ -83,12 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void (async () => {
-      if (DEV_USER_ID) {
-        setIsLoading(false);
-        return;
-      }
       const path = globalThis.location?.pathname ?? '';
-      if (!path.startsWith('/auth')) await refreshAccessToken();
+      if (shouldBootstrapSession(path, DEV_USER_ID)) {
+        await refreshAccessToken();
+      }
       setIsLoading(false);
     })();
     return () => {
@@ -100,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       accessToken,
       isLoading,
-      isAuthenticated: Boolean(accessToken) || Boolean(DEV_USER_ID),
+      isAuthenticated: isAuthenticated(accessToken, DEV_USER_ID),
       setAccessToken,
       refreshAccessToken,
       logout,

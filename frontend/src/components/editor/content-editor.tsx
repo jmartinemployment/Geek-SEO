@@ -1,9 +1,14 @@
 'use client';
 
 import Placeholder from '@tiptap/extension-placeholder';
+import Link from '@tiptap/extension-link';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { useEffect } from 'react';
+import { forwardRef, useEffect, useImperativeHandle } from 'react';
+
+export type ContentEditorHandle = {
+  insertLink: (href: string, text: string) => void;
+};
 
 type ContentEditorProps = {
   html: string;
@@ -11,10 +16,12 @@ type ContentEditorProps = {
   placeholder?: string;
 };
 
-export function ContentEditor({ html, onChange, placeholder = 'Write your article…' }: ContentEditorProps) {
+export const ContentEditor = forwardRef<ContentEditorHandle, ContentEditorProps>(
+  function ContentEditor({ html, onChange, placeholder = 'Write your article…' }, ref) {
   const editor = useEditor({
     extensions: [
       StarterKit,
+      Link.configure({ openOnClick: false }),
       Placeholder.configure({ placeholder }),
     ],
     content: html,
@@ -29,6 +36,20 @@ export function ContentEditor({ html, onChange, placeholder = 'Write your articl
       onChange(ed.getHTML());
     },
   });
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      insertLink(href: string, text: string) {
+        editor
+          ?.chain()
+          .focus()
+          .insertContent(`<a href="${href}">${text}</a> `)
+          .run();
+      },
+    }),
+    [editor],
+  );
 
   useEffect(() => {
     if (!editor) return;
@@ -64,7 +85,8 @@ export function ContentEditor({ html, onChange, placeholder = 'Write your articl
       <EditorContent editor={editor} />
     </div>
   );
-}
+},
+);
 
 function ToolbarButton({
   label,

@@ -2,4 +2,5 @@
   <Project Path="GeekSeo.Persistence/GeekSeo.Persistence.csproj" />
   <Project Path="GeekSeo.Application/GeekSeo.Application.csproj" />
   <Project Path="GeekSeoBackend/GeekSeoBackend.csproj" />
+  <Project Path="GeekSeoBackend.Tests/GeekSeoBackend.Tests.csproj" />
 </Solution>

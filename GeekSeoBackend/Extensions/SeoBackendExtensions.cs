@@ -89,6 +89,11 @@ public static class SeoBackendExtensions
         });
         services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
         services.AddScoped<IGoogleDataService, GoogleDataService>();
+        services.AddScoped<CannibalizationService>();
+        services.AddScoped<DashboardOverviewService>();
+        services.AddScoped<TopicalMapService>();
+        services.AddScoped<PublishedContentAuditService>();
+        services.AddScoped<GeoVisibilityService>();
 
         services.AddHttpClient("PayPal");
         services.AddSingleton(_ => new PayPalOptions

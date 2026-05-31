@@ -39,6 +39,14 @@ public static class SerpFeatureGuidanceBuilder
                 ActionText = "Image pack detected — add descriptive alt text on 2+ relevant images.",
             });
         }
+        if (features.HasAiOverview)
+        {
+            list.Add(new SerpFeatureGuidance
+            {
+                Feature = "ai_overview",
+                ActionText = "Google AI Overview detected — lead with a concise definition, cite authoritative sources, and structure content for extractable answers.",
+            });
+        }
         return list;
     }
 }

@@ -4,16 +4,34 @@ import Link from 'next/link';
 import { AuthStartLink } from '@/components/auth/auth-start-link';
 import { Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { listProjects } from '@/lib/seo-api';
+import { normalizeSiteHost, projectHost } from '@/lib/project-url';
 
 export function AppHeaderSearch() {
   const router = useRouter();
+  const { accessToken, isAuthenticated } = useAuth();
   const [query, setQuery] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  const resolveUrlToAudit = useCallback(
+    async (value: string) => {
+      const projects = await listProjects(accessToken);
+      const host = normalizeSiteHost(value);
+      const match = projects.find((p) => projectHost(p.url) === host);
+      if (match) {
+        router.push(`/app/audit/${match.id}`);
+        return;
+      }
+      router.push('/app/projects');
+    },
+    [accessToken, router],
+  );
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const value = query.trim();
     if (!value) {
@@ -22,7 +40,18 @@ export function AppHeaderSearch() {
 
     const isUrl = /^https?:\/\//i.test(value) || value.includes('.');
     if (isUrl) {
-      router.push('/app/dashboard');
+      if (!isAuthenticated) {
+        router.push('/app/dashboard');
+        return;
+      }
+      setBusy(true);
+      try {
+        await resolveUrlToAudit(value);
+      } catch {
+        router.push('/app/projects');
+      } finally {
+        setBusy(false);
+      }
       return;
     }
 
@@ -37,7 +66,8 @@ export function AppHeaderSearch() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Enter your website or keyword"
-          className="h-10 w-full rounded-[var(--radius-search)] border-[1.5px] border-[var(--color-border-strong)] bg-white pl-11 pr-4 text-sm text-[var(--color-text-primary)] outline-none transition-[border-color,box-shadow] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent)] focus:shadow-[0_0_0_3px_rgba(59,179,122,0.15)]"
+          disabled={busy}
+          className="h-10 w-full rounded-[var(--radius-search)] border-[1.5px] border-[var(--color-border-strong)] bg-white pl-11 pr-4 text-sm text-[var(--color-text-primary)] outline-none transition-[border-color,box-shadow] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent)] focus:shadow-[0_0_0_3px_rgba(59,179,122,0.15)] disabled:opacity-60"
         />
       </div>
     </form>

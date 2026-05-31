@@ -15,7 +15,7 @@ public sealed class SerpAnalysisService(ISerpProvider serp) : ISerpAnalysisServi
             Keyword = request.Keyword.Trim(),
             Location = request.Location,
             LanguageCode = request.LanguageCode,
-            ResultCount = 20,
+            ResultCount = 50,
         }, ct);
 
         if (!serpResult.IsSuccess || serpResult.Value is null)

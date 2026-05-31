@@ -4,8 +4,8 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
-        source: '/app/strategy/topical-map',
-        destination: '/app/dashboard',
+        source: '/app/projects/:projectId',
+        destination: '/app/content?projectId=:projectId',
         permanent: false,
       },
     ];

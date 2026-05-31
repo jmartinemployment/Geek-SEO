@@ -30,6 +30,7 @@ public sealed record SerpFeatures
     public bool HasImagePack { get; init; }
     public bool HasVideoCarousel { get; init; }
     public bool HasKnowledgePanel { get; init; }
+    public bool HasAiOverview { get; init; }
 }
 
 public sealed record SerpOrganicResult

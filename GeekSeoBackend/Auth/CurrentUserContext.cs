@@ -20,24 +20,10 @@ public sealed class CurrentUserContext(IHttpContextAccessor accessor, WorkerUser
         }
     }
 
-    private bool TryResolveUserId(out Guid userId)
-    {
-        userId = Guid.Empty;
-        if (worker.UserId != Guid.Empty)
-        {
-            userId = worker.UserId;
-            return true;
-        }
-
-        var sub = accessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? accessor.HttpContext?.User.FindFirstValue("sub");
-        if (Guid.TryParse(sub, out userId) && userId != Guid.Empty)
-            return true;
-
-        var header = accessor.HttpContext?.Request.Headers["X-User-Id"].ToString();
-        if (Guid.TryParse(header, out userId) && userId != Guid.Empty)
-            return true;
-
-        return false;
-    }
+    private bool TryResolveUserId(out Guid userId) =>
+        UserIdResolver.TryResolve(
+            worker.UserId,
+            accessor.HttpContext?.User,
+            accessor.HttpContext?.Request.Headers["X-User-Id"].ToString(),
+            out userId);
 }

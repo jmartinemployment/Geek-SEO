@@ -1,0 +1,47 @@
+name: Unit tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'GeekSeoBackend/**'
+      - 'GeekSeoBackend.Tests/**'
+      - 'GeekSeo.Application/**'
+      - '.github/workflows/unit-tests.yml'
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'GeekSeoBackend/**'
+      - 'GeekSeoBackend.Tests/**'
+      - 'GeekSeo.Application/**'
+      - '.github/workflows/unit-tests.yml'
+
+jobs:
+  vitest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run test
+
+  dotnet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - run: dotnet test GeekSEO.slnx --verbosity minimal

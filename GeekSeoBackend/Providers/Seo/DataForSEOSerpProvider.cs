@@ -114,6 +114,9 @@ public sealed class DataForSEOSerpProvider(IHttpClientFactory httpClientFactory)
                     case "knowledge_graph":
                         features = features with { HasKnowledgePanel = true };
                         break;
+                    case "ai_overview":
+                        features = features with { HasAiOverview = true };
+                        break;
                     case "related_searches":
                         if (item.TryGetProperty("items", out var relItems))
                         {

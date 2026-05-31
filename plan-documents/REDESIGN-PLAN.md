@@ -12,8 +12,10 @@ Partial progress against this plan — see `PROJECT_STATUS.md` for live status.
 | Plan item | Shipped | Remaining |
 |-----------|---------|-----------|
 | Phase 1 design tokens + app shell | ✅ | Full dark polish |
-| Phase 6 site audit (core) | ✅ `/app/audit`, Playwright crawl, Professional tier | Per-project `/app/audit/[projectId]`, dashboard SEO/health columns, header URL → audit route |
-| Copyscape plagiarism (optional) | ✅ Editor panel + API | Not in REDESIGN scope originally |
+| Phase 6 site audit (core) | ✅ `/app/audit`, `/app/audit/[projectId]`, Playwright crawl, Professional tier, dashboard SEO/health columns, header URL → audit | Lighthouse-specific health score (uses crawl overall score today) |
+| Editor: AI toolbar + internal links + plagiarism | ✅ | Auto-insert internal links (#8), GPTZero badge (#6) |
+| `/app/content` flat list | ✅ filter by project | `GET /api/seo/dashboard/overview` aggregate (N+1 today) |
+| Deep SERP UI | ✅ `/app/serp` | 50-result matrix + CSV export (#13 full parity) |
 | `/app/audit` → dashboard redirect | ❌ removed | — |
 
 ---

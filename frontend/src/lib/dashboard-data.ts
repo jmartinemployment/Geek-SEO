@@ -1,7 +1,18 @@
-import { listContent, listProjects, type SeoContentDocument, type SeoProject } from '@/lib/seo-api';
+import {
+  getDashboardOverview,
+  type SeoContentDocument,
+  type SeoProject,
+} from '@/lib/seo-api';
+
+export type ProjectSiteMetrics = {
+  seoScore: number | null;
+  siteHealthScore: number | null;
+  latestAuditAt: string | null;
+};
 
 export type ProjectWithDocuments = SeoProject & {
   documents: SeoContentDocument[];
+  metrics: ProjectSiteMetrics;
 };
 
 export type RecentDocument = SeoContentDocument & {
@@ -52,16 +63,47 @@ function buildCopilotSuggestions(projects: ProjectWithDocuments[]): CopilotSugge
   }));
 }
 
-export async function loadDashboardData(accessToken: string | null): Promise<DashboardData> {
-  const projects = await listProjects(accessToken);
-  const projectsWithDocs = await Promise.all(
-    projects.map(async (project) => ({
-      ...project,
-      documents: await listContent(project.id, accessToken),
-    })),
-  );
+function mapOverviewToProjects(
+  overview: Awaited<ReturnType<typeof getDashboardOverview>>,
+): ProjectWithDocuments[] {
+  return overview.projects.map((entry) => ({
+    ...entry.project,
+    documents: entry.documents,
+    metrics: {
+      seoScore: entry.latestAuditScore,
+      siteHealthScore: entry.latestAuditScore,
+      latestAuditAt: entry.latestAuditAt,
+    },
+  }));
+}
 
-  const recentDocuments = projectsWithDocs
+export async function loadDashboardData(accessToken: string | null): Promise<DashboardData> {
+  const overview = await getDashboardOverview(accessToken);
+  const projects = mapOverviewToProjects(overview);
+
+  const projectById = new Map(projects.map((p) => [p.id, p]));
+  const recentDocuments = overview.recentDocuments.slice(0, 5).map((doc) => {
+    const project = projectById.get(doc.projectId);
+    return {
+      ...doc,
+      projectName: project?.name ?? 'Project',
+      projectUrl: project?.url ?? '',
+    };
+  });
+
+  return {
+    projects,
+    recentDocuments,
+    copilotSuggestions: buildCopilotSuggestions(projects),
+  };
+}
+
+export async function loadAllContentDocuments(
+  accessToken: string | null,
+): Promise<{ projects: ProjectWithDocuments[]; allDocuments: RecentDocument[] }> {
+  const overview = await getDashboardOverview(accessToken);
+  const projects = mapOverviewToProjects(overview);
+  const allDocuments = projects
     .flatMap((project) =>
       project.documents.map((doc) => ({
         ...doc,
@@ -69,11 +111,7 @@ export async function loadDashboardData(accessToken: string | null): Promise<Das
         projectUrl: project.url,
       })),
     )
-    .slice(0, 5);
+    .toSorted((a, b) => (a.title || '').localeCompare(b.title || ''));
 
-  return {
-    projects: projectsWithDocs,
-    recentDocuments,
-    copilotSuggestions: buildCopilotSuggestions(projectsWithDocs),
-  };
+  return { projects, allDocuments };
 }

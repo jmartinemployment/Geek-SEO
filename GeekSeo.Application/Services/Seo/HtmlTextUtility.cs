@@ -13,6 +13,14 @@ public static partial class HtmlTextUtility
         return WhitespaceRegex().Replace(withoutTags, " ").Trim();
     }
 
+    public static int CountWords(string html)
+    {
+        var text = StripHtml(html);
+        if (string.IsNullOrWhiteSpace(text))
+            return 0;
+        return text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+    }
+
     [GeneratedRegex("<[^>]+>")]
     private static partial Regex HtmlTagRegex();
 

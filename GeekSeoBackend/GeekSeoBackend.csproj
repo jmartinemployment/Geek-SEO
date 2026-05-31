@@ -17,4 +17,8 @@
     <ProjectReference Include="..\GeekSeo.Application\GeekSeo.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="GeekSeoBackend.Tests" />
+  </ItemGroup>
+
 </Project>

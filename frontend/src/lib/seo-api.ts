@@ -1,4 +1,5 @@
 import { parseSeoApiErrorResponse } from '@/lib/seo-api-errors';
+import { buildApiHeaders } from '@/lib/auth/api-headers';
 
 export { SeoApiError, formatSeoApiErrorMessage } from '@/lib/seo-api-errors';
 export type { SeoGateErrorBody } from '@/lib/seo-api-errors';
@@ -14,14 +15,7 @@ async function seoJson<T>(res: Response): Promise<T> {
 }
 
 export function apiHeaders(accessToken?: string | null): HeadersInit {
-  const headers: HeadersInit = { 'Content-Type': 'application/json' };
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-    return headers;
-  }
-  const devUserId = process.env.NEXT_PUBLIC_DEV_USER_ID;
-  if (devUserId) headers['X-User-Id'] = devUserId;
-  return headers;
+  return buildApiHeaders(accessToken, process.env.NEXT_PUBLIC_DEV_USER_ID);
 }
 
 export type SeoProject = {
@@ -797,4 +791,242 @@ export async function checkPlagiarism(
     body: JSON.stringify({ documentId, forceRefresh }),
   });
   return seoJson<PlagiarismCheckResult>(res);
+}
+
+export type InternalLinkSuggestion = {
+  anchorText: string;
+  targetUrl: string;
+  reason: string;
+  relevanceScore: number;
+};
+
+export async function suggestInternalLinks(
+  body: { projectId: string; documentId: string; maxSuggestions?: number },
+  accessToken?: string | null,
+): Promise<InternalLinkSuggestion[]> {
+  const res = await fetch(`${API_URL}/api/seo/links/suggest`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+  });
+  return seoJson<InternalLinkSuggestion[]>(res);
+}
+
+export type DeepSerpOrganic = {
+  position: number;
+  url: string;
+  title?: string;
+  snippet?: string;
+  domain?: string;
+};
+
+export type SerpIntentSummary = {
+  primaryIntent: string;
+  contentFormats: string[];
+  avgSnippetLength: number;
+};
+
+export type DeepSerpResult = {
+  keyword: string;
+  location: string;
+  provider: string;
+  organic: DeepSerpOrganic[];
+  peopleAlsoAsk: string[];
+  relatedSearches: string[];
+  intent: SerpIntentSummary;
+};
+
+export async function analyzeDeepSerp(
+  params: { keyword: string; location?: string; languageCode?: string },
+  accessToken?: string | null,
+): Promise<DeepSerpResult> {
+  const qs = new URLSearchParams({ keyword: params.keyword });
+  if (params.location) qs.set('location', params.location);
+  if (params.languageCode) qs.set('languageCode', params.languageCode);
+  const res = await fetch(`${API_URL}/api/seo/serp/deep?${qs}`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson<DeepSerpResult>(res);
+}
+
+export type InternalLinkAutoInsertResult = {
+  inserted: boolean;
+  contentHtml: string;
+  anchorText?: string;
+  targetUrl?: string;
+  message?: string;
+};
+
+export async function autoInsertInternalLink(
+  body: { projectId: string; documentId: string },
+  accessToken?: string | null,
+): Promise<InternalLinkAutoInsertResult> {
+  const res = await fetch(`${API_URL}/api/seo/links/auto-insert`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+  });
+  return seoJson<InternalLinkAutoInsertResult>(res);
+}
+
+export type CannibalizationPage = {
+  url: string;
+  impressions: number;
+  clicks: number;
+  position: number;
+};
+
+export type CannibalizationIssue = {
+  query: string;
+  pages: CannibalizationPage[];
+  severity: string;
+  recommendation: string;
+  totalImpressions: number;
+};
+
+export type CannibalizationReport = {
+  projectId: string;
+  startDate: string;
+  endDate: string;
+  issues: CannibalizationIssue[];
+};
+
+export async function getCannibalizationReport(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<CannibalizationReport> {
+  const res = await fetch(`${API_URL}/api/seo/cannibalization/${projectId}`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson<CannibalizationReport>(res);
+}
+
+export type DashboardOverviewProject = {
+  project: SeoProject;
+  documents: SeoContentDocument[];
+  latestAuditScore: number | null;
+  latestAuditAt: string | null;
+};
+
+export type DashboardOverviewResponse = {
+  projects: DashboardOverviewProject[];
+  recentDocuments: SeoContentDocument[];
+};
+
+export async function getDashboardOverview(
+  accessToken?: string | null,
+): Promise<DashboardOverviewResponse> {
+  const res = await fetch(`${API_URL}/api/seo/dashboard/overview`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson<DashboardOverviewResponse>(res);
+}
+
+export type TopicalMapTopic = {
+  name: string;
+  queries: string[];
+  coverage: 'covered' | 'gap' | 'partial';
+  matchedDocumentId?: string;
+  matchedDocumentTitle?: string;
+  totalImpressions: number;
+};
+
+export type TopicalMapResult = {
+  projectId: string;
+  generatedAt: string;
+  topics: TopicalMapTopic[];
+  coveredCount: number;
+  gapCount: number;
+  partialCount: number;
+};
+
+export async function generateTopicalMap(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<TopicalMapResult> {
+  const res = await fetch(`${API_URL}/api/seo/topical-map/${projectId}/generate`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+  });
+  return seoJson<TopicalMapResult>(res);
+}
+
+export type PublishedPageMetrics = {
+  url: string;
+  recentClicks: number;
+  baselineClicks: number;
+  recentImpressions: number;
+  baselineImpressions: number;
+  recentPosition: number;
+  baselinePosition: number;
+  clicksChangePercent: number;
+  positionChange: number;
+  status: 'stable' | 'decaying' | 'critical';
+  recommendation: string;
+};
+
+export type PublishedContentAuditReport = {
+  projectId: string;
+  recentStartDate: string;
+  recentEndDate: string;
+  baselineStartDate: string;
+  baselineEndDate: string;
+  pages: PublishedPageMetrics[];
+  decayingCount: number;
+};
+
+export async function getPublishedContentAudit(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<PublishedContentAuditReport> {
+  const res = await fetch(`${API_URL}/api/seo/content-audit/${projectId}`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson<PublishedContentAuditReport>(res);
+}
+
+export type GeoPlatformStatus = {
+  id: string;
+  name: string;
+  configured: boolean;
+  provider?: string;
+  note?: string;
+};
+
+export type GeoProbeResult = {
+  projectId: string;
+  query: string;
+  platform: string;
+  mentioned: boolean;
+  hasAiOverview: boolean;
+  organicPosition?: number;
+  snippet?: string;
+  checkedAt: string;
+  note?: string;
+};
+
+export async function getGeoPlatforms(
+  accessToken?: string | null,
+): Promise<{ platforms: GeoPlatformStatus[] }> {
+  const res = await fetch(`${API_URL}/api/seo/geo/platforms`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson<{ platforms: GeoPlatformStatus[] }>(res);
+}
+
+export async function probeGeoVisibility(
+  body: { projectId: string; query: string; location?: string },
+  accessToken?: string | null,
+): Promise<GeoProbeResult> {
+  const res = await fetch(`${API_URL}/api/seo/geo/probe`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+  });
+  return seoJson<GeoProbeResult>(res);
 }

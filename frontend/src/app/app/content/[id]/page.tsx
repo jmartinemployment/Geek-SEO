@@ -5,8 +5,10 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { CompetitorPanel } from '@/components/editor/competitor-panel';
+import { EditorAiToolbar } from '@/components/editor/editor-ai-toolbar';
+import { InternalLinksPanel } from '@/components/editor/internal-links-panel';
 import { PlagiarismPanel } from '@/components/editor/plagiarism-panel';
-import { ContentEditor } from '@/components/editor/content-editor';
+import { ContentEditor, type ContentEditorHandle } from '@/components/editor/content-editor';
 import { ScoreSidebar } from '@/components/editor/score-sidebar';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import { useContentScoring } from '@/hooks/useContentScoring';
@@ -32,8 +34,10 @@ export default function ContentEditorPage() {
   const [error, setError] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
   const [copyHint, setCopyHint] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialScoreSentRef = useRef(false);
+  const editorRef = useRef<ContentEditorHandle>(null);
 
   const {
     scoreUpdate,
@@ -108,6 +112,15 @@ export default function ContentEditorPage() {
     scheduleScore(nextHtml, keyword);
   }
 
+  function applyEditorHtml(nextHtml: string) {
+    setHtml(nextHtml);
+    void save(nextHtml, keyword, title);
+  }
+
+  function insertInternalLink(href: string, anchorText: string) {
+    editorRef.current?.insertLink(href, anchorText);
+  }
+
   async function refreshSerp() {
     try {
       setError(null);
@@ -175,7 +188,16 @@ export default function ContentEditorPage() {
             </label>
           </div>
 
-          <ContentEditor html={html} onChange={onHtmlChange} />
+          <ContentEditor ref={editorRef} html={html} onChange={onHtmlChange} />
+
+          <EditorAiToolbar
+            documentId={documentId}
+            contentHtml={html}
+            accessToken={accessToken}
+            onApplyHtml={applyEditorHtml}
+            onError={(message) => setAiError(message || null)}
+          />
+          {aiError ? <p className="text-sm text-red-700">{aiError}</p> : null}
         </div>
       </div>
 
@@ -214,6 +236,15 @@ export default function ContentEditorPage() {
         </div>
         <div className="bg-[var(--color-bg)] px-6 pb-6 lg:w-96">
           <CompetitorPanel documentId={documentId} accessToken={accessToken} />
+          {doc ? (
+            <InternalLinksPanel
+              projectId={doc.projectId}
+              documentId={documentId}
+              accessToken={accessToken}
+              onInsertLink={insertInternalLink}
+              onAutoInsertHtml={applyEditorHtml}
+            />
+          ) : null}
           <PlagiarismPanel documentId={documentId} accessToken={accessToken} />
         </div>
       </div>

@@ -1,13 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { REFRESH_COOKIE } from '@/lib/auth/cookies';
+import { requiresAppAuth } from '@/lib/auth/session-policy';
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (!pathname.startsWith('/app')) return NextResponse.next();
-
   const devUserId = process.env.NEXT_PUBLIC_DEV_USER_ID;
-  if (devUserId) return NextResponse.next();
+  const hasRefreshCookie = Boolean(request.cookies.get(REFRESH_COOKIE)?.value);
 
-  if (!request.cookies.get('geekseo_refresh')) {
+  if (requiresAppAuth(pathname, hasRefreshCookie, devUserId)) {
     const login = new URL('/api/auth/start', request.url);
     return NextResponse.redirect(login);
   }
