@@ -99,6 +99,25 @@ public sealed class SubscriptionService(ISubscriptionRepository subscriptions) :
         return upsert.IsSuccess ? Result.Success() : Result.Failure(upsert.Error ?? "Cancel failed");
     }
 
+    public async Task<Result> SetTierManuallyAsync(Guid userId, string tierKey, CancellationToken ct = default)
+    {
+        if (!SubscriptionCatalog.IsValidTierKey(tierKey))
+            return Result.Failure($"Unknown tier: {tierKey}");
+
+        var tier = SubscriptionCatalog.NormalizeTierKey(tierKey);
+        var upsert = await subscriptions.UpsertAsync(
+            userId,
+            new UpsertSubscriptionRequest
+            {
+                Tier = tier,
+                Status = "active",
+                PaypalSubscriptionId = null,
+                CurrentPeriodEnd = null,
+            },
+            ct);
+        return upsert.IsSuccess ? Result.Success() : Result.Failure(upsert.Error ?? "Tier update failed");
+    }
+
     internal static string? MapPlanToTier(string planId, PayPalPlanMap? map = null)
     {
         map ??= PayPalPlanMap.FromEnvironment();

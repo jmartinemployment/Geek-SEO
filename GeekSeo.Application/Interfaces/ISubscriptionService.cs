@@ -17,6 +17,7 @@ public interface ISubscriptionService
         CancellationToken ct = default);
     Task<Result> DeactivateSubscriptionAsync(Guid userId, CancellationToken ct = default);
     Task<Result> CancelPayPalSubscriptionAsync(Guid userId, CancellationToken ct = default);
+    Task<Result> SetTierManuallyAsync(Guid userId, string tierKey, CancellationToken ct = default);
 }
 
 public sealed record SeoSubscriptionSummary(

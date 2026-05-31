@@ -491,10 +491,26 @@ export type SubscriptionSummary = {
   currentPeriodEnd?: string | null;
 };
 
+export type BillingCatalogTier = {
+  key: string;
+  name: string;
+  priceLabel: string;
+  priceMonthly: number;
+  highlights: string[];
+};
+
 export type BillingPlansResponse = {
-  configured: boolean;
-  clientId?: string;
-  planIds?: Record<string, string>;
+  tiers: BillingCatalogTier[];
+  checkout: {
+    available: boolean;
+    provider: string;
+    deferred: boolean;
+    clientId?: string;
+    planIds?: Record<string, string>;
+    missing: string[];
+    plansSetupHint?: string;
+  };
+  manualTierChangeEnabled: boolean;
 };
 
 export async function getSubscription(
@@ -512,6 +528,18 @@ export async function getBillingPlans(): Promise<BillingPlansResponse> {
     cache: 'no-store',
   });
   return seoJson<BillingPlansResponse>(res);
+}
+
+export async function setSubscriptionTier(
+  tier: string,
+  accessToken?: string | null,
+): Promise<SubscriptionSummary> {
+  const res = await fetch(`${API_URL}/api/seo/subscription/tier`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify({ tier }),
+  });
+  return seoJson<SubscriptionSummary>(res);
 }
 
 export async function cancelSubscription(accessToken?: string | null): Promise<void> {

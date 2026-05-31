@@ -40,7 +40,8 @@ public static class SeoBackendExtensions
         services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<IContentDocumentService, ContentDocumentService>();
         services.AddScoped<IBackgroundJobService, BackgroundJobService>();
-        services.AddScoped<ISubscriptionService, SubscriptionService>();
+        services.AddScoped<SubscriptionService>();
+        services.AddScoped<ISubscriptionService, FullAccessSubscriptionService>();
         services.AddScoped<IUsageMeteringService, UsageMeteringService>();
 
         // External providers + scoring (product host only)

@@ -6,6 +6,10 @@ public sealed class CurrentUserContext(IHttpContextAccessor accessor, WorkerUser
 {
     public bool IsAuthenticated => TryResolveUserId(out _);
 
+    public string? Email =>
+        accessor.HttpContext?.User.FindFirstValue(ClaimTypes.Email)
+        ?? accessor.HttpContext?.User.FindFirstValue("email");
+
     public Guid UserId
     {
         get

@@ -28,6 +28,35 @@ public sealed class PayPalBillingService(
         return new PayPalCheckoutConfig(options.ClientId, map.ToPublicMap());
     }
 
+    public PayPalBillingStatus GetBillingStatus()
+    {
+        var missing = new List<string>();
+        if (string.IsNullOrWhiteSpace(options.ClientId))
+            missing.Add("PAYPAL_CLIENT_ID");
+        if (string.IsNullOrWhiteSpace(options.ClientSecret))
+            missing.Add("PAYPAL_CLIENT_SECRET");
+        if (string.IsNullOrWhiteSpace(options.WebhookId))
+            missing.Add("PAYPAL_WEBHOOK_ID");
+
+        var map = PayPalPlanMap.FromEnvironment();
+        if (map is null)
+        {
+            missing.Add("billing_plans_not_created");
+        }
+
+        var hasClient = !string.IsNullOrWhiteSpace(options.ClientId)
+            && !string.IsNullOrWhiteSpace(options.ClientSecret);
+        var hasWebhook = !string.IsNullOrWhiteSpace(options.WebhookId);
+        var hasPlans = map is not null;
+
+        return new PayPalBillingStatus(
+            CheckoutAvailable: hasClient && hasWebhook && hasPlans,
+            HasClientCredentials: hasClient,
+            HasWebhookId: hasWebhook,
+            HasAllPlanIds: hasPlans,
+            MissingConfiguration: missing);
+    }
+
     public async Task<Result> VerifyAndProcessWebhookAsync(
         IReadOnlyDictionary<string, string> headers,
         string rawBody,

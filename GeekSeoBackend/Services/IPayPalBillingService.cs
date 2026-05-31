@@ -6,6 +6,7 @@ public interface IPayPalBillingService
 {
     bool IsConfigured { get; }
     PayPalCheckoutConfig? GetCheckoutConfig();
+    PayPalBillingStatus GetBillingStatus();
     Task<Result> VerifyAndProcessWebhookAsync(
         IReadOnlyDictionary<string, string> headers,
         string rawBody,
@@ -14,3 +15,10 @@ public interface IPayPalBillingService
 }
 
 public sealed record PayPalCheckoutConfig(string ClientId, IReadOnlyDictionary<string, string> PlanIds);
+
+public sealed record PayPalBillingStatus(
+    bool CheckoutAvailable,
+    bool HasClientCredentials,
+    bool HasWebhookId,
+    bool HasAllPlanIds,
+    IReadOnlyList<string> MissingConfiguration);

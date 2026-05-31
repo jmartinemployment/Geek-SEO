@@ -1,3 +1,4 @@
+using GeekSeo.Application.Constants.Seo;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Extensions;
@@ -35,16 +36,61 @@ public sealed class SubscriptionController(
     [AllowAnonymous]
     public IActionResult Plans()
     {
-        var config = paypal.GetCheckoutConfig();
-        if (config is null)
-            return Ok(new { configured = false });
+        var billing = paypal.GetBillingStatus();
+        var checkout = paypal.GetCheckoutConfig();
 
         return Ok(new
         {
-            configured = true,
-            clientId = config.ClientId,
-            planIds = config.PlanIds,
+            tiers = SubscriptionCatalog.Tiers.Select(t => new
+            {
+                key = t.Key,
+                name = t.Name,
+                priceLabel = t.PriceLabel,
+                priceMonthly = t.PriceMonthly,
+                highlights = t.Highlights,
+            }),
+            checkout = new
+            {
+                available = billing.CheckoutAvailable,
+                provider = "paypal",
+                deferred = !billing.CheckoutAvailable,
+                clientId = checkout?.ClientId,
+                planIds = checkout?.PlanIds,
+                missing = billing.MissingConfiguration,
+                plansSetupHint =
+                    "PayPal does not provide PAYPAL_PLAN_* variables. Run: node scripts/paypal-create-subscription-plans.mjs",
+            },
+            manualTierChangeEnabled = ManualTierChangeEnabled(),
         });
+    }
+
+    /// <summary>
+    /// Dev/staging only: set tier without PayPal. Enable with SUBSCRIPTION_MANUAL_TIER_ENABLED=true.
+    /// </summary>
+    [HttpPost("tier")]
+    public async Task<IActionResult> SetTier([FromBody] SetTierRequest request, CancellationToken ct)
+    {
+        if (!ManualTierChangeEnabled())
+            return NotFound();
+
+        if (string.IsNullOrWhiteSpace(request.Tier))
+            return BadRequest(new { error = "tier is required" });
+
+        try
+        {
+            var result = await subscriptions.SetTierManuallyAsync(user.RequireUserId(), request.Tier, ct);
+            if (!result.IsSuccess)
+                return BadRequest(new { error = result.Error });
+
+            var summary = await subscriptions.GetSummaryAsync(user.RequireUserId(), ct);
+            return summary.IsSuccess
+                ? Ok(summary.Value)
+                : Ok(new { tier = request.Tier.Trim().ToLowerInvariant(), status = "active" });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new { error = "Authentication required" });
+        }
     }
 
     [HttpPost("webhooks/paypal")]
@@ -93,5 +139,16 @@ public sealed class SubscriptionController(
         {
             return Unauthorized(new { error = "Authentication required" });
         }
+    }
+
+    private static bool ManualTierChangeEnabled() =>
+        string.Equals(
+            Environment.GetEnvironmentVariable("SUBSCRIPTION_MANUAL_TIER_ENABLED"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+
+    public sealed class SetTierRequest
+    {
+        public string Tier { get; init; } = string.Empty;
     }
 }

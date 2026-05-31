@@ -78,8 +78,9 @@ try {
 
   const plans = await request('GET', '/api/seo/subscription/plans');
   assert(plans.status === 200, `subscription plans expected 200, got ${plans.status}`);
-  assert(typeof plans.json?.configured === 'boolean', 'plans.configured should be boolean');
-  console.log(`✓ subscription plans (configured=${plans.json.configured})`);
+  assert(Array.isArray(plans.json?.tiers) && plans.json.tiers.length >= 4, 'plans should include tier catalog');
+  assert(typeof plans.json?.checkout?.deferred === 'boolean', 'checkout.deferred should be boolean');
+  console.log(`✓ subscription plans (${plans.json.tiers.length} tiers, checkout deferred=${plans.json.checkout.deferred})`);
 
   console.log('\nAll Google integration API checks passed.');
 } catch (error) {
