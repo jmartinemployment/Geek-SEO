@@ -54,7 +54,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 |------|--------|
 | Google Search Console OAuth | **Backend + frontend wired** — connect on project page or Rankings; needs `GOOGLE_*` env on GeekSeoBackend + GeekAPI internal Google routes |
 | Google Analytics 4 | **Backend + frontend wired** — same connect flow; data on `/app/analytics` |
-| PayPal billing + webhooks | **Sandbox checkout live** on GeekSeoBackend (plan IDs + webhook on Railway). `/pricing` PayPal buttons when `checkout.available`. **Live money:** set `PAYPAL_ENVIRONMENT=live` + live app creds, re-run setup scripts. **Operator:** `SUBSCRIPTION_FULL_ACCESS_EMAILS=jmartinemployment@gmail.com`. See `docs/PAYPAL-BILLING.md` |
+| PayPal billing + webhooks | **Sandbox live** — see [`docs/PAYPAL-BILLING.md`](docs/PAYPAL-BILLING.md) (sandbox test steps + **Going live later** checklist). Operator: `SUBSCRIPTION_FULL_ACCESS_EMAILS=jmartinemployment@gmail.com` |
 | Site-wide technical audit crawl | **Not built** |
 | Copyscape / plagiarism | **Not built** |
 | Chrome extension, WP plugin, Google Docs | **Not built** |

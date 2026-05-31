@@ -39,3 +39,9 @@ Until **M7**, when GeekBackend shared contracts change, update `GeekBackend.comm
 ## Local dev
 
 See [`scripts/LOCAL_DEV.md`](scripts/LOCAL_DEV.md).
+
+## Billing (PayPal)
+
+- **Now:** sandbox checkout on production — test at `/pricing` with PayPal sandbox buyer accounts (no real charges).
+- **Later (live money):** step-by-step checklist in [`docs/PAYPAL-BILLING.md`](docs/PAYPAL-BILLING.md) — switch `PAYPAL_ENVIRONMENT=live`, live app credentials, re-run `scripts/paypal-create-subscription-plans.mjs` and `scripts/paypal-create-webhook.mjs`.
+- **Operator login:** `SUBSCRIPTION_FULL_ACCESS_EMAILS` on GeekSeoBackend (documented in same file).
