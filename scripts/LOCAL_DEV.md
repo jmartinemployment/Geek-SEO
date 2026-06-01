@@ -1,7 +1,8 @@
 # Local development
 
 **Backlog:** `plan-documents/TODO.md`  
-**Decoupling:** `plan-documents/PLATFORM-DECOUPLING.md` (M2 = in-repo contracts; M7 = no Docker GeekBackend clone)
+**Data plane:** `plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md` (SerpApi bridge → Geek-owned SERP; DataForSEO sunset)  
+**Contracts:** In-repo `GeekSeo.Application` + `GeekSeo.Persistence` (no GeekBackend reference in product Docker)
 
 ## What runs from this repo
 
@@ -26,7 +27,8 @@ dotnet run
 | `GEEK_API_URL` | GeekAPI base URL (e.g. `http://localhost:5272` locally) |
 | `GEEK_BACKEND_API_KEY` | Same key as GeekAPI `GEEK_BACKEND_API_KEY` (dev internal proxy) |
 | `GEEK_OAUTH_AUTHORITY` | Token issuer (production) |
-| `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | Live SERP (required for real scoring) |
+| `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | Interim — live SERP/keywords until [`GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](../plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md) Phase A+ |
+| `SERPAPI_API_KEY` | Interim primary SERP per Geek Data Plane (when Phase A shipped) |
 | `ANTHROPIC_API_KEY` | Term extraction + AI writing |
 | `GOOGLE_PSI_API_KEY` | Optional — PageSpeed scores on `GET /api/public/scan` (homepage free scan) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Google OAuth for GSC + GA4 integration endpoints |

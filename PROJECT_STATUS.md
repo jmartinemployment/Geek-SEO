@@ -2,8 +2,8 @@
 
 Last updated: June 1, 2026 (plans consolidated)
 
-**v1 master plan:** [`geekseo-plan.md`](plan-documents/geekseo-plan.md) — **100% complete** (June 2026)  
-**Future work:** [`plan-documents/TODO.md`](plan-documents/TODO.md) · **Index:** [`docs/ROADMAP.md`](docs/ROADMAP.md)
+**v1 parity #1–27:** checklist complete (June 2026) — matrix below  
+**Backlog:** [`plan-documents/TODO.md`](plan-documents/TODO.md) · **Data plane:** [`plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md) · **Index:** [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 ## Latest on `main`
 
@@ -114,7 +114,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 
 ## Master plan feature matrix (31 parity features)
 
-Honest status against [`geekseo-plan.md`](plan-documents/geekseo-plan.md). **v1 master plan 100% complete** (June 2026). Future work: [`TODO.md`](plan-documents/TODO.md).
+Honest status for v1 parity scope (June 2026). Future work: [`TODO.md`](plan-documents/TODO.md).
 
 | # | Feature | Backend | Frontend | Notes |
 |---|---------|---------|----------|-------|
@@ -144,9 +144,9 @@ Honest status against [`geekseo-plan.md`](plan-documents/geekseo-plan.md). **v1 
 | 27 | GSC | ✅ | ✅ | `/app/rankings` |
 | 28–31 | WP plugin, Chrome ext, Docs, Public API | — | — | **Not built** — [`docs/ROADMAP.md`](docs/ROADMAP.md) |
 
-## v1 master plan
+## v1 checklist
 
-**100% complete** per [`geekseo-plan.md`](plan-documents/geekseo-plan.md) § v1 definition of done (June 2026).
+Parity **#1–27** shipped per matrix above (June 2026). Waivers: #6, #15, #19, #20 — see [`TODO.md`](plan-documents/TODO.md).
 
 ## Future work
 
@@ -188,7 +188,7 @@ See `scripts/LOCAL_DEV.md`. Minimum: GeekSeoBackend + GeekAPI + GeekRepository +
 
 ## Plan reference
 
-**v1 plan:** [`geekseo-plan.md`](plan-documents/geekseo-plan.md) — **100% complete**. **Future:** [`TODO.md`](plan-documents/TODO.md).
+**Backlog:** [`TODO.md`](plan-documents/TODO.md). **Data plane:** [`GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md). **Architecture:** [`ARCHITECTURE.md`](plan-documents/ARCHITECTURE.md).
 
 Platform decoupling: `plan-documents/PLATFORM-DECOUPLING.md` — **complete** (M0–M9, M1, O2).
 

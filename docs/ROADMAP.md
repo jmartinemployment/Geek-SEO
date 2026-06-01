@@ -4,6 +4,7 @@
 
 | Document | Purpose |
 |----------|---------|
+| **[`plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](../plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md)** | **Geek Data Plane** — provider strategy & migration |
 | **[`plan-documents/TODO.md`](../plan-documents/TODO.md)** | All remaining / future work |
 | **[`PROJECT_STATUS.md`](../PROJECT_STATUS.md)** | Production status; v1 parity #1–27 |
 | **[`plan-documents/ARCHITECTURE.md`](../plan-documents/ARCHITECTURE.md)** | Services, ports, data flow |

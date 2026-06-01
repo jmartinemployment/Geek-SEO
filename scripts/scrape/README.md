@@ -16,7 +16,7 @@ Typical uses:
 - **Feature & component cloning** — study screens and reimplement patterns in GeekSEO (Shadcn + your APIs).
 - **Code planning** — feed `content.md` + `page.json` into specs under `docs/research/`.
 
-This tool does **not** replace **official APIs** for production data (SERP, keywords, backlinks). Use DataForSEO, GSC, etc. in the app.
+This tool does **not** replace **official APIs** for production data (SERP, keywords, backlinks). Runtime data strategy: [`plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](../../plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md).
 
 ## Install
 

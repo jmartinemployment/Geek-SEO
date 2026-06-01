@@ -46,7 +46,7 @@ TopicalMapService.GenerateAsync(request)
     │   existing pipeline (GSC rows → SERP clusters → enrich) [unchanged]
     │
     └─ if request.Mode == SeedKeywordMode:
-        new pipeline (seed → DataForSEO keyword ideas → SERP clusters → enrich)
+        new pipeline (seed → IKeywordProvider keyword ideas → SERP clusters → enrich) — see [`GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md)
 ```
 
 Both modes produce the same `TopicalMapResult` shape. New fields are additive (nullable on `TopicalMapTopic`).
@@ -144,7 +144,7 @@ TopicalMapRequest {
    → KeywordResult[] (volume, difficulty, CPC, monthly trends)
 
 2. IKeywordLabsProvider.GetKeywordIdeasAsync(seedKeyword, location, limit: 300)
-   → broader semantic expansion (Sprint 3 of DataForSEO plan — stub if not yet built)
+   → broader semantic expansion (`IKeywordDiscoveryProvider` per [`GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md) — stub if not yet built)
 
 3. TopicClusteringService.ClusterKeywordList(keywords)
    → existing algorithm, produces flat clusters
@@ -158,7 +158,7 @@ TopicalMapRequest {
    → assigns PillarId to clusters/articles
 
 5. For top 10 clusters by search volume:
-   DataForSEOSerpProvider.GetSerpResultsAsync(clusterKeyword)
+   ISerpProvider.GetSerpResultsAsync(clusterKeyword)  // impl: SerpApi or GeekSerp per GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN
    → extract competitor domains for each pillar
 
 6. Enrich with existing KeywordResearchService metrics
@@ -431,7 +431,7 @@ Sprint 1 (seed mode + hierarchy) ── prerequisite for Sprints 2, 3, 4
 
 2. **Seed mode does not replace GSC mode** — users with GSC connected get richer data (real impressions, real CTR). Seed mode is for new projects or competitive research without GSC.
 
-3. **Entity gap extraction uses existing SERP cache** — `SeoSerpDeepCache` already stores organic result titles and snippets (7-day TTL). `EntityGapAnalyzer` reads from cache first, no extra DataForSEO calls for cached keywords.
+3. **Entity gap extraction uses existing SERP cache** — `SeoSerpDeepCache` already stores organic result titles and snippets (7-day TTL). `EntityGapAnalyzer` reads from cache first, no extra vendor SERP calls for cached keywords.
 
 4. **Claude API calls must be batched** — `SuggestedTitle`/`SuggestedSlug` generation uses a single Claude call for up to 30 topics at once (structured JSON output). Never one call per topic.
 

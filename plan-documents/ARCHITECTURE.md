@@ -1,7 +1,7 @@
 # Geek SEO — Architecture (single responsibility)
 
 **Backlog:** [`TODO.md`](TODO.md) · **Status:** [`PROJECT_STATUS.md`](../PROJECT_STATUS.md)  
-**Decoupling plan:** [`PLATFORM-DECOUPLING.md`](PLATFORM-DECOUPLING.md)
+**Data plane:** [`GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md) — `ISerpProvider`, `IKeywordProvider`, `IRankSnapshotProvider`, `ICrawlerProvider`
 
 Each tier has **one job**. No duplicate token issuers, no `REPO_URL` on product hosts, no reference tokens that hit the DB per request.
 

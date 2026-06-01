@@ -1,7 +1,7 @@
 # Competitor Analysis: AI-Powered SEO Content Tools
 
 > **Background research only** — May 2026. Do not use for status or scope.  
-> **Canonical plan:** [`geekseo-plan.md`](geekseo-plan.md) · **Topical Map V2 backlog:** master plan § Priority backlog P1  
+> **Backlog:** [`TODO.md`](TODO.md) (#12b, scoring v2) · **Shipped status:** [`PROJECT_STATUS.md`](../PROJECT_STATUS.md)  
 > Stack: Next.js + GeekSeoBackend (.NET 10) — [`ARCHITECTURE.md`](ARCHITECTURE.md).  
 > **Consolidated:** `feature-matrix.md` and `market-gaps.md` are merged into this file (stubs redirect here).
 
@@ -546,7 +546,7 @@ Limited; primarily focused on AI engine monitoring rather than traditional GSC d
 ## Feature comparison matrix
 
 > Legend: **Y** = Yes · **P** = Partial · **N** = No  
-> **Geek SEO shipped scope:** [`geekseo-plan.md`](geekseo-plan.md) parity table (#1–#26) — this matrix is not the scope source of truth.
+> **Geek SEO shipped scope:** [`PROJECT_STATUS.md`](../PROJECT_STATUS.md) parity #1–27 — this matrix is competitive research, not scope source of truth.
 
 ### Pricing quick reference
 
