@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import { TopicalMapGraph } from '@/components/strategy/topical-map-graph';
+import { LinkingBlueprintTab } from '@/components/strategy/linking-blueprint-tab';
 import {
   createContent,
   generateTopicalMap,
@@ -14,7 +15,7 @@ import {
   type TopicalMapTopic,
 } from '@/lib/seo-api';
 
-type ViewMode = 'table' | 'map';
+type ViewMode = 'table' | 'map' | 'links';
 type SortKey = 'priority' | 'impressions' | 'position' | 'volume';
 
 function coverageStyle(coverage: TopicalMapCoverage): string {
@@ -333,6 +334,13 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
               >
                 Map
               </button>
+              <button
+                type="button"
+                className={`rounded-md px-3 py-1.5 ${view === 'links' ? 'bg-[var(--color-accent)] text-white' : ''}`}
+                onClick={() => setView('links')}
+              >
+                Internal Links
+              </button>
             </div>
             <label className="text-xs font-medium text-[var(--color-text-secondary)]">
               Coverage
@@ -377,7 +385,7 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
             </label>
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
+          <div className={`grid gap-6 ${view === 'links' ? '' : 'xl:grid-cols-[1fr_320px]'}`}>
             <div>
               {view === 'map' ? (
                 <TopicalMapGraph
@@ -385,6 +393,10 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
                   selectedName={selected?.name ?? null}
                   onSelect={setSelected}
                 />
+              ) : view === 'links' ? (
+                <div className="rounded-xl border bg-white p-6">
+                  <LinkingBlueprintTab projectId={projectId} accessToken={accessToken} />
+                </div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border bg-white">
                   <table className="min-w-full text-left text-sm">
@@ -436,7 +448,7 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
               )}
             </div>
 
-            <aside className="rounded-xl border bg-white p-4 shadow-sm">
+            {view !== 'links' ? <aside className="rounded-xl border bg-white p-4 shadow-sm">
               {selected ? (
                 <>
                   <div className="flex items-start justify-between gap-2">
@@ -511,7 +523,7 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
               ) : (
                 <p className="text-sm text-[var(--color-text-muted)]">Select a topic from the table or map.</p>
               )}
-            </aside>
+            </aside> : null}
           </div>
         </>
       ) : null}

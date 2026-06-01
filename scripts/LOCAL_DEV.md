@@ -1,6 +1,6 @@
 # Local development
 
-**Plan:** `plan-documents/GEEKSEO-PLAN.md`  
+**Backlog:** `plan-documents/TODO.md`  
 **Decoupling:** `plan-documents/PLATFORM-DECOUPLING.md` (M2 = in-repo contracts; M7 = no Docker GeekBackend clone)
 
 ## What runs from this repo

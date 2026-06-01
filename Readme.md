@@ -2,7 +2,7 @@
 
 Surfer / ContentShake-style SEO content SaaS.
 
-**Plan:** [`plan-documents/geekseo-plan.md`](plan-documents/geekseo-plan.md) — v1 **100% complete**  
+**Backlog:** [`plan-documents/TODO.md`](plan-documents/TODO.md) · **Status:** [`PROJECT_STATUS.md`](PROJECT_STATUS.md)  
 **TODO:** [`plan-documents/TODO.md`](plan-documents/TODO.md) — future work  
 **Status:** [`PROJECT_STATUS.md`](PROJECT_STATUS.md)  
 **Architecture:** [`plan-documents/ARCHITECTURE.md`](plan-documents/ARCHITECTURE.md), [`plan-documents/PLATFORM-DECOUPLING.md`](plan-documents/PLATFORM-DECOUPLING.md)

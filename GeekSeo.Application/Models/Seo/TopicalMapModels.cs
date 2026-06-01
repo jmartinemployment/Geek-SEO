@@ -79,4 +79,5 @@ public sealed record TopicalMapResult
     public IReadOnlyList<QuickWin> QuickWins { get; init; } = [];
     public IReadOnlyList<SemanticEntity> SemanticEntities { get; init; } = [];
     public int DuplicateCount { get; init; } = 0;
+    public InternalLinkingBlueprint? LinkingBlueprint { get; init; }
 }

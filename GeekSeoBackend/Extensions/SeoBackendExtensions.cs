@@ -65,6 +65,7 @@ public static class SeoBackendExtensions
         services.AddHttpClient("WordPress");
         services.AddScoped<ISerpProvider, DataForSEOSerpProvider>();
         services.AddScoped<IKeywordProvider, DataForSEOKeywordProvider>();
+        services.AddScoped<IKeywordDiscoveryProvider, DataForSEOKeywordDiscoveryProvider>();
         services.AddScoped<IAIProvider, ClaudeProvider>();
         services.AddScoped<IWordPressProvider, WordPressRestProvider>();
         services.AddScoped<IRankSnapshotProvider, DataForSeoRankSnapshotProvider>();

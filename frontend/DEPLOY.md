@@ -68,7 +68,7 @@ Configure on the **GeekSeoBackend** service only. **Do not** set `DATABASE_URL`,
 | `ANTHROPIC_API_KEY` | Claude API key |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Google OAuth for GSC + GA4 backend routes |
 
-See `plan-documents/GEEKSEO-PLAN.md` for full capability list.
+See `PROJECT_STATUS.md` and `plan-documents/TODO.md` for capability list and backlog.
 
 ## OAuth troubleshooting
 

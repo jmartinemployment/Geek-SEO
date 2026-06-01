@@ -1,6 +1,6 @@
 # Geek SEO — Architecture (single responsibility)
 
-**Master plan:** [`GEEKSEO-PLAN.md`](GEEKSEO-PLAN.md)  
+**Backlog:** [`TODO.md`](TODO.md) · **Status:** [`PROJECT_STATUS.md`](../PROJECT_STATUS.md)  
 **Decoupling plan:** [`PLATFORM-DECOUPLING.md`](PLATFORM-DECOUPLING.md)
 
 Each tier has **one job**. No duplicate token issuers, no `REPO_URL` on product hosts, no reference tokens that hit the DB per request.

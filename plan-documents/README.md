@@ -4,10 +4,10 @@
 
 | Document | Purpose |
 |----------|---------|
-| **[`geekseo-plan.md`](geekseo-plan.md)** | **v1 master plan — 100% complete** |
-| **[`TODO.md`](TODO.md)** | **All future work** (#12b polish, waivers, integrations, REDESIGN, ops, upgrade, security) |
-| **[`PROJECT_STATUS.md`](../PROJECT_STATUS.md)** | What’s live in production |
-| **[`docs/ROADMAP.md`](../docs/ROADMAP.md)** | One-screen “is plan done?” → points to v1 + TODO |
+| **[`TODO.md`](TODO.md)** | **All remaining work** (scoring v2, #12b, waivers, integrations, REDESIGN, ops, upgrade, security) |
+| **[`PROJECT_STATUS.md`](../PROJECT_STATUS.md)** | What’s live in production; v1 parity #1–27 status |
+| **[`docs/ROADMAP.md`](../docs/ROADMAP.md)** | One-screen index |
+| **[`ARCHITECTURE.md`](ARCHITECTURE.md)** | Services, ports, API surface |
 
 ## Upgrade plans (post-v1 — not in master plan closure)
 
@@ -25,10 +25,10 @@ Add new files as `UPGRADE-<target>-<themes>.md` (e.g. `UPGRADE-ahrefs-backlinks.
 |----------|---------|
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Services, ports, data flow |
 | [`PLATFORM-DECOUPLING.md`](PLATFORM-DECOUPLING.md) | M0–M9 (complete) |
-| [`geekseo-content-scoring-spec.md`](geekseo-content-scoring-spec.md) | Score math |
+| Scoring (code) | `GeekSeo.Application/Services/ContentScoringService.cs` |
 | [`competitor-analysis.md`](competitor-analysis.md) | Competitor research |
-| [`DATA-PROVIDER-STRATEGY.md`](DATA-PROVIDER-STRATEGY.md) | Geek-owned SERP/crawl long-term |
+| [`DATAFORSEO-REPLACEMENT-UPGRADE.md`](DATAFORSEO-REPLACEMENT-UPGRADE.md) | DataForSEO expansion / SerpApi fallback |
 
 ## Do not use for planning
 
-[`REDESIGN-PLAN.md`](REDESIGN-PLAN.md), [`GEEKSEO-PLAN-V2.md`](GEEKSEO-PLAN-V2.md), `PARITY-SPECS.md`, `API-CONTRACTS.md`
+[`REDESIGN-PLAN.md`](REDESIGN-PLAN.md), `PARITY-SPECS.md`, `API-CONTRACTS.md`

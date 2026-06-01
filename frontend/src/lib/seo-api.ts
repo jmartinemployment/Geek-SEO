@@ -4,7 +4,7 @@ import { buildApiHeaders } from '@/lib/auth/api-headers';
 export { SeoApiError, formatSeoApiErrorMessage } from '@/lib/seo-api-errors';
 export type { SeoGateErrorBody } from '@/lib/seo-api-errors';
 
-/** GeekSeoBackend — sole SEO API for this app (see plan-documents/GEEKSEO-PLAN.md). */
+/** GeekSeoBackend — sole SEO API for this app (see plan-documents/ARCHITECTURE.md). */
 const SEO_API_URL = process.env.NEXT_PUBLIC_SEO_API_URL ?? 'http://localhost:5051';
 
 const API_URL = SEO_API_URL;
@@ -1005,6 +1005,26 @@ export type SemanticEntity = {
   reason?: string;
 };
 
+export type ContentSequenceItem = {
+  order: number;
+  topicId: string;
+  topicName: string;
+  tier: TopicalTier;
+  reason?: string;
+};
+
+export type LinkGraphEdge = {
+  sourceTopicId: string;
+  targetTopicId: string;
+  anchorText: string;
+  priority?: 'high' | 'medium' | 'low';
+};
+
+export type InternalLinkingBlueprint = {
+  sequences: ContentSequenceItem[];
+  linkGraph: LinkGraphEdge[];
+};
+
 export type TopicalMapTopic = {
   name: string;
   queries: string[];
@@ -1059,6 +1079,7 @@ export type TopicalMapResult = {
   quickWins?: QuickWin[];
   semanticEntities?: SemanticEntity[];
   duplicateCount?: number;
+  linkingBlueprint?: InternalLinkingBlueprint;
 };
 
 export async function generateTopicalMap(
@@ -1087,6 +1108,18 @@ export async function getTopicalMap(
   });
   if (res.status === 404) return null;
   return seoJson<TopicalMapResult>(res);
+}
+
+export async function getLinksBlueprint(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<InternalLinkingBlueprint | null> {
+  const res = await fetch(`${API_URL}/api/seo/topical-map/${projectId}/linking-blueprint`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (res.status === 404) return null;
+  return seoJson<InternalLinkingBlueprint>(res);
 }
 
 export type PublishedPageMetrics = {

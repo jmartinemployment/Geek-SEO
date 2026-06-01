@@ -4,12 +4,12 @@
 
 | Document | Purpose |
 |----------|---------|
-| **[`plan-documents/geekseo-plan.md`](../plan-documents/geekseo-plan.md)** | v1 master plan — **100% complete** |
-| **[`plan-documents/TODO.md`](../plan-documents/TODO.md)** | All future / deferred work |
-| **[`PROJECT_STATUS.md`](../PROJECT_STATUS.md)** | Production status |
+| **[`plan-documents/TODO.md`](../plan-documents/TODO.md)** | All remaining / future work |
+| **[`PROJECT_STATUS.md`](../PROJECT_STATUS.md)** | Production status; v1 parity #1–27 |
+| **[`plan-documents/ARCHITECTURE.md`](../plan-documents/ARCHITECTURE.md)** | Services, ports, data flow |
 
-## Is the plan 100% complete?
+## Is v1 “done”?
 
-**Yes** — for v1 scope defined in `geekseo-plan.md` § v1 definition of done.
+**Checklist yes** — parity **#1–27** shipped (see PROJECT_STATUS; waivers #6, #15, #19, #20).
 
-**No** — if you mean “everything we might ever build” — see [`plan-documents/TODO.md`](../plan-documents/TODO.md).
+**Product no** — editor scoring and integrations **#28–31** are backlog in [`TODO.md`](../plan-documents/TODO.md).

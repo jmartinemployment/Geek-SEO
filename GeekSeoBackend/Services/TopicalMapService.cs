@@ -17,6 +17,7 @@ public sealed class TopicalMapService(
     IKeywordRepository keywordRepository,
     IKeywordProvider keywordProvider,
     ITopicalHierarchyBuilder hierarchyBuilder,
+    IKeywordDiscoveryProvider keywordDiscoveryProvider,
     IAIProvider aiProvider)
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -87,6 +88,7 @@ public sealed class TopicalMapService(
         var withPriority = AssignStrategicPriority(deduped);
         var quickWins = BuildQuickWins(withPriority);
         var semanticEntities = await BuildSemanticEntitiesAsync(withPriority, ct);
+        var linkingBlueprint = InternalLinkingBlueprintBuilder.Build(withPriority);
 
         var now = DateTimeOffset.UtcNow;
         var recommendations = withPriority
@@ -110,6 +112,7 @@ public sealed class TopicalMapService(
             QuickWins = quickWins,
             SemanticEntities = semanticEntities,
             DuplicateCount = withPriority.Count(t => t.IsDuplicate),
+            LinkingBlueprint = linkingBlueprint,
         };
 
         await topicalMaps.UpsertAsync(new SeoTopicalMap
@@ -145,11 +148,27 @@ public sealed class TopicalMapService(
 
         if (!keywordSuggestionsResult.IsSuccess || keywordSuggestionsResult.Value is null)
             return CreateEmptyResult(projectId, "seed", seedKeyword);
-
         var suggestions = keywordSuggestionsResult.Value.ToList();
+
+
+        var discoveredKeywordsResult = await keywordDiscoveryProvider.GetRelatedKeywordsAsync(
+            seedKeyword,
+            location,
+            50,
+            ct);
+
+        var discoveredKeywords = discoveredKeywordsResult.IsSuccess && discoveredKeywordsResult.Value is not null
+            ? discoveredKeywordsResult.Value.ToList()
+            : [];
+
+        var allKeywords = suggestions
+            .Concat(discoveredKeywords)
+            .DistinctBy(k => k.Keyword.ToLowerInvariant())
+            .OrderByDescending(k => k.SearchVolume)
+            .Take(100).ToList();
         var topics = new List<TopicalMapTopic>();
 
-        foreach (var suggestion in suggestions)
+        foreach (var suggestion in allKeywords)
         {
             var topic = new TopicalMapTopic
             {
@@ -205,6 +224,7 @@ public sealed class TopicalMapService(
         var withPriority = AssignStrategicPriority(deduped);
         var quickWins = BuildQuickWins(withPriority);
         var semanticEntities = await BuildSemanticEntitiesAsync(withPriority, ct);
+        var linkingBlueprint = InternalLinkingBlueprintBuilder.Build(withPriority);
 
         var now = DateTimeOffset.UtcNow;
         var recommendations = withPriority
@@ -237,6 +257,7 @@ public sealed class TopicalMapService(
             QuickWins = quickWins,
             SemanticEntities = semanticEntities,
             DuplicateCount = withPriority.Count(t => t.IsDuplicate),
+            LinkingBlueprint = linkingBlueprint,
         };
 
         await topicalMaps.UpsertAsync(new SeoTopicalMap
