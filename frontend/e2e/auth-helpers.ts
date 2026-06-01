@@ -5,6 +5,29 @@ export type TestCredentials = {
   password: string;
 };
 
+const AUTH_ORIGIN = 'https://auth.geekatyourspot.com';
+
+function resolveAuthUrl(location: string | undefined): string | null {
+  if (!location) return null;
+  if (location.startsWith('http://') || location.startsWith('https://')) return location;
+  return `${AUTH_ORIGIN}${location.startsWith('/') ? location : `/${location}`}`;
+}
+
+function isAppUrl(url: string): boolean {
+  return /seo\.geekatyourspot\.com\/app\//i.test(url);
+}
+
+function isCallbackUrl(url: string): boolean {
+  return /seo\.geekatyourspot\.com\/auth\/callback/i.test(url);
+}
+
+async function maybeClickConsent(page: Page): Promise<void> {
+  const consent = page.getByRole('button', { name: /^(allow|authorize|accept|yes)$/i });
+  if (await consent.isVisible().catch(() => false)) {
+    await consent.click();
+  }
+}
+
 export function getTestCredentials(): TestCredentials | null {
   const email = process.env.PLAYWRIGHT_TEST_EMAIL?.trim();
   const password = process.env.PLAYWRIGHT_TEST_PASSWORD?.trim();
@@ -38,7 +61,13 @@ export async function loginViaGeekOAuth(
   baseURL: string,
   credentials: TestCredentials,
 ) {
-  await page.goto(new URL('/api/auth/start', baseURL).toString());
+  const base = baseURL.replace(/\/$/u, '');
+  const deadline = Date.now() + 120_000;
+
+  await page.goto(new URL('/api/auth/start', base).toString(), {
+    waitUntil: 'domcontentloaded',
+    timeout: 60_000,
+  });
 
   await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible({
     timeout: 20_000,
@@ -48,44 +77,62 @@ export async function loginViaGeekOAuth(
     throw new Error('PLAYWRIGHT_TEST_* user has 2FA enabled; use a test account without 2FA.');
   }
 
-  await page.getByLabel('Email').fill(credentials.email);
-  await page.getByLabel('Password').fill(credentials.password);
+  await page.locator('#Input_Email').fill(credentials.email);
+  await page.locator('#Input_Password').fill(credentials.password);
 
-  await Promise.all([
-    page.waitForURL(/\/auth\/callback|\/app\/|connect\/authorize/i, {
-      timeout: 60_000,
-      waitUntil: 'domcontentloaded',
-    }),
-    page.getByRole('button', { name: 'Sign in' }).click(),
+  const [loginResponse] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' && response.url().includes('/Account/Login'),
+      { timeout: 30_000 },
+    ),
+    page.locator('form').first().evaluate((form) => form.requestSubmit()),
   ]);
 
-  if (/connect\/authorize/i.test(page.url())) {
-    const consent = page.getByRole('button', { name: /^(allow|authorize|accept)$/i });
-    if (await consent.isVisible().catch(() => false)) {
-      await consent.click();
-      await page.waitForURL(/\/auth\/callback|\/app\//, {
-        timeout: 60_000,
-        waitUntil: 'domcontentloaded',
-      });
-    }
+  if (loginResponse.status() >= 400) {
+    throw new Error(`GeekOAuth login POST failed with HTTP ${loginResponse.status()}.`);
   }
 
-  if (page.url().includes('/auth/callback')) {
-    await page.waitForURL(/\/app\//, {
-      timeout: 60_000,
-      waitUntil: 'domcontentloaded',
-    });
+  const nextUrl = resolveAuthUrl(loginResponse.headers()['location']);
+  if (nextUrl) {
+    await page.goto(nextUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
   }
 
-  if (/auth\.geekatyourspot\.com/i.test(page.url())) {
-    const body = await page.locator('body').innerText();
-    if (/invalid|incorrect password|login failed/i.test(body)) {
-      throw new Error('GeekOAuth rejected PLAYWRIGHT_TEST_EMAIL/PASSWORD — update frontend/.env.playwright.local.');
+  while (Date.now() < deadline) {
+    const url = page.url();
+    if (isAppUrl(url)) {
+      break;
     }
-    throw new Error(
-      'OAuth login did not complete (still on auth.geekatyourspot.com). '
-        + 'Use a test account without 2FA and verify credentials in frontend/.env.playwright.local.',
-    );
+    if (isCallbackUrl(url)) {
+      await page.waitForURL(/\/app\//, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+      break;
+    }
+    if (/connect\/authorize/i.test(url)) {
+      await maybeClickConsent(page);
+      await page.waitForTimeout(500);
+      continue;
+    }
+    if (/auth\.geekatyourspot\.com\/Account\/Login/i.test(url)) {
+      const body = await page.locator('body').innerText();
+      if (/invalid|incorrect password|login failed/i.test(body)) {
+        throw new Error(
+          'GeekOAuth rejected PLAYWRIGHT_TEST_EMAIL/PASSWORD — update frontend/.env.playwright.local.',
+        );
+      }
+      const returnUrl = new URL(url).searchParams.get('ReturnUrl');
+      if (returnUrl) {
+        await page.goto(resolveAuthUrl(returnUrl) ?? returnUrl, {
+          waitUntil: 'domcontentloaded',
+          timeout: 60_000,
+        });
+        continue;
+      }
+    }
+    await page.waitForTimeout(400);
+  }
+
+  if (!isAppUrl(page.url())) {
+    throw new Error(`OAuth login did not reach /app (last URL: ${page.url()}).`);
   }
 
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible({

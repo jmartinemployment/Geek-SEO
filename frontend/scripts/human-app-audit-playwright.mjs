@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
+import { loginViaGeekOAuth } from './lib/geek-oauth-login.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FRONTEND = path.resolve(__dirname, '..');
@@ -71,47 +72,12 @@ function slug(name) {
   return name.toLowerCase().replace(/\s+/g, '-');
 }
 
-async function loginViaGeekOAuth(page) {
-  await page.goto(`${BASE}/api/auth/start`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  if (/TwoFactor/i.test(page.url())) {
-    throw new Error('Test account has 2FA — use a GeekOAuth user without 2FA.');
-  }
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-
-  await Promise.all([
-    page.waitForURL(/\/auth\/callback|\/app\/|connect\/authorize/i, {
-      timeout: 60_000,
-      waitUntil: 'domcontentloaded',
-    }),
-    page.getByRole('button', { name: 'Sign in' }).click(),
-  ]);
-
-  if (/connect\/authorize/i.test(page.url())) {
-    const consent = page.getByRole('button', { name: /^(allow|authorize|accept)$/i });
-    if (await consent.isVisible().catch(() => false)) {
-      await consent.click();
-      await page.waitForURL(/\/auth\/callback|\/app\//, {
-        timeout: 60_000,
-        waitUntil: 'domcontentloaded',
-      });
-    }
-  }
-
-  if (page.url().includes('/auth/callback')) {
-    await page.waitForURL(/\/app\//, { timeout: 60_000, waitUntil: 'domcontentloaded' });
-  }
-
-  if (/auth\.geekatyourspot\.com/i.test(page.url())) {
-    await page.screenshot({ path: path.join(SHOT_DIR, 'login-failed.png'), fullPage: true });
-    throw new Error(
-      'OAuth login did not complete — verify PLAYWRIGHT_TEST_EMAIL/PASSWORD in .env.playwright.local (no 2FA). '
-        + `Screenshot: ${path.join(SHOT_DIR, 'login-failed.png')}`,
-    );
-  }
-
-  await page.getByRole('heading', { name: 'Projects' }).waitFor({ state: 'visible', timeout: 30_000 });
-  await page.waitForTimeout(500);
+async function login(page) {
+  await loginViaGeekOAuth(page, {
+    baseUrl: BASE,
+    email,
+    password,
+  });
 }
 
 async function auditPage(page, { name, path: pagePath, heading }) {
@@ -180,7 +146,7 @@ async function main() {
 
   try {
     console.log('▶ Login');
-    await loginViaGeekOAuth(page);
+    await login(page);
     console.log(`  OK — ${page.url()}\n`);
 
     console.log('▶ Interactive — Topical Map generate');

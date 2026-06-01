@@ -91,7 +91,7 @@ try {
 
     if (liveAudit) {
       let detail;
-      for (let attempt = 0; attempt < 20; attempt += 1) {
+      for (let attempt = 0; attempt < 40; attempt += 1) {
         await sleep(3000);
         const got = await request('GET', `/api/seo/audit/site/${auditId}`);
         assert(got.status === 200, `get audit failed: ${got.status}`);
