@@ -51,3 +51,10 @@ jobs:
         env:
           PLAYWRIGHT_API_URL: https://seo-api.geekatyourspot.com
           NEXT_PUBLIC_DEV_USER_ID: 00000000-0000-0000-0000-000000000001
+
+      - name: GA4 API integration (production, live landing-pages)
+        run: GA4_LIVE=1 npm run test:integration:ga4
+        env:
+          PLAYWRIGHT_API_URL: https://seo-api.geekatyourspot.com
+          INTEGRATION_USER_ID: 92b274f5-2fcb-4935-ba2d-cd8c03e1b21b
+          GA4_PROJECT_ID: e6275e97-6568-4e48-9bab-ee788de8fe77

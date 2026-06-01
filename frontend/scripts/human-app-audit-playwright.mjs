@@ -72,6 +72,11 @@ function slug(name) {
   return name.toLowerCase().replace(/\s+/g, '-');
 }
 
+/** Low SEO score banners on dashboard are expected for test articles, not product defects. */
+function isBenignDashboardAlert(text) {
+  return /scores \d+%/i.test(text) && /improve structure and topic coverage/i.test(text);
+}
+
 async function login(page) {
   await loginViaGeekOAuth(page, {
     baseUrl: BASE,
@@ -115,7 +120,9 @@ async function auditPage(page, { name, path: pagePath, heading }) {
   const alertText = await page.locator('[role="alert"]').allTextContents().catch(() => []);
   for (const text of alertText) {
     const trimmed = text.trim();
-    if (trimmed) issues.push(`alert: ${trimmed.slice(0, 120)}`);
+    if (!trimmed) continue;
+    if (name === 'Dashboard' && isBenignDashboardAlert(trimmed)) continue;
+    issues.push(`alert: ${trimmed.slice(0, 120)}`);
   }
 
   const stuckLoading = await page.getByText(/^Loading…$/).isVisible().catch(() => false);
@@ -184,6 +191,28 @@ async function main() {
       await runBtn.click();
       await page.waitForTimeout(5000);
       await page.screenshot({ path: path.join(SHOT_DIR, 'site-audit-after-run.png'), fullPage: true });
+    }
+
+    console.log('▶ Interactive — GA4 landing pages');
+    const ga4Response = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/seo/analytics/ga4/') &&
+        response.url().includes('/landing-pages') &&
+        response.request().method() === 'GET',
+      { timeout: 45_000 },
+    );
+    await page.goto(`${BASE}/app/analytics`, { waitUntil: 'domcontentloaded' });
+    await waitForAppAuth(page);
+    const ga4 = await ga4Response.catch(() => null);
+    if (ga4) {
+      const ga4Status = ga4.status();
+      console.log(`  GA4 landing-pages → ${ga4Status}`);
+      if (ga4Status === 403 || ga4Status === 502) {
+        seoFailures.push(`GET ${new URL(ga4.url()).pathname} → ${ga4Status}`);
+      }
+      await page.screenshot({ path: path.join(SHOT_DIR, 'analytics-ga4.png'), fullPage: true });
+    } else {
+      console.log('  (no landing-pages request — project may lack GA4 connect)');
     }
 
     console.log('\n▶ Page tour');

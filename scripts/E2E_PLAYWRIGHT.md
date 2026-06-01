@@ -8,6 +8,8 @@ Complements `scripts/E2E_SMOKE.md` (API-only, no browser).
 |---------|--------|-------------|
 | `npm run test:e2e:smoke` | Production (default) | None |
 | `npm run test:integration:google` | Production API | Dev user header (see script) |
+| `GA4_LIVE=1 npm run test:integration:ga4` | Production API | Operator project with GA4 connected |
+| `npm run test:human:app-audit` | Production UI | `PLAYWRIGHT_TEST_*` in `.env.playwright.local` |
 | `npm run test:e2e:google` | `localhost:3000` + production API | `NEXT_PUBLIC_DEV_USER_ID` in `.env.local` |
 | `npm run test:e2e:auth:local` | `localhost:3000` + `:5051` | `NEXT_PUBLIC_DEV_USER_ID` in `.env.local` |
 | `npm run test:e2e:auth` | Production | `PLAYWRIGHT_TEST_*` in `.env.playwright.local` |
@@ -29,7 +31,10 @@ Verifies connect-url and status against production GeekSeoBackend (does **not** 
 cd frontend
 npm run test:integration:google   # API only (~1s)
 npm run test:e2e:google             # API + browser redirect to accounts.google.com
+GA4_LIVE=1 npm run test:integration:ga4   # live landing-pages (requires GA4 on project)
 ```
+
+GCP: enable **Analytics Data API** and **Analytics Admin API** on the OAuth client project (e.g. `643227070586`).
 
 The UI test uses `http://localhost:3000` (not `127.0.0.1`) so production CORS allows browser calls.
 

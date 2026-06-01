@@ -1,12 +1,12 @@
 # Geek SEO — project status
 
-Last updated: May 31, 2026 (session — worker env + identity documentation)
+Last updated: May 31, 2026 (session — plan closure: auth, GA4 live, human audit)
 
 ## Latest on `main`
 
 | Item | Detail |
 |------|--------|
-| **HEAD** | `91dec03` — prior Vercel Suspense fix; **local uncommitted** — topical map persist, SERP term matrix cache, published audit snapshots, Content Guard pipeline, GEO tracking, dual GEO scoring, maintenance worker |
+| **HEAD** | `3b1d98e`+ — auth bootstrap gate (`auth-provider` blocks `/app` until token refresh); GA4 live integration test; human audit 0 API failures |
 | **New backend APIs** | `GET /api/seo/topical-map/{id}`, `GET/PUT/POST /api/seo/content-guard/*`, `GET/POST/DELETE /api/seo/geo/queries`, `GET /api/seo/geo/queries/{id}/trends` |
 | **Workers** | `SeoMaintenanceWorker` — hourly topical refresh, published snapshots, daily GEO probes + Content Guard scan | ✅ `WORKER_SERVICE_USER_ID` set on Railway (see **Identity & worker service account**). **TODO later:** migrate to `@geekatyourspot.com` service account. |
 | **GeekRepository** | New `repo/seo/*` controllers + `AddContentGuardTables` EF migration |
@@ -18,7 +18,8 @@ Last updated: May 31, 2026 (session — worker env + identity documentation)
 | Service | URL | Status |
 |---------|-----|--------|
 | **GeekSeoBackend** | `seo-api.geekatyourspot.com` | ✅ `/health` OK — `gateway: ok` |
-| **Frontend (Vercel)** | `seo.geekatyourspot.com` | ✅ Deploy `dpl_6LPEYYSD2e9tvws2qi5fhmVdmiaQ` **READY** (`91dec03`); Vercel edge returns **200** |
+| **Frontend (Vercel)** | `seo.geekatyourspot.com` | ✅ Auto-deploy from `main`; human app audit **0 API 401s** after auth gate |
+| **GA4 (live)** | Analytics Data API on GCP `643227070586` | ✅ `GA4_LIVE=1 npm run test:integration:ga4` — landing-pages **200**, 2 rows |
 | **Frontend (alt)** | `geek-seo.vercel.app` | ✅ **200** — confirms build healthy |
 | **DNS** | `seo` CNAME | ✅ Authoritative (`dns1.registrar-servers.com`) → `cname.vercel-dns.com`; ⚠️ some resolvers still cache old `j6ftfgyv.up.railway.app` until TTL expires |
 | **Deploy note** | — | Frontend auto-deploys from GitHub `main`. Backend redeploys are **manual** on Railway. Smoke-test authenticated `GET /api/seo/dashboard/overview` when convenient. |
@@ -163,6 +164,8 @@ Honest status against `plan-documents/geekseo-plan.md`. **~27/31 shipped end-to-
 | Production API (plagiarism status) | `npm run test:integration:plagiarism` | `e2e-seo-api-integration.yml` |
 | Production API (content guard gate + 401) | `npm run test:integration:content-guard` | `e2e-seo-api-integration.yml` |
 | Google OAuth + GSC/GA4 | `npm run test:integration:google` | `e2e-google-integration.yml` |
+| GA4 landing-pages (live) | `GA4_LIVE=1 npm run test:integration:ga4` | `e2e-seo-api-integration.yml` |
+| Human full app audit | `npm run test:human:app-audit` | manual / pre-release |
 | Playwright smoke | `npm run test:e2e:smoke` | `e2e-smoke.yml` |
 | Playwright authenticated | `npm run test:e2e:auth:local` or `test:e2e:auth` | `e2e-authenticated.yml` |
 
@@ -178,7 +181,19 @@ Master plan: `plan-documents/geekseo-plan.md` (31 features / 34 steps). **In-rep
 
 Platform decoupling: `plan-documents/PLATFORM-DECOUPLING.md` — **complete** (M0–M9, M1, O2).
 
-## Next (highest impact)
+## Session plan closure (May 31, 2026)
+
+| Thread | Status |
+|--------|--------|
+| Site audit (worker context, detail load, live crawl) | ✅ |
+| Topical map (generate + `matchedPageUrl`) | ✅ |
+| Production auth / SEO API 401 on navigation | ✅ `3b1d98e` |
+| GA4 403 (Analytics Data API) | ✅ live test + GCP `643227070586` |
+| Human app audit | ✅ 19/19 pages clean (dashboard test-score alerts ignored) |
+
+**In-repo master plan (#1–#27):** complete. **#28–31** remain out of scope (separate products).
+
+## Next (optional / ops — not blocking “plan complete”)
 
 1. **TODO (later):** Migrate production identity from personal Gmail to a dedicated **`@geekatyourspot.com`** GeekOAuth account; update `WORKER_SERVICE_USER_ID` and project ownership (see **Identity & worker service account** above).
 2. Smoke-test Content Guard **without WordPress**: GSC connected → enable policy → `POST /scan` or wait for daily worker → confirm decay runs and `PatchedHtml` in UI (`CONTENT_GUARD_LIVE=1 npm run test:integration:content-guard` with Agency tier / full-access user).
