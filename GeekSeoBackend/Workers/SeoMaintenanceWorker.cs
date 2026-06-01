@@ -1,3 +1,4 @@
+using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Services;
@@ -45,6 +46,9 @@ public sealed class SeoMaintenanceWorker(
         var geoService = scope.ServiceProvider.GetRequiredService<GeoVisibilityService>();
         var contentGuard = scope.ServiceProvider.GetRequiredService<IContentGuardRepository>();
         var guardService = scope.ServiceProvider.GetRequiredService<ContentGuardService>();
+        var rankRepo = scope.ServiceProvider.GetRequiredService<IRankTrackingRepository>();
+        var rankTracking = scope.ServiceProvider.GetRequiredService<RankTrackingService>();
+        var projects = scope.ServiceProvider.GetRequiredService<IProjectRepository>();
 
         var dueMaps = await topicalMaps.ListDueForRefreshAsync(5, ct);
         if (dueMaps.IsSuccess && dueMaps.Value is not null)
@@ -116,6 +120,28 @@ public sealed class SeoMaintenanceWorker(
                     catch (Exception ex)
                     {
                         logger.LogWarning(ex, "Content Guard scan failed for {ProjectId}", project.ProjectId);
+                    }
+                }
+            }
+
+            workerUser.UserId = serviceUserId;
+            var projectsWithKeywords = await rankRepo.ListProjectsWithKeywordsAsync(100, ct);
+            if (projectsWithKeywords.IsSuccess && projectsWithKeywords.Value is not null)
+            {
+                foreach (var projectId in projectsWithKeywords.Value)
+                {
+                    try
+                    {
+                        var projectResult = await projects.GetByIdAsync(projectId, serviceUserId, ct);
+                        if (projectResult.IsSuccess && projectResult.Value is not null)
+                        {
+                            workerUser.UserId = projectResult.Value.UserId;
+                            await rankTracking.SnapshotProjectRanksAsync(projectId, ct);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Rank snapshot failed for project {ProjectId}", projectId);
                     }
                 }
             }

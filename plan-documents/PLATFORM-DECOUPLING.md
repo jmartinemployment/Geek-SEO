@@ -1,7 +1,7 @@
 # Platform decoupling — Geek SEO contracts & legacy auth cleanup
 
 **Status:** **Complete** — mandatory M2–M9, M0, M1, and **O2** (legacy auth tables dropped)  
-**Date:** 2026-05-30 (rev. 9)  
+**Date:** 2026-06-01 (rev. 10)  
 **Related:** [`ARCHITECTURE.md`](ARCHITECTURE.md), [`BOUNDARIES.md`](../BOUNDARIES.md), [`GEEKSEO-PLAN.md`](GEEKSEO-PLAN.md)
 
 ---
@@ -40,7 +40,7 @@ Geek SEO must **build and deploy without** cloning the GeekBackend monorepo or r
 | **GeekAPI** | Gateway — `/api/seo/internal/*` only for SEO data path. |
 | **GeekRepository (service)** | Only process with **live** Postgres connection to `geek_seo`. |
 | **GeekSeo.Persistence** | EF entities + `SeoDbContext` + migrations — **source of truth** for schema (M3). |
-| **GeekApplication** | Legacy mixed library in GeekBackend — **transitional** until M2/M6. |
+| **GeekApplication** | Platform contracts in GeekBackend — references `GeekSeo.Persistence` for data types; no legacy auth (M4–M6). |
 
 ---
 
@@ -62,7 +62,7 @@ Browser → GeekOAuth → GeekSeoBackend (GeekSeo.Application)
 | Data plane | GeekRepository | Execute SQL; reference **GeekSeo.Persistence** at build |
 
 **GeekSeoBackend:** no GeekBackend clone in Docker (M7).  
-**GeekRepository:** clones **Geek-SEO** at pin `Geek-SEO.commit` for Persistence only (M3 deploy) — inverse of today’s `GeekBackend.commit` on product.
+**GeekRepository:** clones **Geek-SEO** at pin `Geek-SEO.commit` (GeekBackend repo) for Persistence at deploy. **GeekSeoBackend** Docker builds from Geek-SEO only (M7 — no `GeekBackend.commit` in product repo).
 
 ---
 
@@ -123,7 +123,7 @@ Searched active sibling repos under `development-new/` for `api.geekatyourspot.c
 
 #### `Geek-SEO.commit` ownership (GeekBackend repo)
 
-Parallel to `GeekBackend.commit` in Geek-SEO.
+Pins GeekRepository deploys to a Geek-SEO SHA when `GeekSeo.Persistence` changes. Product repo no longer pins GeekBackend.
 
 | Event | Owner | Action |
 |-------|-------|--------|
@@ -137,19 +137,17 @@ Parallel to `GeekBackend.commit` in Geek-SEO.
 
 ---
 
-### M2 — SEO application layer in Geek-SEO (required)
+### M2 — SEO application layer in Geek-SEO (required) — complete
 
 **Goal:** GeekSeoBackend uses in-repo contracts only.
 
-| Step | Action |
-|------|--------|
-| 2.1 | Add `GeekSeo.Application/` — interfaces, models, services, constants, `Results` |
-| 2.2 | `ProjectReference` → `GeekSeo.Persistence` for entity types used in interfaces |
-| 2.3 | Move `Services/Seo` (e.g. `ContentScoringService`) from GeekApplication |
-| 2.4 | Remove GeekSeoBackend → GeekApplication reference |
-| 2.5 | `dotnet build` GeekSEO.slnx |
-
-**Order:** After **M3.7 verified** (interfaces need entity types from Persistence; product Docker still clones GeekBackend until M7).
+| Step | Action | Status |
+|------|--------|--------|
+| 2.1 | Add `GeekSeo.Application/` — interfaces, models, services, constants, `Results` | **Done** |
+| 2.2 | `ProjectReference` → `GeekSeo.Persistence` for entity types used in interfaces | **Done** |
+| 2.3 | Move `Services/Seo` (e.g. `ContentScoringService`) from GeekApplication | **Done** |
+| 2.4 | Remove GeekSeoBackend → GeekApplication reference | **Done** |
+| 2.5 | `dotnet build` GeekSEO.slnx | **Done** (rev. 10 — includes rank-tracking compile fixes) |
 
 **Exit:** Product compiles without GeekBackend.
 

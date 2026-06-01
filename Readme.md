@@ -14,7 +14,6 @@ Surfer / ContentShake-style SEO content SaaS.
 | `frontend/` | Next.js app |
 | `GeekSeo.Persistence/` | EF `geek_seo` schema + migrations (**product-owned**, M3) |
 | `GeekSeoBackend/` | SEO product API + SignalR |
-| `GeekBackend.commit` | *(transitional)* Pinned GeekBackend SHA for Railway Docker — **removed in PLATFORM-DECOUPLING M7** |
 | `plan-documents/` | Product spec + platform decoupling plan |
 
 **Contracts:** In-repo **`GeekSeo.Application`** + **`GeekSeo.Persistence`** — GeekSeoBackend does not reference GeekBackend. See [`PLATFORM-DECOUPLING.md`](plan-documents/PLATFORM-DECOUPLING.md).
@@ -23,20 +22,12 @@ Surfer / ContentShake-style SEO content SaaS.
 
 ## Build (local)
 
-Clone GeekBackend next to this repo:
-
-```
-development-new/
-├── Geek-SEO/
-└── GeekBackend/
-```
-
 ```bash
 dotnet build GeekSEO.slnx
 dotnet run --project GeekSeoBackend
 ```
 
-Until **M7**, when GeekBackend shared contracts change, update `GeekBackend.commit` and redeploy. After **M7**, product deploys are independent of GeekBackend SHA.
+Product Docker builds from **this repo only** (no GeekBackend clone). For full E2E with persistence, run **GeekOAuth**, **GeekAPI**, and **GeekRepository** from the sibling `GeekBackend/` repo — see [`scripts/LOCAL_DEV.md`](scripts/LOCAL_DEV.md).
 
 ## Local dev
 

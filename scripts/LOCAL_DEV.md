@@ -101,13 +101,13 @@ npm run test:e2e:auth:local   # needs GeekSeoBackend :5051 + GEEK_API_URL + GEEK
 
 Without a working data gateway locally, `test:e2e:auth:local` still passes but **skips** the content-editor plagiarism panel test (gateway probe returns 400). Production integration scripts hit Railway directly and do not need local GeekAPI.
 
-## GeekBackend (sibling repo — E2E + transitional build)
+## GeekBackend (sibling repo — E2E only)
 
 **Runtime E2E:** GeekAPI + GeekRepository must run for persistence (GeekSeoBackend has no `DATABASE_URL`).
 
-**Build:** `dotnet build GeekSEO.slnx` from repo root — uses in-repo `GeekSeo.Application` + `GeekSeo.Persistence` (no GeekBackend clone).
+**Product build:** `dotnet build GeekSEO.slnx` from repo root — in-repo `GeekSeo.Application` + `GeekSeo.Persistence` only.
 
-**Railway (transitional until M7):** Docker clones GeekBackend at `GeekBackend.commit`. After M7, product image builds from this repo only.
+**Product Railway deploy:** root `Dockerfile` builds from Geek-SEO only (PLATFORM-DECOUPLING M7). GeekRepository deploy pins **`Geek-SEO.commit`** in the GeekBackend repo when `GeekSeo.Persistence` changes.
 
 ## GeekBackend platform roles
 

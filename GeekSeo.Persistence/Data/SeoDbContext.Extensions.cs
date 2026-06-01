@@ -66,7 +66,18 @@ public partial class SeoDbContext
             e.HasOne(x => x.SiteAudit).WithMany(a => a.Pages).HasForeignKey(x => x.SiteAuditId);
         });
 
-        modelBuilder.Entity<SeoRankTracking>(e => { e.ToTable("seo_rank_tracking"); e.HasKey(x => x.Id); });
+        modelBuilder.Entity<SeoRankTracking>(e =>
+        {
+            e.ToTable("seo_rank_tracking");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.Keyword, x.Date }).IsUnique();
+        });
+        modelBuilder.Entity<SeoTrackedKeyword>(e =>
+        {
+            e.ToTable("seo_tracked_keywords");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ProjectId, x.Keyword }).IsUnique();
+        });
         modelBuilder.Entity<SeoGscConnection>(e => { e.ToTable("seo_gsc_connections"); e.HasKey(x => x.Id); e.HasIndex(x => x.ProjectId).IsUnique(); });
         modelBuilder.Entity<SeoSubscription>(e => { e.ToTable("seo_subscriptions"); e.HasKey(x => x.Id); e.HasIndex(x => x.UserId).IsUnique(); });
         modelBuilder.Entity<SeoReport>(e => { e.ToTable("seo_reports"); e.HasKey(x => x.Id); });

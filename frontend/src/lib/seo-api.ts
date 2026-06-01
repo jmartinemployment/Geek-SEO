@@ -1316,3 +1316,69 @@ export async function rollbackContentGuardRun(runId: string, accessToken?: strin
   });
   return seoJson<ContentGuardRun>(res);
 }
+
+export type TrackedKeyword = {
+  id: string;
+  projectId: string;
+  keyword: string;
+  location: string;
+  device: string;
+  enabled: boolean;
+  addedAt: string;
+};
+
+export type RankHistoryPoint = {
+  date: string;
+  position: number | null;
+  pageUrl?: string;
+};
+
+export async function getRankTrackerKeywords(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<TrackedKeyword[]> {
+  if (!hasAuthContext(accessToken)) return [];
+  const res = await fetch(`${API_URL}/api/seo/rank-tracker/${projectId}`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson<TrackedKeyword[]>(res);
+}
+
+export async function addTrackedKeyword(
+  projectId: string,
+  request: { keyword: string; location?: string; device?: string },
+  accessToken?: string | null,
+): Promise<TrackedKeyword> {
+  const res = await fetch(`${API_URL}/api/seo/rank-tracker/${projectId}`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(request),
+  });
+  return seoJson<TrackedKeyword>(res);
+}
+
+export async function deleteTrackedKeyword(keywordId: string, accessToken?: string | null): Promise<void> {
+  const res = await fetch(`${API_URL}/api/seo/rank-tracker/keyword/${keywordId}`, {
+    method: 'DELETE',
+    headers: apiHeaders(accessToken),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+}
+
+export async function getRankHistory(
+  projectId: string,
+  keyword: string,
+  days: number = 30,
+  accessToken?: string | null,
+): Promise<RankHistoryPoint[]> {
+  if (!hasAuthContext(accessToken)) return [];
+  const res = await fetch(
+    `${API_URL}/api/seo/rank-tracker/${projectId}/history?keyword=${encodeURIComponent(keyword)}&days=${days}`,
+    {
+      headers: apiHeaders(accessToken),
+      cache: 'no-store',
+    },
+  );
+  return seoJson<RankHistoryPoint[]>(res);
+}

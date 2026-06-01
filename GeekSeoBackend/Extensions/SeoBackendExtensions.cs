@@ -45,6 +45,7 @@ public static class SeoBackendExtensions
         services.AddScoped<IPublishedPageRepository, HttpPublishedPageRepository>();
         services.AddScoped<IGeoTrackingRepository, HttpGeoTrackingRepository>();
         services.AddScoped<IContentGuardRepository, HttpContentGuardRepository>();
+        services.AddScoped<IRankTrackingRepository, HttpRankTrackingRepository>();
 
         services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<IContentDocumentService, ContentDocumentService>();
@@ -66,6 +67,7 @@ public static class SeoBackendExtensions
         services.AddScoped<IKeywordProvider, DataForSEOKeywordProvider>();
         services.AddScoped<IAIProvider, ClaudeProvider>();
         services.AddScoped<IWordPressProvider, WordPressRestProvider>();
+        services.AddScoped<IRankSnapshotProvider, DataForSeoRankSnapshotProvider>();
 
         if (playwrightHolder?.Browser is not null)
             services.AddSingleton<ICrawlerProvider>(_ => new PlaywrightCrawlerProvider(playwrightHolder.Browser));
@@ -103,6 +105,7 @@ public static class SeoBackendExtensions
         services.AddScoped<PublishedContentAuditService>();
         services.AddScoped<GeoVisibilityService>();
         services.AddScoped<ContentGuardService>();
+        services.AddScoped<RankTrackingService>();
 
         services.AddHttpClient("PayPal");
         services.AddSingleton(_ => new PayPalOptions

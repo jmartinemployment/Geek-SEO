@@ -408,6 +408,9 @@ public sealed class TopicalMapService(
             var topicsCompact = string.Join("\n", topicsByPriority.Select(t =>
                 $"{t.Name} | {t.Tier} | {t.PillarName ?? "General"}"));
 
+            const string jsonShape =
+                """[{"name":"EntityName","type":"Concept","pillarRefs":["PillarName"],"reason":"Why it matters"}]""";
+
             var prompt = $@"Given this topical map, identify the 20 most important semantic entities
 (people, organizations, concepts, tools, standards, locations) that must appear across
 the content to establish topical authority with Google.
@@ -415,14 +418,21 @@ the content to establish topical authority with Google.
 Topics (name | tier | pillar):
 {topicsCompact}
 
-Return ONLY a JSON array: [{{"name":"...","type":"...","pillarRefs":["..."],"reason":"..."}}]
+Return ONLY a JSON array matching this shape (20 items): {jsonShape}
 Types: Person | Organization | Concept | Tool | Location | Event";
 
-            var result = await aiProvider.CompleteAsync(prompt, ct);
-            if (!result.IsSuccess || string.IsNullOrWhiteSpace(result.Value))
+            var result = await aiProvider.CompleteAsync(new AIRequest
+            {
+                SystemPrompt =
+                    "You are an SEO strategist. Return valid JSON only — no markdown fences or commentary.",
+                UserPrompt = prompt,
+                MaxTokens = 4096,
+                Temperature = 0.3,
+            }, ct);
+            if (!result.IsSuccess || result.Value is null || string.IsNullOrWhiteSpace(result.Value.Content))
                 return [];
 
-            var json = result.Value.Trim();
+            var json = result.Value.Content.Trim();
             var entities = System.Text.Json.JsonSerializer.Deserialize<List<SemanticEntity>>(json, JsonOptions);
             return entities ?? [];
         }
@@ -436,14 +446,14 @@ Types: Person | Organization | Concept | Tool | Location | Event";
     {
         return topics.Select(t =>
         {
-            var priority = (t.Tier, t.Coverage, t.SearchVolume ?? 0, t.KeywordDifficulty ?? 50) switch
-            {
-                (TopicalTier.Pillar, _, _, _) => "Must-have",
-                (_, _, vol, kd) when vol > 500 && kd < 40 => "Must-have",
-                (_, "partial", _, _) => "Must-have",
-                (TopicalTier.Cluster, _, vol, _) when vol > 100 => "High-value",
-                _ => "Expansion",
-            };
+            var vol = t.SearchVolume ?? 0;
+            var kd = t.KeywordDifficulty ?? 50;
+            var priority =
+                t.Tier == TopicalTier.Pillar ? "Must-have"
+                : vol > 500 && kd < 40 ? "Must-have"
+                : string.Equals(t.Coverage, "partial", StringComparison.OrdinalIgnoreCase) ? "Must-have"
+                : t.Tier == TopicalTier.Cluster && vol > 100 ? "High-value"
+                : "Expansion";
 
             return t with { StrategicPriority = priority };
         }).ToList();
