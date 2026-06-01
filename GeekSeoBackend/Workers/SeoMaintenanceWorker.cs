@@ -54,7 +54,7 @@ public sealed class SeoMaintenanceWorker(
                 workerUser.UserId = item.UserId;
                 try
                 {
-                    await topicalMapService.GenerateAsync(item.UserId, item.ProjectId, ct);
+                    await topicalMapService.GenerateAsync(item.UserId, item.ProjectId, force: false, ct);
                     logger.LogInformation("Refreshed topical map for project {ProjectId}", item.ProjectId);
                 }
                 catch (Exception ex)

@@ -945,6 +945,8 @@ export type TopicalMapTopic = {
   coverage: 'covered' | 'gap' | 'partial';
   matchedDocumentId?: string;
   matchedDocumentTitle?: string;
+  matchedPageUrl?: string;
+  matchSource?: 'gsc' | 'document';
   totalImpressions: number;
 };
 
@@ -960,8 +962,10 @@ export type TopicalMapResult = {
 export async function generateTopicalMap(
   projectId: string,
   accessToken?: string | null,
+  options?: { force?: boolean },
 ): Promise<TopicalMapResult> {
-  const res = await fetch(`${API_URL}/api/seo/topical-map/${projectId}/generate`, {
+  const force = options?.force ? '?force=true' : '';
+  const res = await fetch(`${API_URL}/api/seo/topical-map/${projectId}/generate${force}`, {
     method: 'POST',
     headers: apiHeaders(accessToken),
   });

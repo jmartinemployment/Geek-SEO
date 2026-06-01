@@ -10,7 +10,6 @@ import {
   type SeoProject,
   type TopicalMapTopic,
 } from '@/lib/seo-api';
-
 function coverageStyle(coverage: TopicalMapTopic['coverage']): string {
   if (coverage === 'covered') return 'bg-green-50 text-green-800 border-green-200';
   if (coverage === 'partial') return 'bg-amber-50 text-amber-900 border-amber-200';
@@ -39,7 +38,7 @@ export default function TopicalMapPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await generateTopicalMap(projectId, accessToken);
+      const result = await generateTopicalMap(projectId, accessToken, { force: true });
       setTopics(result.topics);
       setSummary({
         covered: result.coveredCount,
@@ -78,7 +77,7 @@ export default function TopicalMapPage() {
     <main className="mx-auto max-w-6xl px-6 py-10">
       <h1 className="text-2xl font-semibold tracking-tight">Topical map</h1>
       <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        GSC query clusters mapped to your content — covered, partial, or gap (Professional tier + GSC).
+        GSC query clusters mapped to live landing pages on your site — covered, partial, or gap (Professional tier + GSC).
       </p>
 
       <div className="mt-6 flex flex-wrap items-end gap-3">
@@ -121,7 +120,10 @@ export default function TopicalMapPage() {
 
       <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {topics.map((topic) => (
-          <article key={topic.name} className="rounded-xl border bg-white p-4 shadow-sm">
+          <article
+            key={`${topic.name}-${topic.matchedPageUrl ?? topic.queries[0] ?? 'topic'}`}
+            className="rounded-xl border bg-white p-4 shadow-sm"
+          >
             <div className="flex items-start justify-between gap-2">
               <h2 className="font-semibold text-[var(--color-text-primary)]">{topic.name}</h2>
               <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${coverageStyle(topic.coverage)}`}>
@@ -131,6 +133,22 @@ export default function TopicalMapPage() {
             <p className="mt-1 text-xs text-[var(--color-text-muted)]">
               {topic.totalImpressions.toLocaleString()} impressions
             </p>
+            {topic.matchedPageUrl ? (
+              <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+                Live page:{' '}
+                <a
+                  href={topic.matchedPageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-[var(--color-brand)] hover:underline break-all"
+                >
+                  {topic.matchedPageUrl.replace(/^https?:\/\/(www\.)?/, '')}
+                </a>
+                {topic.matchSource === 'gsc' ? (
+                  <span className="ml-1 text-[var(--color-text-muted)]">(Search Console)</span>
+                ) : null}
+              </p>
+            ) : null}
             {topic.matchedDocumentTitle ? (
               <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
                 Matched:{' '}

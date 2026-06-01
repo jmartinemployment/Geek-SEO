@@ -7,6 +7,9 @@ public sealed record TopicalMapTopic
     public required string Coverage { get; init; }
     public string? MatchedDocumentId { get; init; }
     public string? MatchedDocumentTitle { get; init; }
+    public string? MatchedPageUrl { get; init; }
+    /// <summary>gsc = live Search Console landing page; document = in-app content draft.</summary>
+    public string? MatchSource { get; init; }
     public required long TotalImpressions { get; init; }
 }
 

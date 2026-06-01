@@ -26,11 +26,11 @@ public sealed class TopicalMapController(
     }
 
     [HttpPost("{projectId:guid}/generate")]
-    public async Task<IActionResult> Generate(Guid projectId, CancellationToken ct)
+    public async Task<IActionResult> Generate(Guid projectId, [FromQuery] bool force = false, CancellationToken ct = default)
     {
         try
         {
-            var result = await topicalMap.GenerateAsync(user.RequireUserId(), projectId, ct);
+            var result = await topicalMap.GenerateAsync(user.RequireUserId(), projectId, force, ct);
             return Ok(result);
         }
         catch (GoogleIntegrationException ex)
