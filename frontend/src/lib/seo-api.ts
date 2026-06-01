@@ -985,9 +985,25 @@ export async function getDashboardOverview(
   return seoJson<DashboardOverviewResponse>(res);
 }
 
+
 export type TopicalMapCoverage = 'covered' | 'partial' | 'gap' | 'opportunity';
 
 export type TopicalTier = 'Pillar' | 'Cluster' | 'Article';
+
+export type QuickWin = {
+  topicName: string;
+  reason: string;
+  intent?: string;
+  searchVolume?: number;
+  keywordDifficulty?: number;
+};
+
+export type SemanticEntity = {
+  name: string;
+  type: string;
+  pillarRefs?: string[];
+  reason?: string;
+};
 
 export type TopicalMapTopic = {
   name: string;
@@ -1019,6 +1035,9 @@ export type TopicalMapTopic = {
   suggestedTitle?: string;
   suggestedSlug?: string;
   contentType?: string;
+  isDuplicate?: boolean;
+  duplicateOf?: string;
+  strategicPriority?: 'Must-have' | 'High-value' | 'Expansion';
 };
 
 export type TopicalMapResult = {
@@ -1037,6 +1056,9 @@ export type TopicalMapResult = {
   pillarCount?: number;
   clusterCount?: number;
   articleCount?: number;
+  quickWins?: QuickWin[];
+  semanticEntities?: SemanticEntity[];
+  duplicateCount?: number;
 };
 
 export async function generateTopicalMap(

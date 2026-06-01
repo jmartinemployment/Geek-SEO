@@ -128,4 +128,62 @@ public class TopicalHierarchyBuilder : ITopicalHierarchyBuilder
 
         return bestCluster;
     }
+
+    public static IReadOnlyList<TopicalMapTopic> DeduplicateTopics(IReadOnlyList<TopicalMapTopic> topics)
+    {
+        var result = new List<TopicalMapTopic>(topics);
+        var marked = new HashSet<int>();
+
+        for (int i = 0; i < result.Count; i++)
+        {
+            if (marked.Contains(i))
+                continue;
+
+            for (int j = i + 1; j < result.Count; j++)
+            {
+                if (marked.Contains(j))
+                    continue;
+
+                var similarity = JaccardSimilarity(result[i], result[j]);
+
+                if (similarity >= 0.70m)
+                {
+                    var highPriority = (result[i].PriorityScore >= result[j].PriorityScore) ? i : j;
+                    var lowPriority = highPriority == i ? j : i;
+
+                    result[lowPriority] = result[lowPriority] with
+                    {
+                        IsDuplicate = true,
+                        DuplicateOf = result[highPriority].Name,
+                    };
+                    marked.Add(lowPriority);
+                }
+                else if (similarity >= 0.55m && result[i].Coverage == "covered" && result[j].Coverage == "covered")
+                {
+                    result[j] = result[j] with { IsDuplicate = true, DuplicateOf = result[i].Name };
+                    marked.Add(j);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private static decimal JaccardSimilarity(TopicalMapTopic a, TopicalMapTopic b)
+    {
+        var aTokens = TokenizeKeyword(a.Name);
+        var bTokens = TokenizeKeyword(b.Name);
+
+        var intersection = aTokens.Intersect(bTokens, StringComparer.OrdinalIgnoreCase).Count();
+        var union = aTokens.Union(bTokens, StringComparer.OrdinalIgnoreCase).Count();
+
+        return union == 0 ? 0 : (decimal)intersection / union;
+    }
+
+    private static HashSet<string> TokenizeKeyword(string keyword)
+    {
+        return new HashSet<string>(
+            keyword.Split(' ', StringSplitOptions.RemoveEmptyEntries),
+            StringComparer.OrdinalIgnoreCase);
+    }
 }

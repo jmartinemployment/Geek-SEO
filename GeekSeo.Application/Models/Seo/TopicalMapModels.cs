@@ -2,6 +2,23 @@ namespace GeekSeo.Application.Models.Seo;
 
 public enum TopicalTier { Pillar, Cluster, Article }
 
+public sealed record QuickWin
+{
+    public required string TopicName { get; init; }
+    public required string Reason { get; init; }
+    public string? Intent { get; init; }
+    public int? SearchVolume { get; init; }
+    public decimal? KeywordDifficulty { get; init; }
+}
+
+public sealed record SemanticEntity
+{
+    public required string Name { get; init; }
+    public required string Type { get; init; }
+    public IReadOnlyList<string> PillarRefs { get; init; } = [];
+    public string? Reason { get; init; }
+}
+
 public sealed record TopicalMapTopic
 {
     public required string Name { get; init; }
@@ -36,6 +53,9 @@ public sealed record TopicalMapTopic
     public string? SuggestedTitle { get; init; }
     public string? SuggestedSlug { get; init; }
     public string? ContentType { get; init; }
+    public bool IsDuplicate { get; init; } = false;
+    public string? DuplicateOf { get; init; }
+    public string? StrategicPriority { get; init; }
 }
 
 public sealed record TopicalMapResult
@@ -56,4 +76,7 @@ public sealed record TopicalMapResult
     public int ClusterCount { get; init; } = 0;
     public int ArticleCount { get; init; } = 0;
     public int EntityGapCount { get; init; } = 0;
+    public IReadOnlyList<QuickWin> QuickWins { get; init; } = [];
+    public IReadOnlyList<SemanticEntity> SemanticEntities { get; init; } = [];
+    public int DuplicateCount { get; init; } = 0;
 }

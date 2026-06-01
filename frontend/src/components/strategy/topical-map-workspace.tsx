@@ -266,6 +266,45 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
         </section>
       ) : null}
 
+      {result?.quickWins && result.quickWins.length > 0 ? (
+        <section className="rounded-xl border bg-[var(--color-surface)] p-4">
+          <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Quick wins</h2>
+          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Fastest-ranking opportunities (low KD, good volume)</p>
+          <ul className="mt-3 space-y-2">
+            {result.quickWins.map((win) => (
+              <li key={`quickwin-${win.topicName}`} className="rounded-lg border border-green-200 bg-green-50 p-2 text-xs">
+                <div className="font-medium text-green-900">{win.topicName}</div>
+                <div className="mt-1 text-green-800">{win.reason}</div>
+                {win.searchVolume && <div className="mt-1 text-green-700">{win.searchVolume.toLocaleString()} vol</div>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {result?.semanticEntities && result.semanticEntities.length > 0 ? (
+        <section className="rounded-xl border bg-[var(--color-surface)] p-4">
+          <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Semantic entities</h2>
+          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Key concepts required for topical authority</p>
+          <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {result.semanticEntities.map((entity) => (
+              <li key={`entity-${entity.name}`} className="rounded-lg border border-indigo-200 bg-indigo-50 p-2 text-xs">
+                <div className="font-medium text-indigo-900">{entity.name}</div>
+                <div className="text-indigo-700">{entity.type}</div>
+                {entity.pillarRefs && entity.pillarRefs.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {entity.pillarRefs.map((ref) => (
+                      <span key={`${entity.name}-${ref}`} className="rounded bg-indigo-200 px-1 text-indigo-900">{ref}</span>
+                    ))}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+
       {initialLoad ? (
         <p className="text-sm text-[var(--color-text-muted)]">Loading cached map…</p>
       ) : null}
@@ -368,7 +407,16 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
                           className={`cursor-pointer border-b hover:bg-slate-50 ${selected?.name === topic.name ? 'bg-green-50/50' : ''}`}
                           onClick={() => setSelected(topic)}
                         >
-                          <td className="px-3 py-2 font-medium">{topic.name}</td>
+                          <td className="px-3 py-2 font-medium">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {topic.name}
+                              {topic.isDuplicate && (
+                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                                  Duplicate of {topic.duplicateOf}
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td className="px-3 py-2">
                             <span className={`rounded-full border px-2 py-0.5 text-xs ${coverageStyle(topic.coverage)}`}>
                               {topic.coverage}
