@@ -18,7 +18,8 @@ public sealed class TopicalMapService(
     IKeywordProvider keywordProvider,
     ITopicalHierarchyBuilder hierarchyBuilder,
     IKeywordDiscoveryProvider keywordDiscoveryProvider,
-    IAIProvider aiProvider)
+    IAIProvider aiProvider,
+    ISerpDeepCacheRepository serpDeepCache)
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     private static readonly TimeSpan MapTtl = TimeSpan.FromDays(14);
@@ -90,8 +91,16 @@ public sealed class TopicalMapService(
         var semanticEntities = await BuildSemanticEntitiesAsync(withPriority, ct);
         var linkingBlueprint = InternalLinkingBlueprintBuilder.Build(withPriority);
 
+        var entityGapAnalyzer = new EntityGapAnalyzer(serpDeepCache);
+        var projectQueries = gscRows.Select(r => r.Query).ToList();
+        var enrichedTopics = await entityGapAnalyzer.AnalyzeAsync(
+            withPriority,
+            projectQueries,
+            project.DefaultLocation,
+            ct);
+
         var now = DateTimeOffset.UtcNow;
-        var recommendations = withPriority
+        var recommendations = enrichedTopics
             .Where(t => t.Coverage is "gap" or "partial" or "opportunity")
             .OrderByDescending(t => t.PriorityScore)
             .Take(10)
@@ -103,15 +112,15 @@ public sealed class TopicalMapService(
             ProjectId = projectId,
             GeneratedAt = now.ToString("O"),
             ExpiresAt = now.Add(MapTtl).ToString("O"),
-            Topics = withPriority,
-            CoveredCount = withPriority.Count(t => t.Coverage == "covered"),
-            GapCount = withPriority.Count(t => t.Coverage == "gap"),
-            PartialCount = withPriority.Count(t => t.Coverage == "partial"),
-            OpportunityCount = withPriority.Count(t => t.Coverage == "opportunity"),
+            Topics = enrichedTopics,
+            CoveredCount = enrichedTopics.Count(t => t.Coverage == "covered"),
+            GapCount = enrichedTopics.Count(t => t.Coverage == "gap"),
+            PartialCount = enrichedTopics.Count(t => t.Coverage == "partial"),
+            OpportunityCount = enrichedTopics.Count(t => t.Coverage == "opportunity"),
             Recommendations = recommendations,
             QuickWins = quickWins,
             SemanticEntities = semanticEntities,
-            DuplicateCount = withPriority.Count(t => t.IsDuplicate),
+            DuplicateCount = enrichedTopics.Count(t => t.IsDuplicate),
             LinkingBlueprint = linkingBlueprint,
         };
 
@@ -226,16 +235,24 @@ public sealed class TopicalMapService(
         var semanticEntities = await BuildSemanticEntitiesAsync(withPriority, ct);
         var linkingBlueprint = InternalLinkingBlueprintBuilder.Build(withPriority);
 
+        var entityGapAnalyzer = new EntityGapAnalyzer(serpDeepCache);
+        var projectQueries = allKeywords.Select(k => k.Keyword).ToList();
+        var topicsWithGaps = await entityGapAnalyzer.AnalyzeAsync(
+            withPriority,
+            projectQueries,
+            location,
+            ct);
+
         var now = DateTimeOffset.UtcNow;
-        var recommendations = withPriority
+        var recommendations = topicsWithGaps
             .Where(t => t.Coverage is "gap" or "partial")
             .OrderByDescending(t => t.SearchVolume ?? 0)
             .Take(10)
             .ToList();
 
-        var pillarCount = withPriority.Count(t => t.Tier == TopicalTier.Pillar);
-        var clusterCount = withPriority.Count(t => t.Tier == TopicalTier.Cluster);
-        var articleCount = withPriority.Count(t => t.Tier == TopicalTier.Article);
+        var pillarCount = topicsWithGaps.Count(t => t.Tier == TopicalTier.Pillar);
+        var clusterCount = topicsWithGaps.Count(t => t.Tier == TopicalTier.Cluster);
+        var articleCount = topicsWithGaps.Count(t => t.Tier == TopicalTier.Article);
 
         var result = new TopicalMapResult
         {
@@ -243,20 +260,20 @@ public sealed class TopicalMapService(
             ProjectId = projectId,
             GeneratedAt = now.ToString("O"),
             ExpiresAt = now.Add(MapTtl).ToString("O"),
-            Topics = withPriority,
+            Topics = topicsWithGaps,
             Mode = "seed",
             SeedKeyword = seedKeyword,
-            CoveredCount = withPriority.Count(t => t.Coverage == "covered"),
-            GapCount = withPriority.Count(t => t.Coverage == "gap"),
-            PartialCount = withPriority.Count(t => t.Coverage == "partial"),
-            OpportunityCount = withPriority.Count(t => t.Coverage == "opportunity"),
+            CoveredCount = topicsWithGaps.Count(t => t.Coverage == "covered"),
+            GapCount = topicsWithGaps.Count(t => t.Coverage == "gap"),
+            PartialCount = topicsWithGaps.Count(t => t.Coverage == "partial"),
+            OpportunityCount = topicsWithGaps.Count(t => t.Coverage == "opportunity"),
             Recommendations = recommendations,
             PillarCount = pillarCount,
             ClusterCount = clusterCount,
             ArticleCount = articleCount,
             QuickWins = quickWins,
             SemanticEntities = semanticEntities,
-            DuplicateCount = withPriority.Count(t => t.IsDuplicate),
+            DuplicateCount = topicsWithGaps.Count(t => t.IsDuplicate),
             LinkingBlueprint = linkingBlueprint,
         };
 

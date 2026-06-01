@@ -46,7 +46,7 @@ TopicalMapService.GenerateAsync(request)
     │   existing pipeline (GSC rows → SERP clusters → enrich) [unchanged]
     │
     └─ if request.Mode == SeedKeywordMode:
-        new pipeline (seed → IKeywordProvider keyword ideas → SERP clusters → enrich) — see [`GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md)
+        new pipeline (seed → IKeywordProvider keyword ideas → SERP clusters → enrich) — see [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md)
 ```
 
 Both modes produce the same `TopicalMapResult` shape. New fields are additive (nullable on `TopicalMapTopic`).
@@ -144,7 +144,7 @@ TopicalMapRequest {
    → KeywordResult[] (volume, difficulty, CPC, monthly trends)
 
 2. IKeywordLabsProvider.GetKeywordIdeasAsync(seedKeyword, location, limit: 300)
-   → broader semantic expansion (`IKeywordDiscoveryProvider` per [`GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md) — stub if not yet built)
+   → broader semantic expansion (`IKeywordDiscoveryProvider` per [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md) — stub if not yet built)
 
 3. TopicClusteringService.ClusterKeywordList(keywords)
    → existing algorithm, produces flat clusters
@@ -158,7 +158,7 @@ TopicalMapRequest {
    → assigns PillarId to clusters/articles
 
 5. For top 10 clusters by search volume:
-   ISerpProvider.GetSerpResultsAsync(clusterKeyword)  // impl: SerpApi or GeekSerp per GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN
+   ISerpProvider.GetSerpResultsAsync(clusterKeyword)  // impl: SerpApi or GeekSerp per SEO-PROVIDER-STRATEGY
    → extract competitor domains for each pillar
 
 6. Enrich with existing KeywordResearchService metrics

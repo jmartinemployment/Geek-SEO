@@ -8,7 +8,7 @@
 | **[`PROJECT_STATUS.md`](../PROJECT_STATUS.md)** | What is live in production; parity #1–27 status |
 | **[`ARCHITECTURE.md`](ARCHITECTURE.md)** | Services, ports, data flow, API surface |
 | **[`docs/ROADMAP.md`](../docs/ROADMAP.md)** | One-screen index |
-| **[`GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md)** | **Geek Data Plane** — provider strategy, interfaces, SerpApi bridge, DataForSEO → zero |
+| **[`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md)** | **Provider strategy** — interfaces, SerpApi bridge, DataForSEO → zero |
 
 **v1 checklist closure (June 2026):** Parity **#1–27** shipped in repo (waivers below). Not a statement that the product beats Surfer/Frase in the editor.
 
@@ -48,7 +48,7 @@ Competitors win on **SERP term checklist + score that moves when you add specifi
 
 | Step | Work |
 |------|------|
-| V2.2 | Market **opportunities** — keyword-discovery provider diff vs GSC-only gaps (`coverage: opportunity` enrichment) — see [`GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md) |
+| V2.2 | Market **opportunities** — keyword-discovery provider diff vs GSC-only gaps (`coverage: opportunity` enrichment) — see [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md) |
 | V2.4 | Dashboard **“Do this next”** panel wired to `GET /api/seo/topical-map` `recommendations` |
 | V2.5 | Playwright **E2E** — GSC test project → generate map → open gap → create document *(subset of E2E below)* |
 
@@ -123,7 +123,7 @@ Build order when picked up: **#31 public API** → **#28 WP plugin** → **#29 C
 
 ## Post-v1 upgrade track
 
-**Data plane (canonical):** [`GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md) — Phases A–D (SerpApi bridge → keywords off DFS → `GeekSerpProvider` → remove `DATAFORSEO_*`). Rank tracker migration: replace `DataForSeoRankSnapshotProvider` per that plan.
+**Provider strategy (canonical):** [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md) — Phases A–D (SerpApi bridge → keywords off DFS → `GeekSerpProvider` → remove `DATAFORSEO_*`). Rank tracker migration: replace `DataForSeoRankSnapshotProvider` per that plan.
 
 **Agency / SE Ranking–class UI** (white-label, reports): backlog here and in integrations — no separate upgrade file; provider work stays in Geek Data Plane.
 

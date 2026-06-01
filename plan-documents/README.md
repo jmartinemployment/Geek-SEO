@@ -4,7 +4,7 @@
 
 | Document | Purpose |
 |----------|---------|
-| **[`GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md)** | **Data plane** — SerpApi bridge, Geek-owned SERP/crawl, DataForSEO → zero |
+| **[`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md)** | **Provider strategy** — SerpApi bridge, Geek-owned SERP/crawl, DataForSEO → zero |
 | **[`TODO.md`](TODO.md)** | **All remaining work** (scoring v2, #12b, waivers, integrations, REDESIGN, ops, security) |
 | **[`PROJECT_STATUS.md`](../PROJECT_STATUS.md)** | What’s live in production; v1 parity #1–27 status |
 | **[`docs/ROADMAP.md`](../docs/ROADMAP.md)** | One-screen index |
@@ -14,7 +14,7 @@
 
 | File | Purpose |
 |------|---------|
-| [`TopicalMapUpgrade.md`](TopicalMapUpgrade.md) | Topical map UX gaps — data deps per [`GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md) |
+| [`TopicalMapUpgrade.md`](TopicalMapUpgrade.md) | Topical map UX gaps — data deps per [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md) |
 
 ## Deep dives (reference only)
 
@@ -24,10 +24,13 @@
 | [`PLATFORM-DECOUPLING.md`](PLATFORM-DECOUPLING.md) | M0–M9 (complete) |
 | Scoring (code) | `GeekSeo.Application/Services/ContentScoringService.cs` |
 | [`competitor-analysis.md`](competitor-analysis.md) | Competitor research |
-| [`GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md) | Same as Start here (canonical data-plane plan) |
+| [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md) | Same as Start here (canonical provider plan) |
+| [`KEYWORD-DISCOVERY-STRATEGY.md`](KEYWORD-DISCOVERY-STRATEGY.md) | `IKeywordDiscoveryProvider` — Phase B companion |
 
 ## Do not use for planning
 
-Retired plans `DATAFORSEO-REPLACEMENT-UPGRADE.md` and `DATAFORSEO-REPLACEMENT-UPGRADE-OLD.md` are **deleted**; content lives only in [`GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md).
+- [`DATAFORSEO-REPLACEMENT-UPGRADE.md`](DATAFORSEO-REPLACEMENT-UPGRADE.md), [`GEEK-DATA-PLANE.md`](GEEK-DATA-PLANE.md) — redirect stubs only.
+- Retired vendor-expansion content (Labs / Backlinks / OnPage) is **not** coming back.
+- Canonical: **[`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md)**.
 
 `REDESIGN-PLAN.md`, `PARITY-SPECS.md`, `API-CONTRACTS.md` — UX/reference only if present in the tree.

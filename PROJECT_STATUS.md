@@ -3,7 +3,7 @@
 Last updated: June 1, 2026 (plans consolidated)
 
 **v1 parity #1–27:** checklist complete (June 2026) — matrix below  
-**Backlog:** [`plan-documents/TODO.md`](plan-documents/TODO.md) · **Data plane:** [`plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md) · **Index:** [`docs/ROADMAP.md`](docs/ROADMAP.md)
+**Backlog:** [`plan-documents/TODO.md`](plan-documents/TODO.md) · **Providers:** [`plan-documents/SEO-PROVIDER-STRATEGY.md`](plan-documents/SEO-PROVIDER-STRATEGY.md) · **Index:** [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 ## Latest on `main`
 
@@ -188,7 +188,7 @@ See `scripts/LOCAL_DEV.md`. Minimum: GeekSeoBackend + GeekAPI + GeekRepository +
 
 ## Plan reference
 
-**Backlog:** [`TODO.md`](plan-documents/TODO.md). **Data plane:** [`GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md). **Architecture:** [`ARCHITECTURE.md`](plan-documents/ARCHITECTURE.md).
+**Backlog:** [`TODO.md`](plan-documents/TODO.md). **Providers:** [`SEO-PROVIDER-STRATEGY.md`](plan-documents/SEO-PROVIDER-STRATEGY.md). **Architecture:** [`ARCHITECTURE.md`](plan-documents/ARCHITECTURE.md).
 
 Platform decoupling: `plan-documents/PLATFORM-DECOUPLING.md` — **complete** (M0–M9, M1, O2).
 
