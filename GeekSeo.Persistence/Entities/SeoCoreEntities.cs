@@ -148,19 +148,6 @@ public sealed class SeoSiteAuditPage
     public SeoSiteAudit? SiteAudit { get; set; }
 }
 
-public sealed class SeoRankTracking
-{
-    public Guid Id { get; set; }
-    public Guid ProjectId { get; set; }
-    public required string Keyword { get; set; }
-    public required string PageUrl { get; set; }
-    public decimal Position { get; set; }
-    public int Impressions { get; set; }
-    public int Clicks { get; set; }
-    public decimal Ctr { get; set; }
-    public DateOnly Date { get; set; }
-}
-
 public sealed class SeoGscConnection
 {
     public Guid Id { get; set; }
@@ -230,4 +217,25 @@ public sealed class SeoBackgroundJob
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? StartedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
+}
+
+public sealed class SeoTrackedKeyword
+{
+    public Guid Id { get; set; }
+    public required Guid ProjectId { get; set; }
+    public required string Keyword { get; set; }
+    public string Location { get; set; } = "US";
+    public string Device { get; set; } = "desktop";
+    public bool Enabled { get; set; } = true;
+    public DateTimeOffset AddedAt { get; set; }
+}
+
+public sealed class SeoRankTracking
+{
+    public Guid Id { get; set; }
+    public required Guid ProjectId { get; set; }
+    public required string Keyword { get; set; }
+    public DateOnly Date { get; set; }
+    public int? Position { get; set; }
+    public string? PageUrl { get; set; }
 }

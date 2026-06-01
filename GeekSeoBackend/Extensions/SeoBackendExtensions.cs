@@ -45,6 +45,7 @@ public static class SeoBackendExtensions
         services.AddScoped<IPublishedPageRepository, HttpPublishedPageRepository>();
         services.AddScoped<IGeoTrackingRepository, HttpGeoTrackingRepository>();
         services.AddScoped<IContentGuardRepository, HttpContentGuardRepository>();
+        services.AddScoped<IRankTrackingRepository, HttpRankTrackingRepository>();
 
         services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<IContentDocumentService, ContentDocumentService>();
@@ -55,15 +56,9 @@ public static class SeoBackendExtensions
 
         // External providers + scoring (product host only)
         services.AddScoped<IRichTextProvider, HtmlRichTextProvider>();
-        services.AddHttpClient("DataForSEO", client =>
-        {
-            client.BaseAddress = new Uri("https://api.dataforseo.com");
-            client.Timeout = TimeSpan.FromSeconds(60);
-        });
+        services.AddSeoDataProviders();
         services.AddHttpClient("Anthropic", client => client.BaseAddress = new Uri("https://api.anthropic.com"));
         services.AddHttpClient("WordPress");
-        services.AddScoped<ISerpProvider, DataForSEOSerpProvider>();
-        services.AddScoped<IKeywordProvider, DataForSEOKeywordProvider>();
         services.AddScoped<IAIProvider, ClaudeProvider>();
         services.AddScoped<IWordPressProvider, WordPressRestProvider>();
 
@@ -103,6 +98,7 @@ public static class SeoBackendExtensions
         services.AddScoped<PublishedContentAuditService>();
         services.AddScoped<GeoVisibilityService>();
         services.AddScoped<ContentGuardService>();
+        services.AddScoped<RankTrackingService>();
 
         services.AddHttpClient("PayPal");
         services.AddSingleton(_ => new PayPalOptions

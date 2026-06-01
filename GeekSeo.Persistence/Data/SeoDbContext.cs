@@ -20,6 +20,7 @@ public partial class SeoDbContext : DbContext
     public DbSet<SeoSiteAudit> SiteAudits => Set<SeoSiteAudit>();
     public DbSet<SeoSiteAuditPage> SiteAuditPages => Set<SeoSiteAuditPage>();
     public DbSet<SeoRankTracking> RankTracking => Set<SeoRankTracking>();
+    public DbSet<SeoTrackedKeyword> TrackedKeywords => Set<SeoTrackedKeyword>();
     public DbSet<SeoGscConnection> GscConnections => Set<SeoGscConnection>();
     public DbSet<SeoSubscription> Subscriptions => Set<SeoSubscription>();
     public DbSet<SeoReport> Reports => Set<SeoReport>();

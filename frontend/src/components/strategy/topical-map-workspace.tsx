@@ -4,17 +4,20 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import { TopicalMapGraph } from '@/components/strategy/topical-map-graph';
+import { LinkingBlueprintTab } from '@/components/strategy/linking-blueprint-tab';
 import {
   createContent,
   generateTopicalMap,
   getGoogleIntegrationStatus,
   getTopicalMap,
+  getEntityGaps,
+  type EntityGapAnalysis,
   type TopicalMapCoverage,
   type TopicalMapResult,
   type TopicalMapTopic,
 } from '@/lib/seo-api';
 
-type ViewMode = 'table' | 'map';
+type ViewMode = 'table' | 'map' | 'links' | 'entity-gaps';
 type SortKey = 'priority' | 'impressions' | 'position' | 'volume';
 
 function coverageStyle(coverage: TopicalMapCoverage): string {
@@ -46,6 +49,7 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
   const [creatingId, setCreatingId] = useState<string | null>(null);
   const [mode, setMode] = useState<GenerationMode>('gsc');
   const [seedKeyword, setSeedKeyword] = useState('');
+  const [entityGaps, setEntityGaps] = useState<EntityGapAnalysis[] | null>(null);
 
   const loadCached = useCallback(async () => {
     if (!projectId) return;
@@ -75,6 +79,20 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
     setSelected(null);
     void loadCached();
   }, [loadCached]);
+
+  useEffect(() => {
+    if (view === 'entity-gaps' && projectId) {
+      const loadEntityGaps = async () => {
+        try {
+          const gaps = await getEntityGaps(projectId, accessToken);
+          setEntityGaps(gaps);
+        } catch (err) {
+          console.error('Failed to load entity gaps:', err);
+        }
+      };
+      void loadEntityGaps();
+    }
+  }, [view, projectId, accessToken]);
 
   async function regenerate(force = true) {
     if (!projectId) return;
@@ -266,6 +284,45 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
         </section>
       ) : null}
 
+      {result?.quickWins && result.quickWins.length > 0 ? (
+        <section className="rounded-xl border bg-[var(--color-surface)] p-4">
+          <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Quick wins</h2>
+          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Fastest-ranking opportunities (low KD, good volume)</p>
+          <ul className="mt-3 space-y-2">
+            {result.quickWins.map((win) => (
+              <li key={`quickwin-${win.topicName}`} className="rounded-lg border border-green-200 bg-green-50 p-2 text-xs">
+                <div className="font-medium text-green-900">{win.topicName}</div>
+                <div className="mt-1 text-green-800">{win.reason}</div>
+                {win.searchVolume && <div className="mt-1 text-green-700">{win.searchVolume.toLocaleString()} vol</div>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {result?.semanticEntities && result.semanticEntities.length > 0 ? (
+        <section className="rounded-xl border bg-[var(--color-surface)] p-4">
+          <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Semantic entities</h2>
+          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Key concepts required for topical authority</p>
+          <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {result.semanticEntities.map((entity) => (
+              <li key={`entity-${entity.name}`} className="rounded-lg border border-indigo-200 bg-indigo-50 p-2 text-xs">
+                <div className="font-medium text-indigo-900">{entity.name}</div>
+                <div className="text-indigo-700">{entity.type}</div>
+                {entity.pillarRefs && entity.pillarRefs.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {entity.pillarRefs.map((ref) => (
+                      <span key={`${entity.name}-${ref}`} className="rounded bg-indigo-200 px-1 text-indigo-900">{ref}</span>
+                    ))}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+
       {initialLoad ? (
         <p className="text-sm text-[var(--color-text-muted)]">Loading cached map…</p>
       ) : null}
@@ -293,6 +350,20 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
                 onClick={() => setView('map')}
               >
                 Map
+              </button>
+              <button
+                type="button"
+                className={`rounded-md px-3 py-1.5 ${view === 'links' ? 'bg-[var(--color-accent)] text-white' : ''}`}
+                onClick={() => setView('links')}
+              >
+                Internal Links
+              </button>
+              <button
+                type="button"
+                className={`rounded-md px-3 py-1.5 ${view === 'entity-gaps' ? 'bg-[var(--color-accent)] text-white' : ''}`}
+                onClick={() => setView('entity-gaps')}
+              >
+                Entity Gaps
               </button>
             </div>
             <label className="text-xs font-medium text-[var(--color-text-secondary)]">
@@ -338,7 +409,7 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
             </label>
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
+          <div className={`grid gap-6 ${view === 'links' ? '' : 'xl:grid-cols-[1fr_320px]'}`}>
             <div>
               {view === 'map' ? (
                 <TopicalMapGraph
@@ -346,6 +417,57 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
                   selectedName={selected?.name ?? null}
                   onSelect={setSelected}
                 />
+              ) : view === 'links' ? (
+                <div className="rounded-xl border bg-white p-6">
+                  <LinkingBlueprintTab projectId={projectId} accessToken={accessToken} />
+                </div>
+              ) : view === 'entity-gaps' ? (
+                <div className="overflow-x-auto rounded-xl border bg-white">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="border-b bg-[var(--color-surface)] text-xs uppercase text-[var(--color-text-muted)]">
+                      <tr>
+                        <th className="px-3 py-2">Topic</th>
+                        <th className="px-3 py-2">Coverage %</th>
+                        <th className="px-3 py-2">Gap Count</th>
+                        <th className="px-3 py-2">Missing Entities</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {entityGaps && entityGaps.length > 0 ? (
+                        entityGaps.map((gap) => (
+                          <tr key={gap.name} className="border-b hover:bg-slate-50">
+                            <td className="px-3 py-2 font-medium">{gap.name}</td>
+                            <td className="px-3 py-2 tabular-nums">{(gap.entityCoverage * 100).toFixed(1)}%</td>
+                            <td className="px-3 py-2 tabular-nums text-red-600 font-medium">{gap.gapCount}</td>
+                            <td className="px-3 py-2 text-xs">
+                              <div className="flex flex-wrap gap-1">
+                                {gap.entityGaps.slice(0, 3).map((entity) => (
+                                  <span
+                                    key={entity}
+                                    className="rounded-full bg-red-50 border border-red-200 px-2 py-0.5 text-red-700"
+                                  >
+                                    {entity}
+                                  </span>
+                                ))}
+                                {gap.entityGaps.length > 3 && (
+                                  <span className="rounded-full bg-red-50 border border-red-200 px-2 py-0.5 text-red-700">
+                                    +{gap.entityGaps.length - 3}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={4} className="px-3 py-4 text-center text-sm text-[var(--color-text-secondary)]">
+                            No entity gaps found
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border bg-white">
                   <table className="min-w-full text-left text-sm">
@@ -368,7 +490,16 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
                           className={`cursor-pointer border-b hover:bg-slate-50 ${selected?.name === topic.name ? 'bg-green-50/50' : ''}`}
                           onClick={() => setSelected(topic)}
                         >
-                          <td className="px-3 py-2 font-medium">{topic.name}</td>
+                          <td className="px-3 py-2 font-medium">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {topic.name}
+                              {topic.isDuplicate && (
+                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                                  Duplicate of {topic.duplicateOf}
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td className="px-3 py-2">
                             <span className={`rounded-full border px-2 py-0.5 text-xs ${coverageStyle(topic.coverage)}`}>
                               {topic.coverage}
@@ -388,7 +519,7 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
               )}
             </div>
 
-            <aside className="rounded-xl border bg-white p-4 shadow-sm">
+            {view !== 'links' ? <aside className="rounded-xl border bg-white p-4 shadow-sm">
               {selected ? (
                 <>
                   <div className="flex items-start justify-between gap-2">
@@ -463,7 +594,7 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
               ) : (
                 <p className="text-sm text-[var(--color-text-muted)]">Select a topic from the table or map.</p>
               )}
-            </aside>
+            </aside> : null}
           </div>
         </>
       ) : null}

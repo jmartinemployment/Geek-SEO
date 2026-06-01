@@ -2,13 +2,18 @@ using System.Text.Json;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Persistence.Entities;
+using GeekSeoBackend.Auth;
+using GeekSeoBackend.Providers.Seo.Metering;
 
 namespace GeekSeoBackend.Services;
 
 public sealed class GeoVisibilityService(
     ISerpProvider serp,
     IProjectRepository projects,
-    IGeoTrackingRepository geoTracking)
+    IGeoTrackingRepository geoTracking,
+    IUsageMeteringService metering,
+    ICurrentUserContext userContext,
+    ILogger<GeoVisibilityService> logger)
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -217,6 +222,8 @@ public sealed class GeoVisibilityService(
                 Note = serpResult.Error ?? "SERP probe failed",
             };
         }
+
+        await SerpFetchMetering.TryIncrementAsync(metering, userContext, logger, ct);
 
         var serpData = serpResult.Value;
         var organicMatch = serpData.OrganicResults

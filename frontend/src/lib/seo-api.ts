@@ -4,7 +4,7 @@ import { buildApiHeaders } from '@/lib/auth/api-headers';
 export { SeoApiError, formatSeoApiErrorMessage } from '@/lib/seo-api-errors';
 export type { SeoGateErrorBody } from '@/lib/seo-api-errors';
 
-/** GeekSeoBackend — sole SEO API for this app (see plan-documents/GEEKSEO-PLAN.md). */
+/** GeekSeoBackend — sole SEO API for this app (see plan-documents/ARCHITECTURE.md). */
 const SEO_API_URL = process.env.NEXT_PUBLIC_SEO_API_URL ?? 'http://localhost:5051';
 
 const API_URL = SEO_API_URL;
@@ -985,9 +985,45 @@ export async function getDashboardOverview(
   return seoJson<DashboardOverviewResponse>(res);
 }
 
+
 export type TopicalMapCoverage = 'covered' | 'partial' | 'gap' | 'opportunity';
 
 export type TopicalTier = 'Pillar' | 'Cluster' | 'Article';
+
+export type QuickWin = {
+  topicName: string;
+  reason: string;
+  intent?: string;
+  searchVolume?: number;
+  keywordDifficulty?: number;
+};
+
+export type SemanticEntity = {
+  name: string;
+  type: string;
+  pillarRefs?: string[];
+  reason?: string;
+};
+
+export type ContentSequenceItem = {
+  order: number;
+  topicId: string;
+  topicName: string;
+  tier: TopicalTier;
+  reason?: string;
+};
+
+export type LinkGraphEdge = {
+  sourceTopicId: string;
+  targetTopicId: string;
+  anchorText: string;
+  priority?: 'high' | 'medium' | 'low';
+};
+
+export type InternalLinkingBlueprint = {
+  sequences: ContentSequenceItem[];
+  linkGraph: LinkGraphEdge[];
+};
 
 export type TopicalMapTopic = {
   name: string;
@@ -1019,6 +1055,9 @@ export type TopicalMapTopic = {
   suggestedTitle?: string;
   suggestedSlug?: string;
   contentType?: string;
+  isDuplicate?: boolean;
+  duplicateOf?: string;
+  strategicPriority?: 'Must-have' | 'High-value' | 'Expansion';
 };
 
 export type TopicalMapResult = {
@@ -1037,6 +1076,10 @@ export type TopicalMapResult = {
   pillarCount?: number;
   clusterCount?: number;
   articleCount?: number;
+  quickWins?: QuickWin[];
+  semanticEntities?: SemanticEntity[];
+  duplicateCount?: number;
+  linkingBlueprint?: InternalLinkingBlueprint;
 };
 
 export async function generateTopicalMap(
@@ -1065,6 +1108,39 @@ export async function getTopicalMap(
   });
   if (res.status === 404) return null;
   return seoJson<TopicalMapResult>(res);
+}
+
+export async function getLinksBlueprint(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<InternalLinkingBlueprint | null> {
+  const res = await fetch(`${API_URL}/api/seo/topical-map/${projectId}/linking-blueprint`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (res.status === 404) return null;
+  return seoJson<InternalLinkingBlueprint>(res);
+}
+
+export type EntityGapAnalysis = {
+  name: string;
+  mainKeyword?: string;
+  tier?: TopicalTier;
+  entityCoverage: number;
+  entityGaps: string[];
+  gapCount: number;
+};
+
+export async function getEntityGaps(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<EntityGapAnalysis[] | null> {
+  const res = await fetch(`${API_URL}/api/seo/topical-map/${projectId}/entity-gaps`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (res.status === 404) return null;
+  return seoJson<EntityGapAnalysis[]>(res);
 }
 
 export type PublishedPageMetrics = {
@@ -1293,4 +1369,70 @@ export async function rollbackContentGuardRun(runId: string, accessToken?: strin
     headers: apiHeaders(accessToken),
   });
   return seoJson<ContentGuardRun>(res);
+}
+
+export type TrackedKeyword = {
+  id: string;
+  projectId: string;
+  keyword: string;
+  location: string;
+  device: string;
+  enabled: boolean;
+  addedAt: string;
+};
+
+export type RankHistoryPoint = {
+  date: string;
+  position: number | null;
+  pageUrl?: string;
+};
+
+export async function getRankTrackerKeywords(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<TrackedKeyword[]> {
+  if (!hasAuthContext(accessToken)) return [];
+  const res = await fetch(`${API_URL}/api/seo/rank-tracker/${projectId}`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson<TrackedKeyword[]>(res);
+}
+
+export async function addTrackedKeyword(
+  projectId: string,
+  request: { keyword: string; location?: string; device?: string },
+  accessToken?: string | null,
+): Promise<TrackedKeyword> {
+  const res = await fetch(`${API_URL}/api/seo/rank-tracker/${projectId}`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(request),
+  });
+  return seoJson<TrackedKeyword>(res);
+}
+
+export async function deleteTrackedKeyword(keywordId: string, accessToken?: string | null): Promise<void> {
+  const res = await fetch(`${API_URL}/api/seo/rank-tracker/keyword/${keywordId}`, {
+    method: 'DELETE',
+    headers: apiHeaders(accessToken),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+}
+
+export async function getRankHistory(
+  projectId: string,
+  keyword: string,
+  days: number = 30,
+  accessToken?: string | null,
+): Promise<RankHistoryPoint[]> {
+  if (!hasAuthContext(accessToken)) return [];
+  const res = await fetch(
+    `${API_URL}/api/seo/rank-tracker/${projectId}/history?keyword=${encodeURIComponent(keyword)}&days=${days}`,
+    {
+      headers: apiHeaders(accessToken),
+      cache: 'no-store',
+    },
+  );
+  return seoJson<RankHistoryPoint[]>(res);
 }

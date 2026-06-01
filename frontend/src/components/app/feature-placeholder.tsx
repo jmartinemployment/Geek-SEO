@@ -13,7 +13,7 @@ export function FeaturePlaceholder({ title, description, planStep }: FeaturePlac
       <h1 className="mt-2 text-2xl font-semibold text-[var(--color-text-primary)]">{title}</h1>
       <p className="mt-3 text-[var(--color-text-secondary)]">{description}</p>
       <p className="mt-6 text-sm text-[var(--color-text-secondary)]">
-        Complete per <code className="rounded bg-[var(--color-surface-muted)] px-1">GEEKSEO-PLAN.md</code> ({planStep}).
+        See <code className="rounded bg-[var(--color-surface-muted)] px-1">plan-documents/TODO.md</code> ({planStep}).
       </p>
       <Link
         href="/app/dashboard"

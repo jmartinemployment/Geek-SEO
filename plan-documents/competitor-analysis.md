@@ -1,8 +1,15 @@
 # Competitor Analysis: AI-Powered SEO Content Tools
 
 > **Background research only** — May 2026. Do not use for status or scope.  
-> **Canonical plan:** [`geekseo-plan.md`](geekseo-plan.md) · **Topical Map V2 backlog:** master plan § Priority backlog P1  
-> Stack: Next.js + GeekSeoBackend (.NET 10) — [`ARCHITECTURE.md`](ARCHITECTURE.md).
+> **Backlog:** [`TODO.md`](TODO.md) (#12b, scoring v2) · **Shipped status:** [`PROJECT_STATUS.md`](../PROJECT_STATUS.md)  
+> Stack: Next.js + GeekSeoBackend (.NET 10) — [`ARCHITECTURE.md`](ARCHITECTURE.md).  
+> **Consolidated:** `feature-matrix.md` and `market-gaps.md` are merged into this file (stubs redirect here).
+
+## Contents
+
+1. [Per-tool profiles](#1-surfer-seo) — Surfer through additional benchmarks  
+2. [Feature comparison matrix](#feature-comparison-matrix)  
+3. [Market gaps & strategic recommendations](#market-gaps--strategic-recommendations)
 
 ---
 
@@ -533,6 +540,265 @@ Limited; primarily focused on AI engine monitoring rather than traditional GSC d
 - **Focus:** GEO and AI visibility tracking — brand monitoring across LLMs
 - **Pricing:** $29–$99/month
 - **Relevance:** Emerging category; demonstrates that AI visibility is now a standalone product category
+
+---
+
+## Feature comparison matrix
+
+> Legend: **Y** = Yes · **P** = Partial · **N** = No  
+> **Geek SEO shipped scope:** [`PROJECT_STATUS.md`](../PROJECT_STATUS.md) parity #1–27 — this matrix is competitive research, not scope source of truth.
+
+### Pricing quick reference
+
+| Tool | Entry Price | Pro/Mid Tier | Enterprise |
+|------|-------------|--------------|------------|
+| Surfer SEO | $49/mo (Discovery, annual) | $182/mo (Pro) | $999/mo |
+| Semrush ContentShake | $60/mo | Bundled with Semrush $165–$499/mo | Custom |
+| NeuronWriter | $23/mo ($14 annual) | $69/mo (Gold) | $117/mo |
+| Frase.io | $15/mo (Solo) | $45/mo (Basic) | $115/mo (Team) |
+| Clearscope | $129/mo | $399/mo | Custom |
+| MarketMuse | $0 (10 queries) | $99–$249/mo | $499/mo |
+| PageOptimizer Pro | $34/mo | $61/mo (Unlimited) | $120/mo (Teams) |
+| Sight AI | $39/mo | $79–$149/mo | Custom |
+| Rankability | $79/mo | N/A | Custom |
+
+### Core content optimization features
+
+| Feature | Surfer | ContentShake | NeuronWriter | Frase | Clearscope | MarketMuse | POP | Sight AI |
+|---------|--------|--------------|--------------|-------|------------|------------|-----|----------|
+| Real-time content editor | Y | Y | Y | Y | Y | Y | Y | N |
+| Content score / grade | Y (0–100) | Y (score) | Y (0–100 + AI score) | Y (SEO + GEO) | Y (F–A++) | Y (0–100) | Y | N |
+| NLP keyword recommendations | Y | Y | Y | Y | Y | Y | Y | P |
+| TF-IDF analysis | Y | Y | P | Y | N | P | P | N |
+| Topic / entity suggestions | Y | Y | Y | Y | Y | Y | N | N |
+| SERP competitor analysis | Y | Y | Y | Y | Y | Y | Y (top 10) | N |
+| Heading structure guidance | Y | Y | Y | Y | Y | Y | Y | N |
+| Word count recommendations | Y | Y | Y | Y | Y | Y | Y | N |
+| Readability scoring | P | Y | Y | Y | Y | N | N | N |
+| Plagiarism checker | Y | Y | P | N | N | N | N | N |
+
+### AI writing features
+
+| Feature | Surfer | ContentShake | NeuronWriter | Frase | Clearscope | MarketMuse | POP | Sight AI |
+|---------|--------|--------------|--------------|-------|------------|------------|-----|----------|
+| AI article generation | Y | Y | Y | Y | Y (basic) | Y | Y | Y |
+| AI outline builder | Y | Y | Y | Y | Y | Y | Y | Y |
+| AI paragraph writer | Y | Y | Y | Y | Y | Y | Y | Y |
+| Brief → draft → optimize workflow | Y | Y | Y | Y | P | Y | Y | Y |
+| AI generation volume (entry plan) | 5–20 articles | Unlimited | 15,000 credits | 4,000 words (then add-on) | Very limited | Limited | Moderate | Limited |
+| Bulk article generation | P | N | N | N | N | N | Y | Y (autopilot) |
+| Brand voice / style training | N | N | N | Y | N | N | N | N |
+| AI humanizer | Y | N | N | N | N | N | N | N |
+| Content templates | Y | Y | Y | Y | N | N | N | Y |
+
+### Research and planning features
+
+| Feature | Surfer | ContentShake | NeuronWriter | Frase | Clearscope | MarketMuse | POP | Sight AI |
+|---------|--------|--------------|--------------|-------|------------|------------|-----|----------|
+| Keyword research | P | Y (via Semrush) | N | P | N | Y | N | N |
+| Content brief generator | Y | Y | Y | Y | N | Y | Y | N |
+| Topical map / content clusters | Y | N | N | N | N | Y | N | N |
+| Keyword clustering | Y | P | N | N | N | Y | N | N |
+| Content inventory / site audit | Y | N | N | Y | Y | Y | N | N |
+| Domain-level content gap analysis | Y | N | N | P | N | Y | N | N |
+| Competitor domain analysis | P | Y (via Semrush) | P | P | N | Y | N | N |
+| Keyword cannibalization detection | Y (Pro+) | N | N | N | N | Y | N | N |
+| Topic Navigator / knowledge graph | N | N | N | N | N | Y | N | N |
+| Personalized difficulty score | N | N | N | N | N | Y | N | N |
+
+### Technical SEO features
+
+| Feature | Surfer | ContentShake | NeuronWriter | Frase | Clearscope | MarketMuse | POP | Sight AI |
+|---------|--------|--------------|--------------|-------|------------|------------|-----|----------|
+| Internal linking recommendations | Y | N | Y | N | Y | Y | N | N |
+| Schema markup generator | N | N | N | N | N | N | Y | N |
+| Google NLP dashboard | N | N | N | N | N | N | Y | N |
+| E-E-A-T optimization guidance | N | N | N | N | N | N | Y | N |
+| SERP position monitoring | P | N | N | N | N | N | Y (Watchdog) | N |
+| Technical site audit | N | N | N | Y | N | N | N | N |
+| Backlink analysis | N | N | N | N | N | N | N | N |
+| Page speed analysis | Y (SERP view) | N | N | N | N | N | N | N |
+| IndexNow / sitemap automation | N | N | N | N | N | N | N | Y |
+
+### AI / GEO visibility features
+
+| Feature | Surfer | ContentShake | NeuronWriter | Frase | Clearscope | MarketMuse | POP | Sight AI |
+|---------|--------|--------------|--------------|-------|------------|------------|-----|----------|
+| AI answer engine tracking (LLMs) | Y | N | N | Y | N | N | N | Y |
+| ChatGPT brand monitoring | Y | N | N | Y | N | N | N | Y |
+| Perplexity monitoring | Y | N | N | Y | N | N | N | Y |
+| Google AI Overviews tracking | Y | N | N | N | N | N | N | Y |
+| Gemini / Claude tracking | Y | N | N | Y | N | N | N | Y |
+| GEO content scoring | N | N | N | Y | N | N | N | Y |
+| AI mention sentiment analysis | N | N | N | N | N | N | N | Y |
+| Citation opportunity detection | Y (basic) | N | N | Y | N | N | N | Y |
+
+### Integrations
+
+| Integration | Surfer | ContentShake | NeuronWriter | Frase | Clearscope | MarketMuse | POP | Sight AI |
+|------------|--------|--------------|--------------|-------|------------|------------|-----|----------|
+| Google Search Console | Y | Y | N | Y | Y | Y | N | N |
+| Google Analytics 4 | N | Y | N | Y | N | N | N | N |
+| WordPress plugin | Y | Y | N | Y | Y | Y | N | N |
+| Google Docs add-on | Y | N | N | N | Y | N | N | N |
+| ChatGPT integration | Y | N | N | N | N | N | N | N |
+| Chrome extension | N | N | Y | N | N | N | Y | N |
+| API access | Y (Peace of Mind+) | Y (Business) | Y (Platinum+) | Y (all plans) | N | P | N | N |
+| MCP access | N | N | N | Y (all plans) | N | N | N | N |
+| Zapier / automation | P | N | N | N | N | N | N | N |
+
+### Team and workflow features
+
+| Feature | Surfer | ContentShake | NeuronWriter | Frase | Clearscope | MarketMuse | POP | Sight AI |
+|---------|--------|--------------|--------------|-------|------------|------------|-----|----------|
+| Multi-user / team seats | Y | Y | Y (plan-based) | Y (Team plan) | Y | Y | Y | N |
+| Collaboration in editor | Y | N | N | N | N | N | N | N |
+| White label / agency branding | N | N | Y (Platinum+) | N | N | N | N | N |
+| Role-based permissions | Y (Enterprise) | N | N | N | Y (Business) | Y | N | N |
+| Client reporting | N | N | Y (Platinum+) | N | N | N | N | N |
+| SSO (Single Sign-On) | Y (Enterprise) | N | N | N | N | N | N | N |
+
+### Target customer summary
+
+| Tool | Best For | Worst For |
+|------|----------|-----------|
+| Surfer SEO | Mid-market content teams needing complete workflow | Budget-conscious users; freelancers (billing complaints) |
+| ContentShake | Teams already in Semrush ecosystem | Users who need deep NLP scoring |
+| NeuronWriter | Budget-first professionals; multilingual SEO | Beginners; teams needing strategy tools |
+| Frase.io | Brief-first content teams; teams optimizing for GEO | High-volume AI generation without the Pro add-on |
+| Clearscope | Enterprise teams prioritizing data quality and simplicity | Small teams (price); those needing AI writing |
+| MarketMuse | Enterprise content strategy; large existing content libraries | Small businesses; single-article optimization |
+| POP | Technical SEOs; agencies doing on-page optimization rigor | Beginners; content strategy |
+| Sight AI | GEO-first founders and solopreneurs | Traditional Google SEO depth |
+
+### Pricing value score (subjective — features per dollar at entry price)
+
+| Tool | Entry Price | Value at Entry | Verdict |
+|------|-------------|---------------|---------|
+| NeuronWriter | $23/mo | Excellent | Best budget option; AppSumo lifetime deal is exceptional |
+| Frase.io | $15/mo | Excellent | Full features at every tier; GEO at entry price is unmatched |
+| PageOptimizer Pro | $34/mo | Very Good | Scientific methodology and Google NLP for $34 is strong value |
+| Sight AI | $39/mo | Good (niche) | Best for GEO-only strategy; thin on traditional SEO |
+| Rankability | $79/mo | Good | Dual-NLP + coaching calls differentiate |
+| Surfer SEO | $49/mo (annual) | Fair | Discovery plan is limited; value starts at $99+ |
+| ContentShake | $60/mo | Fair | Full Semrush data without full Semrush platform |
+| Clearscope | $129/mo | Fair for enterprise | Unjustifiable for small teams |
+| MarketMuse | $99–$499/mo | Poor for small business | Value only at enterprise scale |
+
+---
+
+## Market gaps & strategic recommendations
+
+> Purpose: Identify whitespace a Surfer-class competitor can own — especially for small businesses.
+
+### Executive summary
+
+The AI SEO content tool market is crowded at the top (Surfer, Clearscope, MarketMuse) and bottom (NeuronWriter, Frase) but has consistent gaps across all tiers:
+
+1. **Small-business-first UX** — every existing tool is designed for SEO professionals, not business owners
+2. **Honest, transparent scoring** — content scores are black boxes; users don't know why they got a number
+3. **E-E-A-T / trust signal tooling** — almost none help with what Google increasingly rewards (author credibility, sourced claims, first-hand experience)
+4. **Integrated GEO + SEO scoring** — the market is bifurcating but not yet converging
+5. **Affordable team/agency workflow** — the gap between $60 solo plans and $400 team plans leaves small agencies underserved
+
+### Gap 1: No true small-business-friendly onboarding and UX
+
+**What exists:** Every tool assumes NLP terms, TF-IDF, content score targets, SERP analysis, and keyword difficulty.
+
+**What's missing:** Plain-English guidance, step-by-step keyword → brief → write → publish, setup wizard with business context (industry, audience, location).
+
+**Opportunity:** **Expert Mode** (Surfer parity) + **Guided Mode** (wizard for owners). No competitor offers this split — core wedge for SMBs.
+
+### Gap 2: Billing trust and transparent pricing
+
+**What exists:** Surfer Trustpilot complaints (lockouts, forced upgrades, hard cancellation). MarketMuse tier reshuffles.
+
+**What's missing:** Stable tiers, no surprise overages, instant cancellation, grandfathering for long-term users.
+
+**Opportunity:** "No gotchas" pricing + Surfer migration story is a GTM angle, not just a feature.
+
+### Gap 3: E-E-A-T optimization tooling
+
+**What exists:** POP has manual E-E-A-T guidance; others ignore it.
+
+**What's missing:** Author bio/schema prompts, cite-a-source on factual claims, first-hand experience sections, E-E-A-T as part of the grade (not only NLP).
+
+**Opportunity:** Especially strong for SMBs where the owner is the expert but doesn't know how to signal it.
+
+### Gap 4: GEO + SEO convergence in a single score
+
+**What exists:** Surfer (SEO + brand AI visibility, not GEO content optimization); Frase (dual score, limited generation); Sight AI (GEO-first, weak SEO).
+
+**What's missing:** One workflow grading traditional ranking factors and AI citation probability, with actionable guidance for each.
+
+**Opportunity:** First affordable tool that credibly optimizes for Google and AI citations beats Surfer-only, Sight-only, and Frase-limited paths.
+
+### Gap 5: Affordable team workflow ($29–$99/month range)
+
+| Tool | Solo Plan | Next Team Plan |
+|------|-----------|----------------|
+| Surfer | $49–$99/mo | $182/mo (Pro) |
+| Clearscope | $129/mo | $399/mo |
+| Frase | $15–$45/mo | $115/mo (Team) |
+| NeuronWriter | $23/mo | $45–$69/mo |
+| MarketMuse | $99/mo | $249–$399/mo |
+
+**Opportunity:** ~$79/mo for 3 seats, shared workspace, exportable client reporting, basic roles — owns 2–5 writer agencies between solo login sharing and $200+ enterprise team plans.
+
+### Gap 6: Real content quality signals beyond keyword matching
+
+**What's missing:** Information gain vs. top 10, original data/research signals, depth beyond word count, engagement structure hints.
+
+**Opportunity:** **Content Quality Score** alongside optimization score — not just "add more NLP terms."
+
+### Gap 7: Local SEO content optimization
+
+**What exists:** Essentially none at Surfer/Clearscope/NeuronWriter/Frase/MarketMuse scale.
+
+**What's missing:** Local modifiers, NAP/schema, GBP integration, local SERP factors, review/citation guidance.
+
+**Opportunity:** Strong fit for SMB positioning; no direct competitor at content-optimization price points.
+
+### Gap 8: Content performance feedback loop
+
+**What exists:** Audits and inventories (Surfer, MarketMuse, Clearscope, Frase) but weak link between score-at-publish and outcomes.
+
+**What's missing:** Store publish score → track GSC 3/6/12 months → correlate score with rank movement → personalize future recommendations.
+
+**Opportunity:** "Show me it works" proof for skeptical SMB buyers.
+
+### Gap 9: Transparent, explainable scoring
+
+**What exists:** Opaque 0–100 (or letter) grades everywhere.
+
+**What's missing:** Per-dimension breakdown, "add these 3 terms → +9 points," competitor score comparison.
+
+**Opportunity:** Geek SEO's transparent 6-component model (`ContentScoringService` — six labeled components in the editor) directly addresses this gap; depth vs Surfer still depends on SERP term coverage in code, not doc.
+
+### Gap 10: API-first / developer mode at affordable pricing
+
+**What exists:** Frase API on all tiers; Surfer API at $299+; NeuronWriter API at $93+.
+
+**Opportunity:** Documented brief/score/cluster/audit API at $49–$99 — agency integration play.
+
+### Strategic recommendations for Geek SEO
+
+**Core positioning:** *The SEO content tool built for business owners, not SEO experts.*
+
+**Must-win (table stakes):** Real-time editor + NLP scoring; SERP analysis (DataForSEO); AI generation; SERP brief; GSC integration.
+
+**Differentiation (own the gap):** Guided Mode; unified SEO + GEO score; local SEO module; E-E-A-T layer; transparent score breakdown; honest billing.
+
+**Sample pricing (research target — not product commitment):**
+
+| Plan | Price | Seats | Key features |
+|------|-------|-------|--------------|
+| Starter | $29/mo | 1 | 20 reports, AI generation, guided mode |
+| Professional | $59/mo | 1 | 60 reports, full NLP, GSC, GEO score |
+| Team | $89/mo | 3 | 150 reports, white-label exports, API |
+| Agency | $149/mo | 10 | Unlimited reports, full API, client reporting |
+
+**Go-to-market (SMB):** Target "how to rank on Google" not "Surfer alternative"; local SEO keywords; WordPress/agency partners; non-technical content marketing.
 
 ---
 

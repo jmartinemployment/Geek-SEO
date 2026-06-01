@@ -53,4 +53,50 @@ public sealed class TopicalMapController(
             return BadRequest(ex.Message);
         }
     }
+
+    [HttpGet("{projectId:guid}/linking-blueprint")]
+    public async Task<IActionResult> GetLinkingBlueprint(Guid projectId, CancellationToken ct)
+    {
+        try
+        {
+            var cached = await topicalMap.GetCachedAsync(user.RequireUserId(), projectId, ct);
+            if (cached?.LinkingBlueprint is null)
+                return NotFound();
+            return Ok(cached.LinkingBlueprint);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpGet("{projectId:guid}/entity-gaps")]
+    public async Task<IActionResult> GetEntityGaps(Guid projectId, CancellationToken ct)
+    {
+        try
+        {
+            var cached = await topicalMap.GetCachedAsync(user.RequireUserId(), projectId, ct);
+            if (cached is null)
+                return NotFound();
+
+            var gapAnalysis = cached.Topics
+                .OrderBy(t => t.EntityCoverage)
+                .Select(t => new
+                {
+                    t.Name,
+                    t.MainKeyword,
+                    t.Tier,
+                    t.EntityCoverage,
+                    t.EntityGaps,
+                    GapCount = t.EntityGaps.Count,
+                })
+                .ToList();
+
+            return Ok(gapAnalysis);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
 }

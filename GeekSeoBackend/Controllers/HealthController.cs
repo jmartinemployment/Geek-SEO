@@ -1,4 +1,5 @@
 using System.Text.Json;
+using GeekSeoBackend.Extensions;
 using GeekSeoBackend.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
@@ -6,7 +7,9 @@ namespace GeekSeoBackend.Controllers;
 
 [ApiController]
 [Route("health")]
-public sealed class HealthController(IHttpClientFactory httpClientFactory) : ControllerBase
+public sealed class HealthController(
+    IHttpClientFactory httpClientFactory,
+    SeoProviderConfiguration providerConfig) : ControllerBase
 {
     /// <summary>
     /// Liveness + data-gateway check. Verifies GeekAPI (which verifies GeekRepository) — never calls the repo or DB directly.
@@ -54,6 +57,24 @@ public sealed class HealthController(IHttpClientFactory httpClientFactory) : Con
             timestamp = DateTime.UtcNow,
             service = "GeekSeoBackend",
             gateway,
+        });
+    }
+
+    /// <summary>Which SEO provider implementations are configured (no secret values).</summary>
+    [HttpGet("providers")]
+    public IActionResult GetProviders()
+    {
+        return Ok(new
+        {
+            serpProvider = providerConfig.SerpProvider,
+            serpProviderFallback = providerConfig.SerpProviderFallback,
+            keywordProvider = providerConfig.KeywordProvider,
+            rankSnapshotProvider = providerConfig.RankSnapshotProvider,
+            credentials = new
+            {
+                dataforseo = providerConfig.DataForSeoCredentialsConfigured,
+                serpapi = providerConfig.SerpApiKeyConfigured,
+            },
         });
     }
 

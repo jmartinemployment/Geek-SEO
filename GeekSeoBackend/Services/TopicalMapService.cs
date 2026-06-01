@@ -4,7 +4,9 @@ using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Services;
 using GeekSeo.Application.Services.Seo;
 using GeekSeo.Persistence.Entities;
+using GeekSeoBackend.Auth;
 using GeekSeoBackend.Models;
+using GeekSeoBackend.Providers.Seo.Metering;
 
 namespace GeekSeoBackend.Services;
 
@@ -16,7 +18,13 @@ public sealed class TopicalMapService(
     ISerpProvider serp,
     IKeywordRepository keywordRepository,
     IKeywordProvider keywordProvider,
-    ITopicalHierarchyBuilder hierarchyBuilder)
+    ITopicalHierarchyBuilder hierarchyBuilder,
+    IKeywordDiscoveryProvider keywordDiscoveryProvider,
+    IAIProvider aiProvider,
+    ISerpDeepCacheRepository serpDeepCache,
+    IUsageMeteringService metering,
+    ICurrentUserContext userContext,
+    ILogger<TopicalMapService> logger)
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     private static readonly TimeSpan MapTtl = TimeSpan.FromDays(14);
@@ -82,8 +90,22 @@ public sealed class TopicalMapService(
             .Select(c => ToTopic(c, docs, keywordMetrics, project.Url))
             .ToList();
 
+        var deduped = TopicalHierarchyBuilder.DeduplicateTopics(topics);
+        var withPriority = AssignStrategicPriority(deduped);
+        var quickWins = BuildQuickWins(withPriority);
+        var semanticEntities = await BuildSemanticEntitiesAsync(withPriority, ct);
+        var linkingBlueprint = InternalLinkingBlueprintBuilder.Build(withPriority);
+
+        var entityGapAnalyzer = new EntityGapAnalyzer(serpDeepCache);
+        var projectQueries = gscRows.Select(r => r.Query).ToList();
+        var enrichedTopics = await entityGapAnalyzer.AnalyzeAsync(
+            withPriority,
+            projectQueries,
+            project.DefaultLocation,
+            ct);
+
         var now = DateTimeOffset.UtcNow;
-        var recommendations = topics
+        var recommendations = enrichedTopics
             .Where(t => t.Coverage is "gap" or "partial" or "opportunity")
             .OrderByDescending(t => t.PriorityScore)
             .Take(10)
@@ -95,21 +117,25 @@ public sealed class TopicalMapService(
             ProjectId = projectId,
             GeneratedAt = now.ToString("O"),
             ExpiresAt = now.Add(MapTtl).ToString("O"),
-            Topics = topics,
-            CoveredCount = topics.Count(t => t.Coverage == "covered"),
-            GapCount = topics.Count(t => t.Coverage == "gap"),
-            PartialCount = topics.Count(t => t.Coverage == "partial"),
-            OpportunityCount = topics.Count(t => t.Coverage == "opportunity"),
+            Topics = enrichedTopics,
+            CoveredCount = enrichedTopics.Count(t => t.Coverage == "covered"),
+            GapCount = enrichedTopics.Count(t => t.Coverage == "gap"),
+            PartialCount = enrichedTopics.Count(t => t.Coverage == "partial"),
+            OpportunityCount = enrichedTopics.Count(t => t.Coverage == "opportunity"),
             Recommendations = recommendations,
+            QuickWins = quickWins,
+            SemanticEntities = semanticEntities,
+            DuplicateCount = enrichedTopics.Count(t => t.IsDuplicate),
+            LinkingBlueprint = linkingBlueprint,
         };
 
         await topicalMaps.UpsertAsync(new SeoTopicalMap
         {
             ProjectId = projectId,
             Status = "ready",
-            ClustersJson = JsonSerializer.Serialize(topics, JsonOptions),
+            ClustersJson = JsonSerializer.Serialize(withPriority, JsonOptions),
             ContentGapsJson = JsonSerializer.Serialize(
-                topics.Where(t => t.Coverage is "gap" or "opportunity").ToList(),
+                withPriority.Where(t => t.Coverage is "gap" or "opportunity").ToList(),
                 JsonOptions),
             GeneratedAt = now,
             ExpiresAt = now.Add(MapTtl),
@@ -136,11 +162,27 @@ public sealed class TopicalMapService(
 
         if (!keywordSuggestionsResult.IsSuccess || keywordSuggestionsResult.Value is null)
             return CreateEmptyResult(projectId, "seed", seedKeyword);
-
         var suggestions = keywordSuggestionsResult.Value.ToList();
+
+
+        var discoveredKeywordsResult = await keywordDiscoveryProvider.GetRelatedKeywordsAsync(
+            seedKeyword,
+            location,
+            50,
+            ct);
+
+        var discoveredKeywords = discoveredKeywordsResult.IsSuccess && discoveredKeywordsResult.Value is not null
+            ? discoveredKeywordsResult.Value.ToList()
+            : [];
+
+        var allKeywords = suggestions
+            .Concat(discoveredKeywords)
+            .DistinctBy(k => k.Keyword.ToLowerInvariant())
+            .OrderByDescending(k => k.SearchVolume)
+            .Take(100).ToList();
         var topics = new List<TopicalMapTopic>();
 
-        foreach (var suggestion in suggestions)
+        foreach (var suggestion in allKeywords)
         {
             var topic = new TopicalMapTopic
             {
@@ -192,16 +234,30 @@ public sealed class TopicalMapService(
             });
         }
 
+        var deduped = TopicalHierarchyBuilder.DeduplicateTopics(enrichedTopics);
+        var withPriority = AssignStrategicPriority(deduped);
+        var quickWins = BuildQuickWins(withPriority);
+        var semanticEntities = await BuildSemanticEntitiesAsync(withPriority, ct);
+        var linkingBlueprint = InternalLinkingBlueprintBuilder.Build(withPriority);
+
+        var entityGapAnalyzer = new EntityGapAnalyzer(serpDeepCache);
+        var projectQueries = allKeywords.Select(k => k.Keyword).ToList();
+        var topicsWithGaps = await entityGapAnalyzer.AnalyzeAsync(
+            withPriority,
+            projectQueries,
+            location,
+            ct);
+
         var now = DateTimeOffset.UtcNow;
-        var recommendations = enrichedTopics
+        var recommendations = topicsWithGaps
             .Where(t => t.Coverage is "gap" or "partial")
             .OrderByDescending(t => t.SearchVolume ?? 0)
             .Take(10)
             .ToList();
 
-        var pillarCount = enrichedTopics.Count(t => t.Tier == TopicalTier.Pillar);
-        var clusterCount = enrichedTopics.Count(t => t.Tier == TopicalTier.Cluster);
-        var articleCount = enrichedTopics.Count(t => t.Tier == TopicalTier.Article);
+        var pillarCount = topicsWithGaps.Count(t => t.Tier == TopicalTier.Pillar);
+        var clusterCount = topicsWithGaps.Count(t => t.Tier == TopicalTier.Cluster);
+        var articleCount = topicsWithGaps.Count(t => t.Tier == TopicalTier.Article);
 
         var result = new TopicalMapResult
         {
@@ -209,26 +265,30 @@ public sealed class TopicalMapService(
             ProjectId = projectId,
             GeneratedAt = now.ToString("O"),
             ExpiresAt = now.Add(MapTtl).ToString("O"),
-            Topics = enrichedTopics,
+            Topics = topicsWithGaps,
             Mode = "seed",
             SeedKeyword = seedKeyword,
-            CoveredCount = enrichedTopics.Count(t => t.Coverage == "covered"),
-            GapCount = enrichedTopics.Count(t => t.Coverage == "gap"),
-            PartialCount = enrichedTopics.Count(t => t.Coverage == "partial"),
-            OpportunityCount = enrichedTopics.Count(t => t.Coverage == "opportunity"),
+            CoveredCount = topicsWithGaps.Count(t => t.Coverage == "covered"),
+            GapCount = topicsWithGaps.Count(t => t.Coverage == "gap"),
+            PartialCount = topicsWithGaps.Count(t => t.Coverage == "partial"),
+            OpportunityCount = topicsWithGaps.Count(t => t.Coverage == "opportunity"),
             Recommendations = recommendations,
             PillarCount = pillarCount,
             ClusterCount = clusterCount,
             ArticleCount = articleCount,
+            QuickWins = quickWins,
+            SemanticEntities = semanticEntities,
+            DuplicateCount = topicsWithGaps.Count(t => t.IsDuplicate),
+            LinkingBlueprint = linkingBlueprint,
         };
 
         await topicalMaps.UpsertAsync(new SeoTopicalMap
         {
             ProjectId = projectId,
             Status = "ready",
-            ClustersJson = JsonSerializer.Serialize(enrichedTopics, JsonOptions),
+            ClustersJson = JsonSerializer.Serialize(withPriority, JsonOptions),
             ContentGapsJson = JsonSerializer.Serialize(
-                enrichedTopics.Where(t => t.Coverage is "gap" or "opportunity").ToList(),
+                withPriority.Where(t => t.Coverage is "gap" or "opportunity").ToList(),
                 JsonOptions),
             GeneratedAt = now,
             ExpiresAt = now.Add(MapTtl),
@@ -257,6 +317,9 @@ public sealed class TopicalMapService(
             PillarCount = 0,
             ClusterCount = 0,
             ArticleCount = 0,
+            QuickWins = [],
+            SemanticEntities = [],
+            DuplicateCount = 0,
         };
     }
 
@@ -291,6 +354,9 @@ public sealed class TopicalMapService(
                 PartialCount = topics.Count(t => t.Coverage == "partial"),
                 OpportunityCount = topics.Count(t => t.Coverage == "opportunity"),
                 Recommendations = recommendations,
+                QuickWins = [],
+                SemanticEntities = [],
+                DuplicateCount = topics.Count(t => t.IsDuplicate),
             };
         }
         catch (JsonException)
@@ -308,6 +374,132 @@ public sealed class TopicalMapService(
             .ToList();
         var clusters = TopicClusteringService.ClusterGscQueries(gscRows);
         return clusters.Select(c => ToTopic(c, documents, new Dictionary<string, SeoKeyword>(StringComparer.OrdinalIgnoreCase), null)).ToList();
+    }
+
+    private static IReadOnlyList<QuickWin> BuildQuickWins(IReadOnlyList<TopicalMapTopic> topics)
+    {
+        var filtered = topics
+            .Where(t => (t.KeywordDifficulty ?? 100) < 35 && (t.SearchVolume ?? 0) > 0)
+            .ToList();
+
+        var scored = filtered.Select(t =>
+        {
+            var baseScore = (decimal)(t.SearchVolume ?? 0) / Math.Max(t.KeywordDifficulty ?? 1, 1);
+            var multiplier = 1m;
+
+            if (t.Intent is not null)
+            {
+                var intent = t.Intent.ToLowerInvariant();
+                if (intent.Contains("how") || intent.Contains("what") || intent.Contains("why")
+                    || intent.Contains("when") || intent.Contains("is") || intent.Contains("are")
+                    || intent.Contains("can") || intent.Contains("should"))
+                    multiplier *= 1.5m;
+            }
+
+            var wordCount = t.MainKeyword?.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length ?? 1;
+            if (wordCount >= 4)
+                multiplier *= 1.3m;
+
+            if (t.Coverage == "gap")
+                multiplier *= 1.0m;
+            else if (t.Coverage == "partial")
+                multiplier *= 0.7m;
+
+            var score = baseScore * multiplier;
+
+            var reason = new List<string>();
+            if ((t.KeywordDifficulty ?? 100) < 35)
+                reason.Add($"Low KD ({t.KeywordDifficulty:F0})");
+            if ((t.SearchVolume ?? 0) > 500)
+                reason.Add($"High volume ({t.SearchVolume})");
+            if (wordCount >= 4)
+                reason.Add("Long-tail");
+            if (t.Intent is not null && (t.Intent.Contains("how") || t.Intent.Contains("what")))
+                reason.Add("FAQ intent");
+
+            return (Topic: t, Score: score, Reason: string.Join(" + ", reason));
+        })
+        .OrderByDescending(x => x.Score)
+        .Take(5)
+        .Select(x => new QuickWin
+        {
+            TopicName = x.Topic.Name,
+            Reason = x.Reason,
+            Intent = x.Topic.Intent,
+            SearchVolume = x.Topic.SearchVolume,
+            KeywordDifficulty = x.Topic.KeywordDifficulty,
+        })
+        .ToList();
+
+        return scored;
+    }
+
+    private async Task<IReadOnlyList<SemanticEntity>> BuildSemanticEntitiesAsync(
+        IReadOnlyList<TopicalMapTopic> topics,
+        CancellationToken ct)
+    {
+        try
+        {
+            var topicsByPriority = topics
+                .OrderByDescending(t => t.PriorityScore)
+                .Take(20)
+                .ToList();
+
+            if (topicsByPriority.Count == 0)
+                return [];
+
+            var topicsCompact = string.Join("\n", topicsByPriority.Select(t =>
+                $"{t.Name} | {t.Tier} | {t.PillarName ?? "General"}"));
+
+            const string jsonShape =
+                """[{"name":"EntityName","type":"Concept","pillarRefs":["PillarName"],"reason":"Why it matters"}]""";
+
+            var prompt = $@"Given this topical map, identify the 20 most important semantic entities
+(people, organizations, concepts, tools, standards, locations) that must appear across
+the content to establish topical authority with Google.
+
+Topics (name | tier | pillar):
+{topicsCompact}
+
+Return ONLY a JSON array matching this shape (20 items): {jsonShape}
+Types: Person | Organization | Concept | Tool | Location | Event";
+
+            var result = await aiProvider.CompleteAsync(new AIRequest
+            {
+                SystemPrompt =
+                    "You are an SEO strategist. Return valid JSON only — no markdown fences or commentary.",
+                UserPrompt = prompt,
+                MaxTokens = 4096,
+                Temperature = 0.3,
+            }, ct);
+            if (!result.IsSuccess || result.Value is null || string.IsNullOrWhiteSpace(result.Value.Content))
+                return [];
+
+            var json = result.Value.Content.Trim();
+            var entities = System.Text.Json.JsonSerializer.Deserialize<List<SemanticEntity>>(json, JsonOptions);
+            return entities ?? [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private static IReadOnlyList<TopicalMapTopic> AssignStrategicPriority(IReadOnlyList<TopicalMapTopic> topics)
+    {
+        return topics.Select(t =>
+        {
+            var vol = t.SearchVolume ?? 0;
+            var kd = t.KeywordDifficulty ?? 50;
+            var priority =
+                t.Tier == TopicalTier.Pillar ? "Must-have"
+                : vol > 500 && kd < 40 ? "Must-have"
+                : string.Equals(t.Coverage, "partial", StringComparison.OrdinalIgnoreCase) ? "Must-have"
+                : t.Tier == TopicalTier.Cluster && vol > 100 ? "High-value"
+                : "Expansion";
+
+            return t with { StrategicPriority = priority };
+        }).ToList();
     }
 
     private async Task<Dictionary<string, SeoKeyword>> LoadKeywordMetricsAsync(
@@ -367,6 +559,8 @@ public sealed class TopicalMapService(
 
             if (!serpResult.IsSuccess || serpResult.Value is null)
                 continue;
+
+            await SerpFetchMetering.TryIncrementAsync(metering, userContext, logger, ct);
 
             var urls = serpResult.Value.OrganicResults
                 .OrderBy(o => o.Position)

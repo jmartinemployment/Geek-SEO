@@ -4,20 +4,17 @@
 
 | Document | Purpose |
 |----------|---------|
-| **[`geekseo-plan.md`](geekseo-plan.md)** | **v1 master plan — 100% complete** |
-| **[`TODO.md`](TODO.md)** | **All future work** (#12b polish, waivers, integrations, REDESIGN, ops, upgrade, security) |
-| **[`PROJECT_STATUS.md`](../PROJECT_STATUS.md)** | What’s live in production |
-| **[`docs/ROADMAP.md`](../docs/ROADMAP.md)** | One-screen “is plan done?” → points to v1 + TODO |
+| **[`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md)** | **Provider strategy** — SerpApi bridge, Geek-owned SERP/crawl, DataForSEO → zero |
+| **[`TODO.md`](TODO.md)** | **All remaining work** (scoring v2, #12b, waivers, integrations, REDESIGN, ops, security) |
+| **[`PROJECT_STATUS.md`](../PROJECT_STATUS.md)** | What’s live in production; v1 parity #1–27 status |
+| **[`docs/ROADMAP.md`](../docs/ROADMAP.md)** | One-screen index |
+| **[`ARCHITECTURE.md`](ARCHITECTURE.md)** | Services, ports, API surface |
 
-## Upgrade plans (post-v1 — not in master plan closure)
+## Product upgrade specs (reference)
 
-**Convention:** `UPGRADE-{competitive-target}-{themes}.md` — one file per major upgrade track. Listed in [`TODO.md`](TODO.md); does **not** block v1 “plan complete.”
-
-| File | Upgrades from → to |
-|------|-------------------|
-| [`UPGRADE-se-ranking-agency-serpapi.md`](UPGRADE-se-ranking-agency-serpapi.md) | v1 content parity → SE Ranking–class rank/audit/reports + agency white-label + SerpApi (`U1`–`U10`) |
-
-Add new files as `UPGRADE-<target>-<themes>.md` (e.g. `UPGRADE-ahrefs-backlinks.md`) and link them here + in `TODO.md`.
+| File | Purpose |
+|------|---------|
+| [`TopicalMapUpgrade.md`](TopicalMapUpgrade.md) | Topical map UX gaps — data deps per [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md) |
 
 ## Deep dives (reference only)
 
@@ -25,10 +22,15 @@ Add new files as `UPGRADE-<target>-<themes>.md` (e.g. `UPGRADE-ahrefs-backlinks.
 |----------|---------|
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Services, ports, data flow |
 | [`PLATFORM-DECOUPLING.md`](PLATFORM-DECOUPLING.md) | M0–M9 (complete) |
-| [`geekseo-content-scoring-spec.md`](geekseo-content-scoring-spec.md) | Score math |
+| Scoring (code) | `GeekSeo.Application/Services/ContentScoringService.cs` |
 | [`competitor-analysis.md`](competitor-analysis.md) | Competitor research |
-| [`DATA-PROVIDER-STRATEGY.md`](DATA-PROVIDER-STRATEGY.md) | Geek-owned SERP/crawl long-term |
+| [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md) | Same as Start here (canonical provider plan) |
+| [`KEYWORD-DISCOVERY-STRATEGY.md`](KEYWORD-DISCOVERY-STRATEGY.md) | `IKeywordDiscoveryProvider` — Phase B companion |
 
 ## Do not use for planning
 
-[`REDESIGN-PLAN.md`](REDESIGN-PLAN.md), [`GEEKSEO-PLAN-V2.md`](GEEKSEO-PLAN-V2.md), `PARITY-SPECS.md`, `API-CONTRACTS.md`
+- [`DATAFORSEO-REPLACEMENT-UPGRADE.md`](DATAFORSEO-REPLACEMENT-UPGRADE.md), [`GEEK-DATA-PLANE.md`](GEEK-DATA-PLANE.md) — redirect stubs only.
+- Retired vendor-expansion content (Labs / Backlinks / OnPage) is **not** coming back.
+- Canonical: **[`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md)**.
+
+`REDESIGN-PLAN.md`, `PARITY-SPECS.md`, `API-CONTRACTS.md` — UX/reference only if present in the tree.
