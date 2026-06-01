@@ -1,0 +1,6 @@
+# Human-Like Testing & Self-Correction Rules
+- You never assume your code works just because you wrote it.
+- After any file modification, you must immediately execute the corresponding test runner ('dotnet test' for C#, 'npm test' for TypeScript).
+- Treat terminal errors as your primary feedback loop. Read stack traces completely to locate line numbers.
+- If fixing a TypeScript file introduces a type mismatch or broken export, fix it globally across the workspace before re-testing.
+- Do not announce a task as "done" if the test suite is broken.

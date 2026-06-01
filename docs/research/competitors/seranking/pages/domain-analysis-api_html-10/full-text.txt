@@ -1,0 +1,275 @@
+Free June 9 event: How to win brand visibility when AI decides what gets seen →
+Solutions
+Tools
+Resources
+Pricing
+EN
+Sign in
+Talk to an expert
+Start free trial
+Domain Analysis API
+
+Get full domain insights. Explore organic and paid keyword stats, traffic estimates, and more.
+
+API access is included in every SE Ranking plan
+
+Talk to an expert
+Explore documentation
+Domain-specific data that instantly reveals the big picture
+Get full data on any domain’s organic and paid performance
+
+SE Ranking’s Domain Analysis API provides deep domain-level data to benchmark competitors, spot keyword gaps, analyze LLM presence, track trends, and plan smarter campaigns.
+Here's what you get:
+
+LLM presence data:
+
+ Get prompts in AIOs, AI Mode, Gemini, Perplexity, and ChatGPT, including the full LLM answer.
+
+Global + regional breakdowns: 
+
+ Zoom in or out by region or worldwide
+
+Organic + paid keyword data: 
+
+ Get complete keyword portfolios with positions, volume, CPC, etc, plus paid ad placements across regions
+
+Traffic & cost estimates: 
+
+ Quantify visibility and budget impact
+
+Competitor analysis: 
+
+ Identify top rivals with keyword gap analysis
+
+Ad intelligence: 
+
+ See real ad copy, landing pages, and performance metrics
+
+Historical trends: 
+
+ Track visibility, traffic, and ranking shifts over time
+
+And more: 
+
+ Ad copy, landing pages, CPC data, and position distributions
+
+Sort, slice, and filter data your way
+
+Slice and dice raw domain data however you need. Get flexible filtering and sorting for quick answers.
+
+Various keyword filters: 
+
+ Filter keywords by search volume, traffic, difficulty, CPC, word count, and search intent.
+
+Position-based filtering: 
+
+ Focus on top 10 rankings or compare (up/down/new/lost) ranking changes to to the previous period
+
+Advanced search logic: 
+
+ Use “contains,” “begins,” “ends,”, or “exact” match patterns
+
+Flexible sorting & output: 
+
+ Order by any metric, return only the columns you need
+
+Domain comparisons: 
+
+ Reveal keyword overlap and traffic gaps between any two domains
+
+Scalable & reliable data for every project
+
+Handles everything from quick domain checks to deep data dives:
+
+High-volume data retrieval: 
+
+ Request up to 1,000 keywords per call with pagination
+
+Integration-ready format: 
+
+ Clean JSON output built for easy ETL pipelines and dashboard integration
+
+Deep historical insights: 
+
+ Access archived performance data from any month since February 2020, across 188+ regional databases
+
+Flexible geographic scope: 
+
+ Choose between worldwide aggregates or regional breakdowns with Alpha-2 country codes
+
+Massive database coverage behind every insight
+2.2B
+Domain profiles
+5.4B
+Keyword database
+188
+Country database
+Let us walk you through our Domain Analysis API
+Talk to an expert
+Put domain intelligence to work
+See who’s winning in search
+
+Figure out how you stack up against your rivals. See which keywords and prompts you both rank for, identify where they outrank you, and get a full breakdown of their organic, paid, and AI-driven traffic strategy.
+
+Track paid vs organic performance
+
+Keep your finger on the pulse of domain shifts, both in organic results and paid ads. Catch seasonal swings, spot fresh campaign impacts, and track competitive movements and evolving keyword strategies.
+
+Access regional SERP analytics
+
+Need market-specific insights? Pull data from over 188 regional databases to compare results worldwide or zoom in on specific countries—with or without subdomains included.
+
+Hear from people who use our Domain Analysis API
+Connor Wilkins
+CMO
+Company Name
+Direction.com
+Business Type
+SEO agency
+
+We use SE Ranking to build winning SEO strategies for our clients. Their suite of tools allows for robust market research, competitive analysis, and website audits—all of which serve to inform our SEO campaign roadmaps.
+
+Read more
+Ross Crawford
+Managing Director
+Company Name
+Mr Digital
+Business Type
+Digital marketing agency
+
+We use SE Ranking to overcome many SEO-related challenges, from researching keywords to conducting granular analyses of various client-related issues that ultimately help us save a significant amount of time and streamline processes.
+
+Read more
+Jairo David Guerrero Vásquez
+Founder
+Company Name
+Phanum
+Business Type
+SEO agency
+
+Because SEO is time-consuming, SE Ranking’s tools are a great help here. We use it for detailed audits, keyword research, performance monitoring, and reporting. But apart from the actual SEO workflow we do for clients, we also use SE Ranking for our sales process. It helps us build trust with current and potential customers as we can give them a comprehensive overview of the current situation and advise on the next steps.
+
+Read more
+1
+/
+3
+Get more done with SE Ranking’s powerful and innovative SEO toolset
+Talk to an expert
+Flexible, usage-based pricing
+
+Start a free trial with 100K credits. Then only pay for what you use
+
+SE RANKING API
+
+From
+
+$50.00
+/250K credits
+Pay-as-you-go plan
+Talk to an expert
+For SEOs who need API access to SEO data—without the tools
+Backlinks API
+Domain Research API
+Keyword Research API
+Website Audit API
+AI Search API
+Project Management API
+Calculate your API cost
+FAQ
+Q
+What does the Domain Analysis API give me access to?
+A
+
+You get complete, in-depth SEO and PPC data for any domain. This includes:
+
+Keyword metrics: Search volume, search intent, CPC, keyword difficulty, rankings, traffic estimates, etc.
+Performance data: Traffic value and percentage share, position distributions (top 1-5, 6-10, 11-20, etc.), keyword counts (total, new, lost, up/down changes)
+Competitive intelligence: Organic and paid competitors, keyword overlap, and common keywords analysis
+Ad intelligence: Actual ad copy, landing pages, spend estimates, and ad positions
+Geographic insights: 188 regional databases with country-specific breakdowns
+Historical trends: Performance tracking over time with monthly snapshots
+And more
+Q
+Can I filter by country, keyword type, or CPC?
+A
+
+Yes, you can filter by all those and more. Use our Domain Data API to target specific countries with Alpha-2 country codes across 188 regional databases. Filter keywords by characteristics like word count, search intent, and length, and set CPC ranges, competition levels, search volume, and ranking positions. Use advanced text search with “contains,” “begins,”, “ends,” or “exact” match logic.
+
+Q
+Does the Domain Analysis API support competitor comparisons?
+A
+
+Yes, it does. Compare any two domains side-by-side using domain comparison endpoints to see which keywords you both target, find ranking gaps, compare traffic differences and Keyword Effectiveness Indices, and more. Get detailed metrics for both domains, including positions, traffic estimates, cost values, and ranking URLs.
+
+Q
+Can I track changes in search traffic and keyword positions over time?
+A
+
+Yes, here’s how. Track historical changes using the history endpoint by entering the domain and the dates. Then, use the pos_change filter within the domain keywords endpoint to see which keyword rankings moved up, down, are new, or dropped since the last data collection. Plus, set filter[traffic][from] and filter[traffic][to] to prioritize keywords that drive specific traffic volumes.
+
+Q
+Can I extract ad creatives or PPC data?
+A
+
+Yes, you can extract comprehensive PPC data including actual ad copy, title texts, displayed URLs, ad landing pages, and ad positions. The Domain Data API provides cost estimates, competition scores, CPC data, shows precise SERP positions where ads appear (like position 1, 2, etc.), and more. Plus, set type="adv" to filter out everything but paid search to focus purely on ad performance data.
+
+Q
+Is historical keyword trend data included?
+A
+
+Yes, access historical keyword trends using the history trends endpoint. Get monthly snapshots of keyword performance to track changes in keyword counts, rankings, and traffic over date ranges.
+
+Q
+What are the rate limits for your Domain Analysis API?
+A
+
+You can make up to 10 calls per second per API key by default. To get higher limits, contact SE Ranking. We can discuss a request-rate ceiling increase.
+
+Core SEO Tools
+Rank Tracker
+Website Audit
+On-Page SEO Checker
+SERP Tracker
+Backlink Checker
+Keyword Grouper
+Keyword Tool
+Website Competitor Analysis Tool
+AI Overviews Tracker
+All features
+Performance & Reporting Tools
+Webpage Monitor
+SEO Report Generator
+SEO Dashboard
+Add-ons
+Local Marketing Software
+Content Marketing Tool
+Agency Pack
+White Label
+Additional Services
+SEO API
+Free SEO tools
+SEO Task Manager
+Support & Partnership
+Contact
+Help
+Affiliate
+Educational Partnership Program
+Company & Resources
+SEO Blog
+About
+Stand with Ukraine
+Careers
+What’s New
+Testimonials
+Webinars
+Academy
+Competitors
+Legal & Technical
+Privacy Policy
+Cookie Policy
+Legal Information
+Open Source Attributions
+Download
+EN
+English
+© 2013 - 2026 SER Acquisition Inc. All Rights Reserved

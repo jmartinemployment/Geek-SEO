@@ -1,0 +1,238 @@
+Free June 9 event: How to win brand visibility when AI decides what gets seen →
+Solutions
+Tools
+Resources
+Pricing
+EN
+Sign in
+Talk to an expert
+Start free trial
+Keyword Research API
+
+Export live keyword data at scale in a single API call. Built to fit your workflow.
+
+API access is included in every SE Ranking plan
+
+Talk to an expert
+Explore documentation
+Get reliable keyword metrics and data fast, from any market
+Extensive keyword data access
+
+SE Ranking’s Keyword Data API offers keyword suggestions and provides fast access to accurate, real-time metrics for up to 5,000 terms from the regional database you specify. Get new keywords and actionable metrics in a single call—perfect for bulk keyword and market research, automating routine reports, scaling content creation, and more:
+
+Keyword suggestions:
+
+ List of similar, related, long-tail, and question-based terms
+
+Search volume: 
+
+ Average monthly searches per keyword
+
+CPC (Cost Per Click): 
+
+ Average advertiser bid value
+
+Competition: 
+
+ Keyword competition level (0–1 or 0–100 scale)
+
+Difficulty: 
+
+ Ranking difficulty score (0–100 scale)
+
+Historical search volume trends: 
+
+ Month-by-month data to track seasonality and keyword evolution
+
+Scalable & flexible integration
+
+One API call does it all:
+
+Process up to 5,000 keywords in a single POST request to keep your batch jobs efficient and quick.
+
+Use consistent JSON responses across all markets for smooth data processing.
+
+Choose only the data you need (like keyword, volume, difficulty) to trim payload size and save API units.
+
+Sort results by volume, CPC, difficulty or competition to quickly find low-competition gems, high-value keywords, and more.
+
+Precise market targeting
+
+Use ISO Alpha-2 country codes (e.g., “us”, “de”) to grab keyword data from desired markets only.
+This helps you:
+
+Get accurate local search demand directly from the API
+
+Skip the hassle of juggling data from different sources, messy exports, or scraping
+
+Double down on your SEO and marketing efforts where they’ll make the biggest impact
+
+Billions of keywords. Any region. All in one database.
+3.2B
+Europe
+1.2B
+North America
+542M
+Asia
+See SE Ranking’s API in action. Get a personal tour from our expert.
+Talk to an expert
+Use cases for the Keyword Data API
+Spot untapped market opportunities
+
+Turn keyword suggestions into competitive advantage. Discover similar, related, question-based, and long-tail terms to uncover new topics. Identify emerging trends early, map new content angles, and expand your semantic footprint with data-backed opportunities grounded in real user search behavior.
+
+Optimize budget with paid and organic insights
+
+Observe high-CPC keywords where your rankings aren’t great yet. Get alerts when CPC is above a certain threshold but your rank is low. Then shift your budget from paid ads to SEO for better bang for your buck.
+
+Accelerate content creation with AI briefs
+
+Run your keyword data through an AI prompt to generate attention-grabbing titles, smart heading structures, and clear intent for low-difficulty keywords. Deliver content briefs quickly and slash time spent on bringing freelancers up to speed.
+
+What SEO pros are saying about SE Ranking’s Keyword API
+Connor Wilkins
+CMO
+Company Name
+Direction.com
+Business Type
+SEO agency
+
+We use SE Ranking to build winning SEO strategies for our clients. Their suite of tools allows for robust market research, competitive analysis, and website audits—all of which serve to inform our SEO campaign roadmaps.
+
+Read more
+Ross Crawford
+Managing Director
+Company Name
+Mr Digital
+Business Type
+Digital marketing agency
+
+We use SE Ranking to overcome many SEO-related challenges, from researching keywords to conducting granular analyses of various client-related issues that ultimately help us save a significant amount of time and streamline processes.
+
+Read more
+Jairo David Guerrero Vásquez
+Founder
+Company Name
+Phanum
+Business Type
+SEO agency
+
+Because SEO is time-consuming, SE Ranking’s tools are a great help here. We use it for detailed audits, keyword research, performance monitoring, and reporting. But apart from the actual SEO workflow we do for clients, we also use SE Ranking for our sales process. It helps us build trust with current and potential customers as we can give them a comprehensive overview of the current situation and advise on the next steps.
+
+Read more
+1
+/
+3
+Discover all the gems in SE Ranking’s powerful toolbox
+Talk to an expert
+Flexible, usage-based pricing
+
+Try it free with 100K credits and scale credits as you grow. Only pay for what you use
+
+SE RANKING API
+
+From
+
+$50.00
+/250K credits
+Pay-as-you-go plan
+Talk to an expert
+For SEOs who need API access to SEO data—without the tools
+Backlinks API
+Domain Research API
+Keyword Research API
+Website Audit API
+AI Search API
+Project Management API
+Calculate your API cost
+FAQ
+Q
+What data does the Keyword Research API include?
+A
+
+SE Ranking’s Keyword Analysis API provides all core keyword metrics, including search volume, CPC (cost-per-click), competition levels, keyword difficulty scores, and historical search volume trends. Everything is delivered in one go and ready to plug into your reports, dashboards, product and internal tools.
+
+Q
+Can I filter results by country or language?
+A
+
+Yes. Filter results by country using the source parameter in your API request. Plug in the ISO Alpha-2 country code (like source=us, source=de) to get keyword data specific to that region. Keyword data is tied to regional databases, so the results you get will default to the dominant language of that country.
+
+Q
+Is historical search trend data included?
+A
+
+Yes! SE Ranking’s Keyword Data API gives you month-by-month search volume for each keyword. This makes it easy to see if a keyword’s popularity is just a seasonal spike, a steady growth trend, or something else. No need to hop between tools to compile data.
+
+Q
+How often is the data updated?
+A
+
+SE Ranking’s Keyword Research API data is updated regularly. We provide fresh, accurate keyword info to keep your SEO and marketing decisions on point.
+
+Q
+What are the rate limits for Keyword Research API?
+A
+
+Get up to 10 requests per second per API key. Go over that and you’ll get a “Too Many Requests” error, but retrying shortly usually works. Every request uses some API units from your subscription, so watch your quota closely to keep things running smoothly. If you need higher limits, book a call with SE Ranking’s team to discuss your requirements.
+
+Q
+Can I use this API without any development experience?
+A
+
+Yes! Using SE Ranking’s Keyword Research API is possible even if you’re not a developer. It’s simple to use, with clear guides that make it easy for anyone to access keyword data. A ready-to-use Postman Collection is available, so you can test and explore the API without having to write any code. When you’re ready for more advanced setups, a developer can step in to help.
+
+Q
+Can I get a list of similar keywords via API?
+A
+
+Not at the moment. The Keyword Research API is set up to analyze only the keyword lists you provide. It offers core keyword metrics like search volume, CPC, keyword difficulty, etc., but similar keyword suggestions aren’t available to extract just yet.
+
+Core SEO Tools
+Rank Tracker
+Website Audit
+On-Page SEO Checker
+SERP Tracker
+Backlink Checker
+Keyword Grouper
+Keyword Tool
+Website Competitor Analysis Tool
+AI Overviews Tracker
+All features
+Performance & Reporting Tools
+Webpage Monitor
+SEO Report Generator
+SEO Dashboard
+Add-ons
+Local Marketing Software
+Content Marketing Tool
+Agency Pack
+White Label
+Additional Services
+SEO API
+Free SEO tools
+SEO Task Manager
+Support & Partnership
+Contact
+Help
+Affiliate
+Educational Partnership Program
+Company & Resources
+SEO Blog
+About
+Stand with Ukraine
+Careers
+What’s New
+Testimonials
+Webinars
+Academy
+Competitors
+Legal & Technical
+Privacy Policy
+Cookie Policy
+Legal Information
+Open Source Attributions
+Download
+EN
+English
+© 2013 - 2026 SER Acquisition Inc. All Rights Reserved

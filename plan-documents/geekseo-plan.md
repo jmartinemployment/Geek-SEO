@@ -1,7 +1,53 @@
-# Geek SEO — Master Implementation Plan
+# Geek SEO — Master Plan (single source of truth)
 
-**Date:** May 2026  
-**Status:** Canonical. All implementation follows this document.
+**Date:** May 2026 · **Consolidated:** June 1, 2026  
+**This file replaces** scattered status across `REDESIGN-PLAN.md`, duplicate plan filenames, and ambiguous “topical map ✅” lines.
+
+---
+
+## How to use this documentation
+
+| Read this | When you need |
+|-----------|----------------|
+| **[`geekseo-plan.md`](geekseo-plan.md)** (this file) | What we’re building, parity features #1–31, REDESIGN phases, priority backlog, implementation steps |
+| **[`UPGRADE-se-ranking-agency-serpapi.md`](UPGRADE-se-ranking-agency-serpapi.md)** | Post-v1 upgrade — SE Ranking rank/audit/reports, agency tier, SerpApi (`UPGRADE-*` convention) |
+| **[`PROJECT_STATUS.md`](../PROJECT_STATUS.md)** | What is **live in production** right now (URLs, workers, auth, smoke results) |
+| **[`TODO.md`](TODO.md)** | **Deferred** work — not part of v1 “plan complete” |
+| **[`docs/ROADMAP.md`](../docs/ROADMAP.md)** | Index — v1 complete; future work in `TODO.md` |
+| **[`ARCHITECTURE.md`](ARCHITECTURE.md)** | Service boundaries, ports, data flow |
+| **[`PLATFORM-DECOUPLING.md`](PLATFORM-DECOUPLING.md)** | M0–M9 migration history (complete) |
+| **[`geekseo-content-scoring-spec.md`](geekseo-content-scoring-spec.md)** | Score formulas |
+| **`competitor-analysis.md`**, **`market-gaps.md`**, **`feature-matrix.md`** | Background research only — **not** scope or status |
+
+**Superseded (do not plan from):** `REDESIGN-PLAN.md` (redirect stub), `GEEKSEO-PLAN-V2.md`, `PARITY-SPECS.md`, `API-CONTRACTS.md`, `REVIEW_SUMMARY.md`.
+
+---
+
+## Status legend (use everywhere)
+
+| Label | Meaning |
+|-------|---------|
+| **Shipped — parity** | Meets the narrow “Done when” for that feature # in this plan |
+| **Shipped — partial** | Code exists; production QA blocked or known gaps (see notes) |
+| **Backlog — REDESIGN** | UX/growth phase in § REDESIGN phases — not required for parity closure |
+| **Backlog — V2** | Agreed product upgrade beyond parity (e.g. strategy topical map) |
+| **Recommended** | Post-MVP (#28–31, ops, security) — [`docs/ROADMAP.md`](../docs/ROADMAP.md) |
+| **Out of scope** | Deliberately excluded competitor capabilities |
+
+**Important:** Deferred items live in [`TODO.md`](TODO.md) — do not block v1 completion.
+
+---
+
+## v1 definition of done — **100% complete** (June 2026)
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Parity **#1–27** in repo (except #6, #15, #19, #20 → [`TODO.md`](TODO.md)) | ✅ |
+| 2 | **#12** GSC topical map (parity) | ✅ |
+| 3 | **#12b** topical map v2 core (SERP clusters, table/map, priority, pillars, recommendations on map page) | ✅ |
+
+Further #12b polish (V2.2, V2.4 dashboard, V2.5 E2E) → [`TODO.md`](TODO.md).  
+All other future work → [`TODO.md`](TODO.md).
 
 ---
 
@@ -35,7 +81,8 @@ Clone the core workflows of **Surfer SEO**, **Semrush ContentShake AI**, and **F
 | 9 | Brand voice profiles (samples → tone → prepend in every AI prompt) | Surfer Custom Voice + ContentShake |
 | 10 | Content Planner — mode=full: seed → 15–40 clusters | Surfer Keyword Research |
 | 11 | Topic Research — mode=quick: seed → 5–15 clusters | Surfer Topic Research |
-| 12 | Topical Map (GSC, covered/gap/partial, 14d refresh) | Surfer Sites / Topic Explorer |
+| 12 | Topical Map — **parity** (GSC clusters, covered/gap/partial, 14d refresh) | Surfer Sites / Topic Explorer |
+| 12b | Topical Map — **strategy** (SERP clusters, visual map, pillars, competitors) | Surfer hex map — **v1 core ✅**; polish in [`TODO.md`](TODO.md) |
 | 13 | Deep SERP analyzer (50 results, term matrix, CSV export) | Surfer SERP Analyzer |
 | 14 | Keyword cannibalization (GSC conflicts → merge/canonical guidance) | Surfer Sites |
 | 15 | WordPress REST publish (Application Password, AES-256-GCM) | ContentShake + Surfer WP |
@@ -56,6 +103,27 @@ Clone the core workflows of **Surfer SEO**, **Semrush ContentShake AI**, and **F
 | 30 | Google Docs add-on (sidebar score + top 5 suggestions) | Surfer Google Docs |
 | 31 | ChatGPT Actions OpenAPI + public REST API + Agency API keys (120 req/min) | Surfer ChatGPT + NeuronWriter API |
 
+### Implementation status (June 2026)
+
+| Bucket | Status | Detail |
+|--------|--------|--------|
+| **v1 master plan** | **✅ 100% complete** | § v1 definition of done |
+| **#1–27 parity** | ✅ Shipped | #6, #15, #19, #20 → [`TODO.md`](TODO.md) |
+| **Future work** | [`TODO.md`](TODO.md) | #12b polish, integrations, REDESIGN 2/2b/7, ops, upgrade, security |
+
+---
+
+## REDESIGN phases (reference)
+
+**Shipped in v1:** Phases **1**, **3**, **6** (core), **4–5** via **#12b v2** (GSC+SERP map, not sitemap/Claude pipeline).  
+**Deferred:** Phases **2**, **2b**, **7**, **8** extras → [`TODO.md`](TODO.md).
+
+---
+
+## Active backlog
+
+**None.** v1 is closed. Pick work from [`TODO.md`](TODO.md).
+
 ---
 
 ## Out of scope (not in this product)
@@ -70,6 +138,8 @@ Clone the core workflows of **Surfer SEO**, **Semrush ContentShake AI**, and **F
 | 170+ languages | English-first SMB scope |
 | MarketMuse inventory / Rankability coaching | Enterprise scope |
 | Surfer Sites full PM (time tracking, calendar sync) | ContentShake kanban is sufficient |
+
+**Note:** Features **#28–31** are *in* the parity list but *not* in the in-repo implementation closure. They are tracked under **Recommended — not complete** in [`docs/ROADMAP.md`](../docs/ROADMAP.md), not in this “excluded competitor capabilities” table.
 
 ---
 
@@ -301,15 +371,19 @@ Complete steps in order. Each step is **done** only when every **Done when** bul
 
 ---
 
-### Step 12 — Parity #12: Topical Map
+### Step 12 — Parity #12: Topical Map (GSC clusters only)
 
-**Cloned from:** Surfer Domain Map / Topic Explorer
+**Status:** Shipped — parity (June 2026). **Strategy map (#12b v2 core):** Shipped (June 2026). Polish → [`TODO.md`](TODO.md) § #12b.
 
-**Done when:**
-- Requires connected GSC; `POST /api/seo/topical-map/generate` produces covered/gap/partial clusters; 14d TTL; 1 refresh/24h/project
-- `/app/strategy/topical-map` visualization + “Write this” creates document
+**Cloned from:** Surfer Domain Map / Topic Explorer (minimal slice)
 
-**Build:** `TopicalMapService`, topical map worker job type, topical map page
+**Done when (parity only):**
+- Requires connected GSC; `POST /api/seo/topical-map/{projectId}/generate` produces covered/gap/partial clusters; 14d TTL; worker refresh
+- `/app/strategy/topical-map` card UI + “Write this” creates document
+
+**Not in Step 12 (REDESIGN Phases 4–5 / #12b):** React Flow map, SERP clustering, pillars, competitors, site focus, volume/KD on nodes, market opportunities.
+
+**Build (shipped):** `TopicalMapService`, `SeoMaintenanceWorker` refresh, topical map page
 
 ---
 

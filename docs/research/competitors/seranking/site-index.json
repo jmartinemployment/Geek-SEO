@@ -1,0 +1,171 @@
+{
+  "startUrl": "https://seranking.com/",
+  "discovery": "sitemap",
+  "sitemapSources": [
+    "https://seranking.com/sitemap.xml",
+    "https://seranking.com/sitemap_index.xml",
+    "https://seranking.com/post-sitemap.xml",
+    "https://seranking.com/page-sitemap.xml",
+    "https://seranking.com/api-sitemap.xml",
+    "https://seranking.com/agencies-sitemap.xml",
+    "https://seranking.com/webinars-sitemap.xml",
+    "https://seranking.com/podcasts-sitemap.xml",
+    "https://seranking.com/locations-sitemap.xml",
+    "https://seranking.com/services-sitemap.xml",
+    "https://seranking.com/industries-sitemap.xml"
+  ],
+  "pagesScraped": 30,
+  "pages": [
+    {
+      "url": "https://seranking.com/",
+      "dir": "pages/index-1",
+      "title": "SE Ranking — AI SEO Software That Gets Results"
+    },
+    {
+      "url": "https://seranking.com/about-us.html",
+      "dir": "pages/about-us_html-2",
+      "title": "About us | SE Ranking"
+    },
+    {
+      "url": "https://seranking.com/academy.html",
+      "dir": "pages/academy_html-3",
+      "title": "SE Ranking SEO Academy: SEO Training and Certification"
+    },
+    {
+      "url": "https://seranking.com/academy/agency-positioning-course.html",
+      "dir": "pages/agency-positioning-course_html-4",
+      "title": "Agency Positioning and Marketing Course — Get Better Clients"
+    },
+    {
+      "url": "https://seranking.com/academy/ai-for-seo.html",
+      "dir": "pages/ai-for-seo_html-5",
+      "title": "AI for SEO course | Learn from SEO pros who use AI daily"
+    },
+    {
+      "url": "https://seranking.com/academy/content-seo.html",
+      "dir": "pages/content-seo_html-6",
+      "title": "SEO Content Writing Course for Beginners"
+    },
+    {
+      "url": "https://seranking.com/academy/getting-started-with-se-ranking-agency-tools-and-features.html",
+      "dir": "pages/getting-started-with-se-ranking-agency-tools-and-features_html-7",
+      "title": "Getting Started with SE Ranking: Agency Tools & Features"
+    },
+    {
+      "url": "https://seranking.com/academy/getting-started-with-se-ranking.html",
+      "dir": "pages/getting-started-with-se-ranking_html-8",
+      "title": "Getting Started with SE Ranking: SEO Platform 101 Course"
+    },
+    {
+      "url": "https://seranking.com/academy/looker-studio-data-visualisation.html",
+      "dir": "pages/looker-studio-data-visualisation_html-9",
+      "title": "Looker Studio Data Visualisation for Agencies Course"
+    },
+    {
+      "url": "https://seranking.com/academy/seo-basics.html",
+      "dir": "pages/seo-basics_html-10",
+      "title": "SEO Basics: SEO Beginner Course with Jason Barnard"
+    },
+    {
+      "url": "https://seranking.com/academy/seo-certification.html",
+      "dir": "pages/seo-certification_html-11",
+      "title": "Get Certified in SEO & SE Ranking Tools | Boost Your Agency’s Credibility"
+    },
+    {
+      "url": "https://seranking.com/academy/seo-foresight-2024.html",
+      "dir": "pages/seo-foresight-2024_html-12",
+      "title": "SEO Foresight 2024: Navigate AI, Google Updates & Search Trends"
+    },
+    {
+      "url": "https://seranking.com/academy/seo-foresight-2025.html",
+      "dir": "pages/seo-foresight-2025_html-13",
+      "title": "SEO Foresight 2025: LLM’s Impact, Google's AI Updates, and Content Trends"
+    },
+    {
+      "url": "https://seranking.com/academy/seranking-ai-search-toolkit.html",
+      "dir": "pages/seranking-ai-search-toolkit_html-14",
+      "title": "AI Search: Understanding and tracking visibility with SE Ranking’s toolkit: Tracking AI visibility with SE Ranking’s toolkit"
+    },
+    {
+      "url": "https://seranking.com/adwancedwebranking-alternative.html",
+      "dir": "pages/adwancedwebranking-alternative_html-15",
+      "title": "Advanced Web Ranking Alternative - SE Ranking"
+    },
+    {
+      "url": "https://seranking.com/affiliate.html",
+      "dir": "pages/affiliate_html-16",
+      "title": "Join SE Ranking’s Affiliate Program to Start Earning With Ease"
+    },
+    {
+      "url": "https://seranking.com/agencies/",
+      "dir": "pages/agencies-17",
+      "title": "Digital Marketing Agency Catalog: 540+ Companies Listed"
+    },
+    {
+      "url": "https://seranking.com/agencies/amecreatives/",
+      "dir": "pages/amecreatives-18",
+      "title": "Âme Creatives: Agency Info and Reviews"
+    },
+    {
+      "url": "https://seranking.com/agencies/industry/arts-and-entertainment/",
+      "dir": "pages/arts-and-entertainment-19",
+      "title": "Top Arts & Entertainment SEO Agencies"
+    },
+    {
+      "url": "https://seranking.com/agencies/location/netherlands/amsterdam/",
+      "dir": "pages/amsterdam-20",
+      "title": "Best SEO Agencies in Amsterdam: Screened and Scored"
+    },
+    {
+      "url": "https://seranking.com/agencies/service/advertising/",
+      "dir": "pages/advertising-21",
+      "title": "Top Advertising Agencies"
+    },
+    {
+      "url": "https://seranking.com/agency-brand-course.html",
+      "dir": "pages/agency-brand-course_html-22",
+      "title": "Craft a Distinct Agency Brand to Attract Better Clients - SE Ranking"
+    },
+    {
+      "url": "https://seranking.com/agency-hub.html",
+      "dir": "pages/agency-hub_html-23",
+      "title": "Your Core Agency Hub: Tools, Tips, and Insights for Success"
+    },
+    {
+      "url": "https://seranking.com/agency-pack.html",
+      "dir": "pages/agency-pack_html-24",
+      "title": "Agency Pack by SE Ranking: Helps You Build Client Trust"
+    },
+    {
+      "url": "https://seranking.com/ai-mode-tracker.html",
+      "dir": "pages/ai-mode-tracker_html-25",
+      "title": "AI Mode Tracker: Know Your Rankings and Visibility"
+    },
+    {
+      "url": "https://seranking.com/ai-overviews-tracker.html",
+      "dir": "pages/ai-overviews-tracker_html-26",
+      "title": "AI Overviews Tracker: Advanced Analytics for GenAI Search"
+    },
+    {
+      "url": "https://seranking.com/ai-traffic-analytics.html",
+      "dir": "pages/ai-traffic-analytics_html-27",
+      "title": "AI Traffic Analytics - Track AI Chatbot Visitors"
+    },
+    {
+      "url": "https://seranking.com/ai-visibility-tracker.html",
+      "dir": "pages/ai-visibility-tracker_html-28",
+      "title": "AI Search Visibility Tool: Optimize for AI Search"
+    },
+    {
+      "url": "https://seranking.com/ai-writer.html",
+      "dir": "pages/ai-writer_html-29",
+      "title": "AI Content Generator: The Fastest Way to Create Texts"
+    },
+    {
+      "url": "https://seranking.com/answer-engine-optimization-tool.html",
+      "dir": "pages/answer-engine-optimization-tool_html-30",
+      "title": "AEO Tool for Next-Gen Answer Engine Optimization"
+    }
+  ],
+  "scrapedAt": "2026-06-01T15:26:03.830Z"
+}

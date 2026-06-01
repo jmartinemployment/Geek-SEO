@@ -70,7 +70,7 @@ public sealed class SerpAnalysisService(ISerpProvider serp, ISerpDeepCacheReposi
             CachedAt = now.ToString("O"),
         };
 
-        await deepCache.UpsertAsync(new SeoSerpDeepCache
+        _ = await deepCache.UpsertAsync(new SeoSerpDeepCache
         {
             Keyword = keyword,
             Location = location,
@@ -80,6 +80,12 @@ public sealed class SerpAnalysisService(ISerpProvider serp, ISerpDeepCacheReposi
             FetchedAt = now,
             ExpiresAt = now.Add(CacheTtl),
         }, ct);
+
+        if (organic.Count == 0)
+        {
+            return Result<DeepSerpResult>.Failure(
+                "DataForSEO returned no organic results for this keyword and location. Try another keyword or check DataForSEO credentials.");
+        }
 
         return Result<DeepSerpResult>.Success(result);
     }

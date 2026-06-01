@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
+import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import { analyzeDeepSerp, type DeepSerpResult } from '@/lib/seo-api';
 
 function DeepSerpPageInner() {
@@ -13,7 +14,7 @@ function DeepSerpPageInner() {
   const [location, setLocation] = useState('United States');
   const [result, setResult] = useState<DeepSerpResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
 
   function downloadCsv() {
     if (!result) return;
@@ -44,7 +45,7 @@ function DeepSerpPageInner() {
     try {
       setResult(await analyzeDeepSerp({ keyword: keyword.trim(), location }, accessToken));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'SERP analysis failed');
+      setError(err);
       setResult(null);
     } finally {
       setLoading(false);
@@ -88,7 +89,11 @@ function DeepSerpPageInner() {
         </button>
       </form>
 
-      {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
+      {error ? (
+        <div className="mt-4">
+          <SeoErrorBanner error={error} />
+        </div>
+      ) : null}
 
       {result ? (
         <div className="mt-10 space-y-8">

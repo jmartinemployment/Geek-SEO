@@ -98,6 +98,7 @@ public static class SeoBackendExtensions
         services.AddScoped<IGoogleDataService, GoogleDataService>();
         services.AddScoped<CannibalizationService>();
         services.AddScoped<DashboardOverviewService>();
+        services.AddScoped<ITopicalHierarchyBuilder, TopicalHierarchyBuilder>();
         services.AddScoped<TopicalMapService>();
         services.AddScoped<PublishedContentAuditService>();
         services.AddScoped<GeoVisibilityService>();

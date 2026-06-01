@@ -1,0 +1,155 @@
+{
+  "url": "https://seranking.com/agency-brand-course.html",
+  "title": "Craft a Distinct Agency Brand to Attract Better Clients - SE Ranking",
+  "lang": "en",
+  "meta": {
+    "viewport": "width=device-width, initial-scale=1.0",
+    "referrer": "no-referrer-when-downgrade",
+    "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+    "description": "SE Ranking is a trusted SEO software offering accurate data, intuitive dashboards, and hassle-free reporting at an affordable price. All to tackle any SEO challenge.",
+    "og:locale": "en_US",
+    "og:type": "article",
+    "og:title": "Craft a Distinct Agency Brand to Attract Better Clients - SE Ranking",
+    "og:description": "SE Ranking is a trusted SEO software offering accurate data, intuitive dashboards, and hassle-free reporting at an affordable price. All to tackle any SEO challenge.",
+    "og:url": "https://seranking.com/agency-brand-course.html",
+    "og:site_name": "SE Ranking",
+    "article:publisher": "https://www.facebook.com/serankingcom/",
+    "article:modified_time": "2023-11-03T14:30:45+00:00",
+    "og:image": "https://seranking.com/wp-content/uploads/sites/9/2024/09/1200х675.png",
+    "og:image:width": "1200",
+    "og:image:height": "675",
+    "og:image:type": "image/png",
+    "twitter:card": "summary_large_image",
+    "twitter:site": "@SERanking",
+    "generator": "speculation-rules 1.6.0",
+    "msapplication-TileImage": "https://seranking.com/wp-content/uploads/sites/9/2024/09/cropped-Favicon-512х512-png-1-270x270.png",
+    "og:locale:alternate": "en_GB"
+  },
+  "headings": [
+    {
+      "level": 1,
+      "text": "Craft a Distinct Agency Brand to Attract Better Clients"
+    },
+    {
+      "level": 2,
+      "text": "Created for ambitious agency owners and consultants like you"
+    },
+    {
+      "level": 3,
+      "text": "Who will benefit from this course?"
+    },
+    {
+      "level": 3,
+      "text": "How can this course help put your agency front and center?"
+    },
+    {
+      "level": 2,
+      "text": "How do I get started?"
+    },
+    {
+      "level": 2,
+      "text": "The training includes:"
+    },
+    {
+      "level": 2,
+      "text": "Course lecturer"
+    },
+    {
+      "level": 2,
+      "text": "Course lecturer"
+    },
+    {
+      "level": 2,
+      "text": "Enhance your agency's brand with SE Ranking’s expert training program!"
+    },
+    {
+      "level": 2,
+      "text": "Who we are"
+    },
+    {
+      "level": 2,
+      "text": "User reviews"
+    },
+    {
+      "level": 2,
+      "text": "Explore the course to unlock branding insights and win top-tier clients!"
+    },
+    {
+      "level": 2,
+      "text": "An SEO Platform that maximizes ROI, not costs"
+    },
+    {
+      "level": 4,
+      "text": "Request a free demo to see our tools and integrations in action"
+    }
+  ],
+  "links": [
+    {
+      "href": "https://academy.seranking.com/signin/?enroll=3743",
+      "text": "Start Free Course"
+    }
+  ],
+  "textLength": 228,
+  "textPreview": "Craft a Distinct Agency Brand to Attract Better Clients\n\nBrought to you by SE Ranking, a top-notch SEO toolkit chosen by 40K agencies worldwide\n\nStart Free Course\n Includes bonus inside:\nExtended Pro plan Trial\nAgency Pack Trial",
+  "framework": {
+    "nextData": false,
+    "nuxt": false,
+    "reactRoot": false
+  },
+  "domOutline": {
+    "tag": "main",
+    "className": "top-block__text",
+    "children": [
+      {
+        "tag": "h1",
+        "className": "top-block__title"
+      },
+      {
+        "tag": "p",
+        "className": "top-block__subtitle",
+        "children": [
+          {
+            "tag": "span",
+            "className": ""
+          }
+        ]
+      },
+      {
+        "tag": "div",
+        "className": "top-block__button-block",
+        "children": [
+          {
+            "tag": "a",
+            "className": "start-course-btn top-block__button"
+          },
+          {
+            "tag": "div",
+            "className": "top-block__bonuses-wrapper",
+            "children": [
+              {
+                "tag": "div",
+                "className": "top-block__bonus-title",
+                "children": []
+              },
+              {
+                "tag": "ul",
+                "className": "top-block__bonuses",
+                "children": [
+                  {
+                    "tag": "li",
+                    "className": "top-block__bonuses-item"
+                  },
+                  {
+                    "tag": "li",
+                    "className": "top-block__bonuses-item"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "scrapedAt": "2026-06-01T15:25:15.424Z"
+}

@@ -28,5 +28,13 @@ public sealed class CannibalizationController(
         {
             return StatusCode(ex.StatusCode, new { error = ex.Message });
         }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new { error = "Authentication required" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 }

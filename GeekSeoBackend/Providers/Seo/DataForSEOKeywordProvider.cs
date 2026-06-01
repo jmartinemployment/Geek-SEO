@@ -1,5 +1,3 @@
-using System.Net.Http.Headers;
-using System.Text;
 using System.Text.Json;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
@@ -14,17 +12,11 @@ public sealed class DataForSEOKeywordProvider(IHttpClientFactory httpClientFacto
     public async Task<Result<IReadOnlyList<KeywordResult>>> GetKeywordSuggestionsAsync(
         string seedKeyword, string location, int count, CancellationToken ct = default)
     {
-        var login = Environment.GetEnvironmentVariable("DATAFORSEO_LOGIN");
-        var password = Environment.GetEnvironmentVariable("DATAFORSEO_PASSWORD");
-        if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(password))
+        if (!DataForSeoClient.TryGetCredentials(out _, out _))
         {
             return Result<IReadOnlyList<KeywordResult>>.Failure(
                 "DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD must be set for keyword research.");
         }
-
-        var client = httpClientFactory.CreateClient("DataForSEO");
-        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{login}:{password}"));
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
 
         var body = new[]
         {
@@ -37,16 +29,28 @@ public sealed class DataForSEOKeywordProvider(IHttpClientFactory httpClientFacto
             },
         };
 
-        using var response = await client.PostAsJsonAsync(
-            "/v3/keywords_data/google_ads/keywords_for_keywords/live",
-            body,
-            ct);
+        HttpResponseMessage response;
+        try
+        {
+            response = await DataForSeoClient.PostJsonAsync(
+                httpClientFactory,
+                "/v3/keywords_data/google_ads/keywords_for_keywords/live",
+                body,
+                ct);
+        }
+        catch (Exception ex)
+        {
+            return Result<IReadOnlyList<KeywordResult>>.Failure($"DataForSEO request failed: {ex.Message}");
+        }
 
-        var raw = await response.Content.ReadAsStringAsync(ct);
-        if (!response.IsSuccessStatusCode)
-            return Result<IReadOnlyList<KeywordResult>>.Failure($"DataForSEO HTTP {(int)response.StatusCode}: {raw}");
+        using (response)
+        {
+            var raw = await response.Content.ReadAsStringAsync(ct);
+            if (!response.IsSuccessStatusCode)
+                return Result<IReadOnlyList<KeywordResult>>.Failure($"DataForSEO HTTP {(int)response.StatusCode}: {raw}");
 
-        return ParseSuggestions(raw, count);
+            return ParseSuggestions(raw, count);
+        }
     }
 
     private static Result<IReadOnlyList<KeywordResult>> ParseSuggestions(string raw, int count)

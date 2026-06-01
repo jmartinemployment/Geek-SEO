@@ -20,6 +20,15 @@ public sealed record ContentGuardRunDto
     public string? CompletedAt { get; init; }
 }
 
+public sealed record ContentGuardScanSummary
+{
+    public int DecayingPagesFound { get; init; }
+    public int RunsCreated { get; init; }
+    public int PatchesAttempted { get; init; }
+    public int PatchesSucceeded { get; init; }
+    public int PatchesFailed { get; init; }
+}
+
 public sealed record UpsertContentGuardPolicyRequest
 {
     public required bool Enabled { get; init; }

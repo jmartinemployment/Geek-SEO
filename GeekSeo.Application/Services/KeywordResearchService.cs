@@ -1,6 +1,7 @@
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
+using GeekSeo.Application.Services;
 
 namespace GeekSeo.Application.Services.Seo;
 
@@ -48,26 +49,24 @@ public sealed class KeywordResearchService(
         var cached = await keywordRepository.GetByProjectAsync(request.ProjectId, ct);
         var metrics = (cached.Value ?? []).ToDictionary(k => k.Keyword, StringComparer.OrdinalIgnoreCase);
 
-        var groups = keywords
-            .GroupBy(k => k.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.ToLowerInvariant() ?? k)
+        var grouped = TopicClusteringService.ClusterKeywordList(keywords);
+        var clusters = grouped
             .Select(g =>
             {
-                var volumes = g.Select(k => metrics.TryGetValue(k, out var m) ? m.SearchVolume ?? 0 : 0).ToList();
-                var diffs = g.Select(k => metrics.TryGetValue(k, out var m) ? (double)(m.KeywordDifficulty ?? 0) : 0).ToList();
-                var pillar = g.OrderByDescending(k => metrics.TryGetValue(k, out var m) ? m.SearchVolume ?? 0 : 0).First();
-                var clusterLabel = string.IsNullOrEmpty(g.Key) ? "Other" : char.ToUpper(g.Key[0]) + g.Key[1..];
+                var volumes = g.Keywords.Select(k => metrics.TryGetValue(k, out var m) ? m.SearchVolume ?? 0 : 0).ToList();
+                var diffs = g.Keywords.Select(k => metrics.TryGetValue(k, out var m) ? (double)(m.KeywordDifficulty ?? 0) : 0).ToList();
                 return new KeywordCluster
                 {
-                    ClusterName = clusterLabel,
-                    PillarKeyword = pillar,
-                    Keywords = g.ToList(),
+                    ClusterName = g.ClusterName,
+                    PillarKeyword = g.PillarKeyword,
+                    Keywords = g.Keywords.ToList(),
                     AverageVolume = volumes.Count > 0 ? volumes.Average() : 0,
                     AverageDifficulty = diffs.Count > 0 ? diffs.Average() : 0,
                 };
             })
             .ToList();
 
-        return Result<IReadOnlyList<KeywordCluster>>.Success(groups);
+        return Result<IReadOnlyList<KeywordCluster>>.Success(clusters);
     }
 
     public async Task<Result<IReadOnlyList<SeoKeywordDto>>> GetProjectKeywordsAsync(

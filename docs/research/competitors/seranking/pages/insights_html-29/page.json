@@ -1,0 +1,782 @@
+{
+  "url": "https://seranking.com/insights.html",
+  "title": "SEO Insights: Raw Data Turned into High-Impact Actions",
+  "lang": "en",
+  "meta": {
+    "viewport": "width=device-width, initial-scale=1.0",
+    "referrer": "no-referrer-when-downgrade",
+    "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+    "description": "Get a categorized breakdown of data-backed SEO insights, coupled with actionable suggestions on how to use them to enhance search engine rankings with ease.",
+    "og:locale": "en_US",
+    "og:type": "article",
+    "og:title": "SEO Insights: Raw Data Turned into High-Impact Actions",
+    "og:description": "Get a categorized breakdown of data-backed SEO insights, coupled with actionable suggestions on how to use them to enhance search engine rankings with ease.",
+    "og:url": "https://seranking.com/insights.html",
+    "og:site_name": "SE Ranking",
+    "article:publisher": "https://www.facebook.com/serankingcom/",
+    "article:modified_time": "2024-11-25T09:27:18+00:00",
+    "og:image": "https://seranking.com/wp-content/uploads/sites/9/2024/09/1200х675.png",
+    "og:image:width": "1200",
+    "og:image:height": "675",
+    "og:image:type": "image/png",
+    "twitter:card": "summary_large_image",
+    "twitter:site": "@SERanking",
+    "generator": "speculation-rules 1.6.0",
+    "msapplication-TileImage": "https://seranking.com/wp-content/uploads/sites/9/2024/09/cropped-Favicon-512х512-png-1-270x270.png",
+    "og:locale:alternate": "en_GB"
+  },
+  "headings": [
+    {
+      "level": 1,
+      "text": "SEO Insights: Raw data turned into high-impact actions"
+    },
+    {
+      "level": 2,
+      "text": "SEO Insights: Maximum impact that requires minimal resources"
+    },
+    {
+      "level": 3,
+      "text": "Reduce Time-Consuming Research"
+    },
+    {
+      "level": 3,
+      "text": "Single Out Hidden Data Gems"
+    },
+    {
+      "level": 3,
+      "text": "Enhance Multiple Clients Managing"
+    },
+    {
+      "level": 2,
+      "text": "Get quick, in-depth SEO insights into your and competitors’ performance"
+    },
+    {
+      "level": 3,
+      "text": "Streamline identification of keywords and pages with easy-to-improve positions"
+    },
+    {
+      "level": 3,
+      "text": "Save time detecting the greatest climbers and newcomers among competitors in the top 10"
+    },
+    {
+      "level": 3,
+      "text": "Expedite getting a list of site pages suffering from keyword cannibalization"
+    },
+    {
+      "level": 2,
+      "text": "Speed up your business growth with our targeted and impactful SEO insights!"
+    },
+    {
+      "level": 3,
+      "text": "Optimize the process of spotting and improving pages with poor-quality content"
+    },
+    {
+      "level": 3,
+      "text": "Accelerate detection of keywords and pages for which impressions or clicks have significantly increased/decreased"
+    },
+    {
+      "level": 3,
+      "text": "Cut down on time spent finding new competitor pages and keywords that began ranking on SERPs"
+    },
+    {
+      "level": 2,
+      "text": "Scalable pricing options adapted to your business needs"
+    },
+    {
+      "level": 3,
+      "text": "Need more? Upgrade with add-ons!"
+    },
+    {
+      "level": 2,
+      "text": "Get all your questions answered by going live with our team"
+    },
+    {
+      "level": 2,
+      "text": "An SEO Platform that maximizes ROI, not costs"
+    },
+    {
+      "level": 4,
+      "text": "Request a free demo to see our tools and integrations in action"
+    }
+  ],
+  "links": [
+    {
+      "href": "https://seranking.com/webinars/breakingsilos2026.html?utm_source=hellobar&utm_medium=hellobar&utm_campaign=hellobar_breakingsilos_269062_en_june20265",
+      "text": "Free June 9 event: How to win brand visibility when AI decides what gets seen →"
+    },
+    {
+      "href": "https://seranking.com",
+      "text": "SE RankingGrow your visibility with AI SEO"
+    },
+    {
+      "href": "https://visible.seranking.com",
+      "text": "SE Visible   Analyze AI visibility strategically"
+    },
+    {
+      "href": "https://planable.io/?__hstc=224472261.4a8b004cb6d9fa6f5b7562c7077b5b54.1780325789147.1780325789147.1780325789147.1&__hssc=224472261.29.1780325789147&__hsfp=ffa8eac8478b312ef5e4123909e17a28",
+      "text": "Planable   Manage your socials as a team"
+    },
+    {
+      "href": "/"
+    },
+    {
+      "href": "/migrate-to-se-ranking.html",
+      "text": "Migrate to SE Ranking"
+    },
+    {
+      "href": "/se-ranking-for-agencies.html",
+      "text": "Agencies"
+    },
+    {
+      "href": "/se-ranking-for-enterprises.html",
+      "text": "Enterprises"
+    },
+    {
+      "href": "/se-ranking-for-smbs.html",
+      "text": "Growing business"
+    },
+    {
+      "href": "/api.html",
+      "text": "API"
+    },
+    {
+      "href": "/keyword-research-api.html",
+      "text": "Keyword Research API"
+    },
+    {
+      "href": "/backlinks-api.html",
+      "text": "Backlinks API"
+    },
+    {
+      "href": "/domain-analysis-api.html",
+      "text": "Domain Analysis API"
+    },
+    {
+      "href": "/our-data.html",
+      "text": "Our data"
+    },
+    {
+      "href": "/mcp.html",
+      "text": "MCP"
+    },
+    {
+      "href": "/claude-seo-skills.html",
+      "text": "SEO Skills for Claude"
+    },
+    {
+      "href": "/local-marketing-tool.html",
+      "text": "Local Marketing Software"
+    },
+    {
+      "href": "/integrations.html",
+      "text": "Integrations"
+    },
+    {
+      "href": "/position-tracking.html",
+      "text": "Rank Tracker"
+    },
+    {
+      "href": "/keyword-suggestion-tool.html",
+      "text": "Keyword Research"
+    },
+    {
+      "href": "/on-page-checker.html",
+      "text": "On-Page SEO Checker"
+    },
+    {
+      "href": "/website-audit.html",
+      "text": "Website Audit"
+    },
+    {
+      "href": "/competitor-traffic-research.html",
+      "text": "Competitor Analysis Tool"
+    },
+    {
+      "href": "/backlink-checker.html",
+      "text": "Backlink Checker"
+    },
+    {
+      "href": "/ai-visibility-tracker.html",
+      "text": "AI Search Toolkit"
+    },
+    {
+      "href": "/ai-overviews-tracker.html",
+      "text": "AI Overviews Tracker"
+    },
+    {
+      "href": "/ai-mode-tracker.html",
+      "text": "AI Mode Tracker"
+    },
+    {
+      "href": "/chatgpt-visibility-tracker.html",
+      "text": "ChatGPT Tracker"
+    },
+    {
+      "href": "/gemini-visibility-tracker.html",
+      "text": "Gemini Tracker"
+    },
+    {
+      "href": "/perplexity-visibility-tracker.html",
+      "text": "Perplexity Tracker"
+    },
+    {
+      "href": "/serp-tracking.html",
+      "text": "SERP Tracker"
+    },
+    {
+      "href": "/insights.html",
+      "text": "Insights"
+    },
+    {
+      "href": "/keyword-grouper.html",
+      "text": "Keyword Grouper"
+    },
+    {
+      "href": "/seo-dashboard.html",
+      "text": "SEO Dashboard"
+    },
+    {
+      "href": "/agency-pack.html",
+      "text": "Agency Pack"
+    },
+    {
+      "href": "/seo-reporting-tools.html",
+      "text": "SEO Report Generator"
+    },
+    {
+      "href": "/lead-generation.html",
+      "text": "Lead Generator"
+    },
+    {
+      "href": "/white-label.html",
+      "text": "White Label"
+    },
+    {
+      "href": "/content-marketing-platform.html",
+      "text": "Content Marketing Tool"
+    },
+    {
+      "href": "/content-editor.html",
+      "text": "Content Editor"
+    },
+    {
+      "href": "/ai-writer.html",
+      "text": "AI Writer"
+    },
+    {
+      "href": "/agencies/",
+      "text": "Agency Catalog"
+    },
+    {
+      "href": "/blog/",
+      "text": "Blog"
+    },
+    {
+      "href": "/webinars/",
+      "text": "Webinars"
+    },
+    {
+      "href": "/dofollow-podcast/",
+      "text": "Podcast"
+    },
+    {
+      "href": "/academy.html",
+      "text": "Academy"
+    },
+    {
+      "href": "https://help.seranking.com/hc/en-us",
+      "text": "Help center"
+    },
+    {
+      "href": "/whats-new.html",
+      "text": "What’s new"
+    },
+    {
+      "href": "/blog/category-customer-stories/",
+      "text": "Case studies"
+    },
+    {
+      "href": "/subscription.html",
+      "text": "Pricing"
+    },
+    {
+      "href": "https://seranking.com",
+      "text": "SE RankingGrow your visibility with AI SEO"
+    },
+    {
+      "href": "https://visible.seranking.com",
+      "text": "SE Visible   Analyze AI visibility strategically"
+    },
+    {
+      "href": "https://planable.io/?__hstc=224472261.4a8b004cb6d9fa6f5b7562c7077b5b54.1780325789147.1780325789147.1780325789147.1&__hssc=224472261.29.1780325789147&__hsfp=ffa8eac8478b312ef5e4123909e17a28",
+      "text": "Planable   Manage your socials as a team"
+    },
+    {
+      "href": "/sign-up.html?continue=admin.site.wizard.html%23%2F&landing=insights",
+      "text": "Start free trial"
+    },
+    {
+      "href": "https://seranking.com/de/insights.html",
+      "text": "deDeutsch"
+    },
+    {
+      "href": "https://seranking.com/fr/insights.html",
+      "text": "frFrançais"
+    },
+    {
+      "href": "https://seranking.com/es/insights.html",
+      "text": "esEspañol"
+    },
+    {
+      "href": "https://seranking.com/nl/insights.html",
+      "text": "nlNederlands"
+    },
+    {
+      "href": "https://seranking.com/it/insights.html",
+      "text": "itItaliano"
+    },
+    {
+      "href": "https://seranking.com/pt/insights.html",
+      "text": "ptPortuguês"
+    },
+    {
+      "href": "https://seranking.com/ua/insights.html",
+      "text": "uaУкраїнська"
+    },
+    {
+      "href": "https://seranking.com/ru/insights.html",
+      "text": "ruРусский"
+    },
+    {
+      "href": "https://seranking.com/jp/insights.html",
+      "text": "あ日本語"
+    },
+    {
+      "href": "/sign-up.html?continue=admin.site.wizard.html%23%2F&landing=insights",
+      "text": "Start free trial"
+    },
+    {
+      "href": "/sign-up.html?continue=admin.site.wizard.html%23%2F&landing=insights",
+      "text": "Start free trial"
+    },
+    {
+      "href": "/sign-up.html?continue=admin.site.wizard.html%23%2F&landing=insights",
+      "text": "Start free trial"
+    },
+    {
+      "href": "/sign-up.html?continue=admin.site.wizard.html%23%2F&landing=insights",
+      "text": "Start free trial"
+    },
+    {
+      "href": "/sign-up.html?continue=admin.site.wizard.html%23%2F&landing=insights",
+      "text": "Start free trial"
+    },
+    {
+      "href": "/sign-up.html?continue=admin.site.wizard.html%23%2F&landing=insights",
+      "text": "Start free trial"
+    },
+    {
+      "href": "https://seranking.com/subscription.html",
+      "text": "Explore pricing plans"
+    },
+    {
+      "href": "/position-tracking.html",
+      "text": "Rank Tracker"
+    },
+    {
+      "href": "/website-audit.html",
+      "text": "Website Audit"
+    },
+    {
+      "href": "/on-page-checker.html",
+      "text": "On-Page SEO Checker"
+    },
+    {
+      "href": "/serp-tracking.html",
+      "text": "SERP Tracker"
+    },
+    {
+      "href": "/backlink-checker.html",
+      "text": "Backlink Checker"
+    },
+    {
+      "href": "/keyword-grouper.html",
+      "text": "Keyword Grouper"
+    },
+    {
+      "href": "/keyword-suggestion-tool.html",
+      "text": "Keyword Tool"
+    },
+    {
+      "href": "/competitor-traffic-research.html",
+      "text": "Website Competitor Analysis Tool"
+    },
+    {
+      "href": "/ai-overviews-tracker.html",
+      "text": "AI Overviews Tracker"
+    },
+    {
+      "href": "/features.html",
+      "text": "All features"
+    },
+    {
+      "href": "/page-changes-monitoring.html",
+      "text": "Webpage Monitor"
+    },
+    {
+      "href": "/seo-reporting-tools.html",
+      "text": "SEO Report Generator"
+    },
+    {
+      "href": "/seo-dashboard.html",
+      "text": "SEO Dashboard"
+    },
+    {
+      "href": "/local-marketing-tool.html",
+      "text": "Local Marketing Software"
+    },
+    {
+      "href": "/content-marketing-platform.html",
+      "text": "Content Marketing Tool"
+    },
+    {
+      "href": "/agency-pack.html",
+      "text": "Agency Pack"
+    },
+    {
+      "href": "/white-label.html",
+      "text": "White Label"
+    },
+    {
+      "href": "/api.html",
+      "text": "SEO API"
+    },
+    {
+      "href": "/free-tools.html",
+      "text": "Free SEO tools"
+    },
+    {
+      "href": "/seo-task-manager.html",
+      "text": "SEO Task Manager"
+    },
+    {
+      "href": "/contact.html",
+      "text": "Contact"
+    },
+    {
+      "href": "https://help.seranking.com/hc/en-us",
+      "text": "Help"
+    },
+    {
+      "href": "/affiliate.html",
+      "text": "Affiliate"
+    },
+    {
+      "href": "/educational-partnership-program.html",
+      "text": "Educational Partnership Program"
+    },
+    {
+      "href": "/blog/",
+      "text": "SEO Blog"
+    },
+    {
+      "href": "/about-us.html",
+      "text": "About"
+    },
+    {
+      "href": "/stand-with-ukraine.html",
+      "text": "Stand with Ukraine"
+    },
+    {
+      "href": "/careers.html",
+      "text": "Careers"
+    },
+    {
+      "href": "/whats-new.html",
+      "text": "What’s New"
+    },
+    {
+      "href": "/testimonials.html",
+      "text": "Testimonials"
+    },
+    {
+      "href": "/webinars/",
+      "text": "Webinars"
+    },
+    {
+      "href": "/academy.html",
+      "text": "Academy"
+    },
+    {
+      "href": "/competitors.html",
+      "text": "Competitors"
+    },
+    {
+      "href": "/legal/privacy-policy.html",
+      "text": "Privacy Policy"
+    },
+    {
+      "href": "/legal/cookie-policy.html",
+      "text": "Cookie Policy"
+    },
+    {
+      "href": "/legal.html",
+      "text": "Legal Information"
+    },
+    {
+      "href": "/open-source-attributions.html",
+      "text": "Open Source Attributions"
+    },
+    {
+      "href": "https://apps.apple.com/us/app/se-ranking-pro/id1343879036"
+    },
+    {
+      "href": "https://play.google.com/store/apps/details?id=com.seranking&hl=en"
+    },
+    {
+      "href": "https://www.facebook.com/serankingcom",
+      "text": "<img src=\"https://seranking.com/wp-content/themes/se_theme/template-parts/footer/assets/images/facebook.svg\"\n alt=\"Faceb"
+    },
+    {
+      "href": "https://x.com/SERanking",
+      "text": "<img src=\"https://seranking.com/wp-content/themes/se_theme/template-parts/footer/assets/images/x-twitter.svg\"\n alt=\"X (e"
+    },
+    {
+      "href": "https://www.youtube.com/channel/UCtUeek7hmkByxGbiOZNgB3w",
+      "text": "<img src=\"https://seranking.com/wp-content/themes/se_theme/template-parts/footer/assets/images/youtube.svg\"\n alt=\"YouTub"
+    },
+    {
+      "href": "https://www.linkedin.com/company/se-ranking/",
+      "text": "<img src=\"https://seranking.com/wp-content/themes/se_theme/template-parts/footer/assets/images/linkedin.svg\"\n alt=\"Linke"
+    },
+    {
+      "href": "/legal/terms-of-service.html",
+      "text": "Terms of Service"
+    },
+    {
+      "href": "/legal/privacy-policy.html",
+      "text": "Privacy Policy"
+    }
+  ],
+  "textLength": 5651,
+  "textPreview": "Free June 9 event: How to win brand visibility when AI decides what gets seen →\nSolutions\nTools\nResources\nPricing\nEN\nSign in\nRequest a demo\nStart free trial\nSEO Insights: Raw data turned into high-impact actions\n\nProvides categorized SEO insights and data-driven recommendations to improve your or your client’s search rankings\n\nStart free trial\nRequest a demo\n\nTRUSTED BY 40,000+ AGENCIES\n\nSEO Insights: Maximum impact that requires minimal resources\nReduce Time-Consuming Research\n\nSave countless hours searching for key SEO trends and issues, minimizing manual effort and freeing up time for high-value efforts.\n\nSingle Out Hidden Data Gems\n\nTurn complex datasets into clear, actionable insights that might go otherwise unnoticed. Prioritize recommendations on how to use these findings for maximum efficiency.\n\nEnhance Multiple Clients Managing\n\nEasily switch between different clients and get the latest SEO insights for their projects, thereby boosting your agency's efficiency and client satisfaction.\n\nGet a list of practical SEO insights now!\n\nStart free trial\nGet quick, in-depth SEO insights into your and competitors’ performance\nStreamline identification of keywords and pages with easy-to-improve positions\n\nThis insight helps you find keywords with high traffic potential and relatively low competition. For your convenience, the system identifies a combination of queries and pages that you can easily increase positions for. Enhancing content quality and performing on-page optimization around the terms it suggests can greatly increase your chances of improving your SERP positions.\n\nSave time detecting the greatest climbers and newcomers among competitors in the top 10\n\nThis insight provides a list of competitors that either entered the SERP’s top 10 from below or moved more than 3 positions within it. To ignore temporary fluctuations, the system only collects data on SERP jumps that remain fixed for at least 3 days. With this data, you can discover any behind-the-scenes te",
+  "framework": {
+    "nextData": false,
+    "nuxt": false,
+    "reactRoot": false
+  },
+  "domOutline": {
+    "tag": "body",
+    "className": "wp-singular page-template page-template-page-templates page-template-insights pa",
+    "children": [
+      {
+        "tag": "div",
+        "id": "hs-web-interactives-top-push-anchor",
+        "className": "go3670563033"
+      },
+      {
+        "tag": "div",
+        "className": "site",
+        "children": [
+          {
+            "tag": "div",
+            "id": "main",
+            "className": "site-inner",
+            "children": [
+              {
+                "tag": "header",
+                "className": "header__container header",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "header__container-inner container",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "tag": "div",
+            "id": "content",
+            "className": "site-content",
+            "children": [
+              {
+                "tag": "section",
+                "className": "top-block__wrapper position-relative",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "top-block content position-relative overflow-hidden",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "tag": "section",
+                "className": "seo-insights content position-relative overflow-hidden",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "seo-insights__container container",
+                    "children": []
+                  },
+                  {
+                    "tag": "div",
+                    "className": "seo-insights__figureset ",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "tag": "section",
+                "className": "get-quick content",
+                "children": [
+                  {
+                    "tag": "h2",
+                    "className": "get-quick__title heading-2"
+                  },
+                  {
+                    "tag": "div",
+                    "className": "get-quick__container",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "tag": "section",
+                "className": "cta-block component with-shapes",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "cta-block__container container",
+                    "children": []
+                  },
+                  {
+                    "tag": "div",
+                    "className": "cta-block__figureset ",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "tag": "section",
+                "className": "get-quick second content",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "get-quick__container",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "tag": "section",
+                "className": "se-pricing-section inner-spacing ",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "se-pricing-section__container container",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "tag": "section",
+                "className": "schedule-block",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "schedule-block__container container content",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "tag": "footer",
+        "id": "page-footer",
+        "className": "page-footer ",
+        "children": [
+          {
+            "tag": "section",
+            "className": "footer-menu",
+            "children": [
+              {
+                "tag": "div",
+                "className": "footer-menu__container container",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "footer-menu__links",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "tag": "div",
+                "className": "footer-menu__info",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "footer-menu__info-wrapper container",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "tag": "div",
+            "className": "se-modal-window__backdrop",
+            "children": [
+              {
+                "tag": "div",
+                "className": "se-modal-window__content",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "schedule-form ",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "tag": "div",
+            "className": "zendesk-close-button-wrapper",
+            "children": [
+              {
+                "tag": "button",
+                "className": "zendesk-close-button",
+                "children": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "tag": "noscript",
+        "className": ""
+      },
+      {
+        "tag": "iframe",
+        "className": ""
+      },
+      {
+        "tag": "div",
+        "className": "hint_pop"
+      },
+      {
+        "tag": "iframe",
+        "className": "",
+        "role": "presentation"
+      }
+    ]
+  },
+  "scrapedAt": "2026-06-01T14:59:03.442Z"
+}

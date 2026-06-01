@@ -1,0 +1,788 @@
+{
+  "url": "https://seranking.com/our-data.html",
+  "title": "SE Ranking data | Search, AI visibility, backlinks & API",
+  "lang": "en",
+  "meta": {
+    "viewport": "width=device-width, initial-scale=1.0",
+    "referrer": "no-referrer-when-downgrade",
+    "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+    "description": "Multilayered data across traditional search and AI visibility. Expanding databases, unique algorithms, independent crawlers, and AI analysis.",
+    "og:locale": "en_US",
+    "og:type": "article",
+    "og:title": "SE Ranking data | Search, AI visibility, backlinks & API",
+    "og:description": "Multilayered data across traditional search and AI visibility. Expanding databases, unique algorithms, independent crawlers, and AI analysis.",
+    "og:url": "https://seranking.com/our-data.html",
+    "og:site_name": "SE Ranking",
+    "article:publisher": "https://www.facebook.com/serankingcom/",
+    "article:modified_time": "2026-05-04T15:54:10+00:00",
+    "og:image": "https://seranking.com/wp-content/uploads/sites/9/2024/09/1200х675.png",
+    "og:image:width": "1200",
+    "og:image:height": "675",
+    "og:image:type": "image/png",
+    "twitter:card": "summary_large_image",
+    "twitter:site": "@SERanking",
+    "generator": "speculation-rules 1.6.0",
+    "msapplication-TileImage": "https://seranking.com/wp-content/uploads/sites/9/2024/09/cropped-Favicon-512х512-png-1-270x270.png",
+    "og:locale:alternate": "en_GB"
+  },
+  "headings": [
+    {
+      "level": 1,
+      "text": "Data for search and AI visibility that goes beyond the surface"
+    },
+    {
+      "level": 2,
+      "text": "AI visibility data structured for patterns, trends, and insights"
+    },
+    {
+      "level": 2,
+      "text": "Keyword data at scale to support cross-market analysis"
+    },
+    {
+      "level": 3,
+      "text": "Proprietary crawlers"
+    },
+    {
+      "level": 3,
+      "text": "Individual search volume"
+    },
+    {
+      "level": 3,
+      "text": "Growing database"
+    },
+    {
+      "level": 2,
+      "text": "Now let the numbers speak for themselves"
+    },
+    {
+      "level": 2,
+      "text": "Add social to your data picture"
+    },
+    {
+      "level": 2,
+      "text": "Backlink data for deep analysis across client portfolios"
+    },
+    {
+      "level": 2,
+      "text": "Integrate SE Ranking data into your own stack to scale your efforts"
+    },
+    {
+      "level": 2,
+      "text": "What makes SE Ranking data reliable?"
+    },
+    {
+      "level": 2,
+      "text": "How large is SE Ranking’s keyword database?"
+    },
+    {
+      "level": 2,
+      "text": "How large is the backlinks index?"
+    },
+    {
+      "level": 2,
+      "text": "Does SE Ranking provide AI search data?"
+    },
+    {
+      "level": 2,
+      "text": "What can I do with the Data API?"
+    },
+    {
+      "level": 2,
+      "text": "Can I use SE Ranking data in my own dashboards?"
+    },
+    {
+      "level": 2,
+      "text": "An SEO Platform that maximizes ROI, not costs"
+    },
+    {
+      "level": 4,
+      "text": "Request a free demo to see our tools and integrations in action"
+    }
+  ],
+  "links": [
+    {
+      "href": "https://seranking.com/webinars/breakingsilos2026.html?utm_source=hellobar&utm_medium=hellobar&utm_campaign=hellobar_breakingsilos_269062_en_june20265",
+      "text": "Free June 9 event: How to win brand visibility when AI decides what gets seen →"
+    },
+    {
+      "href": "https://seranking.com",
+      "text": "SE RankingGrow your visibility with AI SEO"
+    },
+    {
+      "href": "https://visible.seranking.com",
+      "text": "SE Visible   Analyze AI visibility strategically"
+    },
+    {
+      "href": "https://planable.io/?__hstc=224472261.4a8b004cb6d9fa6f5b7562c7077b5b54.1780325789147.1780325789147.1780325789147.1&__hssc=224472261.11.1780325789147&__hsfp=ffa8eac8478b312ef5e4123909e17a28",
+      "text": "Planable   Manage your socials as a team"
+    },
+    {
+      "href": "/"
+    },
+    {
+      "href": "/migrate-to-se-ranking.html",
+      "text": "Migrate to SE Ranking"
+    },
+    {
+      "href": "/se-ranking-for-agencies.html",
+      "text": "Agencies"
+    },
+    {
+      "href": "/se-ranking-for-enterprises.html",
+      "text": "Enterprises"
+    },
+    {
+      "href": "/se-ranking-for-smbs.html",
+      "text": "Growing business"
+    },
+    {
+      "href": "/api.html",
+      "text": "API"
+    },
+    {
+      "href": "/keyword-research-api.html",
+      "text": "Keyword Research API"
+    },
+    {
+      "href": "/backlinks-api.html",
+      "text": "Backlinks API"
+    },
+    {
+      "href": "/domain-analysis-api.html",
+      "text": "Domain Analysis API"
+    },
+    {
+      "href": "/our-data.html",
+      "text": "Our data"
+    },
+    {
+      "href": "/mcp.html",
+      "text": "MCP"
+    },
+    {
+      "href": "/claude-seo-skills.html",
+      "text": "SEO Skills for Claude"
+    },
+    {
+      "href": "/local-marketing-tool.html",
+      "text": "Local Marketing Software"
+    },
+    {
+      "href": "/integrations.html",
+      "text": "Integrations"
+    },
+    {
+      "href": "/position-tracking.html",
+      "text": "Rank Tracker"
+    },
+    {
+      "href": "/keyword-suggestion-tool.html",
+      "text": "Keyword Research"
+    },
+    {
+      "href": "/on-page-checker.html",
+      "text": "On-Page SEO Checker"
+    },
+    {
+      "href": "/website-audit.html",
+      "text": "Website Audit"
+    },
+    {
+      "href": "/competitor-traffic-research.html",
+      "text": "Competitor Analysis Tool"
+    },
+    {
+      "href": "/backlink-checker.html",
+      "text": "Backlink Checker"
+    },
+    {
+      "href": "/ai-visibility-tracker.html",
+      "text": "AI Search Toolkit"
+    },
+    {
+      "href": "/ai-overviews-tracker.html",
+      "text": "AI Overviews Tracker"
+    },
+    {
+      "href": "/ai-mode-tracker.html",
+      "text": "AI Mode Tracker"
+    },
+    {
+      "href": "/chatgpt-visibility-tracker.html",
+      "text": "ChatGPT Tracker"
+    },
+    {
+      "href": "/gemini-visibility-tracker.html",
+      "text": "Gemini Tracker"
+    },
+    {
+      "href": "/perplexity-visibility-tracker.html",
+      "text": "Perplexity Tracker"
+    },
+    {
+      "href": "/serp-tracking.html",
+      "text": "SERP Tracker"
+    },
+    {
+      "href": "/insights.html",
+      "text": "Insights"
+    },
+    {
+      "href": "/keyword-grouper.html",
+      "text": "Keyword Grouper"
+    },
+    {
+      "href": "/seo-dashboard.html",
+      "text": "SEO Dashboard"
+    },
+    {
+      "href": "/agency-pack.html",
+      "text": "Agency Pack"
+    },
+    {
+      "href": "/seo-reporting-tools.html",
+      "text": "SEO Report Generator"
+    },
+    {
+      "href": "/lead-generation.html",
+      "text": "Lead Generator"
+    },
+    {
+      "href": "/white-label.html",
+      "text": "White Label"
+    },
+    {
+      "href": "/content-marketing-platform.html",
+      "text": "Content Marketing Tool"
+    },
+    {
+      "href": "/content-editor.html",
+      "text": "Content Editor"
+    },
+    {
+      "href": "/ai-writer.html",
+      "text": "AI Writer"
+    },
+    {
+      "href": "/agencies/",
+      "text": "Agency Catalog"
+    },
+    {
+      "href": "/blog/",
+      "text": "Blog"
+    },
+    {
+      "href": "/webinars/",
+      "text": "Webinars"
+    },
+    {
+      "href": "/dofollow-podcast/",
+      "text": "Podcast"
+    },
+    {
+      "href": "/academy.html",
+      "text": "Academy"
+    },
+    {
+      "href": "https://help.seranking.com/hc/en-us",
+      "text": "Help center"
+    },
+    {
+      "href": "/whats-new.html",
+      "text": "What’s new"
+    },
+    {
+      "href": "/blog/category-customer-stories/",
+      "text": "Case studies"
+    },
+    {
+      "href": "/subscription.html",
+      "text": "Pricing"
+    },
+    {
+      "href": "https://seranking.com",
+      "text": "SE RankingGrow your visibility with AI SEO"
+    },
+    {
+      "href": "https://visible.seranking.com",
+      "text": "SE Visible   Analyze AI visibility strategically"
+    },
+    {
+      "href": "https://planable.io/?__hstc=224472261.4a8b004cb6d9fa6f5b7562c7077b5b54.1780325789147.1780325789147.1780325789147.1&__hssc=224472261.11.1780325789147&__hsfp=ffa8eac8478b312ef5e4123909e17a28",
+      "text": "Planable   Manage your socials as a team"
+    },
+    {
+      "href": "/sign-up.html",
+      "text": "Start free trial"
+    },
+    {
+      "href": "https://seranking.com/de/our-data.html",
+      "text": "deDeutsch"
+    },
+    {
+      "href": "https://seranking.com/fr/our-data.html",
+      "text": "frFrançais"
+    },
+    {
+      "href": "https://seranking.com/es/our-data.html",
+      "text": "esEspañol"
+    },
+    {
+      "href": "https://seranking.com/nl/",
+      "text": "nlNederlands"
+    },
+    {
+      "href": "https://seranking.com/it/",
+      "text": "itItaliano"
+    },
+    {
+      "href": "https://seranking.com/pt/",
+      "text": "ptPortuguês"
+    },
+    {
+      "href": "https://seranking.com/ua/",
+      "text": "uaУкраїнська"
+    },
+    {
+      "href": "https://seranking.com/ru/",
+      "text": "ruРусский"
+    },
+    {
+      "href": "https://seranking.com/jp/",
+      "text": "あ日本語"
+    },
+    {
+      "href": "/sign-up.html",
+      "text": "Start free trial"
+    },
+    {
+      "href": "/sign-up.html",
+      "text": "Start free trial"
+    },
+    {
+      "href": "/sign-up.html",
+      "text": "Explore the AI search data"
+    },
+    {
+      "href": "https://planable.io/?__hstc=224472261.4a8b004cb6d9fa6f5b7562c7077b5b54.1780325789147.1780325789147.1780325789147.1&__hssc=224472261.11.1780325789147&__hsfp=ffa8eac8478b312ef5e4123909e17a28",
+      "text": "Explore Planable"
+    },
+    {
+      "href": "/sign-up.html",
+      "text": "Explore the backlink index"
+    },
+    {
+      "href": "https://seranking.com/api.html",
+      "text": "Read API docs"
+    },
+    {
+      "href": "/position-tracking.html",
+      "text": "Rank Tracker"
+    },
+    {
+      "href": "/website-audit.html",
+      "text": "Website Audit"
+    },
+    {
+      "href": "/on-page-checker.html",
+      "text": "On-Page SEO Checker"
+    },
+    {
+      "href": "/serp-tracking.html",
+      "text": "SERP Tracker"
+    },
+    {
+      "href": "/backlink-checker.html",
+      "text": "Backlink Checker"
+    },
+    {
+      "href": "/keyword-grouper.html",
+      "text": "Keyword Grouper"
+    },
+    {
+      "href": "/keyword-suggestion-tool.html",
+      "text": "Keyword Tool"
+    },
+    {
+      "href": "/competitor-traffic-research.html",
+      "text": "Website Competitor Analysis Tool"
+    },
+    {
+      "href": "/ai-overviews-tracker.html",
+      "text": "AI Overviews Tracker"
+    },
+    {
+      "href": "/features.html",
+      "text": "All features"
+    },
+    {
+      "href": "/page-changes-monitoring.html",
+      "text": "Webpage Monitor"
+    },
+    {
+      "href": "/seo-reporting-tools.html",
+      "text": "SEO Report Generator"
+    },
+    {
+      "href": "/seo-dashboard.html",
+      "text": "SEO Dashboard"
+    },
+    {
+      "href": "/local-marketing-tool.html",
+      "text": "Local Marketing Software"
+    },
+    {
+      "href": "/content-marketing-platform.html",
+      "text": "Content Marketing Tool"
+    },
+    {
+      "href": "/agency-pack.html",
+      "text": "Agency Pack"
+    },
+    {
+      "href": "/white-label.html",
+      "text": "White Label"
+    },
+    {
+      "href": "/api.html",
+      "text": "SEO API"
+    },
+    {
+      "href": "/free-tools.html",
+      "text": "Free SEO tools"
+    },
+    {
+      "href": "/seo-task-manager.html",
+      "text": "SEO Task Manager"
+    },
+    {
+      "href": "/contact.html",
+      "text": "Contact"
+    },
+    {
+      "href": "https://help.seranking.com/hc/en-us",
+      "text": "Help"
+    },
+    {
+      "href": "/affiliate.html",
+      "text": "Affiliate"
+    },
+    {
+      "href": "/educational-partnership-program.html",
+      "text": "Educational Partnership Program"
+    },
+    {
+      "href": "/blog/",
+      "text": "SEO Blog"
+    },
+    {
+      "href": "/about-us.html",
+      "text": "About"
+    },
+    {
+      "href": "/stand-with-ukraine.html",
+      "text": "Stand with Ukraine"
+    },
+    {
+      "href": "/careers.html",
+      "text": "Careers"
+    },
+    {
+      "href": "/whats-new.html",
+      "text": "What’s New"
+    },
+    {
+      "href": "/testimonials.html",
+      "text": "Testimonials"
+    },
+    {
+      "href": "/webinars/",
+      "text": "Webinars"
+    },
+    {
+      "href": "/academy.html",
+      "text": "Academy"
+    },
+    {
+      "href": "/competitors.html",
+      "text": "Competitors"
+    },
+    {
+      "href": "/legal/privacy-policy.html",
+      "text": "Privacy Policy"
+    },
+    {
+      "href": "/legal/cookie-policy.html",
+      "text": "Cookie Policy"
+    },
+    {
+      "href": "/legal.html",
+      "text": "Legal Information"
+    },
+    {
+      "href": "/open-source-attributions.html",
+      "text": "Open Source Attributions"
+    },
+    {
+      "href": "https://apps.apple.com/us/app/se-ranking-pro/id1343879036"
+    },
+    {
+      "href": "https://play.google.com/store/apps/details?id=com.seranking&hl=en"
+    },
+    {
+      "href": "https://www.facebook.com/serankingcom",
+      "text": "<img src=\"https://seranking.com/wp-content/themes/se_theme/template-parts/footer/assets/images/facebook.svg\"\n alt=\"Faceb"
+    },
+    {
+      "href": "https://x.com/SERanking",
+      "text": "<img src=\"https://seranking.com/wp-content/themes/se_theme/template-parts/footer/assets/images/x-twitter.svg\"\n alt=\"X (e"
+    },
+    {
+      "href": "https://www.youtube.com/channel/UCtUeek7hmkByxGbiOZNgB3w",
+      "text": "<img src=\"https://seranking.com/wp-content/themes/se_theme/template-parts/footer/assets/images/youtube.svg\"\n alt=\"YouTub"
+    },
+    {
+      "href": "https://www.linkedin.com/company/se-ranking/",
+      "text": "<img src=\"https://seranking.com/wp-content/themes/se_theme/template-parts/footer/assets/images/linkedin.svg\"\n alt=\"Linke"
+    },
+    {
+      "href": "/legal/terms-of-service.html",
+      "text": "Terms of Service"
+    },
+    {
+      "href": "/legal/privacy-policy.html",
+      "text": "Privacy Policy"
+    }
+  ],
+  "textLength": 9242,
+  "textPreview": "Free June 9 event: How to win brand visibility when AI decides what gets seen →\nSolutions\nTools\nResources\nPricing\nEN\nSign in\nRequest a demo\nStart free trial\nData for search and AI visibility that goes beyond the surface\n\nVisibility is multilayered. So should the data you build your analysis on. Get that depth across multiple dimensions\n\nStart free trial\nRequest a demo\n\nNo credit card required\n\n188\nGEO DATABASES\n2.2B\nDOMAIN PROFILES\n5.4B\nKEYWORDS\nAI visibility data structured for patterns, trends, and insights\n\n25.5M+ prompts tracked across 5 AI engines\n\nPrompt-level data on mentions, cited sources, and links\n\nCompetitor benchmarking across all supported engines\n\nMonthly data refresh and historical trends\n\nFull data access via AI Search API\n\nExplore the AI search data\nKeyword data at scale to support cross-market analysis\nProprietary crawlers\n\nWe continuously crawl search results pages, building data from the source rather than relying on third-party feeds.\n\nIndividual search volume\n\nKeywords aren’t grouped. Each term’s search volume is calculated independently, giving you cleaner data for analysis.\n\nGrowing database\n\nCoverage across 188 locations, with depth at each. 5.4B keywords across with 2.2 billion domain profiles.\n\nNow let the numbers speak for themselves\nSearch country\nor\nAll regions\nCountries\nKeywords\nTOTAL\n5.4B\nDomains\nTOTAL\n2.2B\nAustralia\n107M\n57M\nCanada\n481M\n46M\nNew Zealand\n39M\n28M\nUnited Kingdom\n761M\n106M\nUSA\n586M\n144M\nAndorra\n2.6M\n11M\nAustria\n23M\n22M\nBelgium\n20M\n27M\nDenmark\n17M\n24M\nEstonia\n2.2M\n17M\nFinland\n6.2M\n16M\nFrance\n418M\n55M\nGermany\n669M\n64M\nIceland\n1.5M\n15M\nIreland\n17M\n31M\nItaly\n304M\n53M\nLiechtenstein\n2.1M\n10M\nLuxembourg\n4.8M\n16M\nNetherlands\n241M\n84M\nNorway\n5.1M\n19M\nPoland\n9.6M\n21M\nPortugal\n5.1M\n16M\nRomania\n6.3M\n19M\nSlovakia\n4.1M\n17M\nSlovenia\n2.6M\n15M\nSpain\n434M\n53M\nSweden\n15M\n31M\nSwitzerland\n19M\n34M\nAfghanistan\n2.7M\n2.1M\nAlbania\n1.7M\n15M\nAlgeria\n10M\n5.9M\nAmerican Samoa\n181K\n823K\nAngola\n2.5M\n1.9M\nAnguilla\n212K\n915K\nAntigua And Barbuda\n966K\n2.3M\n",
+  "framework": {
+    "nextData": false,
+    "nuxt": false,
+    "reactRoot": false
+  },
+  "domOutline": {
+    "tag": "body",
+    "className": "wp-singular page-template page-template-page-templates page-template-our-data-20",
+    "children": [
+      {
+        "tag": "div",
+        "id": "hs-web-interactives-top-push-anchor",
+        "className": "go3670563033"
+      },
+      {
+        "tag": "div",
+        "className": "site",
+        "children": [
+          {
+            "tag": "div",
+            "id": "main",
+            "className": "site-inner",
+            "children": [
+              {
+                "tag": "header",
+                "className": "header__container header",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "header__container-inner container",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "tag": "div",
+            "id": "content",
+            "className": "site-content",
+            "children": [
+              {
+                "tag": "section",
+                "className": "se-hero-section container",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "se-hero-section__container",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "tag": "section",
+                "className": "our-data container",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "our-data__cards",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "tag": "section",
+                "className": "se-text-image outer-spacing ",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "se-text-image__content",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "tag": "section",
+                "className": "table-section inner-spacing outer-spacing",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "table-section__container container",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "tag": "section",
+                "className": "se-planable-integration outer-spacing container",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "se-planable-integration__container",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "tag": "section",
+                "className": "se-text-image outer-spacing ",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "se-text-image__content",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "tag": "section",
+                "className": "se-text-image outer-spacing ",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "se-text-image__content",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "tag": "section",
+                "className": "se-faq-section inner-spacing outer-spacing ",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "se-faq-section__container container",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "tag": "iframe",
+        "className": "",
+        "role": "presentation"
+      },
+      {
+        "tag": "iframe",
+        "className": "",
+        "role": "presentation"
+      },
+      {
+        "tag": "img",
+        "className": ""
+      },
+      {
+        "tag": "img",
+        "className": ""
+      },
+      {
+        "tag": "img",
+        "className": ""
+      },
+      {
+        "tag": "img",
+        "className": ""
+      },
+      {
+        "tag": "footer",
+        "id": "page-footer",
+        "className": "page-footer ",
+        "children": [
+          {
+            "tag": "section",
+            "className": "footer-menu",
+            "children": [
+              {
+                "tag": "div",
+                "className": "footer-menu__container container",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "footer-menu__links",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "tag": "div",
+                "className": "footer-menu__info",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "footer-menu__info-wrapper container",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "tag": "div",
+            "className": "se-modal-window__backdrop",
+            "children": [
+              {
+                "tag": "div",
+                "className": "se-modal-window__content",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "schedule-form ",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "tag": "div",
+            "className": "zendesk-close-button-wrapper",
+            "children": [
+              {
+                "tag": "button",
+                "className": "zendesk-close-button",
+                "children": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "tag": "noscript",
+        "className": ""
+      }
+    ]
+  },
+  "scrapedAt": "2026-06-01T14:57:24.208Z"
+}

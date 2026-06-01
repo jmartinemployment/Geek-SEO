@@ -1,0 +1,283 @@
+Free June 9 event: How to win brand visibility when AI decides what gets seen →
+Solutions
+Tools
+Resources
+Pricing
+EN
+Sign in
+Request a demo
+Start free trial
+Backlink Checker
+
+You have 5 free backlink checks remaining today
+
+*.domain.com/*
+Domain with subdomains
+Analyze
+
+Trusted by 40,000+ agencies
+
+All your link building insights in one powerful Backlink Checker
+
+Perform an in-depth analysis of any backlink profile with this free backlink checker tool. Get fast, accurate results and a comprehensive database.
+
+1
+Referring domains
+
+Domains linking to the analyzed domain/URL
+
+Domain and Page Trust scores
+Backlinks
+Backlink toxicity score
+New and lost referring domains
+Broken backlinks
+Looker Studio report
+1
+2
+3
+4
+5
+6
+7
+Start free trial
+Expand your business with our reliable, up-to-date backlink data
+
+Our enhanced Backlink Checker database opens access to top-quality backlink insights
+
+2.7T
+Backlinks indexed
+420M
+Domains indexed
+6B
+Pages crawled daily
+Freshness
+
+SE Ranking delivers some of the freshest backlink data out there, with 58% of backlinks updated every 90 days. It also identifies new links in a flash.
+
+Relevance
+
+SE Ranking’s rapid updates cut down on irrelevant backlinks, enhancing the quality of your analysis. This also lets the Backlink Analysis tool display the Domain Trust metric with pinpoint precision.
+
+Completeness
+
+SE Ranking’s database is among the largest on the market, with 2.9 trillion backlinks and 411 million referring domains indexed. Our constantly expanding database results in comprehensive reports and easy backlink lookups.
+
+Granularity
+
+SE Ranking’s Backlink Checker delivers actionable insights. Get key metrics like toxicity score, dofollow/nofollow ratio, Domain and Page Trust scores, and more. Evaluating backlink quality has never been easier and more efficient.
+
+Check backlinks right away
+
+This powerful SEO Backlink Checker unlocks any website’s backlinks to help you find backlink opportunities
+
+*.domain.com/*
+Domain with subdomains
+Analyze
+How to use our Backlink Analyzer tool
+
+Leverage the tool's features to improve your backlink profile
+
+Check your website’s backlinks
+
+Enter your domain name to learn more about your backlink profile. While analyzing your backlink list and anchor texts, you can create a list of bad links to disavow or remove. The Backlink Checker tool can also help you find and compare the most linked-to pages to your key pages. This keeps your site authoritative and boosts its chances of ranking high in SERPs.
+
+Check your competitors’ backlinks
+
+Use a competitor backlink checker to find link-building opportunities and discover what’s driving success for your rivals. Perform a backlink analysis to pinpoint the pages they prioritize, the referring domains boosting their sites, the anchor texts they use, and the link types they’re building. Use these insights to build a winning off-page SEO strategy and outpace the competition.
+
+In-depth backlink analysis with SE Ranking
+View a complete list of backlinks and referring domains with key metrics
+
+Enter a domain name into our backlink finder tool to get a complete rundown of the links leading to each page. Backlink Checker evaluates each backlink using essential SEO parameters like the target URL, anchor text, domain/page trust, link type (e.g., image, text), and the link’s status.
+
+Start free trial
+Analyze the dynamics and parameters of lost and gained backlinks, and referring domains
+
+The Backlink Checker’s Overview dashboard has three dynamic graphs. The first chart shows how many referring domains and backlinks you had on a specific date, week, or month. It also shows the traffic generated and the average Domain & Page Trust. The next two charts take and compare the number of referring domains and backlinks you lost and gained on that particular day/week/month. You can track changes over different time periods, from 7 days to 1 year.
+
+Start free trial
+Check backlink toxicity on your site to uncover SEO damage
+
+Use our toxic backlink checker tool’s Toxicity score to find out how harmful a backlink (or the website's overall backlink profile) is. Analyze each backlink and domain by toxicity level, identify links that should be avoided, and take the steps needed to remove them.
+
+Start free trial
+Explore the top pages ranked by backlinks to identify a website’s strongest URLs
+
+The Pages Report in SE Ranking's Backlink Checker offers in-depth SEO data that compares pages with the most backlinks to pages that need more work. This data has extraordinary value because you can use it to find out which content attracts backlinks the most in your niche. It can also hint as to why some pages aren’t getting the results you’re looking for.
+
+Start free trial
+More must-have backlink tools from SE Ranking
+Backlink Tracking
+
+Keep track of all pages linking to your site, get notified if they go missing, check their indexing status, and more.
+
+Backlink Tracker
+Backlink Gap Analyzer
+
+Check your site’s backlink profile and compare it with up to five competitors. Uncover new SEO opportunities with our unbeatable gap analysis feature.
+
+Backlink Gap Tool
+Broken Link Checker
+
+Find your site’s broken backlinks (or your competitors'), then fix or use them to unlock new link-building opportunities.
+
+Broken Link Checker
+Domain Authority Checker
+
+Assess any website's potential for high SERP rankings by examining its domain authority score and over 15 other essential metrics.
+
+Domain Authority Checker
+Analyze backlinks at scale with our Backlink Checker API
+
+Run the backlink API code to boost your bulk backlink analysis speed and efficiency. Get key metrics and endpoints for thousands of domains in a flash
+
+Referral domains and backlinks
+
+Page and Domain Trust scores
+
+Target URLs
+
+HTTP status codes
+
+Dofollow and nofollow links
+
+Anchor texts
+
+IPs, Countries and TLDs
+
+Discover SE Ranking's API
+FAQ
+Q
+What is the Backlink Checker?
+A
+
+The Backlink Checker is a tool that evaluates a website’s link profile. It’s used to identify valuable link acquisition opportunities and refine off-page strategies. It provides a complete list of backlinks and referring domains and can evaluate their quantity, quality, and relevance. It even offers insights into dozens of backlink-related parameters.
+
+Q
+What information can I find with the Backlink Checker?
+A
+
+SE Ranking’s Backlink Checker offers insights into:
+
+The total number (and a detailed list) of backlinks and referring domains.
+
+The Domain Trust score to evaluate website authority.
+
+The Toxicity score to show the percentage of low-quality links.
+
+A list of anchor texts and pages with the most backlinks.
+
+A graph showing new/lost backlinks and their referring domains.
+
+Q
+Can I use your SEO Backlink Checker for free?
+A
+
+The Backlink Checker is available for free for 14 days during your trial period. If you find it useful and want to keep using it, subscribe to any of our plans—it’s included in all of them. Or, you can view key data right here on this page by typing the domain name into the box at the top and hitting Analyze. Note that you will only get a snapshot of backlink information with this option.
+
+Q
+Can I perform bulk backlink checking?
+A
+
+Our Backlink Checker API simplifies this process by letting you extract key backlink profile data. This includes the number of backlinks and referring domains, the Domain Trust score, and other essential metrics to get a comprehensive backlink report. Note that the API is available exclusively with a Growth subscription.
+
+Q
+Why do backlinks matter?
+A
+
+Getting unique, trustworthy backlinks is vital to increasing website authority and improving rankings. Backlinks are considered “votes of confidence” because they increase exposure and signal higher credibility and trustworthiness to Google.
+
+If search engines could talk, they would say that pages with more links from quality websites have higher value. These pages get higher-ranking positions on SERPs and drive more organic traffic. Use this insight when referring to our SEO Backlink Checker tool and analyzing your (or your competitors’) links.
+
+Professionals worldwide trust our Backlink Checker
+1
+/
+5
+
+“SE Ranking is one of my favorite all-in-one SEO tools: powerful and easy to use — the perfect support for my day-to-day SEO activities.”
+
+Aleyda Solis
+International SEO Consultant & Founder at Orainti
+
+“SE Ranking is a valuable part of our toolset – we love their continuous product development!”
+
+Alex Wright
+Agency Director at Clicky
+
+“We’ve used other tools in the past, but SE Ranking offers more up-to-date data and information, which benefits our agency and clients.”
+
+John Sammon
+Grizzled Internet Marketing Vet & CEO at Sixth City Marketing
+
+“SE Ranking is the best seo platform our company has used so far. The interface of the platform is great & user-friendly.”
+
+Giannis Koutsopoulos
+CEO - Co Founder at AboutHotelier
+
+“SE Ranking is not only unique among the SEO platforms but is positioned to be a tool that can replace several in your SEO toolbox. It has in mine.”
+
+Erin Sparks
+Founder of Site Strategics
+
+4.8
+
+4.9
+
+4.7
+
+4.0
+
+Sounds great! I’m ready to start my backlink analysis!
+Start free trial
+See product tour
+
+No credit card required
+
+Core SEO Tools
+Rank Tracker
+Website Audit
+On-Page SEO Checker
+SERP Tracker
+Backlink Checker
+Keyword Grouper
+Keyword Tool
+Website Competitor Analysis Tool
+AI Overviews Tracker
+All features
+Performance & Reporting Tools
+Webpage Monitor
+SEO Report Generator
+SEO Dashboard
+Add-ons
+Local Marketing Software
+Content Marketing Tool
+Agency Pack
+White Label
+Additional Services
+SEO API
+Free SEO tools
+SEO Task Manager
+Support & Partnership
+Contact
+Help
+Affiliate
+Educational Partnership Program
+Company & Resources
+SEO Blog
+About
+Stand with Ukraine
+Careers
+What’s New
+Testimonials
+Webinars
+Academy
+Competitors
+Legal & Technical
+Privacy Policy
+Cookie Policy
+Legal Information
+Open Source Attributions
+Download
+EN
+English
+© 2013 - 2026 SER Acquisition Inc. All Rights Reserved

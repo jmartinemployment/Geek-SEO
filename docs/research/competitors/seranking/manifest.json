@@ -1,0 +1,8 @@
+{
+  "tool": "geek-scrape",
+  "command": "site",
+  "url": "https://seranking.com/",
+  "out": "./docs/research/competitors/seranking",
+  "pagesScraped": 30,
+  "scrapedAt": "2026-06-01T15:26:03.830Z"
+}

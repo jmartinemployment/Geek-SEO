@@ -16,6 +16,8 @@ public sealed class ContentGuardService(
     IAIProvider ai,
     IHttpClientFactory httpClientFactory)
 {
+    /// <summary>Cap AI auto-patches per HTTP scan so Railway request timeout is not exceeded.</summary>
+    private const int MaxAutoPatchesPerRequest = 5;
     public async Task<ContentGuardPolicyDto?> GetPolicyAsync(Guid userId, Guid projectId, CancellationToken ct = default)
     {
         await EnsureProjectAsync(userId, projectId, ct);
@@ -70,11 +72,28 @@ public sealed class ContentGuardService(
         return result.Value.Select(MapRun).ToList();
     }
 
-    public async Task ScanProjectAsync(Guid userId, Guid projectId, bool autoPatch, CancellationToken ct = default)
+    public async Task<ContentGuardScanSummary> ScanProjectAsync(
+        Guid userId,
+        Guid projectId,
+        bool autoPatch,
+        CancellationToken ct = default)
     {
         var report = await auditService.AnalyzeAsync(userId, projectId, ct);
-        foreach (var page in report.Pages.Where(p => p.Status is "decaying" or "critical"))
+        var decaying = report.Pages.Where(p => p.Status is "decaying" or "critical").ToList();
+        var summary = new ContentGuardScanSummary
         {
+            DecayingPagesFound = decaying.Count,
+        };
+
+        var runsCreated = 0;
+        var patchesAttempted = 0;
+        var patchesSucceeded = 0;
+        var patchesFailed = 0;
+
+        foreach (var page in decaying)
+        {
+            ct.ThrowIfCancellationRequested();
+
             var run = new SeoContentGuardRun
             {
                 ProjectId = projectId,
@@ -86,11 +105,31 @@ public sealed class ContentGuardService(
             };
 
             var created = await guard.CreateRunAsync(run, ct);
-            if (!created.IsSuccess || created.Value is null || !autoPatch)
+            if (!created.IsSuccess || created.Value is null)
                 continue;
 
-            await TryPatchRunAsync(userId, created.Value, ct);
+            runsCreated++;
+            if (!autoPatch)
+                continue;
+
+            if (patchesAttempted >= MaxAutoPatchesPerRequest)
+                continue;
+
+            patchesAttempted++;
+            var patchOutcome = await TryPatchRunAsync(userId, created.Value, ct);
+            if (patchOutcome)
+                patchesSucceeded++;
+            else
+                patchesFailed++;
         }
+
+        return summary with
+        {
+            RunsCreated = runsCreated,
+            PatchesAttempted = patchesAttempted,
+            PatchesSucceeded = patchesSucceeded,
+            PatchesFailed = patchesFailed,
+        };
     }
 
     public async Task<ContentGuardRunDto> ApproveRunAsync(Guid userId, Guid runId, CancellationToken ct = default)
@@ -131,69 +170,101 @@ public sealed class ContentGuardService(
         return MapRun(updated.Value);
     }
 
-    private async Task TryPatchRunAsync(Guid userId, SeoContentGuardRun run, CancellationToken ct)
+    /// <returns>True when patch completed (draft_ready or detected without WP); false when failed.</returns>
+    private async Task<bool> TryPatchRunAsync(Guid userId, SeoContentGuardRun run, CancellationToken ct)
     {
-        var http = httpClientFactory.CreateClient("PublicScanPage");
-        string liveHtml;
         try
         {
-            liveHtml = await http.GetStringAsync(run.Url, ct);
-        }
-        catch (HttpRequestException)
-        {
-            run.Status = "failed";
-            run.Recommendation = "Could not fetch live page for patching.";
-            await guard.UpdateRunAsync(run, ct);
-            return;
-        }
-
-        run.PrePatchHtml = liveHtml;
-        run.Status = "patching";
-
-        var aiResult = await ai.CompleteAsync(new AIRequest
-        {
-            SystemPrompt =
-                "You refresh decaying SEO content. Preserve factual claims, improve clarity, update stale phrasing, and return improved HTML body only (h1/h2/p/ul). No markdown fences.",
-            UserPrompt = $"URL: {run.Url}\nRecommendation: {run.Recommendation}\n\nHTML:\n{liveHtml}",
-            MaxTokens = 8192,
-            Temperature = 0.4,
-        }, ct);
-
-        if (!aiResult.IsSuccess || aiResult.Value is null)
-        {
-            run.Status = "failed";
-            await guard.UpdateRunAsync(run, ct);
-            return;
-        }
-
-        run.PatchedHtml = AiHtmlSanitizer.ToHtmlFragment(aiResult.Value.Content);
-
-        var conn = await connections.GetByProjectAsync(run.ProjectId, ct);
-        if (conn.IsSuccess && conn.Value is not null)
-        {
-            var password = SeoCredentialProtector.Decrypt(
-                conn.Value.EncryptedAppPassword, conn.Value.EncryptionIv, conn.Value.EncryptionTag);
-            var credentials = new WordPressCredentials
+            var http = httpClientFactory.CreateClient("PublicScanPage");
+            string liveHtml;
+            try
             {
-                SiteUrl = conn.Value.SiteUrl,
-                Username = conn.Value.Username,
-                ApplicationPassword = password,
-            };
-
-            var draft = await wordpress.PublishPostAsync(credentials, new WordPressPostPayload
+                liveHtml = await http.GetStringAsync(run.Url, ct);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {
-                Title = $"[Content Guard] Refresh — {run.Url}",
-                ContentHtml = run.PatchedHtml,
-                Status = "draft",
+                run.Status = "failed";
+                run.Recommendation = "Could not fetch live page for patching.";
+                run.CompletedAt = DateTimeOffset.UtcNow;
+                await guard.UpdateRunAsync(run, ct);
+                return false;
+            }
+
+            run.PrePatchHtml = liveHtml;
+            run.Status = "patching";
+            await guard.UpdateRunAsync(run, ct);
+
+            var aiResult = await ai.CompleteAsync(new AIRequest
+            {
+                SystemPrompt =
+                    "You refresh decaying SEO content. Preserve factual claims, improve clarity, update stale phrasing, and return improved HTML body only (h1/h2/p/ul). No markdown fences.",
+                UserPrompt = $"URL: {run.Url}\nRecommendation: {run.Recommendation}\n\nHTML:\n{liveHtml}",
+                MaxTokens = 8192,
+                Temperature = 0.4,
             }, ct);
 
-            if (draft.IsSuccess && draft.Value is not null)
-                run.WordPressDraftPostId = draft.Value.PostId;
-        }
+            if (!aiResult.IsSuccess || aiResult.Value is null)
+            {
+                run.Status = "failed";
+                run.Recommendation = aiResult.Error ?? "AI refresh failed.";
+                run.CompletedAt = DateTimeOffset.UtcNow;
+                await guard.UpdateRunAsync(run, ct);
+                return false;
+            }
 
-        run.Status = "draft_ready";
-        run.CompletedAt = DateTimeOffset.UtcNow;
-        await guard.UpdateRunAsync(run, ct);
+            run.PatchedHtml = AiHtmlSanitizer.ToHtmlFragment(aiResult.Value.Content);
+
+            var conn = await connections.GetByProjectAsync(run.ProjectId, ct);
+            if (conn.IsSuccess && conn.Value is not null)
+            {
+                try
+                {
+                    var password = SeoCredentialProtector.Decrypt(
+                        conn.Value.EncryptedAppPassword, conn.Value.EncryptionIv, conn.Value.EncryptionTag);
+                    var credentials = new WordPressCredentials
+                    {
+                        SiteUrl = conn.Value.SiteUrl,
+                        Username = conn.Value.Username,
+                        ApplicationPassword = password,
+                    };
+
+                    var draft = await wordpress.PublishPostAsync(credentials, new WordPressPostPayload
+                    {
+                        Title = $"[Content Guard] Refresh — {run.Url}",
+                        ContentHtml = run.PatchedHtml,
+                        Status = "draft",
+                    }, ct);
+
+                    if (draft.IsSuccess && draft.Value is not null)
+                        run.WordPressDraftPostId = draft.Value.PostId;
+                    else if (!string.IsNullOrWhiteSpace(draft.Error))
+                        run.Recommendation = $"{run.Recommendation} WordPress draft: {draft.Error}";
+                }
+                catch (InvalidOperationException ex)
+                {
+                    run.Recommendation =
+                        $"{run.Recommendation} WordPress draft skipped: {ex.Message}";
+                }
+                catch (System.Security.Cryptography.CryptographicException)
+                {
+                    run.Recommendation =
+                        $"{run.Recommendation} WordPress draft skipped: stored credentials could not be decrypted.";
+                }
+            }
+
+            run.Status = "draft_ready";
+            run.CompletedAt = DateTimeOffset.UtcNow;
+            await guard.UpdateRunAsync(run, ct);
+            return true;
+        }
+        catch (Exception)
+        {
+            run.Status = "failed";
+            run.Recommendation = "Auto-patch failed unexpectedly. Try again or disable auto-patch.";
+            run.CompletedAt = DateTimeOffset.UtcNow;
+            await guard.UpdateRunAsync(run, ct);
+            return false;
+        }
     }
 
     private async Task EnsureProjectAsync(Guid userId, Guid projectId, CancellationToken ct)

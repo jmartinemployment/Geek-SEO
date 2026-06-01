@@ -2,8 +2,10 @@
 
 Surfer / ContentShake-style SEO content SaaS.
 
-**Plan:** [`plan-documents/GEEKSEO-PLAN.md`](plan-documents/GEEKSEO-PLAN.md)  
-**Architecture / decoupling:** [`plan-documents/ARCHITECTURE.md`](plan-documents/ARCHITECTURE.md), [`plan-documents/PLATFORM-DECOUPLING.md`](plan-documents/PLATFORM-DECOUPLING.md)
+**Plan:** [`plan-documents/geekseo-plan.md`](plan-documents/geekseo-plan.md) — v1 **100% complete**  
+**TODO:** [`plan-documents/TODO.md`](plan-documents/TODO.md) — future work  
+**Status:** [`PROJECT_STATUS.md`](PROJECT_STATUS.md)  
+**Architecture:** [`plan-documents/ARCHITECTURE.md`](plan-documents/ARCHITECTURE.md), [`plan-documents/PLATFORM-DECOUPLING.md`](plan-documents/PLATFORM-DECOUPLING.md)
 
 ## Repo layout
 
@@ -43,5 +45,9 @@ See [`scripts/LOCAL_DEV.md`](scripts/LOCAL_DEV.md).
 ## Billing (PayPal)
 
 - **Now:** sandbox checkout on production — test at `/pricing` with PayPal sandbox buyer accounts (no real charges).
-- **Later (live money):** step-by-step checklist in [`docs/PAYPAL-BILLING.md`](docs/PAYPAL-BILLING.md) — switch `PAYPAL_ENVIRONMENT=live`, live app credentials, re-run `scripts/paypal-create-subscription-plans.mjs` and `scripts/paypal-create-webhook.mjs`.
+- **Later (live money):** [`docs/PAYPAL-BILLING.md`](docs/PAYPAL-BILLING.md) — not complete until live env + plans + webhook; **also** resolve P0 items in [`docs/CODE-REVIEW.md`](docs/CODE-REVIEW.md) before charging real customers.
 - **Operator login:** `SUBSCRIPTION_FULL_ACCESS_EMAILS` on GeekSeoBackend (documented in same file).
+
+## What’s left (recommended)
+
+In-repo product **#1–27** is complete. Still open: integration products **#28–31**, ops go-live, and security hardening — see [`docs/ROADMAP.md`](docs/ROADMAP.md).

@@ -22,5 +22,9 @@ public sealed record CannibalizationReport
     public required Guid ProjectId { get; init; }
     public required string StartDate { get; init; }
     public required string EndDate { get; init; }
+    public required int GscRowCount { get; init; }
+    public required int UniqueQueryCount { get; init; }
+    public required int MultiUrlQueryCount { get; init; }
+    public required int CompetingQueryCount { get; init; }
     public required IReadOnlyList<CannibalizationIssue> Issues { get; init; }
 }

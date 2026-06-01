@@ -1,6 +1,9 @@
 # Geek SEO — project status
 
-Last updated: May 31, 2026 (session — plan closure: auth, GA4 live, human audit)
+Last updated: June 1, 2026 (plans consolidated)
+
+**v1 master plan:** [`geekseo-plan.md`](plan-documents/geekseo-plan.md) — **100% complete** (June 2026)  
+**Future work:** [`plan-documents/TODO.md`](plan-documents/TODO.md) · **Index:** [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 ## Latest on `main`
 
@@ -100,7 +103,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 | Google integrations (GSC + GA4) | ✅ OAuth + data endpoints | ✅ connect / rankings / analytics | `GOOGLE_*`; Professional tier for data |
 | Internal link suggest + auto-insert | ✅ | ✅ editor panel | sibling docs in project |
 | Keyword cannibalization | ✅ GSC analysis | ✅ `/app/cannibalization` | GSC connected |
-| Topical map (GSC clusters) | ✅ generate + GET cached | ✅ `/app/strategy/topical-map` | GSC connected; 14d TTL + `SeoMaintenanceWorker` refresh |
+| Topical map **#12 + #12b** | ✅ v2 generate + GET cached | ✅ `/app/strategy/topical-map` (table + React Flow map) | GSC + DataForSEO SERP seeds; priority, pillars, competitors |
 | Published content decay audit | ✅ GSC compare + sparkline DB | ✅ `/app/content-guard` | Weekly snapshots via worker when `WORKER_SERVICE_USER_ID` set |
 | GEO / AI visibility probe | ✅ probe + query CRUD + 30d trends | ✅ `/app/geo` | DataForSEO; daily worker snapshots enabled queries |
 | Content Guard | ✅ decay scan + AI patch in DB | ✅ policy, runs, approve/rollback | GSC for decay; **WP draft N/A** — operator has no WordPress site |
@@ -111,7 +114,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 
 ## Master plan feature matrix (31 parity features)
 
-Honest status against `plan-documents/geekseo-plan.md`. **~27/31 shipped end-to-end** in this repo (May 31, 2026). Features **#28–31** are separate integration products and remain out of scope.
+Honest status against [`geekseo-plan.md`](plan-documents/geekseo-plan.md). **v1 master plan 100% complete** (June 2026). Future work: [`TODO.md`](plan-documents/TODO.md).
 
 | # | Feature | Backend | Frontend | Notes |
 |---|---------|---------|----------|-------|
@@ -125,7 +128,7 @@ Honest status against `plan-documents/geekseo-plan.md`. **~27/31 shipped end-to-
 | 8 | Auto internal linking | ✅ | ✅ | `POST /api/seo/links/auto-insert` |
 | 9 | Brand voice | ✅ | ✅ | `/app/brand-voice` |
 | 10–11 | Planner / topic research | ✅ | ✅ | `/app/planner`, `/app/keywords` |
-| 12 | Topical map | ✅ | ✅ | GSC clusters; 14d TTL persist + worker refresh |
+| 12 / 12b | Topical map | ✅ | ✅ | v2 core shipped; V2.2/V2.4 dashboard/V2.5 E2E → TODO |
 | 13 | Deep SERP analyzer | ✅ | ✅ | 50 results + CSV + **term matrix heatmap** + 7d cache |
 | 14 | Cannibalization | ✅ | ✅ | `/app/cannibalization` |
 | 15 | WordPress publish | ✅ | ✅ | **Operator has no WP site** — not verifiable in production |
@@ -139,7 +142,15 @@ Honest status against `plan-documents/geekseo-plan.md`. **~27/31 shipped end-to-
 | 25 | Plagiarism (Copyscape) | ✅ | ✅ | Optional provider |
 | 26 | GA4 | ✅ | ✅ | `/app/analytics` |
 | 27 | GSC | ✅ | ✅ | `/app/rankings` |
-| 28–31 | WP plugin, Chrome ext, Docs, Public API | — | — | **Not built** (separate products) |
+| 28–31 | WP plugin, Chrome ext, Docs, Public API | — | — | **Not built** — [`docs/ROADMAP.md`](docs/ROADMAP.md) |
+
+## v1 master plan
+
+**100% complete** per [`geekseo-plan.md`](plan-documents/geekseo-plan.md) § v1 definition of done (June 2026).
+
+## Future work
+
+[`plan-documents/TODO.md`](plan-documents/TODO.md) — #12b polish (V2.2, V2.4 dashboard, V2.5 E2E), #6/#15/#19/#20, #28–31, REDESIGN 2/2b/7, P4 ops, upgrade plan, security.
 
 ## Honest gaps (not stubbed — blocked or not built)
 
@@ -177,7 +188,7 @@ See `scripts/LOCAL_DEV.md`. Minimum: GeekSeoBackend + GeekAPI + GeekRepository +
 
 ## Plan reference
 
-Master plan: `plan-documents/geekseo-plan.md` (31 features / 34 steps). **In-repo plan complete** for features #1–#27 (May 31, 2026 session). Redesign: `plan-documents/REDESIGN-PLAN.md` — Phase 1 shell + Phase 6 audit shipped.
+**v1 plan:** [`geekseo-plan.md`](plan-documents/geekseo-plan.md) — **100% complete**. **Future:** [`TODO.md`](plan-documents/TODO.md).
 
 Platform decoupling: `plan-documents/PLATFORM-DECOUPLING.md` — **complete** (M0–M9, M1, O2).
 
@@ -186,17 +197,22 @@ Platform decoupling: `plan-documents/PLATFORM-DECOUPLING.md` — **complete** (M
 | Thread | Status |
 |--------|--------|
 | Site audit (worker context, detail load, live crawl) | ✅ |
-| Topical map (generate + `matchedPageUrl`) | ✅ |
+| Topical map v2 (SERP clusters, table/map UI) | ✅ |
+| Topical map V2.2 / V2.4 dashboard / V2.5 E2E | → [`TODO.md`](plan-documents/TODO.md) |
 | Production auth / SEO API 401 on navigation | ✅ `3b1d98e` |
 | GA4 403 (Analytics Data API) | ✅ live test + GCP `643227070586` |
 | Human app audit | ✅ 19/19 pages clean (dashboard test-score alerts ignored) |
 
-**In-repo master plan (#1–#27):** complete. **#28–31** remain out of scope (separate products).
+**v1 master plan:** 100% complete. **Future:** [`plan-documents/TODO.md`](plan-documents/TODO.md).
 
-## Next (optional / ops — not blocking “plan complete”)
+## Next (prioritized — see roadmap)
 
-1. **TODO (later):** Migrate production identity from personal Gmail to a dedicated **`@geekatyourspot.com`** GeekOAuth account; update `WORKER_SERVICE_USER_ID` and project ownership (see **Identity & worker service account** above).
-2. Smoke-test Content Guard **without WordPress**: GSC connected → enable policy → `POST /scan` or wait for daily worker → confirm decay runs and `PatchedHtml` in UI (`CONTENT_GUARD_LIVE=1 npm run test:integration:content-guard` with Agency tier / full-access user).
-3. Optional: add ChatGPT/Gemini/Perplexity probe providers when API keys are available (#20 stretch).
-4. Separate products #28–31 if/when scoped (WP plugin, Chrome extension, Docs add-on, Public API).
-5. **Future (needs WP host):** WordPress publish (#15) and Content Guard WP draft push — requires a site the operator controls again, or a staging WP instance for QA only.
+Full table and build order: [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
+1. **Before PayPal live:** P0 security fixes — [`docs/CODE-REVIEW.md`](docs/CODE-REVIEW.md).
+2. PayPal production go-live — [`docs/PAYPAL-BILLING.md`](docs/PAYPAL-BILLING.md).
+3. Migrate worker identity to **`@geekatyourspot.com`** (see **Identity & worker service account** above).
+4. Content Guard live smoke without WP (`CONTENT_GUARD_LIVE=1 npm run test:integration:content-guard`).
+5. Integration products **#28–31** when scoped (#31 public API first).
+6. WP publish / Guard draft E2E when a staging or operator WP host exists.
+7. Optional: ChatGPT/Gemini/Perplexity GEO probes (#20 stretch).

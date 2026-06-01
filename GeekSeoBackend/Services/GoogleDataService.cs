@@ -30,12 +30,12 @@ public sealed class GoogleDataService(
         IReadOnlyList<GoogleRankingRow> rows;
         try
         {
-            rows = await QueryGscRowsAsync(
+            rows = await QueryGscRowsPaginatedAsync(
                 token,
                 siteUrl,
                 from,
                 to,
-                Math.Clamp(rowLimit ?? 250, 1, 1000),
+                Math.Clamp(rowLimit ?? 250, 1, 5000),
                 ct);
         }
         catch (GoogleIntegrationException ex) when (ex.Message.Contains("(403)", StringComparison.Ordinal))
@@ -49,12 +49,12 @@ public sealed class GoogleDataService(
 
             siteUrl = syncedSiteUrl;
             token = await oauth.GetGscAccessTokenAsync(userId, projectId, ct);
-            rows = await QueryGscRowsAsync(
+            rows = await QueryGscRowsPaginatedAsync(
                 token,
                 siteUrl,
                 from,
                 to,
-                Math.Clamp(rowLimit ?? 250, 1, 1000),
+                Math.Clamp(rowLimit ?? 250, 1, 5000),
                 ct);
         }
 
@@ -124,11 +124,44 @@ public sealed class GoogleDataService(
         };
     }
 
-    private async Task<IReadOnlyList<GoogleRankingRow>> QueryGscRowsAsync(
+    private async Task<IReadOnlyList<GoogleRankingRow>> QueryGscRowsPaginatedAsync(
         string accessToken,
         string siteUrl,
         DateOnly startDate,
         DateOnly endDate,
+        int maxRows,
+        CancellationToken ct)
+    {
+        const int pageSize = 1000;
+        var results = new List<GoogleRankingRow>(Math.Min(maxRows, pageSize));
+        for (var startRow = 0; startRow < maxRows; startRow += pageSize)
+        {
+            var batchLimit = Math.Min(pageSize, maxRows - startRow);
+            var batch = await QueryGscRowsPageAsync(
+                accessToken,
+                siteUrl,
+                startDate,
+                endDate,
+                startRow,
+                batchLimit,
+                ct);
+            if (batch.Count == 0)
+                break;
+
+            results.AddRange(batch);
+            if (batch.Count < batchLimit)
+                break;
+        }
+
+        return results;
+    }
+
+    private async Task<IReadOnlyList<GoogleRankingRow>> QueryGscRowsPageAsync(
+        string accessToken,
+        string siteUrl,
+        DateOnly startDate,
+        DateOnly endDate,
+        int startRow,
         int rowLimit,
         CancellationToken ct)
     {
@@ -145,6 +178,7 @@ public sealed class GoogleDataService(
                 endDate = endDate.ToString("yyyy-MM-dd"),
                 dimensions = new[] { "query", "page" },
                 rowLimit,
+                startRow,
             }),
             Encoding.UTF8,
             "application/json");

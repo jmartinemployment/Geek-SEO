@@ -1,8 +1,7 @@
 # Competitor Analysis: AI-Powered SEO Content Tools
 
-> **Background research** — May 2026.  
-> **Canonical competitor scope (Surfer Keyword Research vs Topical Map, Semrush Content Toolkit, Frase 2026):** [`geekseo-plan.md` §1.1](geekseo-plan.md)  
-> **Implementation scope:** 26 parity features + §11 steps in master plan — not this file.  
+> **Background research only** — May 2026. Do not use for status or scope.  
+> **Canonical plan:** [`geekseo-plan.md`](geekseo-plan.md) · **Topical Map V2 backlog:** master plan § Priority backlog P1  
 > Stack: Next.js + GeekSeoBackend (.NET 10) — [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ---

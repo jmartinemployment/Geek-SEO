@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useAuthReady } from '@/hooks/use-auth-ready';
+import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import {
   getCannibalizationReport,
+  getGoogleIntegrationStatus,
   listProjects,
   type CannibalizationIssue,
   type SeoProject,
@@ -22,8 +24,14 @@ export default function CannibalizationPage() {
   const [projectId, setProjectId] = useState('');
   const [issues, setIssues] = useState<CannibalizationIssue[]>([]);
   const [rangeLabel, setRangeLabel] = useState('');
+  const [gscRowCount, setGscRowCount] = useState<number | null>(null);
+  const [uniqueQueryCount, setUniqueQueryCount] = useState<number | null>(null);
+  const [multiUrlQueryCount, setMultiUrlQueryCount] = useState<number | null>(null);
+  const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+
+  const selectedProject = projects.find((p) => p.id === projectId);
 
   useEffect(() => {
     if (!authReady) return;
@@ -33,17 +41,47 @@ export default function CannibalizationPage() {
     });
   }, [accessToken, authReady]);
 
+  useEffect(() => {
+    setHasAnalyzed(false);
+    setIssues([]);
+    setRangeLabel('');
+    setGscRowCount(null);
+    setUniqueQueryCount(null);
+    setMultiUrlQueryCount(null);
+    setError(null);
+  }, [projectId]);
+
   async function analyze() {
     if (!projectId) return;
     setLoading(true);
     setError(null);
+    setHasAnalyzed(false);
     try {
+      const status = await getGoogleIntegrationStatus(projectId, accessToken);
+      if (!status.connected) {
+        setError(
+          new Error(
+            'Google Search Console is not connected for this project. Open Rankings and connect GSC first.',
+          ),
+        );
+        setIssues([]);
+        return;
+      }
+
       const report = await getCannibalizationReport(projectId, accessToken);
       setIssues(report.issues);
+      setGscRowCount(report.gscRowCount);
+      setUniqueQueryCount(report.uniqueQueryCount);
+      setMultiUrlQueryCount(report.multiUrlQueryCount);
       setRangeLabel(`${report.startDate} → ${report.endDate}`);
+      setHasAnalyzed(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Analysis failed');
+      setError(err);
       setIssues([]);
+      setGscRowCount(null);
+      setUniqueQueryCount(null);
+      setMultiUrlQueryCount(null);
+      setHasAnalyzed(false);
     } finally {
       setLoading(false);
     }
@@ -69,6 +107,7 @@ export default function CannibalizationPage() {
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
+                {p.gscConnected ? '' : ' (GSC not connected)'}
               </option>
             ))}
           </select>
@@ -86,12 +125,47 @@ export default function CannibalizationPage() {
         </Link>
       </div>
 
-      {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
-      {rangeLabel ? <p className="mt-4 text-xs text-[var(--color-text-muted)]">GSC range: {rangeLabel}</p> : null}
+      {selectedProject && !selectedProject.gscConnected ? (
+        <p className="mt-4 text-sm text-amber-800">
+          This project does not show GSC as connected. Connect Search Console under{' '}
+          <Link href="/app/rankings" className="font-medium underline">
+            Rankings
+          </Link>{' '}
+          before analyzing.
+        </p>
+      ) : null}
 
-      {!loading && issues.length === 0 && !error ? (
+      {error ? (
+        <div className="mt-4">
+          <SeoErrorBanner error={error} />
+        </div>
+      ) : null}
+
+      {rangeLabel ? (
+        <p className="mt-4 text-xs text-[var(--color-text-muted)]">GSC range: {rangeLabel}</p>
+      ) : null}
+
+      {hasAnalyzed && !error ? (
+        <p className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+          Analysis complete — scanned up to {gscRowCount?.toLocaleString() ?? 0} top query/page rows
+          across {uniqueQueryCount?.toLocaleString() ?? 0} queries.{' '}
+          {multiUrlQueryCount === 0
+            ? 'None of those queries had more than one URL in that sample.'
+            : `${multiUrlQueryCount?.toLocaleString() ?? 0} ${multiUrlQueryCount === 1 ? 'query had' : 'queries had'} multiple URLs; showing ${issues.length} with merge/canonical guidance.`}
+        </p>
+      ) : null}
+
+      {!loading && !hasAnalyzed && !error ? (
         <p className="mt-8 text-sm text-[var(--color-text-secondary)]">
-          Run analysis to find competing URLs. Connect GSC on your project first if you see auth errors.
+          Click Analyze to load the last 28 days of GSC data and find queries ranking with more than one URL.
+        </p>
+      ) : null}
+
+      {!loading && hasAnalyzed && issues.length === 0 && !error ? (
+        <p className="mt-8 rounded-xl border bg-white p-5 text-sm text-[var(--color-text-secondary)] shadow-sm">
+          {multiUrlQueryCount && multiUrlQueryCount > 0
+            ? 'Some queries had multiple URLs, but none met the impression threshold in this window — try a longer date range in Rankings or focus on higher-traffic terms.'
+            : 'No competing URLs in the top 5,000 query/page rows GSC returned for the last 28 days — each query in that slice maps to a single page. That is common on smaller sites. In Rankings, sort by query: if the same keyword never appears on two different URLs, cannibalization will stay empty.'}
         </p>
       ) : null}
 

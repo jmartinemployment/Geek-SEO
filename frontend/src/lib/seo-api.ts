@@ -909,6 +909,10 @@ export type CannibalizationReport = {
   projectId: string;
   startDate: string;
   endDate: string;
+  gscRowCount: number;
+  uniqueQueryCount: number;
+  multiUrlQueryCount: number;
+  competingQueryCount: number;
   issues: CannibalizationIssue[];
 };
 
@@ -920,7 +924,43 @@ export async function getCannibalizationReport(
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
-  return seoJson<CannibalizationReport>(res);
+  const raw = await seoJson<Record<string, unknown>>(res);
+  const issuesRaw = raw.issues ?? raw.Issues;
+  const issues = Array.isArray(issuesRaw)
+    ? issuesRaw.map((item) => normalizeCannibalizationIssue(item as Record<string, unknown>))
+    : [];
+  return {
+    projectId: String(raw.projectId ?? raw.ProjectId ?? projectId),
+    startDate: String(raw.startDate ?? raw.StartDate ?? ''),
+    endDate: String(raw.endDate ?? raw.EndDate ?? ''),
+    gscRowCount: Number(raw.gscRowCount ?? raw.GscRowCount ?? 0),
+    uniqueQueryCount: Number(raw.uniqueQueryCount ?? raw.UniqueQueryCount ?? 0),
+    multiUrlQueryCount: Number(raw.multiUrlQueryCount ?? raw.MultiUrlQueryCount ?? 0),
+    competingQueryCount: Number(raw.competingQueryCount ?? raw.CompetingQueryCount ?? issues.length),
+    issues,
+  };
+}
+
+function normalizeCannibalizationIssue(raw: Record<string, unknown>): CannibalizationIssue {
+  const pagesRaw = raw.pages ?? raw.Pages;
+  const pages = Array.isArray(pagesRaw)
+    ? pagesRaw.map((p) => {
+        const page = p as Record<string, unknown>;
+        return {
+          url: String(page.url ?? page.Url ?? ''),
+          impressions: Number(page.impressions ?? page.Impressions ?? 0),
+          clicks: Number(page.clicks ?? page.Clicks ?? 0),
+          position: Number(page.position ?? page.Position ?? 0),
+        };
+      })
+    : [];
+  return {
+    query: String(raw.query ?? raw.Query ?? ''),
+    pages,
+    severity: String(raw.severity ?? raw.Severity ?? 'low'),
+    recommendation: String(raw.recommendation ?? raw.Recommendation ?? ''),
+    totalImpressions: Number(raw.totalImpressions ?? raw.TotalImpressions ?? 0),
+  };
 }
 
 export type DashboardOverviewProject = {
@@ -945,33 +985,70 @@ export async function getDashboardOverview(
   return seoJson<DashboardOverviewResponse>(res);
 }
 
+export type TopicalMapCoverage = 'covered' | 'partial' | 'gap' | 'opportunity';
+
+export type TopicalTier = 'Pillar' | 'Cluster' | 'Article';
+
 export type TopicalMapTopic = {
   name: string;
   queries: string[];
-  coverage: 'covered' | 'gap' | 'partial';
+  coverage: TopicalMapCoverage;
   matchedDocumentId?: string;
   matchedDocumentTitle?: string;
   matchedPageUrl?: string;
   matchSource?: 'gsc' | 'document';
   totalImpressions: number;
+  mainKeyword?: string;
+  pillarName?: string;
+  searchVolume?: number;
+  keywordDifficulty?: number;
+  intent?: string;
+  averagePosition?: number;
+  priorityScore?: number;
+  clusterMethod?: 'gsc_page' | 'serp' | 'token' | string;
+  competitorDomains?: string[];
+  tier?: TopicalTier;
+  pillarId?: string;
+  parentClusterId?: string;
+  entityGaps?: string[];
+  entityCoverage?: number;
+  linkFrom?: string[];
+  linkTo?: string[];
+  contentSequence?: number;
+  suggestedWordCount?: number;
+  suggestedTitle?: string;
+  suggestedSlug?: string;
+  contentType?: string;
 };
 
 export type TopicalMapResult = {
+  version?: number;
   projectId: string;
   generatedAt: string;
+  expiresAt?: string;
   topics: TopicalMapTopic[];
   coveredCount: number;
   gapCount: number;
   partialCount: number;
+  opportunityCount?: number;
+  recommendations?: TopicalMapTopic[];
+  mode?: 'gsc' | 'seed';
+  seedKeyword?: string;
+  pillarCount?: number;
+  clusterCount?: number;
+  articleCount?: number;
 };
 
 export async function generateTopicalMap(
   projectId: string,
   accessToken?: string | null,
-  options?: { force?: boolean },
+  options?: { force?: boolean; seedKeyword?: string },
 ): Promise<TopicalMapResult> {
-  const force = options?.force ? '?force=true' : '';
-  const res = await fetch(`${API_URL}/api/seo/topical-map/${projectId}/generate${force}`, {
+  const params = new URLSearchParams();
+  if (options?.force) params.set('force', 'true');
+  if (options?.seedKeyword) params.set('seedKeyword', options.seedKeyword);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  const res = await fetch(`${API_URL}/api/seo/topical-map/${projectId}/generate${query}`, {
     method: 'POST',
     headers: apiHeaders(accessToken),
   });

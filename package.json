@@ -6,7 +6,17 @@
   "directories": {
     "doc": "docs"
   },
-  "scripts": {},
+  "bin": {
+    "geek-scrape": "scripts/scrape/cli.mjs"
+  },
+  "scripts": {
+    "scrape": "node scripts/scrape/cli.mjs",
+    "geek-scrape": "node scripts/scrape/cli.mjs",
+    "scrape:setup": "playwright install chromium",
+    "scrape:seranking": "node scripts/scrape/cli.mjs site --url https://seranking.com/ --out ./docs/research/competitors/seranking --network",
+    "scrape:seranking:page": "node scripts/scrape/cli.mjs page --url https://seranking.com/ --out ./docs/research/competitors/seranking-homepage --network",
+    "scrape:seranking:rank-tracker": "node scripts/scrape/cli.mjs page --url https://seranking.com/position-tracking.html --out ./docs/research/competitors/seranking/position-tracking --network"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jmartinemployment/Geek-SEO.git"
@@ -21,6 +31,7 @@
   "homepage": "https://github.com/jmartinemployment/Geek-SEO#readme",
   "devDependencies": {
     "@playwright/test": "^1.60.0",
+    "playwright": "^1.60.0",
     "@types/node": "^25.9.1",
     "vitest": "^4.1.7"
   },

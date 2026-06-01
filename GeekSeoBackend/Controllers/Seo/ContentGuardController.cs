@@ -75,12 +75,20 @@ public sealed class ContentGuardController(
         try
         {
             var policy = await guard.GetPolicyAsync(user.RequireUserId(), projectId, ct);
-            await guard.ScanProjectAsync(user.RequireUserId(), projectId, policy?.AutoPatch ?? false, ct);
-            return Accepted();
+            var summary = await guard.ScanProjectAsync(
+                user.RequireUserId(),
+                projectId,
+                policy?.AutoPatch ?? false,
+                ct);
+            return Accepted(summary);
         }
         catch (UnauthorizedAccessException)
         {
             return Unauthorized(new { error = "Authentication required" });
+        }
+        catch (GoogleIntegrationException ex)
+        {
+            return StatusCode(ex.StatusCode, new { error = ex.Message });
         }
         catch (InvalidOperationException ex)
         {

@@ -1,0 +1,139 @@
+{
+  "url": "https://seranking.com/academy/agency-positioning-course.html",
+  "title": "Agency Positioning and Marketing Course — Get Better Clients",
+  "lang": "en",
+  "meta": {
+    "viewport": "width=device-width, initial-scale=1.0",
+    "referrer": "no-referrer-when-downgrade",
+    "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+    "description": "Join our free course to know what clients want from agencies, design your brand positioning on the market and get more quality leads.",
+    "og:locale": "en_US",
+    "og:type": "article",
+    "og:title": "How to Promote a Digital Marketing Agency: Practical Tips",
+    "og:description": "Get essential marketing advice from advanced industry players. Transform your agency’s strategies to attract better clients and truly stand out in your niche.",
+    "og:url": "https://seranking.com/academy/agency-positioning-course.html",
+    "og:site_name": "SE Ranking",
+    "article:publisher": "https://www.facebook.com/serankingcom/",
+    "article:modified_time": "2025-06-23T14:59:50+00:00",
+    "og:image": "https://seranking.com/wp-content/uploads/sites/9/2024/09/1200х675.png",
+    "og:image:width": "1200",
+    "og:image:height": "675",
+    "og:image:type": "image/png",
+    "twitter:card": "summary_large_image",
+    "twitter:title": "How to Promote a Digital Marketing Agency: Practical Tips",
+    "twitter:description": "Get essential marketing advice from advanced industry players. Transform your agency’s strategies to attract better clients and truly stand out in your niche.",
+    "twitter:image": "https://seranking.com/wp-content/uploads/sites/9/2023/09/How-to-promote-your-agency-course.png",
+    "twitter:site": "@SERanking",
+    "generator": "speculation-rules 1.6.0",
+    "msapplication-TileImage": "https://seranking.com/wp-content/uploads/sites/9/2024/09/cropped-Favicon-512х512-png-1-270x270.png",
+    "og:locale:alternate": "en_GB"
+  },
+  "headings": [
+    {
+      "level": 1,
+      "text": "How to Promote Your Agency"
+    },
+    {
+      "level": 2,
+      "text": "Created for ambitious agency owners and consultants like you"
+    },
+    {
+      "level": 3,
+      "text": "Who can benefit from this course?"
+    },
+    {
+      "level": 3,
+      "text": "How can this course help you put your agency front and center?"
+    },
+    {
+      "level": 2,
+      "text": "The training includes:"
+    },
+    {
+      "level": 2,
+      "text": "Course lecturer"
+    },
+    {
+      "level": 2,
+      "text": "Course lecturer"
+    },
+    {
+      "level": 2,
+      "text": "How do I get started?"
+    },
+    {
+      "level": 2,
+      "text": "Who we are"
+    },
+    {
+      "level": 2,
+      "text": "Need further guidance?"
+    },
+    {
+      "level": 2,
+      "text": "An SEO Platform that maximizes ROI, not costs"
+    },
+    {
+      "level": 4,
+      "text": "Request a free demo to see our tools and integrations in action"
+    }
+  ],
+  "links": [
+    {
+      "href": "https://academy.seranking.com/courses/course/3743",
+      "text": "Start course"
+    }
+  ],
+  "textLength": 232,
+  "textPreview": "How to Promote Your Agency\nTHE COURSE IS HOSTED BY\nMyriam Jessier\n\nDiscover how to stand out in a saturated agency market. Powered by tried-and-true strategies and fresh insights from renowned consultants and agencies.\n\nStart course",
+  "framework": {
+    "nextData": false,
+    "nuxt": false,
+    "reactRoot": false
+  },
+  "domOutline": {
+    "tag": "main",
+    "className": "top-block__text",
+    "children": [
+      {
+        "tag": "h1",
+        "className": "top-block__title"
+      },
+      {
+        "tag": "div",
+        "className": "top-block__speaker",
+        "children": [
+          {
+            "tag": "div",
+            "className": "top-block__speaker-hosted-by",
+            "children": [
+              {
+                "tag": "img",
+                "className": ""
+              }
+            ]
+          },
+          {
+            "tag": "div",
+            "className": "top-block__speaker-name"
+          }
+        ]
+      },
+      {
+        "tag": "p",
+        "className": "top-block__undertitle"
+      },
+      {
+        "tag": "div",
+        "className": "",
+        "children": [
+          {
+            "tag": "a",
+            "className": "start-course-btn top-block__btn"
+          }
+        ]
+      }
+    ]
+  },
+  "scrapedAt": "2026-06-01T15:23:36.965Z"
+}

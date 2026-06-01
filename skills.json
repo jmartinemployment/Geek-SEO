@@ -1,0 +1,121 @@
+{
+  "skills": [
+    {
+      "source": "antfu/skills",
+      "skills": [
+        "vitest"
+      ]
+    },
+    {
+      "source": "claude-office-skills/skills",
+      "skills": [
+        "seo-optimizer"
+      ]
+    },
+    {
+      "source": "cloudflare/skills",
+      "skills": [
+        "workers-best-practices"
+      ]
+    },
+    {
+      "source": "composiohq/awesome-claude-skills",
+      "skills": [
+        "tailored-resume-generator"
+      ]
+    },
+    {
+      "source": "coreyhaines31/marketingskills",
+      "skills": [
+        "cold-email",
+        "marketing-psychology",
+        "seo-audit"
+      ]
+    },
+    {
+      "source": "currents-dev/playwright-best-practices-skill",
+      "skills": [
+        "playwright-best-practices"
+      ]
+    },
+    {
+      "source": "github/awesome-copilot",
+      "skills": [
+        "playwright-automation-fill-in-form"
+      ]
+    },
+    {
+      "source": "jeffallan/claude-skills",
+      "skills": [
+        "php-pro"
+      ]
+    },
+    {
+      "source": "kadajett/agent-nestjs-skills",
+      "skills": [
+        "nestjs-best-practices"
+      ]
+    },
+    {
+      "source": "kostja94/marketing-skills",
+      "skills": [
+        "copywriting"
+      ]
+    },
+    {
+      "source": "lombiq/tailwind-agent-skills",
+      "skills": [
+        "tailwind-4-docs"
+      ]
+    },
+    {
+      "source": "microsoft/azure-skills",
+      "skills": [
+        "azure-ai"
+      ]
+    },
+    {
+      "source": "obra/superpowers",
+      "skills": [
+        "brainstorming",
+        "dispatching-parallel-agents",
+        "executing-plans",
+        "finishing-a-development-branch",
+        "receiving-code-review",
+        "requesting-code-review",
+        "subagent-driven-development",
+        "systematic-debugging",
+        "test-driven-development",
+        "using-superpowers",
+        "verification-before-completion",
+        "writing-plans",
+        "writing-skills"
+      ]
+    },
+    {
+      "source": "refoundai/lenny-skills",
+      "skills": [
+        "content-marketing"
+      ]
+    },
+    {
+      "source": "supabase/agent-skills",
+      "skills": [
+        "supabase",
+        "supabase-postgres-best-practices"
+      ]
+    },
+    {
+      "source": "vercel-labs/next-skills",
+      "skills": [
+        "next-best-practices"
+      ]
+    },
+    {
+      "source": "vercel/ai",
+      "skills": [
+        "ai-sdk"
+      ]
+    }
+  ]
+}

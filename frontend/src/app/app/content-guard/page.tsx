@@ -102,11 +102,26 @@ export default function ContentGuardPage() {
       setRangeLabel(
         `Recent ${report.recentStartDate} → ${report.recentEndDate} vs baseline ${report.baselineStartDate} → ${report.baselineEndDate}`,
       );
-      await scanContentGuard(projectId, accessToken);
-      setRuns(await listContentGuardRuns(projectId, accessToken));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Content audit failed');
       setPages([]);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await scanContentGuard(projectId, accessToken);
+      setRuns(await listContentGuardRuns(projectId, accessToken));
+    } catch (err) {
+      const scanMessage = err instanceof Error ? err.message : 'Guard scan failed';
+      setError(
+        `Decay report loaded, but guard scan failed: ${scanMessage}. Runs from earlier scans are shown below.`,
+      );
+      try {
+        setRuns(await listContentGuardRuns(projectId, accessToken));
+      } catch {
+        /* keep prior runs */
+      }
     } finally {
       setLoading(false);
     }

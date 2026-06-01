@@ -20,13 +20,28 @@ public sealed class SerpController(ISerpAnalysisService serp, ICurrentUserContex
         if (string.IsNullOrWhiteSpace(keyword))
             return BadRequest("keyword is required");
 
-        var result = await serp.AnalyzeAsync(user.RequireUserId(), new DeepSerpRequest
+        try
         {
-            Keyword = keyword,
-            Location = location,
-            LanguageCode = languageCode,
-        }, ct);
+            var result = await serp.AnalyzeAsync(user.RequireUserId(), new DeepSerpRequest
+            {
+                Keyword = keyword.Trim(),
+                Location = location,
+                LanguageCode = languageCode,
+            }, ct);
 
-        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
+            if (result.IsSuccess)
+                return Ok(result.Value);
+
+            var message = result.Error ?? "SERP analysis failed";
+            var status = message.Contains("DATAFORSEO", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("DataForSEO", StringComparison.OrdinalIgnoreCase)
+                ? StatusCodes.Status502BadGateway
+                : StatusCodes.Status400BadRequest;
+            return StatusCode(status, new { error = message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new { error = "Authentication required" });
+        }
     }
 }

@@ -92,6 +92,13 @@ app.UseExceptionHandler(errApp => errApp.Run(async ctx =>
         return;
     }
 
+    if (ex is not null)
+    {
+        var logger = ctx.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("GeekSeoBackend.UnhandledException");
+        logger.LogError(ex, "Unhandled exception on {Method} {Path}", ctx.Request.Method, ctx.Request.Path);
+    }
+
     ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;
     await ctx.Response.WriteAsJsonAsync(new { error = "An unexpected error occurred. Please try again." });
 }));

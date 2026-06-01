@@ -145,25 +145,37 @@ export default function GuidedWizardPage() {
 
       {step === 1 && (
         <div className="mt-8 space-y-4">
-          <input
-            className="w-full rounded border px-3 py-2"
-            placeholder="Target keyword"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-          />
+          <label className="block text-sm font-medium text-[var(--color-text-primary)]">
+            Target keyword
+            <input
+              className="mt-1 w-full rounded border px-3 py-2"
+              placeholder="e.g. it support broward county (optional for ideas)"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+            />
+          </label>
+          <p className="text-xs text-[var(--color-text-secondary)]">
+            Find keyword ideas uses your target keyword as a seed, or your business name (
+            <span className="font-medium">{name || project?.name || 'from step 1'}</span>) if the field is empty.
+          </p>
           <button
             type="button"
-            className="text-sm text-[var(--color-text-secondary)] underline"
-            disabled={!project || !keyword.trim() || ideasLoading}
+            className="rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium hover:bg-[var(--color-surface-muted)] disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!project || ideasLoading}
             onClick={() =>
               void (async () => {
                 if (!project) return;
+                const seed = keyword.trim() || name.trim() || project.name.trim();
+                if (!seed) {
+                  setError('Enter a target keyword or go back and add a business name to use as a seed.');
+                  return;
+                }
                 setIdeasLoading(true);
                 setError(null);
                 try {
                   setIdeas(
                     await researchKeywords(
-                      { projectId: project.id, seedKeyword: keyword, location, resultCount: 15 },
+                      { projectId: project.id, seedKeyword: seed, location, resultCount: 15 },
                       accessToken,
                     ),
                   );

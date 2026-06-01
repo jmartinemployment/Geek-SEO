@@ -26,12 +26,23 @@ public sealed class TopicalMapController(
     }
 
     [HttpPost("{projectId:guid}/generate")]
-    public async Task<IActionResult> Generate(Guid projectId, [FromQuery] bool force = false, CancellationToken ct = default)
+    public async Task<IActionResult> Generate(
+        Guid projectId,
+        [FromQuery] string? seedKeyword = null,
+        [FromQuery] string? location = null,
+        [FromQuery] bool force = false,
+        CancellationToken ct = default)
     {
         try
         {
-            var result = await topicalMap.GenerateAsync(user.RequireUserId(), projectId, force, ct);
-            return Ok(result);
+            if (!string.IsNullOrWhiteSpace(seedKeyword))
+            {
+                var result = await topicalMap.GenerateSeedModeAsync(user.RequireUserId(), projectId, seedKeyword, location, ct);
+                return Ok(result);
+            }
+
+            var gscResult = await topicalMap.GenerateAsync(user.RequireUserId(), projectId, force, ct);
+            return Ok(gscResult);
         }
         catch (GoogleIntegrationException ex)
         {

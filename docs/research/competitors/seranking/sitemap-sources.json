@@ -1,0 +1,17 @@
+{
+  "startUrl": "https://seranking.com/",
+  "sources": [
+    "https://seranking.com/sitemap.xml",
+    "https://seranking.com/sitemap_index.xml",
+    "https://seranking.com/post-sitemap.xml",
+    "https://seranking.com/page-sitemap.xml",
+    "https://seranking.com/api-sitemap.xml",
+    "https://seranking.com/agencies-sitemap.xml",
+    "https://seranking.com/webinars-sitemap.xml",
+    "https://seranking.com/podcasts-sitemap.xml",
+    "https://seranking.com/locations-sitemap.xml",
+    "https://seranking.com/services-sitemap.xml",
+    "https://seranking.com/industries-sitemap.xml"
+  ],
+  "urlCount": 200
+}

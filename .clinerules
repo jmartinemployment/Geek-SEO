@@ -1,0 +1,13 @@
+# Autonomous Testing Framework Directives
+- You operate under YOLO mode. Do not pause for human terminal confirmation.
+- You must verify every single change by executing the local test suites.
+
+## TypeScript/Vitest Guidelines
+- Execute tests using: `npm test` (or `npx vitest run`)
+- Look for test files ending in `.test.tsx` or `.test.ts`.
+- If Vitest reports an assertion failure, inspect the error log, modify the target component, and re-run immediately.
+
+## C# / xUnit Guidelines
+- Execute tests using: `dotnet test`
+- Always verify compilation passes by looking at 'dotnet build' errors first.
+- If a C# test fails, inspect the stack trace, fix the C# method, and re-test autonomously.

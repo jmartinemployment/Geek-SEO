@@ -1,0 +1,211 @@
+{
+  "url": "https://seranking.com/agencies/amecreatives/",
+  "title": "Âme Creatives: Agency Info and Reviews",
+  "lang": "en",
+  "meta": {
+    "viewport": "width=device-width, initial-scale=1.0",
+    "referrer": "no-referrer-when-downgrade",
+    "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+    "description": "Find out more about Âme Creatives, including company’s services, pricing, and reviews. Make an informed decision about your possible cooperation.",
+    "og:locale": "en_US",
+    "og:type": "article",
+    "og:title": "Âme Creatives: Agency Info and Reviews",
+    "og:description": "Find out more about Âme Creatives, including company’s services, pricing, and reviews. Make an informed decision about your possible cooperation.",
+    "og:url": "https://seranking.com/agencies/amecreatives/",
+    "og:site_name": "SE Ranking",
+    "article:publisher": "https://www.facebook.com/serankingcom/",
+    "article:modified_time": "2024-11-20T13:03:24+00:00",
+    "og:image": "https://seranking.com/wp-content/uploads/sites/9/2024/09/1200х675.png",
+    "og:image:width": "1200",
+    "og:image:height": "675",
+    "og:image:type": "image/png",
+    "twitter:card": "summary_large_image",
+    "twitter:site": "@SERanking",
+    "generator": "speculation-rules 1.6.0",
+    "msapplication-TileImage": "https://seranking.com/wp-content/uploads/sites/9/2024/09/cropped-Favicon-512х512-png-1-270x270.png",
+    "og:locale:alternate": "en_GB"
+  },
+  "headings": [
+    {
+      "level": 1,
+      "text": "Âme Creatives"
+    },
+    {
+      "level": 2,
+      "text": "General info about Âme Creatives agency"
+    },
+    {
+      "level": 2,
+      "text": "More agencies in United States"
+    },
+    {
+      "level": 2,
+      "text": "An SEO Platform that maximizes ROI, not costs"
+    },
+    {
+      "level": 4,
+      "text": "Request a free demo to see our tools and integrations in action"
+    }
+  ],
+  "links": [
+    {
+      "href": "/agencies/seo-malaysia-seo-my/"
+    }
+  ],
+  "textLength": 416,
+  "textPreview": "SE Ranking Certified\nSEO Malaysia (SEO.my)\nVisit profile\nSEO.my is a Malaysia-based SEO agency specializing in data-driven strategies and performance-based SEO to help businesses achieve higher rankings, sustainable organic growth, and measurable results.\nLocation\nKuala Lumpur, Malaysia\n+7\nService\nSearch Engine Optimization (SEO), Link Building, AI SEO\n+12\nIndustry\nManufacturing, Professional Services, Dental\n+26",
+  "framework": {
+    "nextData": false,
+    "nuxt": false,
+    "reactRoot": false
+  },
+  "domOutline": {
+    "tag": "article",
+    "className": "item-agency item-agency_certified position-relative slick-slide slick-cloned",
+    "children": [
+      {
+        "tag": "a",
+        "className": "item-agency__profile-link"
+      },
+      {
+        "tag": "div",
+        "className": "item-agency__top",
+        "children": [
+          {
+            "tag": "div",
+            "className": "item-agency__top-wrapper",
+            "children": [
+              {
+                "tag": "div",
+                "className": "item-agency__top-image",
+                "children": [
+                  {
+                    "tag": "noscript",
+                    "className": ""
+                  },
+                  {
+                    "tag": "img",
+                    "className": "lazyload"
+                  }
+                ]
+              },
+              {
+                "tag": "div",
+                "className": "item-agency__top-right",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "item-agency__top-badges",
+                    "children": []
+                  },
+                  {
+                    "tag": "div",
+                    "className": "item-agency__top-title"
+                  },
+                  {
+                    "tag": "div",
+                    "className": "item-agency__top-link",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "tag": "div",
+            "className": "item-agency__top-score-wrapper hint_trigger",
+            "children": [
+              {
+                "tag": "div",
+                "className": "item-agency__top-score-number"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "tag": "div",
+        "className": "item-agency__text"
+      },
+      {
+        "tag": "div",
+        "className": "item-agency__items",
+        "children": [
+          {
+            "tag": "div",
+            "className": "item-agency__item",
+            "children": [
+              {
+                "tag": "div",
+                "className": "item-agency__item-left",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "item-agency__item-left-text"
+                  }
+                ]
+              },
+              {
+                "tag": "div",
+                "className": "item-agency__item-right-text"
+              },
+              {
+                "tag": "div",
+                "className": "item-agency__item-right-number"
+              }
+            ]
+          },
+          {
+            "tag": "div",
+            "className": "item-agency__item",
+            "children": [
+              {
+                "tag": "div",
+                "className": "item-agency__item-left",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "item-agency__item-left-text"
+                  }
+                ]
+              },
+              {
+                "tag": "div",
+                "className": "item-agency__item-right-text"
+              },
+              {
+                "tag": "div",
+                "className": "item-agency__item-right-number"
+              }
+            ]
+          },
+          {
+            "tag": "div",
+            "className": "item-agency__item",
+            "children": [
+              {
+                "tag": "div",
+                "className": "item-agency__item-left",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "item-agency__item-left-text"
+                  }
+                ]
+              },
+              {
+                "tag": "div",
+                "className": "item-agency__item-right-text"
+              },
+              {
+                "tag": "div",
+                "className": "item-agency__item-right-number"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "scrapedAt": "2026-06-01T15:24:52.705Z"
+}

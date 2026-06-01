@@ -2,6 +2,8 @@
 
 Runbook for subscription checkout, sandbox testing, and switching to **live** payments later.
 
+**Before live money:** complete P0 items in [`CODE-REVIEW.md`](./CODE-REVIEW.md) (auth header, PayPal user binding, metering). **Broader backlog:** [`ROADMAP.md`](./ROADMAP.md).
+
 **Product tiers** (Starter $29, Professional $59, Team $89, Agency $149) are labels in our app. PayPal only stores **plan IDs** (`P-...`) we create via API — not pre-made tier names in their dashboard.
 
 ---

@@ -1,0 +1,140 @@
+{
+  "url": "https://seranking.com/academy/ai-for-seo.html",
+  "title": "AI for SEO course | Learn from SEO pros who use AI daily",
+  "lang": "en",
+  "meta": {
+    "viewport": "width=device-width, initial-scale=1.0",
+    "referrer": "no-referrer-when-downgrade",
+    "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+    "description": "Join our free AI for SEO training to learn how experts use AI like ChatGPT. Learn how to scale content, automate tasks, optimize strategies, and boost results with smarter workflows. Start now!",
+    "og:locale": "en_US",
+    "og:type": "article",
+    "og:title": "AI for SEO course | Learn from SEO pros who use AI daily",
+    "og:description": "Join our free AI for SEO training to learn how experts use AI like ChatGPT. Learn how to scale content, automate tasks, optimize strategies, and boost results with smarter workflows. Start now!",
+    "og:url": "https://seranking.com/academy/ai-for-seo.html",
+    "og:site_name": "SE Ranking",
+    "article:publisher": "https://www.facebook.com/serankingcom/",
+    "article:modified_time": "2025-12-08T10:22:16+00:00",
+    "og:image": "https://seranking.com/wp-content/uploads/sites/9/2024/09/1200х675.png",
+    "og:image:width": "1200",
+    "og:image:height": "675",
+    "og:image:type": "image/png",
+    "twitter:card": "summary_large_image",
+    "twitter:site": "@SERanking",
+    "generator": "speculation-rules 1.6.0",
+    "msapplication-TileImage": "https://seranking.com/wp-content/uploads/sites/9/2024/09/cropped-Favicon-512х512-png-1-270x270.png",
+    "og:locale:alternate": "en_GB"
+  },
+  "headings": [
+    {
+      "level": 1,
+      "text": "AI for SEO: Expert Framework"
+    },
+    {
+      "level": 2,
+      "text": "Master AI-driven SEO strategies with expert-led sessions"
+    },
+    {
+      "level": 3,
+      "text": "Who will find this course useful?"
+    },
+    {
+      "level": 3,
+      "text": "How can this course help you?"
+    },
+    {
+      "level": 2,
+      "text": "This course features:"
+    },
+    {
+      "level": 2,
+      "text": "A star-studded lineup of experts"
+    },
+    {
+      "level": 3,
+      "text": "CHRIS RAULF"
+    },
+    {
+      "level": 3,
+      "text": "GRACE LEUNG"
+    },
+    {
+      "level": 3,
+      "text": "REJOICE OJIAKU"
+    },
+    {
+      "level": 3,
+      "text": "MATT BAILEY"
+    },
+    {
+      "level": 3,
+      "text": "DANI LEITNER"
+    },
+    {
+      "level": 3,
+      "text": "RYAN SHELLEY"
+    },
+    {
+      "level": 3,
+      "text": "ANASTASIA KOTSIUBYNSKA"
+    },
+    {
+      "level": 2,
+      "text": "How do I get started?"
+    },
+    {
+      "level": 2,
+      "text": "Who we are"
+    },
+    {
+      "level": 2,
+      "text": "Need further guidance?"
+    },
+    {
+      "level": 2,
+      "text": "An SEO Platform that maximizes ROI, not costs"
+    },
+    {
+      "level": 4,
+      "text": "Request a free demo to see our tools and integrations in action"
+    }
+  ],
+  "links": [
+    {
+      "href": "https://academy.seranking.com/courses/course/6594",
+      "text": "Start course"
+    }
+  ],
+  "textLength": 286,
+  "textPreview": "AI for SEO: Expert Framework\n\nDiscover how AI can supercharge your SEO strategy. Learn from industry experts how to integrate AI into content creation, link-building, competitive analysis, and workflow automation—all while staying aligned with Google’s E-E-A-T guidelines.\n\nStart course",
+  "framework": {
+    "nextData": false,
+    "nuxt": false,
+    "reactRoot": false
+  },
+  "domOutline": {
+    "tag": "main",
+    "className": "top-block__text",
+    "children": [
+      {
+        "tag": "h1",
+        "className": "top-block__title"
+      },
+      {
+        "tag": "p",
+        "className": "top-block__undertitle"
+      },
+      {
+        "tag": "div",
+        "className": "",
+        "children": [
+          {
+            "tag": "a",
+            "className": "start-course-btn top-block__btn"
+          }
+        ]
+      }
+    ]
+  },
+  "scrapedAt": "2026-06-01T15:23:42.061Z"
+}

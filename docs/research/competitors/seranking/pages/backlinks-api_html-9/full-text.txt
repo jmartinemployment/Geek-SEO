@@ -1,0 +1,251 @@
+Free June 9 event: How to win brand visibility when AI decides what gets seen →
+Solutions
+Tools
+Resources
+Pricing
+EN
+Sign in
+Talk to an expert
+Start free trial
+Backlinks API
+
+Access detailed and trustworthy backlink data that’s scalable, export-ready, and ready to use.
+
+API access is included in every SE Ranking plan
+
+Talk to an expert
+Explore documentation
+Complete backlink data and metrics from one of the industry’s largest crawlers
+Rich backlink data you can trust
+
+SE Ranking’s Backlink API pulls sources from one of the web’s most active crawlers. It uses over 15 key backlink metrics at once to help with link quality analysis, competitor strategy tracking, backlink profile building, and more.
+
+Backlink count: 
+
+ The target’s total number of backlinks
+
+Referring domains: 
+
+ Individual websites that link to your target
+
+Anchor texts: 
+
+ See the text people use to link to you
+
+Link types: 
+
+ Dofollow/nofollow, text/image links, href, redirects, etc.
+
+Authority scores: 
+
+ InLink Rank (page authority) and Domain InLink Rank (domain authority)
+
+Referring IPs and subnets: 
+
+ Network-level link diversity data linking to a target
+
+Top countries and TLDs: 
+
+ Geographic breakdown of your link profile
+
+And more!
+
+Scalable & flexible integration
+
+This Backlink API is built to handle big jobs with ease:
+
+Stream up to 100,000 backlinks per call using cursor-based pagination
+
+Export full datasets as compressed CSVs for in-depth analysis
+
+Pick the exact analysis level you need: domain, host, or URL
+
+Real-time backlink monitoring & historical data tracking
+
+Stay on top of changes with daily updates:
+
+New/lost link tracking: 
+
+ Explore the links you gained or lost on the specified date
+
+Historical trends: 
+
+ Dive deep into the history of new and lost backlinks and referring domains, including specific reasons for lost links (like page not found, link removed, redirect changes, etc.)
+
+Use filters to distill data by link status, date range, or authority scores
+
+Massive backlink coverage and freshness
+2.7T
+Backlinks indexed
+420M
+Domains indexed
+6B
+Pages crawled daily
+Want to see the Backlink API in action? Schedule a walkthrough with our expert
+Talk to an expert
+Backlink API use cases in action
+Spot backlink gaps and uncover missed opportunities
+
+Quickly compare competitors’ referring domains to see which websites link to them but not to you. Spot missed opportunities, create high-quality prospect lists in seconds, and power smarter outreach.
+
+Monitor backlinks and affiliate compliance on autopilot
+
+Oversee backlink changes daily and find issues before they impact your rankings, affiliate compliance, or revenue. Automatically flag risks like low-authority domains, shady anchors, or suspicious IPs. Get instant alerts and trigger automatic cleanup. Disavow harmful links or notify your team about policy violations.
+
+Prove your PR & SEO success with live backlink data
+
+Stop taking shots in the dark with PR and SEO campaign delivery. Pull live backlink data that matches with your campaign tags. Show execs the exact efforts that earned links, when they were earned, and the authority they brought. Get all updates in real time with fresh ROI insights that prove your budget works.
+
+Straight from happy customers of SE Ranking’s Backlink API
+Connor Wilkins
+CMO
+Company Name
+Direction.com
+Business Type
+SEO agency
+
+We use SE Ranking to build winning SEO strategies for our clients. Their suite of tools allows for robust market research, competitive analysis, and website audits—all of which serve to inform our SEO campaign roadmaps.
+
+Read more
+Ross Crawford
+Managing Director
+Company Name
+Mr Digital
+Business Type
+Digital marketing agency
+
+We use SE Ranking to overcome many SEO-related challenges, from researching keywords to conducting granular analyses of various client-related issues that ultimately help us save a significant amount of time and streamline processes.
+
+Read more
+Jairo David Guerrero Vásquez
+Founder
+Company Name
+Phanum
+Business Type
+SEO agency
+
+Because SEO is time-consuming, SE Ranking’s tools are a great help here. We use it for detailed audits, keyword research, performance monitoring, and reporting. But apart from the actual SEO workflow we do for clients, we also use SE Ranking for our sales process. It helps us build trust with current and potential customers as we can give them a comprehensive overview of the current situation and advise on the next steps.
+
+Read more
+1
+/
+3
+Explore more SE Ranking tools built for SEO pros
+Talk to an expert
+Flexible, usage-based pricing
+
+Start with a 100K credit free trial. Then only pay for what you use. No hidden fees, no extra bundles
+
+SE RANKING API
+
+From
+
+$50.00
+/250K credits
+Pay-as-you-go plan
+Talk to an expert
+For SEOs who need API access to SEO data—without the tools
+Backlinks API
+Domain Research API
+Keyword Research API
+Website Audit API
+AI Search API
+Project Management API
+Calculate your API cost
+FAQ
+Q
+What data does the Backlinks API include?
+A
+
+The Backlinks API gives you loads of useful data, including live backlinks, anchor text, dofollow/nofollow status, InLink Rank scores, link types, referring domains, IPs, subnets, TLDs, and more. Track new and lost links, check backlink history, and get deep data on each referring site’s quality and trustworthiness.
+
+Q
+Can I filter by anchor text, TLD, or link type?
+A
+
+Yes, you can filter by all of those. Use the SEO Backlink API to narrow down results by anchor text patterns, specific TLDs (like .edu or .gov), and link types (direct links vs redirects). Filter by dofollow/nofollow status, date ranges, and more, to focus on the exact data you need.
+
+Q
+Does it support historical tracking and delta views?
+A
+
+Yes, it does! The Backlinks API tracks backlink and referring domain changes over any date range and reveals what’s new or lost each day. The history endpoints show you when links appeared or disappeared, why they were lost (like page not found or link removed), and which referring domains started or stopped linking to you.
+
+Q
+Can I bulk-check multiple domains in one request?
+A
+
+Yes, you can! The Backlink API supports bulk checks. Send a list of up to 100 domains in a single request using the summary endpoint. Note that detailed endpoints like history, all, and raw backlinks only handle one domain per request.
+
+Q
+How frequently is backlink data updated?
+A
+
+SE Ranking delivers some of the freshest backlink data available, with 58% of backlinks updated every 90 days. It also detects new backlinks fast to give you the latest snapshot of your backlink profile.
+
+Q
+What is the API rate limit for the Backlinks API?
+A
+
+You’re allowed 10 requests per second per API key. Going over this triggers a “Too Many Requests” response. Pause briefly and retry to minimize hiccups. Every successful request consumes API units from your quota, so keep an eye on your balance. If you need more units, reach out to SE Ranking.
+
+Q
+Can I export complete backlink datasets without hitting rate limits?
+A
+
+Absolutely. For getting large-scale backlink datasets, use the asynchronous export endpoint. Queue your request, get a task ID back, then poll the status until it’s complete. Once ready, the export comes in a compact CSV format, perfect for large-scale SEO data analysis without hitting rate limits.
+
+Q
+Can I get the full list of backlinks and referring domains via API?
+A
+
+Yes, absolutely. This applies to any target. Use the export endpoint to download the full backlink dataset as a compressed CSV file. Or stream up to 100,000 backlinks at a time through the raw endpoint to work with smaller chunks. The same applies to referring domains. Use the refdomains and refdomains/count endpoints to get a complete list or just the totals, with full detail included.
+
+Core SEO Tools
+Rank Tracker
+Website Audit
+On-Page SEO Checker
+SERP Tracker
+Backlink Checker
+Keyword Grouper
+Keyword Tool
+Website Competitor Analysis Tool
+AI Overviews Tracker
+All features
+Performance & Reporting Tools
+Webpage Monitor
+SEO Report Generator
+SEO Dashboard
+Add-ons
+Local Marketing Software
+Content Marketing Tool
+Agency Pack
+White Label
+Additional Services
+SEO API
+Free SEO tools
+SEO Task Manager
+Support & Partnership
+Contact
+Help
+Affiliate
+Educational Partnership Program
+Company & Resources
+SEO Blog
+About
+Stand with Ukraine
+Careers
+What’s New
+Testimonials
+Webinars
+Academy
+Competitors
+Legal & Technical
+Privacy Policy
+Cookie Policy
+Legal Information
+Open Source Attributions
+Download
+EN
+English
+© 2013 - 2026 SER Acquisition Inc. All Rights Reserved

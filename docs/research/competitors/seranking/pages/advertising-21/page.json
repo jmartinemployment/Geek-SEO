@@ -1,0 +1,213 @@
+{
+  "url": "https://seranking.com/agencies/service/advertising/",
+  "title": "Top Advertising Agencies",
+  "lang": "en",
+  "meta": {
+    "viewport": "width=device-width, initial-scale=1.0",
+    "referrer": "no-referrer-when-downgrade",
+    "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+    "description": "Explore the list of top Advertising agencies. Filter, compare & choose the best fit by location, industry & our dedicated Agency Score",
+    "og:locale": "en_US",
+    "og:type": "website",
+    "og:title": "Top Advertising Agencies",
+    "og:description": "Explore the list of top Advertising agencies. Filter, compare & choose the best fit by location, industry & our dedicated Agency Score",
+    "og:url": "https://seranking.com/agencies/service/advertising/",
+    "og:site_name": "SE Ranking",
+    "og:image": "https://seranking.com/wp-content/uploads/sites/9/2024/09/1200х675.png",
+    "og:image:width": "1200",
+    "og:image:height": "675",
+    "og:image:type": "image/png",
+    "twitter:card": "summary_large_image",
+    "twitter:site": "@SERanking",
+    "generator": "speculation-rules 1.6.0",
+    "msapplication-TileImage": "https://seranking.com/wp-content/uploads/sites/9/2024/09/cropped-Favicon-512х512-png-1-270x270.png",
+    "og:locale:alternate": "en_GB"
+  },
+  "headings": [
+    {
+      "level": 1,
+      "text": "Advertising Agencies"
+    },
+    {
+      "level": 2,
+      "text": "How does SE Ranking collect and rank top Advertising agencies?"
+    },
+    {
+      "level": 2,
+      "text": "What should you look for when choosing a qualified Advertising agency?"
+    },
+    {
+      "level": 2,
+      "text": "How can you get listed as a reputable Advertising agency?"
+    },
+    {
+      "level": 2,
+      "text": "An SEO Platform that maximizes ROI, not costs"
+    },
+    {
+      "level": 4,
+      "text": "Request a free demo to see our tools and integrations in action"
+    }
+  ],
+  "links": [
+    {
+      "href": "/agencies/cis-agency/"
+    }
+  ],
+  "textLength": 430,
+  "textPreview": "SE Ranking Certified\nCIS Agency\nVisit profile\n91\nWe are a full-service digital marketing and web design firm empowering U.S. small businesses with custom Wix and branding solutions — from SEO and social media to ads, websites and graphic design.\nLocation\nGrand Rapids, MI, United States\n+1\nService\nWeb Design, Social Media Advertising, Search Engine Optimization (SEO)\n+17\nIndustry\nProfessional Services, Trades, Home Services\n+12",
+  "framework": {
+    "nextData": false,
+    "nuxt": false,
+    "reactRoot": false
+  },
+  "domOutline": {
+    "tag": "article",
+    "className": "item-agency item-agency_certified position-relative",
+    "children": [
+      {
+        "tag": "a",
+        "className": "item-agency__profile-link"
+      },
+      {
+        "tag": "div",
+        "className": "item-agency__top",
+        "children": [
+          {
+            "tag": "div",
+            "className": "item-agency__top-wrapper",
+            "children": [
+              {
+                "tag": "div",
+                "className": "item-agency__top-image",
+                "children": [
+                  {
+                    "tag": "noscript",
+                    "className": ""
+                  },
+                  {
+                    "tag": "img",
+                    "className": " ls-is-cached lazyloaded"
+                  }
+                ]
+              },
+              {
+                "tag": "div",
+                "className": "item-agency__top-right",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "item-agency__top-badges",
+                    "children": []
+                  },
+                  {
+                    "tag": "div",
+                    "className": "item-agency__top-title"
+                  },
+                  {
+                    "tag": "div",
+                    "className": "item-agency__top-link",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "tag": "div",
+            "className": "item-agency__top-score-wrapper hint_trigger",
+            "children": [
+              {
+                "tag": "div",
+                "className": "item-agency__top-score-number"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "tag": "div",
+        "className": "item-agency__text"
+      },
+      {
+        "tag": "div",
+        "className": "item-agency__items",
+        "children": [
+          {
+            "tag": "div",
+            "className": "item-agency__item",
+            "children": [
+              {
+                "tag": "div",
+                "className": "item-agency__item-left",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "item-agency__item-left-text"
+                  }
+                ]
+              },
+              {
+                "tag": "div",
+                "className": "item-agency__item-right-text"
+              },
+              {
+                "tag": "div",
+                "className": "item-agency__item-right-number"
+              }
+            ]
+          },
+          {
+            "tag": "div",
+            "className": "item-agency__item",
+            "children": [
+              {
+                "tag": "div",
+                "className": "item-agency__item-left",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "item-agency__item-left-text"
+                  }
+                ]
+              },
+              {
+                "tag": "div",
+                "className": "item-agency__item-right-text"
+              },
+              {
+                "tag": "div",
+                "className": "item-agency__item-right-number"
+              }
+            ]
+          },
+          {
+            "tag": "div",
+            "className": "item-agency__item",
+            "children": [
+              {
+                "tag": "div",
+                "className": "item-agency__item-left",
+                "children": [
+                  {
+                    "tag": "div",
+                    "className": "item-agency__item-left-text"
+                  }
+                ]
+              },
+              {
+                "tag": "div",
+                "className": "item-agency__item-right-text"
+              },
+              {
+                "tag": "div",
+                "className": "item-agency__item-right-number"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "scrapedAt": "2026-06-01T15:25:10.163Z"
+}
