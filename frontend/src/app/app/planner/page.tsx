@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/components/auth/auth-provider';
+import { useAuthReady } from '@/hooks/use-auth-ready';
 import {
   clusterKeywords,
   createContent,
@@ -17,7 +17,7 @@ import {
 type PlannerMode = 'full' | 'quick';
 
 export default function ContentPlannerPage() {
-  const { accessToken, isLoading: authLoading } = useAuth();
+  const { accessToken, authLoading, authReady } = useAuthReady();
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [projectId, setProjectId] = useState('');
   const [seed, setSeed] = useState('');
@@ -30,7 +30,7 @@ export default function ContentPlannerPage() {
   const [actionMsg, setActionMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (!authReady) return;
     void listProjects(accessToken).then((list) => {
       setProjects(list);
       if (list[0]) {
@@ -38,7 +38,7 @@ export default function ContentPlannerPage() {
         setLocation(list[0].defaultLocation || 'United States');
       }
     });
-  }, [accessToken, authLoading]);
+  }, [accessToken, authReady]);
 
   async function runPlanner(e: React.FormEvent) {
     e.preventDefault();

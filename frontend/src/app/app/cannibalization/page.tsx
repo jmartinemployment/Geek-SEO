@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/components/auth/auth-provider';
+import { useAuthReady } from '@/hooks/use-auth-ready';
 import {
   getCannibalizationReport,
   listProjects,
@@ -17,7 +17,7 @@ function severityClass(severity: string): string {
 }
 
 export default function CannibalizationPage() {
-  const { accessToken, isLoading: authLoading } = useAuth();
+  const { accessToken, authLoading, authReady } = useAuthReady();
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [projectId, setProjectId] = useState('');
   const [issues, setIssues] = useState<CannibalizationIssue[]>([]);
@@ -26,12 +26,12 @@ export default function CannibalizationPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (!authReady) return;
     void listProjects(accessToken).then((list) => {
       setProjects(list);
       if (list[0]) setProjectId(list[0].id);
     });
-  }, [accessToken, authLoading]);
+  }, [accessToken, authReady]);
 
   async function analyze() {
     if (!projectId) return;

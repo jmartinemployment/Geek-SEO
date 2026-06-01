@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/components/auth/auth-provider';
+import { useAuthReady } from '@/hooks/use-auth-ready';
 import { listProjects, researchKeywords, type KeywordResult, type SeoProject } from '@/lib/seo-api';
 
 export default function KeywordResearchPage() {
-  const { accessToken, isLoading: authLoading } = useAuth();
+  const { accessToken, authLoading, authReady } = useAuthReady();
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [projectId, setProjectId] = useState('');
   const [seed, setSeed] = useState('');
@@ -16,7 +16,7 @@ export default function KeywordResearchPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (!authReady) return;
     void (async () => {
       try {
         const list = await listProjects(accessToken);
@@ -26,7 +26,7 @@ export default function KeywordResearchPage() {
         setError(e instanceof Error ? e.message : 'Failed to load projects');
       }
     })();
-  }, [accessToken, authLoading]);
+  }, [accessToken, authReady]);
 
   async function onResearch(e: React.FormEvent) {
     e.preventDefault();

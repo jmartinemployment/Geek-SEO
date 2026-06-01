@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/components/auth/auth-provider';
+import { useAuthReady } from '@/hooks/use-auth-ready';
 import {
   getJobStatus,
   listProjects,
@@ -12,7 +12,7 @@ import {
 } from '@/lib/seo-api';
 
 export default function BulkArticlesPage() {
-  const { accessToken, isLoading: authLoading } = useAuth();
+  const { accessToken, authLoading, authReady } = useAuthReady();
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [projectId, setProjectId] = useState('');
   const [keywordsText, setKeywordsText] = useState('');
@@ -22,7 +22,7 @@ export default function BulkArticlesPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (!authReady) return;
     void listProjects(accessToken).then((list) => {
       setProjects(list);
       if (list[0]) {
@@ -30,10 +30,10 @@ export default function BulkArticlesPage() {
         setLocation(list[0].defaultLocation || 'United States');
       }
     });
-  }, [accessToken, authLoading]);
+  }, [accessToken, authReady]);
 
   useEffect(() => {
-    if (authLoading || !job || job.status === 'completed' || job.status === 'failed') return;
+    if (!authReady || !job || job.status === 'completed' || job.status === 'failed') return;
 
     const timer = setInterval(() => {
       void getJobStatus(job.jobId, accessToken)
@@ -42,7 +42,7 @@ export default function BulkArticlesPage() {
     }, 4000);
 
     return () => clearInterval(timer);
-  }, [job, accessToken, authLoading]);
+  }, [job, accessToken, authReady]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

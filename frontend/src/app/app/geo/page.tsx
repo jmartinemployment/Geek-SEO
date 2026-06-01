@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/components/auth/auth-provider';
+import { useAuthReady } from '@/hooks/use-auth-ready';
 import {
   createGeoQuery,
   deleteGeoQuery,
@@ -19,7 +19,7 @@ import {
 } from '@/lib/seo-api';
 
 export default function GeoPage() {
-  const { accessToken, isLoading: authLoading } = useAuth();
+  const { accessToken, authLoading, authReady } = useAuthReady();
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [projectId, setProjectId] = useState('');
   const [query, setQuery] = useState('');
@@ -32,7 +32,7 @@ export default function GeoPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (!authReady) return;
     void listProjects(accessToken).then((list) => {
       setProjects(list);
       if (list[0]) setProjectId(list[0].id);
@@ -40,27 +40,27 @@ export default function GeoPage() {
     void getGeoPlatforms(accessToken)
       .then((res) => setPlatforms(res.platforms))
       .catch(() => undefined);
-  }, [accessToken, authLoading]);
+  }, [accessToken, authReady]);
 
   useEffect(() => {
-    if (authLoading || !projectId) return;
+    if (!authReady || !projectId) return;
     void listGeoQueries(projectId, accessToken)
       .then((queries) => {
         setTrackedQueries(queries);
         if (queries[0]) setSelectedQueryId(queries[0].id);
       })
       .catch(() => setTrackedQueries([]));
-  }, [projectId, accessToken, authLoading]);
+  }, [projectId, accessToken, authReady]);
 
   useEffect(() => {
-    if (authLoading || !selectedQueryId) {
+    if (!authReady || !selectedQueryId) {
       setTrends(null);
       return;
     }
     void getGeoTrends(selectedQueryId, accessToken)
       .then(setTrends)
       .catch(() => setTrends(null));
-  }, [selectedQueryId, accessToken, authLoading]);
+  }, [selectedQueryId, accessToken, authReady]);
 
   async function onProbe(e: React.FormEvent) {
     e.preventDefault();

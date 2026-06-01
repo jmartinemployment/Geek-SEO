@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/components/auth/auth-provider';
+import { useAuthReady } from '@/hooks/use-auth-ready';
 import {
   approveContentGuardRun,
   getContentGuardPolicy,
@@ -43,7 +43,7 @@ function Sparkline({ points }: { points: PerformanceSnapshotPoint[] }) {
 }
 
 export default function ContentGuardPage() {
-  const { accessToken, isLoading: authLoading } = useAuth();
+  const { accessToken, authLoading, authReady } = useAuthReady();
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [projectId, setProjectId] = useState('');
   const [pages, setPages] = useState<PublishedPageMetrics[]>([]);
@@ -58,15 +58,15 @@ export default function ContentGuardPage() {
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (!authReady) return;
     void listProjects(accessToken).then((list) => {
       setProjects(list);
       if (list[0]) setProjectId(list[0].id);
     });
-  }, [accessToken, authLoading]);
+  }, [accessToken, authReady]);
 
   useEffect(() => {
-    if (authLoading || !projectId) return;
+    if (!authReady || !projectId) return;
     void getContentGuardPolicy(projectId, accessToken)
       .then((policy) => {
         setEnabled(policy?.enabled ?? false);
@@ -76,7 +76,7 @@ export default function ContentGuardPage() {
     void listContentGuardRuns(projectId, accessToken)
       .then(setRuns)
       .catch(() => setRuns([]));
-  }, [projectId, accessToken, authLoading]);
+  }, [projectId, accessToken, authReady]);
 
   async function savePolicy() {
     if (!projectId) return;

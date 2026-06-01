@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/components/auth/auth-provider';
+import { useAuthReady } from '@/hooks/use-auth-ready';
 import {
   createContent,
   generateTopicalMap,
@@ -17,7 +17,7 @@ function coverageStyle(coverage: TopicalMapTopic['coverage']): string {
 }
 
 export default function TopicalMapPage() {
-  const { accessToken, isLoading: authLoading } = useAuth();
+  const { accessToken, authLoading, authReady } = useAuthReady();
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [projectId, setProjectId] = useState('');
   const [topics, setTopics] = useState<TopicalMapTopic[]>([]);
@@ -27,12 +27,12 @@ export default function TopicalMapPage() {
   const [creatingId, setCreatingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (!authReady) return;
     void listProjects(accessToken).then((list) => {
       setProjects(list);
       if (list[0]) setProjectId(list[0].id);
     });
-  }, [accessToken, authLoading]);
+  }, [accessToken, authReady]);
 
   async function generate() {
     if (!projectId) return;

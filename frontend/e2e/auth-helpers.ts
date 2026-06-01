@@ -86,7 +86,9 @@ export async function loginViaGeekOAuth(
         response.request().method() === 'POST' && response.url().includes('/Account/Login'),
       { timeout: 30_000 },
     ),
-    page.locator('form').first().evaluate((form) => form.requestSubmit()),
+    page.locator('form').first().evaluate((form) => {
+      if (form instanceof HTMLFormElement) form.requestSubmit();
+    }),
   ]);
 
   if (loginResponse.status() >= 400) {

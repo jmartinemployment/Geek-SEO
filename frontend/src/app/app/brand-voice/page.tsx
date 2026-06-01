@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useAuth } from '@/components/auth/auth-provider';
+import { useAuthReady } from '@/hooks/use-auth-ready';
 import {
   createBrandVoice,
   deleteBrandVoice,
@@ -10,7 +10,7 @@ import {
 } from '@/lib/seo-api';
 
 export default function BrandVoicePage() {
-  const { accessToken, isLoading: authLoading } = useAuth();
+  const { accessToken, authLoading, authReady } = useAuthReady();
   const [voices, setVoices] = useState<BrandVoice[]>([]);
   const [name, setName] = useState('');
   const [sample, setSample] = useState('');
@@ -23,12 +23,12 @@ export default function BrandVoicePage() {
   }, [accessToken]);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (!authReady) return;
     const timer = setTimeout(() => {
       void refresh().catch((e) => setError(e instanceof Error ? e.message : 'Load failed'));
     }, 0);
     return () => clearTimeout(timer);
-  }, [authLoading, refresh]);
+  }, [authReady, refresh]);
 
   if (authLoading) return <main className="p-8">Loading…</main>;
 
