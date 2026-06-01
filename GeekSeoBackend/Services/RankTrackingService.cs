@@ -126,14 +126,14 @@ public class RankTrackingService
         {
             var projectResult = await _projects.GetByIdAsync(projectId, _userContext.UserId, ct);
             if (!projectResult.IsSuccess)
-                return Result.Failure(projectResult.Error);
+                return Result.Failure(projectResult.Error ?? "Failed to get project");
 
             var project = projectResult.Value!;
             var domain = ExtractDomain(project.Url);
 
             var keywordsResult = await _repository.GetKeywordsAsync(projectId, ct);
             if (!keywordsResult.IsSuccess)
-                return Result.Failure(keywordsResult.Error);
+                return Result.Failure(keywordsResult.Error ?? "Failed to get tracked keywords");
 
             var keywords = keywordsResult.Value!
                 .Where(k => k.Enabled)

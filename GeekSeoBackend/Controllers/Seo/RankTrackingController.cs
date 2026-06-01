@@ -8,8 +8,7 @@ namespace GeekSeoBackend.Controllers.Seo;
 [ApiController]
 [Route("api/seo/rank-tracker")]
 public sealed class RankTrackingController(
-    RankTrackingService rankTracking,
-    ICurrentUserContext user) : ControllerBase
+    RankTrackingService rankTracking) : ControllerBase
 {
     [HttpGet("{projectId:guid}")]
     public async Task<IActionResult> GetKeywords(
