@@ -1,6 +1,5 @@
 import { Suspense } from 'react';
 import { HomeHero } from '@/components/marketing/home-hero';
-import { MarketingShell } from '@/components/layout/marketing-shell';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function HomeHeroFallback() {
@@ -15,10 +14,8 @@ function HomeHeroFallback() {
 
 export default function Home() {
   return (
-    <MarketingShell>
-      <Suspense fallback={<HomeHeroFallback />}>
-        <HomeHero />
-      </Suspense>
-    </MarketingShell>
+    <Suspense fallback={<HomeHeroFallback />}>
+      <HomeHero />
+    </Suspense>
   );
 }
