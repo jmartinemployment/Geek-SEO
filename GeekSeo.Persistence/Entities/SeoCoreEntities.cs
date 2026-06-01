@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace GeekSeo.Persistence.Entities;
 
 public sealed class SeoProject
@@ -142,6 +144,7 @@ public sealed class SeoSiteAuditPage
     public string IssuesJson { get; set; } = "[]";
     public DateTimeOffset CrawledAt { get; set; }
 
+    [JsonIgnore]
     public SeoSiteAudit? SiteAudit { get; set; }
 }
 
