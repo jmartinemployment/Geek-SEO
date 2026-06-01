@@ -76,14 +76,40 @@ async function loginViaGeekOAuth(page) {
   if (/TwoFactor/i.test(page.url())) {
     throw new Error('Test account has 2FA — use a GeekOAuth user without 2FA.');
   }
-  await page.getByRole('heading', { name: /sign in/i }).waitFor({ state: 'visible', timeout: 20_000 });
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await page.waitForURL(/\/auth\/callback|\/app\/|connect\/authorize/i, { timeout: 60_000 });
-  if (page.url().includes('/auth/callback')) {
-    await page.waitForURL(/\/app\//, { timeout: 60_000 });
+
+  await Promise.all([
+    page.waitForURL(/\/auth\/callback|\/app\/|connect\/authorize/i, {
+      timeout: 60_000,
+      waitUntil: 'domcontentloaded',
+    }),
+    page.getByRole('button', { name: 'Sign in' }).click(),
+  ]);
+
+  if (/connect\/authorize/i.test(page.url())) {
+    const consent = page.getByRole('button', { name: /^(allow|authorize|accept)$/i });
+    if (await consent.isVisible().catch(() => false)) {
+      await consent.click();
+      await page.waitForURL(/\/auth\/callback|\/app\//, {
+        timeout: 60_000,
+        waitUntil: 'domcontentloaded',
+      });
+    }
   }
+
+  if (page.url().includes('/auth/callback')) {
+    await page.waitForURL(/\/app\//, { timeout: 60_000, waitUntil: 'domcontentloaded' });
+  }
+
+  if (/auth\.geekatyourspot\.com/i.test(page.url())) {
+    await page.screenshot({ path: path.join(SHOT_DIR, 'login-failed.png'), fullPage: true });
+    throw new Error(
+      'OAuth login did not complete — verify PLAYWRIGHT_TEST_EMAIL/PASSWORD in .env.playwright.local (no 2FA). '
+        + `Screenshot: ${path.join(SHOT_DIR, 'login-failed.png')}`,
+    );
+  }
+
   await page.getByRole('heading', { name: 'Projects' }).waitFor({ state: 'visible', timeout: 30_000 });
   await page.waitForTimeout(500);
 }

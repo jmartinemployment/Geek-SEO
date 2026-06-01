@@ -50,15 +50,42 @@ export async function loginViaGeekOAuth(
 
   await page.getByLabel('Email').fill(credentials.email);
   await page.getByLabel('Password').fill(credentials.password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
 
-  await page.waitForURL(
-    /\/auth\/callback|\/app\/|connect\/authorize/i,
-    { timeout: 30_000 },
-  );
+  await Promise.all([
+    page.waitForURL(/\/auth\/callback|\/app\/|connect\/authorize/i, {
+      timeout: 60_000,
+      waitUntil: 'domcontentloaded',
+    }),
+    page.getByRole('button', { name: 'Sign in' }).click(),
+  ]);
+
+  if (/connect\/authorize/i.test(page.url())) {
+    const consent = page.getByRole('button', { name: /^(allow|authorize|accept)$/i });
+    if (await consent.isVisible().catch(() => false)) {
+      await consent.click();
+      await page.waitForURL(/\/auth\/callback|\/app\//, {
+        timeout: 60_000,
+        waitUntil: 'domcontentloaded',
+      });
+    }
+  }
 
   if (page.url().includes('/auth/callback')) {
-    await page.waitForURL(/\/app\//, { timeout: 30_000 });
+    await page.waitForURL(/\/app\//, {
+      timeout: 60_000,
+      waitUntil: 'domcontentloaded',
+    });
+  }
+
+  if (/auth\.geekatyourspot\.com/i.test(page.url())) {
+    const body = await page.locator('body').innerText();
+    if (/invalid|incorrect password|login failed/i.test(body)) {
+      throw new Error('GeekOAuth rejected PLAYWRIGHT_TEST_EMAIL/PASSWORD — update frontend/.env.playwright.local.');
+    }
+    throw new Error(
+      'OAuth login did not complete (still on auth.geekatyourspot.com). '
+        + 'Use a test account without 2FA and verify credentials in frontend/.env.playwright.local.',
+    );
   }
 
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible({
