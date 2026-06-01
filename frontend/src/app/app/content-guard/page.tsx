@@ -58,14 +58,15 @@ export default function ContentGuardPage() {
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
+    if (authLoading) return;
     void listProjects(accessToken).then((list) => {
       setProjects(list);
       if (list[0]) setProjectId(list[0].id);
     });
-  }, [accessToken]);
+  }, [accessToken, authLoading]);
 
   useEffect(() => {
-    if (!projectId) return;
+    if (authLoading || !projectId) return;
     void getContentGuardPolicy(projectId, accessToken)
       .then((policy) => {
         setEnabled(policy?.enabled ?? false);
@@ -75,7 +76,7 @@ export default function ContentGuardPage() {
     void listContentGuardRuns(projectId, accessToken)
       .then(setRuns)
       .catch(() => setRuns([]));
-  }, [projectId, accessToken]);
+  }, [projectId, accessToken, authLoading]);
 
   async function savePolicy() {
     if (!projectId) return;

@@ -16,6 +16,7 @@ export default function KeywordResearchPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     void (async () => {
       try {
         const list = await listProjects(accessToken);
@@ -25,7 +26,7 @@ export default function KeywordResearchPage() {
         setError(e instanceof Error ? e.message : 'Failed to load projects');
       }
     })();
-  }, [accessToken]);
+  }, [accessToken, authLoading]);
 
   async function onResearch(e: React.FormEvent) {
     e.preventDefault();

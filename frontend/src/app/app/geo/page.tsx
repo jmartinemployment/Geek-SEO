@@ -32,6 +32,7 @@ export default function GeoPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     void listProjects(accessToken).then((list) => {
       setProjects(list);
       if (list[0]) setProjectId(list[0].id);
@@ -39,27 +40,27 @@ export default function GeoPage() {
     void getGeoPlatforms(accessToken)
       .then((res) => setPlatforms(res.platforms))
       .catch(() => undefined);
-  }, [accessToken]);
+  }, [accessToken, authLoading]);
 
   useEffect(() => {
-    if (!projectId) return;
+    if (authLoading || !projectId) return;
     void listGeoQueries(projectId, accessToken)
       .then((queries) => {
         setTrackedQueries(queries);
         if (queries[0]) setSelectedQueryId(queries[0].id);
       })
       .catch(() => setTrackedQueries([]));
-  }, [projectId, accessToken]);
+  }, [projectId, accessToken, authLoading]);
 
   useEffect(() => {
-    if (!selectedQueryId) {
+    if (authLoading || !selectedQueryId) {
       setTrends(null);
       return;
     }
     void getGeoTrends(selectedQueryId, accessToken)
       .then(setTrends)
       .catch(() => setTrends(null));
-  }, [selectedQueryId, accessToken]);
+  }, [selectedQueryId, accessToken, authLoading]);
 
   async function onProbe(e: React.FormEvent) {
     e.preventDefault();

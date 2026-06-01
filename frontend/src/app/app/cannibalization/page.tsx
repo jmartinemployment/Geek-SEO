@@ -26,11 +26,12 @@ export default function CannibalizationPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     void listProjects(accessToken).then((list) => {
       setProjects(list);
       if (list[0]) setProjectId(list[0].id);
     });
-  }, [accessToken]);
+  }, [accessToken, authLoading]);
 
   async function analyze() {
     if (!projectId) return;

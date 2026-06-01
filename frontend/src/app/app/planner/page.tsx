@@ -30,6 +30,7 @@ export default function ContentPlannerPage() {
   const [actionMsg, setActionMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     void listProjects(accessToken).then((list) => {
       setProjects(list);
       if (list[0]) {
@@ -37,7 +38,7 @@ export default function ContentPlannerPage() {
         setLocation(list[0].defaultLocation || 'United States');
       }
     });
-  }, [accessToken]);
+  }, [accessToken, authLoading]);
 
   async function runPlanner(e: React.FormEvent) {
     e.preventDefault();

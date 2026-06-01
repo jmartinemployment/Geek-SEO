@@ -23,11 +23,12 @@ export default function BrandVoicePage() {
   }, [accessToken]);
 
   useEffect(() => {
+    if (authLoading) return;
     const timer = setTimeout(() => {
       void refresh().catch((e) => setError(e instanceof Error ? e.message : 'Load failed'));
     }, 0);
     return () => clearTimeout(timer);
-  }, [refresh]);
+  }, [authLoading, refresh]);
 
   if (authLoading) return <main className="p-8">Loading…</main>;
 

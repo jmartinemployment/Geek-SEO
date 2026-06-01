@@ -22,6 +22,7 @@ export default function BulkArticlesPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     void listProjects(accessToken).then((list) => {
       setProjects(list);
       if (list[0]) {
@@ -29,10 +30,10 @@ export default function BulkArticlesPage() {
         setLocation(list[0].defaultLocation || 'United States');
       }
     });
-  }, [accessToken]);
+  }, [accessToken, authLoading]);
 
   useEffect(() => {
-    if (!job || job.status === 'completed' || job.status === 'failed') return;
+    if (authLoading || !job || job.status === 'completed' || job.status === 'failed') return;
 
     const timer = setInterval(() => {
       void getJobStatus(job.jobId, accessToken)
@@ -41,7 +42,7 @@ export default function BulkArticlesPage() {
     }, 4000);
 
     return () => clearInterval(timer);
-  }, [job, accessToken]);
+  }, [job, accessToken, authLoading]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

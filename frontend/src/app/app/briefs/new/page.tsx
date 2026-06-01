@@ -16,11 +16,12 @@ export default function NewBriefPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     void listProjects(accessToken).then((list) => {
       setProjects(list);
       if (list[0]) setProjectId(list[0].id);
     });
-  }, [accessToken]);
+  }, [accessToken, authLoading]);
 
   if (authLoading) return <main className="p-8">Loading…</main>;
 
