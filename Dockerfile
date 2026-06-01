@@ -15,10 +15,12 @@ RUN dotnet publish GeekSeoBackend.csproj \
     --self-contained true \
     -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/runtime-deps:10.0-noble
+# Playwright browsers + OS deps required for site audit crawls (Chromium).
+FROM mcr.microsoft.com/playwright/dotnet:v1.51.0-noble
 WORKDIR /app
 COPY --from=build /app/publish .
 RUN chmod +x ./GeekSeoBackend
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 ENV PORT=5051
 ENV ASPNETCORE_URLS=http://0.0.0.0:5051
 EXPOSE 5051

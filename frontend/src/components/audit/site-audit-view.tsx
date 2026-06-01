@@ -122,12 +122,6 @@ export function SiteAuditView({ initialProjectId }: SiteAuditViewProps) {
         content, and structured data.
       </p>
 
-      {error ? (
-        <div className="mt-6">
-          <SeoErrorBanner error={error} />
-        </div>
-      ) : null}
-
       <div className="mt-8 flex flex-wrap items-end gap-4">
         <label className="block text-sm">
           <span className="font-medium text-[var(--color-text-primary)]">Project</span>
@@ -157,6 +151,12 @@ export function SiteAuditView({ initialProjectId }: SiteAuditViewProps) {
           </p>
         ) : null}
       </div>
+
+      {error ? (
+        <div className="mt-4">
+          <SeoErrorBanner error={error} />
+        </div>
+      ) : null}
 
       {loading ? (
         <p className="mt-10 text-sm text-[var(--color-text-secondary)]">Loading audits…</p>
@@ -195,7 +195,13 @@ export function SiteAuditView({ initialProjectId }: SiteAuditViewProps) {
 
           <section>
             {!selected ? (
-              <p className="text-sm text-[var(--color-text-secondary)]">Run an audit to see results.</p>
+              <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-slate-50/80 px-6 py-10 text-center">
+                <p className="text-sm font-medium text-[var(--color-text-primary)]">No audit results yet</p>
+                <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+                  Choose a project and click <span className="font-medium">Run site audit</span> to crawl your site.
+                  The crawl may take a few minutes for larger sites.
+                </p>
+              </div>
             ) : (
               <>
                 <div className="flex flex-wrap items-center gap-4">
