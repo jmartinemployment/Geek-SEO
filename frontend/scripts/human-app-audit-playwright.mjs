@@ -76,14 +76,16 @@ async function loginViaGeekOAuth(page) {
   if (/TwoFactor/i.test(page.url())) {
     throw new Error('Test account has 2FA — use a GeekOAuth user without 2FA.');
   }
+  await page.getByRole('heading', { name: /sign in/i }).waitFor({ state: 'visible', timeout: 20_000 });
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await page.waitForURL(/\/auth\/callback|\/app\//, { timeout: 45_000 });
+  await page.waitForURL(/\/auth\/callback|\/app\/|connect\/authorize/i, { timeout: 60_000 });
   if (page.url().includes('/auth/callback')) {
-    await page.waitForURL(/\/app\//, { timeout: 45_000 });
+    await page.waitForURL(/\/app\//, { timeout: 60_000 });
   }
-  await page.waitForTimeout(1500);
+  await page.getByRole('heading', { name: 'Projects' }).waitFor({ state: 'visible', timeout: 30_000 });
+  await page.waitForTimeout(500);
 }
 
 async function auditPage(page, { name, path: pagePath, heading }) {

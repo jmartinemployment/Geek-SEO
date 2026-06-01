@@ -1,9 +1,19 @@
+using GeekSeo.Application.Interfaces;
+
 namespace GeekSeoBackend.Auth;
 
 /// <summary>
-/// User id for background workers (no HTTP request). Set per job iteration before scoped services run.
+/// User id for background workers (no HTTP request). Uses AsyncLocal so concurrent jobs do not clobber each other.
 /// </summary>
-public sealed class WorkerUserContext
+public sealed class WorkerUserContext : IBackgroundUserContext
 {
-    public Guid UserId { get; set; }
+    private readonly AsyncLocal<Guid> _userId = new();
+
+    public Guid UserId
+    {
+        get => _userId.Value;
+        set => _userId.Value = value;
+    }
+
+    public void SetUserId(Guid userId) => UserId = userId;
 }

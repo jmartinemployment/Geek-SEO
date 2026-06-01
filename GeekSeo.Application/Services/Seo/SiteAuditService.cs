@@ -1,5 +1,6 @@
 using System.Text.Json;
 using GeekSeo.Application.Constants.Seo;
+using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
@@ -16,6 +17,7 @@ public sealed class SiteAuditService(
     ISubscriptionService subscription,
     IUsageMeteringService metering,
     IServiceScopeFactory scopeFactory,
+    IBackgroundUserContext backgroundUser,
     ILogger<SiteAuditService> logger) : ISiteAuditService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -119,6 +121,8 @@ public sealed class SiteAuditService(
         string siteUrl,
         CancellationToken ct)
     {
+        backgroundUser.SetUserId(userId);
+
         using var scope = scopeFactory.CreateScope();
         var scopedAudits = scope.ServiceProvider.GetRequiredService<ISiteAuditRepository>();
         var scopedCrawler = scope.ServiceProvider.GetRequiredService<ICrawlerProvider>();
@@ -143,14 +147,16 @@ public sealed class SiteAuditService(
 
             if (pageInputs.Count > 0)
             {
-                await scopedAudits.AppendPagesAsync(auditId, new AppendSiteAuditPagesRequest(pageInputs), ct);
+                var appended = await scopedAudits.AppendPagesAsync(auditId, new AppendSiteAuditPagesRequest(pageInputs), ct);
+                if (!appended.IsSuccess)
+                    logger.LogWarning("Site audit {AuditId} append pages failed: {Error}", auditId, appended.Error);
             }
 
             var overall = scores.Count > 0 ? (decimal)Math.Round(scores.Average(), 1) : 0;
             var status = pageInputs.Count > 0 ? "completed" : "failed";
             var error = pageInputs.Count > 0 ? null : "No pages could be crawled. Check the site URL and robots.txt.";
 
-            await scopedAudits.UpdateStatusAsync(
+            var updated = await scopedAudits.UpdateStatusAsync(
                 auditId,
                 new UpdateSiteAuditStatusRequest(
                     status,
@@ -159,11 +165,13 @@ public sealed class SiteAuditService(
                     error,
                     DateTimeOffset.UtcNow),
                 ct);
+            if (!updated.IsSuccess)
+                logger.LogError("Site audit {AuditId} could not update status to {Status}: {Error}", auditId, status, updated.Error);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Site audit {AuditId} failed for project {ProjectId}", auditId, projectId);
-            await scopedAudits.UpdateStatusAsync(
+            var updated = await scopedAudits.UpdateStatusAsync(
                 auditId,
                 new UpdateSiteAuditStatusRequest(
                     "failed",
@@ -172,6 +180,8 @@ public sealed class SiteAuditService(
                     ex.Message,
                     DateTimeOffset.UtcNow),
                 ct);
+            if (!updated.IsSuccess)
+                logger.LogError("Site audit {AuditId} could not mark failed: {Error}", auditId, updated.Error);
         }
     }
 

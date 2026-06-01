@@ -1,4 +1,5 @@
 using System.Text;
+using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Services.Seo;
 using GeekSeoBackend.Auth;
@@ -21,6 +22,7 @@ public static class SeoBackendExtensions
     {
         services.AddHttpContextAccessor();
         services.AddSingleton<WorkerUserContext>();
+        services.AddSingleton<IBackgroundUserContext>(sp => sp.GetRequiredService<WorkerUserContext>());
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();
 
         // Persistence via GeekAPI → GeekRepository (dumb data pipe)
