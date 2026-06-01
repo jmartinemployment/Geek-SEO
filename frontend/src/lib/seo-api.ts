@@ -18,6 +18,10 @@ export function apiHeaders(accessToken?: string | null): HeadersInit {
   return buildApiHeaders(accessToken, process.env.NEXT_PUBLIC_DEV_USER_ID);
 }
 
+function hasAuthContext(accessToken?: string | null): boolean {
+  return Boolean(accessToken) || Boolean(process.env.NEXT_PUBLIC_DEV_USER_ID);
+}
+
 export type SeoProject = {
   id: string;
   name: string;
@@ -41,6 +45,7 @@ export type SeoContentDocument = {
 };
 
 export async function listProjects(accessToken?: string | null): Promise<SeoProject[]> {
+  if (!hasAuthContext(accessToken)) return [];
   const res = await fetch(`${API_URL}/api/seo/projects`, {
     headers: apiHeaders(accessToken),
     cache: 'no-store',
@@ -429,6 +434,7 @@ export type BrandVoice = {
 };
 
 export async function listBrandVoices(accessToken?: string | null): Promise<BrandVoice[]> {
+  if (!hasAuthContext(accessToken)) return [];
   const res = await fetch(`${API_URL}/api/seo/brand-voices`, {
     headers: apiHeaders(accessToken),
     cache: 'no-store',
@@ -1051,6 +1057,7 @@ export type GeoProbeResult = {
 export async function getGeoPlatforms(
   accessToken?: string | null,
 ): Promise<{ platforms: GeoPlatformStatus[] }> {
+  if (!hasAuthContext(accessToken)) return { platforms: [] };
   const res = await fetch(`${API_URL}/api/seo/geo/platforms`, {
     headers: apiHeaders(accessToken),
     cache: 'no-store',

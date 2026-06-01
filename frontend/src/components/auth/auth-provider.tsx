@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { usePathname } from 'next/navigation';
 import {
   computeRefreshDelayMs,
   isAuthenticated,
@@ -30,8 +31,10 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const DEV_USER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [accessToken, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const needsBootstrap = shouldBootstrapSession(pathname, DEV_USER_ID);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshAccessTokenRef = useRef<() => Promise<string | null>>(async () => null);
 
@@ -105,8 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void (async () => {
-      const path = globalThis.location?.pathname ?? '';
-      if (shouldBootstrapSession(path, DEV_USER_ID)) {
+      if (needsBootstrap) {
         await refreshAccessToken();
       }
       setIsLoading(false);
@@ -114,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
     };
-  }, [refreshAccessToken]);
+  }, [needsBootstrap, refreshAccessToken]);
 
   const value = useMemo(
     () => ({
@@ -127,6 +129,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }),
     [accessToken, isLoading, setAccessToken, refreshAccessToken, logout],
   );
+
+  if (isLoading && needsBootstrap) {
+    return (
+      <AuthContext.Provider value={value}>
+        <div className="flex min-h-screen items-center justify-center bg-[var(--color-bg)]">
+          <p className="text-sm text-[var(--color-text-secondary)]">Loading…</p>
+        </div>
+      </AuthContext.Provider>
+    );
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

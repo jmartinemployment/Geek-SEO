@@ -80,12 +80,27 @@ async function login(page) {
   });
 }
 
+/** Wait for session refresh after a full navigation before counting API failures. */
+async function waitForAppAuth(page) {
+  await page
+    .waitForResponse(
+      (response) =>
+        response.url().includes('/api/auth/token') &&
+        response.request().method() === 'POST' &&
+        response.status() === 200,
+      { timeout: 20_000 },
+    )
+    .catch(() => undefined);
+  await page.waitForTimeout(300);
+}
+
 async function auditPage(page, { name, path: pagePath, heading }) {
   const issues = [];
   const apiBefore = seoFailures.length;
 
   await page.goto(`${BASE}${pagePath}`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await page.waitForTimeout(3500);
+  await waitForAppAuth(page);
+  await page.waitForTimeout(2000);
 
   const finalUrl = page.url();
   if (!finalUrl.includes(pagePath.split('?')[0]) && finalUrl.includes('/auth/login')) {
@@ -151,7 +166,8 @@ async function main() {
 
     console.log('▶ Interactive — Topical Map generate');
     await page.goto(`${BASE}/app/strategy/topical-map`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2000);
+    await waitForAppAuth(page);
+    await page.waitForTimeout(1500);
     const genBtn = page.getByRole('button', { name: /generate|regenerate/i }).first();
     if (await genBtn.isVisible().catch(() => false)) {
       await genBtn.click();
@@ -161,7 +177,8 @@ async function main() {
 
     console.log('▶ Interactive — Site audit run');
     await page.goto(`${BASE}/app/audit`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2000);
+    await waitForAppAuth(page);
+    await page.waitForTimeout(1500);
     const runBtn = page.getByRole('button', { name: /run site audit/i });
     if (await runBtn.isEnabled().catch(() => false)) {
       await runBtn.click();
