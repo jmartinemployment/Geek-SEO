@@ -78,7 +78,41 @@ public sealed class GoogleDataService(
     {
         var (from, to) = NormalizeRange(startDate, endDate);
         var (token, propertyId) = await oauth.GetGa4AccessTokenAsync(userId, projectId, ct);
-        var rows = await QueryGa4LandingPagesAsync(token, propertyId, from, to, Math.Clamp(limit ?? 100, 1, 500), ct);
+        propertyId = Ga4PropertyMatcher.NormalizePropertyId(propertyId);
+        IReadOnlyList<Ga4LandingPageRow> rows;
+        try
+        {
+            rows = await QueryGa4LandingPagesAsync(
+                token,
+                propertyId,
+                from,
+                to,
+                Math.Clamp(limit ?? 100, 1, 500),
+                ct);
+        }
+        catch (GoogleIntegrationException ex) when (ex.Message.Contains("(403)", StringComparison.Ordinal))
+        {
+            var syncedPropertyId = await oauth.SyncGa4PropertyAsync(userId, projectId, ct);
+            if (string.IsNullOrWhiteSpace(syncedPropertyId)
+                || string.Equals(
+                    Ga4PropertyMatcher.NormalizePropertyId(syncedPropertyId),
+                    propertyId,
+                    StringComparison.Ordinal))
+            {
+                throw;
+            }
+
+            propertyId = Ga4PropertyMatcher.NormalizePropertyId(syncedPropertyId);
+            (token, propertyId) = await oauth.GetGa4AccessTokenAsync(userId, projectId, ct);
+            propertyId = Ga4PropertyMatcher.NormalizePropertyId(propertyId);
+            rows = await QueryGa4LandingPagesAsync(
+                token,
+                propertyId,
+                from,
+                to,
+                Math.Clamp(limit ?? 100, 1, 500),
+                ct);
+        }
 
         return new Ga4LandingPagesResponse
         {
@@ -119,24 +153,6 @@ public sealed class GoogleDataService(
         var raw = await response.Content.ReadAsStringAsync(ct);
         if (!response.IsSuccessStatusCode)
         {
-            // #region agent log
-            WriteDebugLog(new
-            {
-                sessionId = "c1ee28",
-                runId = "gsc-403",
-                hypothesisId = "H1-site-url-format",
-                location = "GoogleDataService.cs:QueryGscRowsAsync",
-                message = "GSC searchAnalytics non-success",
-                data = new
-                {
-                    siteUrl,
-                    statusCode = (int)response.StatusCode,
-                    endpoint,
-                    rawPreview = raw.Length > 240 ? raw[..240] : raw,
-                },
-                timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            });
-            // #endregion
             var detail = FormatGoogleApiError(raw);
             throw new GoogleIntegrationException(
                 $"GSC rankings request failed ({(int)response.StatusCode}) for site {siteUrl}.{detail}",
@@ -213,7 +229,12 @@ public sealed class GoogleDataService(
         using var response = await client.SendAsync(request, ct);
         var raw = await response.Content.ReadAsStringAsync(ct);
         if (!response.IsSuccessStatusCode)
-            throw new GoogleIntegrationException($"GA4 landing pages request failed ({(int)response.StatusCode}).", StatusCodes.Status502BadGateway);
+        {
+            var detail = FormatGoogleApiError(raw);
+            throw new GoogleIntegrationException(
+                $"GA4 landing pages request failed ({(int)response.StatusCode}) for property {propertyId}.{detail}",
+                StatusCodes.Status502BadGateway);
+        }
 
         using var doc = JsonDocument.Parse(raw);
         if (!doc.RootElement.TryGetProperty("rows", out var rows) || rows.ValueKind != JsonValueKind.Array)
@@ -290,18 +311,4 @@ public sealed class GoogleDataService(
         return $" Body: {raw[..Math.Min(raw.Length, 160)]}";
     }
 
-    private static void WriteDebugLog(object payload)
-    {
-        try
-        {
-            var line = JsonSerializer.Serialize(payload) + Environment.NewLine;
-            File.AppendAllText(
-                "/Users/jeffmartin/Library/Mobile Documents/com~apple~CloudDocs/development-new/Geek-SEO/.cursor/debug-c1ee28.log",
-                line);
-        }
-        catch
-        {
-            // Debug logging must never break API responses.
-        }
-    }
 }

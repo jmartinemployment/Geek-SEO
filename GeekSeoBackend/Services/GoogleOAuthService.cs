@@ -105,9 +105,9 @@ public sealed class GoogleOAuthService(
         if (!gscUpsert.IsSuccess)
             throw new GoogleIntegrationException(gscUpsert.Error ?? "Failed to persist Google Search Console connection.");
 
-        var propertyId = payload.PropertyId;
-        if (string.IsNullOrWhiteSpace(propertyId))
-            propertyId = await ResolveFirstGa4PropertyIdAsync(token.AccessToken, ct);
+        var candidates = await ListGa4PropertyCandidatesAsync(token.AccessToken, ct);
+        var propertyId = Ga4PropertyMatcher.Match(candidates, siteUrl, payload.PropertyId);
+        propertyId = string.IsNullOrWhiteSpace(propertyId) ? null : Ga4PropertyMatcher.NormalizePropertyId(propertyId);
 
         var ga4Connected = false;
         if (!string.IsNullOrWhiteSpace(propertyId))
@@ -220,6 +220,44 @@ public sealed class GoogleOAuthService(
         return resolved;
     }
 
+    public async Task<string?> SyncGa4PropertyAsync(Guid userId, Guid projectId, CancellationToken ct = default)
+    {
+        EnsureConfigured();
+        await EnsureProjectOwnershipAsync(userId, projectId, ct);
+
+        var project = await projects.GetByIdAsync(projectId, userId, ct);
+        if (!project.IsSuccess || project.Value is null)
+            return null;
+
+        var ga4 = await integrations.GetGa4ConnectionAsync(projectId, userId, ct);
+        if (!ga4.IsSuccess || ga4.Value is null)
+            return null;
+
+        var refreshToken = SeoCredentialProtector.Decrypt(
+            ga4.Value.EncryptedRefreshToken,
+            ga4.Value.EncryptionIv,
+            ga4.Value.EncryptionTag);
+        var accessToken = await RefreshAccessTokenAsync(refreshToken, ct);
+        var candidates = await ListGa4PropertyCandidatesAsync(accessToken, ct);
+        var resolved = Ga4PropertyMatcher.Match(candidates, project.Value.Url, ga4.Value.PropertyId);
+        resolved = string.IsNullOrWhiteSpace(resolved)
+            ? null
+            : Ga4PropertyMatcher.NormalizePropertyId(resolved);
+
+        if (string.IsNullOrWhiteSpace(resolved)
+            || string.Equals(resolved, Ga4PropertyMatcher.NormalizePropertyId(ga4.Value.PropertyId), StringComparison.Ordinal))
+        {
+            return ga4.Value.PropertyId;
+        }
+
+        ga4.Value.PropertyId = resolved;
+        var upsert = await integrations.UpsertGa4ConnectionAsync(ga4.Value, userId, ct);
+        if (!upsert.IsSuccess)
+            throw new GoogleIntegrationException(upsert.Error ?? "Failed to update GA4 property ID.");
+
+        return resolved;
+    }
+
     public async Task<(string AccessToken, string PropertyId)> GetGa4AccessTokenAsync(
         Guid userId,
         Guid projectId,
@@ -238,7 +276,7 @@ public sealed class GoogleOAuthService(
             ga4.Value.EncryptionIv,
             ga4.Value.EncryptionTag);
         var accessToken = await RefreshAccessTokenAsync(refreshToken, ct);
-        return (accessToken, ga4.Value.PropertyId);
+        return (accessToken, Ga4PropertyMatcher.NormalizePropertyId(ga4.Value.PropertyId));
     }
 
     private async Task EnsureProjectOwnershipAsync(Guid userId, Guid projectId, CancellationToken ct)
@@ -337,38 +375,92 @@ public sealed class GoogleOAuthService(
         return sites;
     }
 
-    private async Task<string?> ResolveFirstGa4PropertyIdAsync(string accessToken, CancellationToken ct)
+    private async Task<IReadOnlyList<Ga4PropertyCandidate>> ListGa4PropertyCandidatesAsync(
+        string accessToken,
+        CancellationToken ct)
     {
         var client = httpClientFactory.CreateClient("GoogleApis");
-        using var request = new HttpRequestMessage(HttpMethod.Get, "https://analyticsadmin.googleapis.com/v1alpha/accountSummaries?pageSize=50");
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            "https://analyticsadmin.googleapis.com/v1beta/accountSummaries?pageSize=200");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         using var response = await client.SendAsync(request, ct);
         if (!response.IsSuccessStatusCode)
-            return null;
+            return [];
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
-        if (!doc.RootElement.TryGetProperty("accountSummaries", out var summaries) || summaries.ValueKind != JsonValueKind.Array)
-            return null;
+        if (!doc.RootElement.TryGetProperty("accountSummaries", out var summaries)
+            || summaries.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
 
+        var candidates = new List<Ga4PropertyCandidate>();
         foreach (var summary in summaries.EnumerateArray())
         {
-            if (!summary.TryGetProperty("propertySummaries", out var properties) || properties.ValueKind != JsonValueKind.Array)
+            if (!summary.TryGetProperty("propertySummaries", out var properties)
+                || properties.ValueKind != JsonValueKind.Array)
+            {
                 continue;
+            }
+
             foreach (var property in properties.EnumerateArray())
             {
                 if (!property.TryGetProperty("property", out var propertyPath))
                     continue;
+
                 var full = propertyPath.GetString();
-                if (string.IsNullOrWhiteSpace(full))
+                var id = Ga4PropertyMatcher.NormalizePropertyId(full);
+                if (string.IsNullOrWhiteSpace(id))
                     continue;
-                var id = full.Split('/').LastOrDefault();
-                if (!string.IsNullOrWhiteSpace(id))
-                    return id;
+
+                var displayName = property.TryGetProperty("displayName", out var nameEl)
+                    ? nameEl.GetString() ?? id
+                    : id;
+                var webUris = await ListWebStreamUrisAsync(accessToken, id, ct);
+                candidates.Add(new Ga4PropertyCandidate(id, displayName, webUris));
             }
         }
 
-        return null;
+        return candidates;
+    }
+
+    private async Task<IReadOnlyList<string>> ListWebStreamUrisAsync(
+        string accessToken,
+        string propertyId,
+        CancellationToken ct)
+    {
+        var client = httpClientFactory.CreateClient("GoogleApis");
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"https://analyticsadmin.googleapis.com/v1beta/properties/{propertyId}/dataStreams");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        using var response = await client.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+            return [];
+
+        await using var stream = await response.Content.ReadAsStreamAsync(ct);
+        using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+        if (!doc.RootElement.TryGetProperty("dataStreams", out var streams)
+            || streams.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        var uris = new List<string>();
+        foreach (var dataStream in streams.EnumerateArray())
+        {
+            if (!dataStream.TryGetProperty("webStreamData", out var webStream))
+                continue;
+            if (!webStream.TryGetProperty("defaultUri", out var uriEl))
+                continue;
+            var uri = uriEl.GetString();
+            if (!string.IsNullOrWhiteSpace(uri))
+                uris.Add(uri);
+        }
+
+        return uris;
     }
 
     private static Uri BuildUri(string baseUrl, IReadOnlyDictionary<string, string?> query)

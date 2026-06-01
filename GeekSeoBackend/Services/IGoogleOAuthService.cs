@@ -29,4 +29,10 @@ public interface IGoogleOAuthService
     /// Updates the connection when Google returns a different canonical siteUrl string.
     /// </summary>
     Task<string?> SyncGscSiteUrlAsync(Guid userId, Guid projectId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Re-resolves the stored GA4 property against accessible properties and web data streams.
+    /// Updates the connection when a better property match is found for the project URL.
+    /// </summary>
+    Task<string?> SyncGa4PropertyAsync(Guid userId, Guid projectId, CancellationToken ct = default);
 }
