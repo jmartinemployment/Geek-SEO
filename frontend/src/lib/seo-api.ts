@@ -1652,7 +1652,9 @@ export async function getNicheProgress(
     `${API_URL}/api/seo/niche-analyzer/project/${projectId}/progress?months=${months}`,
     { headers: apiHeaders(accessToken), cache: 'no-store' },
   );
-  return seoJson(res);
+  if (res.ok) return seoJson(res);
+  if (res.status === 404) return [];
+  return [];
 }
 
 export async function getNicheHistory(

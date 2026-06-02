@@ -163,7 +163,14 @@ public sealed class NicheAnalyzerController(
         {
             user.RequireUserId();
             var result = await analyticsRepo.GetAuthorityProgressAsync(projectId, months, ct);
-            if (!result.IsSuccess) return StatusCode(500, new { error = result.Error });
+            if (!result.IsSuccess)
+            {
+                // Progress is optional chart data — empty series beats a 500 in the console.
+                if (result.Error?.Contains("Not Found", StringComparison.OrdinalIgnoreCase) == true
+                    || result.Error?.Contains("\"status\":404", StringComparison.Ordinal) == true)
+                    return Ok(Array.Empty<AuthorityProgressPoint>());
+                return StatusCode(500, new { error = result.Error });
+            }
             return Ok(result.Value);
         }
         catch (InvalidOperationException ex)

@@ -55,7 +55,9 @@ public sealed class HttpNicheAnalyticsDapperRepository(
         Guid projectId, int months = 12, CancellationToken ct = default)
     {
         var res = await _http.GetAsync(
-            $"api/seo/internal/niche-analytics/project/{projectId}/progress?months={months}&userId={user.UserId}", ct);
+            $"api/seo/internal/niche-profiles/project/{projectId}/progress?months={months}&userId={user.UserId}", ct);
+        if (res.StatusCode is HttpStatusCode.NotFound)
+            return Result<IReadOnlyList<AuthorityProgressPoint>>.Success([]);
         if (!res.IsSuccessStatusCode)
             return Result<IReadOnlyList<AuthorityProgressPoint>>.Failure(await res.Content.ReadAsStringAsync(ct));
         var value = await res.Content.ReadFromJsonAsync<List<AuthorityProgressPoint>>(Json, ct);
