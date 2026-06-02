@@ -10,6 +10,21 @@ public record NicheAnalysisStatus(
     int TotalSteps,
     string? ErrorMessage);
 
+/// <summary>Persisted when a niche analysis run completes (metadata + scores).</summary>
+public sealed record NicheAnalysisSaveRequest(
+    string PrimaryNiche,
+    string NicheDescription,
+    string[] NicheTags,
+    string AudienceType,
+    string DiscoveryMethod,
+    decimal AuthorityScore,
+    int TotalPillarsIdentified,
+    int Covered,
+    int Partial,
+    int Gap,
+    DateTimeOffset AnalyzedAt,
+    DateTimeOffset NextAnalysisDue);
+
 /// <summary>Queued niche analysis job with owning user (from seo_projects).</summary>
 public record NicheQueuedJob(
     Guid ProfileId,
@@ -148,7 +163,10 @@ public record NavMenuData(
     IReadOnlyList<DiscoveredPillar> Pillars,
     string ExtractMethod);
 
-public record HomepageHeadings(
-    string? Title,
-    string? MetaDescription,
-    IReadOnlyList<string> H2Texts);
+public record HomepageHeadings
+{
+    public string? Title { get; init; }
+    public string? MetaDescription { get; init; }
+    public IReadOnlyList<PageHeading> Headings { get; init; } = [];
+    public IReadOnlyList<string> H2Texts { get; init; } = [];
+}

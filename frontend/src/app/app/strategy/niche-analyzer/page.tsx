@@ -102,9 +102,15 @@ export default function NicheAnalyzerPage() {
       setProfile(p);
       await loadAnalytics(p.id);
       if (p.pillars.length === 0) {
-        setError(
-          'Analysis finished but no pillars were detected. Check that the site exposes schema.org services, a sitemap with interior pages, or crawlable navigation.',
-        );
+        if (p.totalPillarsIdentified > 0) {
+          setError(
+            'Analysis saved pillar counts but the pillar list did not persist. Run Re-analyze once; if the table stays empty, we need to fix storage on the server.',
+          );
+        } else {
+          setError(
+            'No pillars were detected. A homepage-only sitemap is fine — Geek SEO reads schema.org JSON-LD (knowsAbout, services, area served). Hidden or off-canvas navigation is also fine.',
+          );
+        }
       }
     } catch (e) {
       setError('Analysis complete but failed to load results.');
@@ -212,7 +218,10 @@ export default function NicheAnalyzerPage() {
           </div>
 
           {tab === 'pillars' && (
-            <CoverageMatrixTable pillars={profile.pillars} />
+            <CoverageMatrixTable
+              pillars={profile.pillars}
+              totalPillarsIdentified={profile.totalPillarsIdentified}
+            />
           )}
 
           {tab === 'gaps' && (

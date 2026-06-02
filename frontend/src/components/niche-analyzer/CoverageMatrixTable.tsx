@@ -2,7 +2,10 @@
 
 import type { NichePillarResult } from '@/lib/seo-api';
 
-type Props = { pillars: NichePillarResult[] };
+type Props = {
+  pillars: NichePillarResult[];
+  totalPillarsIdentified?: number;
+};
 
 const PRIORITY_BADGE: Record<string, string> = {
   must_have: 'bg-red-100 text-red-700',
@@ -16,14 +19,18 @@ const COVERAGE_BADGE: Record<string, string> = {
   gap: 'bg-red-100 text-red-700',
 };
 
-export function CoverageMatrixTable({ pillars }: Props) {
+export function CoverageMatrixTable({ pillars, totalPillarsIdentified = 0 }: Props) {
   if (pillars.length === 0) {
+    const savedCountsOnly = totalPillarsIdentified > 0;
     return (
       <div className="rounded-xl border border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-text-muted)]">
-        <p className="font-medium text-[var(--color-text-primary)]">No pillars found</p>
+        <p className="font-medium text-[var(--color-text-primary)]">
+          {savedCountsOnly ? 'Pillar details missing' : 'No pillars found'}
+        </p>
         <p className="mt-2">
-          The run completed but could not infer topics from schema.org, sitemap paths, or navigation.
-          Sites with only a single-page sitemap often need richer JSON-LD (services, knowsAbout) or interior URLs.
+          {savedCountsOnly
+            ? `The summary shows ${totalPillarsIdentified} pillar(s), but rows were not saved. Run Re-analyze once.`
+            : 'A sitemap with only the homepage is normal. Pillars are inferred from schema.org on that page (knowsAbout, services, area served). Visible navigation is not required.'}
         </p>
       </div>
     );

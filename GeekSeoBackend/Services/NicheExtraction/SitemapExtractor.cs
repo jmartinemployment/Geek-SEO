@@ -23,6 +23,13 @@ public sealed class SitemapExtractor(IHttpClientFactory factory, ILogger<Sitemap
             var client = BuildClient();
             var urls = await FetchUrlsAsync(siteUrl, client, ct);
             var pillars = GroupIntoPillars(urls, siteUrl);
+            if (urls.Count > 0 && pillars.Count == 0)
+            {
+                logger.LogInformation(
+                    "Sitemap for {Url} lists {UrlCount} URL(s) with no interior paths — pillar discovery will use schema.org and other signals",
+                    siteUrl, urls.Count);
+            }
+
             return new SitemapData(pillars, urls.Count);
         }
         catch (Exception ex)

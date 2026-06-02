@@ -16,6 +16,7 @@ public sealed class NicheAnalyzerService(
     SchemaOrgExtractor schemaExtractor,
     SitemapExtractor sitemapExtractor,
     NavMenuExtractor navMenuExtractor,
+    HomepageHeadingsExtractor headingsExtractor,
     PillarMerger pillarMerger,
     PillarValidator pillarValidator,
     NicheAuthorityScorer scorer,
@@ -79,10 +80,14 @@ public sealed class NicheAnalyzerService(
             {
                 navData = await navMenuExtractor.ExtractAsync(domain, browser, ct);
             }
-            await PushProgress(userId, profileId, "headings", 4, "Extracting homepage headings…", ct);
+            await PushProgress(userId, profileId, "headings", 4, "Extracting homepage headings (H1–H6)…", ct);
 
-            // Step 4 — Title + meta from sitemap/schema (no Playwright needed)
-            var headings = BuildHeadingsFromSchema(schemaData);
+            // Step 4 — Title, meta, and H1–H6 from homepage HTML
+            var headings = await headingsExtractor.ExtractAsync(domain, browser, ct);
+            if (headings.Headings.Count == 0 && string.IsNullOrWhiteSpace(headings.Title))
+                headings = BuildHeadingsFromSchema(schemaData);
+
+            var headingPillars = HeadingPillarBuilder.Build(headings);
             await PushProgress(userId, profileId, "merging", 5, "Merging pillar signals…", ct);
 
             // Step 5 — Merge all sources
@@ -91,7 +96,7 @@ public sealed class NicheAnalyzerService(
                 schemaPillars,
                 sitemapData.Pillars,
                 navData.Pillars,
-                [],
+                headingPillars,
                 schemaData.AreaServed.ToList());
 
             await PushProgress(userId, profileId, "validating", 6, "Validating pillars…", ct);
@@ -101,7 +106,7 @@ public sealed class NicheAnalyzerService(
             scorer.ScorePillars(nicheEntities);
 
             var rootEntity = rootBuilder.Build(schemaData, headings, nicheEntities);
-            var discoveryMethod = DetermineDiscovery(schemaPillars, sitemapData, navData);
+            var discoveryMethod = DetermineDiscovery(merged);
 
             // Step 7 — Determine audience type
             var audienceType = DetermineAudienceType(nicheEntities, schemaData);
@@ -115,22 +120,42 @@ public sealed class NicheAnalyzerService(
 
             await PushProgress(userId, profileId, "saving", 8, "Saving analysis results…", ct);
 
-            // Step 9 — Persist
-            profile.PrimaryNiche = rootEntity;
-            profile.NicheDescription = schemaData.Description ?? string.Empty;
-            profile.NicheTags = BuildNicheTags(schemaData, nicheEntities).ToArray();
-            profile.AudienceType = audienceType;
-            profile.DiscoveryMethod = discoveryMethod;
-            profile.TotalPillarsIdentified = nicheEntities.Count;
-            profile.AnalyzedAt = DateTimeOffset.UtcNow;
-            profile.NextAnalysisDue = DateTimeOffset.UtcNow.AddDays(30);
+            // Step 9 — Persist (assign IDs before subtopics reference pillars)
+            foreach (var pillar in nicheEntities)
+            {
+                if (pillar.Id == Guid.Empty)
+                    pillar.Id = Guid.NewGuid();
+            }
 
-            await profileRepo.BulkInsertPillarsAsync(nicheEntities, ct);
+            var pillarsResult = await profileRepo.BulkInsertPillarsAsync(nicheEntities, ct);
+            if (!pillarsResult.IsSuccess)
+                throw new InvalidOperationException($"Failed to save pillars: {pillarsResult.Error}");
 
             var subtopics = BuildSubtopics(nicheEntities, merged);
-            await profileRepo.BulkInsertSubtopicsAsync(subtopics, ct);
+            var subtopicsResult = await profileRepo.BulkInsertSubtopicsAsync(subtopics, ct);
+            if (!subtopicsResult.IsSuccess)
+            {
+                logger.LogWarning(
+                    "Subtopics not saved for {ProfileId}: {Error}",
+                    profileId, subtopicsResult.Error);
+            }
 
-            await profileRepo.UpdateScoresAsync(profileId, authorityScore, covered, partial, gap, ct);
+            var analyzedAt = DateTimeOffset.UtcNow;
+            var saveResult = await profileRepo.SaveAnalysisResultsAsync(profileId, new NicheAnalysisSaveRequest(
+                rootEntity,
+                schemaData.Description ?? string.Empty,
+                BuildNicheTags(schemaData, nicheEntities).ToArray(),
+                audienceType,
+                discoveryMethod,
+                authorityScore,
+                nicheEntities.Count,
+                covered,
+                partial,
+                gap,
+                analyzedAt,
+                analyzedAt.AddDays(30)), ct);
+            if (!saveResult.IsSuccess)
+                throw new InvalidOperationException($"Failed to save analysis results: {saveResult.Error}");
 
             await PushProgress(userId, profileId, "complete", TotalSteps, "Analysis complete!", ct);
             await profileRepo.UpdateStatusAsync(profileId, "complete", "complete", TotalSteps, TotalSteps, ct: ct);
@@ -303,16 +328,20 @@ public sealed class NicheAnalyzerService(
     }
 
     private static HomepageHeadings BuildHeadingsFromSchema(SchemaOrgData schema) =>
-        new(schema.BrandName, schema.Description, []);
+        new()
+        {
+            Title = schema.BrandName,
+            MetaDescription = schema.Description,
+            Headings = [],
+            H2Texts = [],
+        };
 
-    private static string DetermineDiscovery(
-        IReadOnlyList<DiscoveredPillar> schemaPillars,
-        SitemapData sitemap,
-        NavMenuData nav)
+    private static string DetermineDiscovery(IReadOnlyList<DiscoveredPillar> merged)
     {
-        if (schemaPillars.Count > 0) return "schema";
-        if (sitemap.Pillars.Count > 0) return "sitemap";
-        if (nav.Pillars.Count > 0) return "nav";
+        if (merged.Any(p => p.Source == "schema")) return "schema";
+        if (merged.Any(p => p.Source == "sitemap")) return "sitemap";
+        if (merged.Any(p => p.Source == "nav")) return "nav";
+        if (merged.Any(p => p.Source == "heading")) return "heading";
         return "fallback";
     }
 

@@ -13,7 +13,10 @@ public sealed class NicheRootEntityBuilder
         var parts = new List<string>();
 
         // Brand / niche from schema brand name or title
-        var brand = schema.BrandName ?? ExtractTitleCore(headings.Title);
+        var h1 = headings.Headings.FirstOrDefault(h => h.Level == 1)?.Text;
+        var brand = schema.BrandName
+            ?? ExtractTitleCore(headings.Title)
+            ?? ExtractTitleCore(h1);
         if (!string.IsNullOrWhiteSpace(brand)) parts.Add(brand);
 
         // Top 2 pillar topics (must_have + high_value first)

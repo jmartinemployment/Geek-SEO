@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
@@ -15,7 +16,11 @@ public sealed class HttpNicheProfileRepository(
     ICurrentUserContext user) : INicheProfileRepository
 {
     private readonly HttpClient _http = factory.CreateClient(GeekDataGateway.HttpClientName);
-    private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private static readonly JsonSerializerOptions Json = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        ReferenceHandler = ReferenceHandler.IgnoreCycles,
+    };
 
     public async Task<Result<NicheProfile>> CreateAsync(NicheProfile profile, CancellationToken ct = default)
     {
@@ -85,17 +90,28 @@ public sealed class HttpNicheProfileRepository(
         return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await res.Content.ReadAsStringAsync(ct));
     }
 
+    public async Task<Result> SaveAnalysisResultsAsync(
+        Guid profileId, NicheAnalysisSaveRequest results, CancellationToken ct = default)
+    {
+        var res = await _http.PatchAsJsonAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/analysis-results?userId={user.UserId}",
+            results,
+            Json,
+            ct);
+        return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await res.Content.ReadAsStringAsync(ct));
+    }
+
     public async Task<Result> BulkInsertPillarsAsync(IEnumerable<NichePillar> pillars, CancellationToken ct = default)
     {
         var res = await _http.PostAsJsonAsync(
-            $"api/seo/internal/niche-profiles/pillars?userId={user.UserId}", pillars, ct);
+            $"api/seo/internal/niche-profiles/pillars?userId={user.UserId}", pillars, Json, ct);
         return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await res.Content.ReadAsStringAsync(ct));
     }
 
     public async Task<Result> BulkInsertSubtopicsAsync(IEnumerable<NicheSubtopic> subtopics, CancellationToken ct = default)
     {
         var res = await _http.PostAsJsonAsync(
-            $"api/seo/internal/niche-profiles/subtopics?userId={user.UserId}", subtopics, ct);
+            $"api/seo/internal/niche-profiles/subtopics?userId={user.UserId}", subtopics, Json, ct);
         return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await res.Content.ReadAsStringAsync(ct));
     }
 
