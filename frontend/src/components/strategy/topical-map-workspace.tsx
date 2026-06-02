@@ -60,12 +60,16 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
       setGscConnected(status.connected);
       if (!status.connected) {
         setResult(null);
+        setInitialLoad(false);
         return;
       }
       const cached = await getTopicalMap(projectId, accessToken);
       setResult(cached);
-    } catch (err) {
-      setError(err);
+    } catch (err: unknown) {
+      const isNotFound = err instanceof Error && err.message.includes('404');
+      if (!isNotFound) {
+        setError(err);
+      }
       setResult(null);
     } finally {
       setLoading(false);
@@ -328,9 +332,19 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
       ) : null}
 
       {!initialLoad && !result && gscConnected ? (
-        <p className="rounded-xl border border-dashed p-8 text-center text-sm text-[var(--color-text-secondary)]">
-          No topical map yet. Click <strong>Generate map</strong> to cluster GSC queries (SERP-assisted for ambiguous terms).
-        </p>
+        <div className="rounded-xl border border-dashed p-8 text-center">
+          <p className="text-sm text-[var(--color-text-secondary)]">
+            No topical map yet. Generate to cluster GSC queries (SERP-assisted for ambiguous terms).
+          </p>
+          <button
+            type="button"
+            onClick={() => regenerate()}
+            disabled={loading}
+            className="mt-4 inline-block rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
+          >
+            {loading ? 'Generating…' : 'Generate map'}
+          </button>
+        </div>
       ) : null}
 
       {result ? (
