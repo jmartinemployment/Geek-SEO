@@ -3,8 +3,7 @@
 **Canonical file:** [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md) (this document)  
 **Status:** Canonical  
 **Last updated:** June 1, 2026  
-**Audience:** Engineering — GeekSEO backends and providers  
-**Structure:** **17 components** — execute one component at a time; old Phases 0–D are folded into component rows below.
+**Audience:** Engineering — GeekSEO backends and providers
 
 > **Doc hygiene:** Retired filenames [`DATAFORSEO-REPLACEMENT-UPGRADE.md`](DATAFORSEO-REPLACEMENT-UPGRADE.md) (vendor-expansion Labs/OnPage) and [`GEEK-DATA-PLANE.md`](GEEK-DATA-PLANE.md) are **redirect stubs** only. Plan here: **`SEO-PROVIDER-STRATEGY.md`**.
 
@@ -22,183 +21,6 @@ This document is the **single source of truth** for:
 - What **not** to build (superseded vendor-expansion sprints)
 
 **North star:** Eliminate recurring **DataForSEO** spend. **SerpApi** is an acceptable **interim bridge** behind the same interfaces until Geek-owned fetch + parse is production-ready.
-
-**How to use this plan:** Pick **one component** from [§17 components](#plan-structure-17-components). Ship its **Done when** checklist. Do not run multi-phase “big bang” migrations.
-
----
-
-## Plan structure: 17 components
-
-| # | Component name | Type | Contract / service | v1 migration work |
-|---|----------------|------|-------------------|-------------------|
-| 1 | **SERP Fetch** | Data plane | `ISerpProvider` | SerpApi bridge → later `GeekSerpProvider` |
-| 2 | **Keyword Metrics** | Data plane | `IKeywordProvider` | Off DFS → GSC/Ads/`GeekKeywordProvider` |
-| 3 | **Keyword Discovery** | Data plane | `IKeywordDiscoveryProvider` | Replace stub — [KEYWORD-DISCOVERY-STRATEGY.md](KEYWORD-DISCOVERY-STRATEGY.md) |
-| 4 | **Rank Snapshot** | Data plane | `IRankSnapshotProvider` | SerpApi bridge → later `GeekSerpRankSnapshotProvider` |
-| 5 | **Site Crawl** | Data plane | `ICrawlerProvider` | Keep Playwright; deepen audit only |
-| 6 | **Backlink Intel** | Data plane | `IBacklinkProvider` | **Out of scope v1** |
-| 7 | **Multi-LLM GEO Probe** | Data plane | `IAiVisibilityProbe` | **Out of scope v1** (direct LLM APIs later) |
-| 8 | **Deep SERP** | Feature | `SerpAnalysisService` | Verify only — uses #1 |
-| 9 | **Content Scoring** | Feature | `ContentScoringService` | Verify only — uses #1 |
-| 10 | **Content Briefs** | Feature | `ContentBriefService` | Verify only — uses #1 |
-| 11 | **Competitor Insights** | Feature | `CompetitorInsightsService` | Verify only — uses #1 |
-| 12 | **Topical Map** | Feature | `TopicalMapService` | Verify + discovery quality (#2, #3, #1) |
-| 13 | **GEO Visibility** | Feature | `GeoVisibilityService` | Verify only — uses #1 (Google organic) |
-| 14 | **Keyword Planner** | Feature | `KeywordResearchService` | Verify only — uses #2 |
-| 15 | **Site Audit** | Feature | `SiteAuditService` | Verify only — uses #5 |
-| 16 | **Rank Tracker** | Feature | `RankTrackingService` | Verify + caps/metering — uses #4 |
-| 17 | **GSC Rankings** | Feature | `GoogleDataService` | **No provider swap** — GSC only |
-
-**v1 active scope:** components **1–5** (provider layer) + **8–17** (smoke/verify). **6–7** are explicitly deferred.
-
-### 1 — SERP Fetch (`ISerpProvider`)
-
-| | |
-|---|---|
-| **Purpose** | Organic SERP JSON for deep SERP, scoring, briefs, topical clusters, GEO Google leg |
-| **Today** | `DataForSEOSerpProvider`; optional `SerpApiSerpProvider`, `FallbackSerpProvider` |
-| **Env** | `SERP_PROVIDER`, `SERP_PROVIDER_FALLBACK`, `SERPAPI_API_KEY` |
-| **Work left** | [ ] Optional prod flip to `serpapi`; [ ] `GeekSerpProvider` (US/en/desktop MVP); [ ] Remove DFS when #2–4 off DFS |
-| **Done when** | All #8–13, #11 consumers return `SerpResult` with correct `ProviderName`; DFS SERP calls → 0 in prod |
-
-### 2 — Keyword Metrics (`IKeywordProvider`)
-
-| | |
-|---|---|
-| **Purpose** | Volume, KD, CPC, related keywords for planner + topical seed ideas |
-| **Today** | `DataForSEOKeywordProvider` |
-| **Env** | `KEYWORD_PROVIDER` (`dataforseo` \| `gsc_ads` \| `geek`) |
-| **Work left** | [ ] `GscAdsKeywordProvider` or `GeekKeywordProvider` v0; [ ] Planner + seed mode on non-DFS provider |
-| **Done when** | `KeywordResearchService` + topical seed ideas work with `KEYWORD_PROVIDER≠dataforseo`; DFS `keywords_for_keywords` → 0 |
-
-### 3 — Keyword Discovery (`IKeywordDiscoveryProvider`)
-
-| | |
-|---|---|
-| **Purpose** | Semantic expansion for topical map seed mode (not planner metrics) |
-| **Today** | `InternalKeywordDiscoveryProvider` **stub** |
-| **Detail** | [KEYWORD-DISCOVERY-STRATEGY.md](KEYWORD-DISCOVERY-STRATEGY.md) — one approach at a time (SERP scrape first) |
-| **Work left** | [ ] Real provider (project-aware); [ ] Topical seed quality acceptable in QA |
-| **Done when** | Stub removed or feature-flagged off; seed mode uses real signals (not modifier templates only) |
-
-### 4 — Rank Snapshot (`IRankSnapshotProvider`)
-
-| | |
-|---|---|
-| **Purpose** | API-polled position for rank tracker (not GSC rankings page) |
-| **Today** | `DataForSeoRankSnapshotProvider`; `SerpApiRankSnapshotProvider`; `MeteredRankSnapshotProvider` wrapper |
-| **Env** | `RANK_SNAPSHOT_PROVIDER` |
-| **Work left** | [ ] Align Railway env with intent (`dataforseo` vs `serpapi`); [ ] Optional `ProviderName` on snapshot rows; [ ] `GeekSerpRankSnapshotProvider` |
-| **Done when** | Worker snapshots succeed; monthly `rank_snapshot` caps hold; #16 history UI correct |
-
-### 5 — Site Crawl (`ICrawlerProvider`)
-
-| | |
-|---|---|
-| **Purpose** | Playwright crawl for site audit (no DFS OnPage) |
-| **Today** | `PlaywrightCrawlerProvider` / `NoOpCrawlerProvider` |
-| **Work left** | [ ] Audit depth/PSI polish only — **no** third-party OnPage API |
-| **Done when** | #15 audit runs on Playwright only; rejected DFS OnPage stays unbuilt |
-
-### 6 — Backlink Intel (`IBacklinkProvider`) — out of scope v1
-
-Defer. Do not add DataForSEO Backlinks / Labs sprints.
-
-### 7 — Multi-LLM GEO Probe — out of scope v1
-
-Defer. ChatGPT/Gemini/Perplexity via direct APIs when tasked; not SerpApi scope creep.
-
-### 8 — Deep SERP (`SerpAnalysisService`)
-
-| | |
-|---|---|
-| **Depends on** | #1 |
-| **Work** | Verify deep SERP route + cache `provider` field; metering via `deep_serp` middleware (not `serp_fetch`) |
-| **Done when** | UI/API deep SERP works after #1 provider flip |
-
-### 9 — Content Scoring (`ContentScoringService`)
-
-| | |
-|---|---|
-| **Depends on** | #1 |
-| **Work** | Smoke after #1 flip |
-| **Done when** | Scoring hub returns benchmarks without vendor types in Application layer |
-
-### 10 — Content Briefs (`ContentBriefService`)
-
-| | |
-|---|---|
-| **Depends on** | #1 |
-| **Work** | Smoke after #1 flip |
-| **Done when** | Brief generation succeeds on chosen SERP provider |
-
-### 11 — Competitor Insights (`CompetitorInsightsService`)
-
-| | |
-|---|---|
-| **Depends on** | #1 |
-| **Work** | Smoke after #1 flip |
-| **Done when** | Competitor URLs resolve from SERP payload |
-
-### 12 — Topical Map (`TopicalMapService`)
-
-| | |
-|---|---|
-| **Depends on** | #1, #2, #3 |
-| **Work** | GSC mode unchanged; seed mode blocked on #3 quality |
-| **Done when** | GSC + seed modes pass QA; entity gaps + SERP clustering use #1 only |
-
-### 13 — GEO Visibility (`GeoVisibilityService`)
-
-| | |
-|---|---|
-| **Depends on** | #1 (Google organic / AIO today) |
-| **Work** | Background SERP uses `serp_fetch` metering |
-| **Done when** | Probe endpoint works; no DFS types in service |
-
-### 14 — Keyword Planner (`KeywordResearchService`)
-
-| | |
-|---|---|
-| **Depends on** | #2 |
-| **Work** | Smoke after #2 off DFS |
-| **Done when** | Planner returns metrics from active keyword provider |
-
-### 15 — Site Audit (`SiteAuditService`)
-
-| | |
-|---|---|
-| **Depends on** | #5 |
-| **Work** | Tier gate + Playwright crawl only |
-| **Done when** | Audit report completes without OnPage vendor |
-
-### 16 — Rank Tracker (`RankTrackingService`)
-
-| | |
-|---|---|
-| **Depends on** | #4 |
-| **Work** | Keyword caps (`tracked_rank_keyword`); batch budget check — **shipped** |
-| **Done when** | Add keyword, snapshot worker, history chart OK on active #4 provider |
-
-### 17 — GSC Rankings (`GoogleDataService`)
-
-| | |
-|---|---|
-| **Depends on** | Google OAuth / GSC API — **not** #4 |
-| **Work** | None for provider migration |
-| **Done when** | `/app/rankings` stays separate from rank tracker tables (no commingling) |
-
-### Suggested execution order (minimal ambition)
-
-1. **#4 Rank Snapshot** — fix Railway `RANK_SNAPSHOT_PROVIDER` if needed; verify #16  
-2. **#1 SERP Fetch** — optional SerpApi flip; verify #8–11, #13  
-3. **#3 Keyword Discovery** — unblocks #12 seed quality  
-4. **#2 Keyword Metrics** — off DFS; verify #14, #12  
-5. **#1 + #4 Geek** — only after bridge stable  
-6. **Remove DFS** — when #1–4 no longer need `dataforseo`  
-7. **#5, #6, #7** — crawl polish; defer 6–7  
-
-Shared infra (already shipped): env DI (`SeoProviderRegistration`), `GET /health/providers`, metering (`rank_snapshot`, `serp_fetch`, caps).
 
 ---
 
@@ -290,20 +112,18 @@ Swapping vendors must not require feature rewrites if `SerpResult` / keyword DTO
 
 ### Who consumes what
 
-See [§17 components](#plan-structure-17-components) (#8–#17). Quick reference:
-
-| # | Feature | Service | Provider need |
-|---|---------|---------|---------------|
-| 8 | Deep SERP | `SerpAnalysisService` | #1 `ISerpProvider` |
-| 9 | Content scoring | `ContentScoringService` | #1 |
-| 10 | Content briefs | `ContentBriefService` | #1 |
-| 11 | Competitor insights | `CompetitorInsightsService` | #1 |
-| 12 | Topical map | `TopicalMapService` | #1 + #2 + #3 |
-| 13 | GEO probe | `GeoVisibilityService` | #1 |
-| 14 | Keyword planner | `KeywordResearchService` | #2 |
-| 15 | Site audit | `SiteAuditService` | #5 |
-| 16 | Rank tracker | `RankTrackingService` | #4 |
-| 17 | GSC rankings | `GoogleDataService` | GSC only (not #4) |
+| Feature | Service | Provider need |
+|---------|---------|---------------|
+| Deep SERP | `SerpAnalysisService` | `ISerpProvider` — organic, PAA, features, cache (`Provider` from `serp.ProviderName`) |
+| Content scoring | `ContentScoringService` | `ISerpProvider` — top URLs for benchmarks |
+| Content briefs | `ContentBriefService` | `ISerpProvider` |
+| Competitor insights | `CompetitorInsightsService` | `ISerpProvider` → crawl targets |
+| Topical map (GSC + seed) | `TopicalMapService` | `IKeywordProvider` + `IKeywordDiscoveryProvider` + `ISerpProvider` |
+| GEO probe (Google) | `GeoVisibilityService` | `ISerpProvider` (AIO flag from organic payload today) |
+| Keyword planner | `KeywordResearchService` | `IKeywordProvider` |
+| Site audit | `SiteAuditService` | `ICrawlerProvider` (Playwright) |
+| Rank tracker (API) | `RankTrackingService` | `IRankSnapshotProvider` |
+| Rankings (owned site) | `GoogleDataService` / GSC | **Not** `IRankSnapshotProvider` |
 
 ### Rank tracker note (Sprint 2, June 2026)
 
@@ -447,33 +267,126 @@ Move existing `DataForSEOSerpProvider.cs` et al. into `DataForSeo/` when touched
 
 ---
 
-## Legacy phase → component map
+## Migration phases (planning — not “v1 complete”)
 
-Old monolithic phases are **retired as execution units**. Use [§17 components](#plan-structure-17-components) instead.
+Execute in order. Each phase ends with **measurable DFS call reduction** and passes [verification](#verification-by-phase).
 
-| Old phase | Maps to components | Status (June 2026) |
-|-----------|-------------------|-------------------|
-| Phase 0 — Env DI | Shared infra (all #1–#5) | Shipped |
-| Phase A — SerpApi bridge | **#1** SERP Fetch, **#4** Rank Snapshot | Code shipped; prod env optional |
-| Phase A.1 — Metering | **#4**, **#13**, **#16** | Shipped |
-| Phase B — Keywords off DFS | **#2**, **#3** | Not started |
-| Phase C — GeekSerp v1 | **#1**, **#4** (Geek impl) | Not started |
-| Phase D — DFS zero | **#1–#4** remove `DataForSeo*` | After B + bridge stable |
+### Phase 0 — Env-driven DI (prerequisite)
+
+**Status: shipped (June 2026)** in `GeekSeoBackend/Extensions/SeoProviderRegistration.cs`.
+
+| Task | Detail |
+|------|--------|
+| Provider factory | `AddSeoDataProviders()` — `SERP_PROVIDER`, `KEYWORD_PROVIDER`, `RANK_SNAPSHOT_PROVIDER` (default `dataforseo`) |
+| HttpClient names | `DataForSEO`, `SerpApi` named clients registered |
+| Health | `GET /health/providers` — resolved names + credential flags (no secrets) |
+| Unimplemented env | `geek` / `gsc_ads` → **fail at startup** with message pointing to next phase |
+| Folder layout | SerpApi under `Providers/Seo/SerpApi/`; DFS providers still at `Providers/Seo/` (move deferred) |
+
+**Verification:**
+
+- [x] `SeoProviderRegistrationTests` — default env → DataForSEO implementations
+- [x] `SeoProviderRegistrationTests` — `serpapi` + `SERPAPI_API_KEY` → SerpApi implementations
+- [x] Local DI: `SERP_PROVIDER=serpapi` + `SERPAPI_API_KEY` → `SerpApiSerpProvider` (unit tests)
+
+### Phase A — Bridge: SerpApi primary
+
+**Status: code shipped (June 2026)** in `GeekSeoBackend/Providers/Seo/SerpApi/`. **Production:** stays on `dataforseo` until env flip + SerpApi key.
+
+| Task | Detail | Status |
+|------|--------|--------|
+| Implement | `SerpApiSerpProvider`, `SerpApiRankSnapshotProvider` under `Providers/Seo/SerpApi/` | [x] |
+| Wire env | `SERP_PROVIDER=serpapi`, `RANK_SNAPSHOT_PROVIDER=serpapi` | [x] code; [ ] Railway flip (optional) |
+| Fallback | `FallbackSerpProvider` when `SERP_PROVIDER_FALLBACK=dataforseo` | [x] |
+| DFS client | Refactor static `DataForSeoClient.cs` to injectable | [ ] deferred |
+| GEO scope | SerpApi for SERP + rank only in this phase | [x] |
+
+**Verification:**
+
+- [x] `SerpApiSerpProviderTests`, `SerpApiRankSnapshotProviderTests` (JSON parse fixtures)
+- [x] `DataForSEOSerpProviderTests` (existing DFS baseline)
+- [ ] Deep SERP API/UI: response or cache shows `provider: serpapi` after env flip
+- [ ] Rank tracker: snapshot job completes on SerpApi; DFS rank endpoint call count → ~0 after flip
+- [ ] **Optional schema:** persist `ProviderName` on `SeoRankTracking` rows (GeekRepository migration)
+
+### Phase A.1 — Metering & ops (same release train as A)
+
+**Status: code shipped (June 2026)** — rank + background SERP metering; ops alert env documented only.
+
+| Task | Detail | Status |
+|------|--------|--------|
+| Metering | `rank_snapshot` on each successful rank provider call (`MeteredRankSnapshotProvider`) | [x] |
+| Metering | `serp_fetch` for topical map + GEO background SERP (`SerpFetchMetering`); user deep SERP stays `deep_serp` via middleware (no double count) | [x] |
+| Rank caps | Max enabled keywords per project (`tracked_rank_keyword` tier limits) on add | [x] |
+| Rank caps | Pre-flight monthly `rank_snapshot` budget before worker batch per project | [x] |
+| Alerts | `SERPAPI_MONTHLY_BUDGET_USD` documented in `.env.example` (alerting TBD) | [x] doc |
+| Alerts | SerpApi dashboard + monthly budget check | [ ] ops process |
+
+### Phase B — Keyword path off DFS
+
+| Task | Detail |
+|------|--------|
+| `GeekKeywordProvider` v0 | GSC queries (per project) + **Google Ads Keyword Planner** (reuse Google OAuth stack; new scopes/quota doc in PR) + optional SERP seeds via `ISerpProvider` |
+| `IKeywordProvider` swap | `KEYWORD_PROVIDER=gsc_ads` then `geek` without feature code changes |
+| Discovery | Implement real `IKeywordDiscoveryProvider` per [KEYWORD-DISCOVERY-STRATEGY.md](KEYWORD-DISCOVERY-STRATEGY.md) — **do not** fold into DFS Labs |
+| Degrade UX | If Ads quota unavailable, document planner fields that may be null vs DFS |
+
+**Verification:**
+
+- [ ] `KeywordResearchService` + topical seed mode work with `KEYWORD_PROVIDER` ≠ `dataforseo`
+- [ ] DFS `keywords_for_keywords` call count → ~0
+- [ ] `InternalKeywordDiscoveryProvider` replaced or gated behind feature flag for seed mode
+
+### Phase C — GeekSerp v1 (MVP scope)
+
+**Not a single sprint** — bounded MVP only.
+
+| In scope (v1) | Out of scope (v2+) |
+|---------------|-------------------|
+| US + English, desktop organic | Full locale/device matrix |
+| Parse: organic results, PAA, basic SERP features needed by `SerpResult` | Full DFS advanced parity |
+| Playwright fetch + **documented** proxy policy | Full Bright Data–class fleet |
+| Contract tests vs `DataForSEOSerpProviderTests` baseline | Anti-bot/CAPTCHA automation at scale |
+
+| Task | Detail |
+|------|--------|
+| Implement | `GeekSerpProvider` + `GeekSerpRankSnapshotProvider` (may share fetch layer) |
+| Dogfood | Deep SERP + content scoring only first |
+| Legal/ops | Document ToS risk for owned fetch; proxy vendor decision |
+
+**Verification:**
+
+- [ ] Shared contract test suite passes for `provider: geek`
+- [ ] Staging: `SERP_PROVIDER=geek` for internal projects before production default
+- [ ] SerpApi SERP call volume drops for dogfooded routes
+
+### Phase D — DataForSEO zero
+
+| Task | Detail |
+|------|--------|
+| DI | Remove DFS registrations |
+| Env | Remove `DATAFORSEO_*` from production |
+| Code | Delete or archive `DataForSeo/*` providers + unused `DataForSeoClient` |
+
+**Verification:**
+
+- [ ] No production traffic to `api.dataforseo.com` (monitor logs 7 days)
+- [ ] `dotnet test` green; no DFS types referenced from `GeekSeo.Application`
+
+Site audit and topical map **ride Phases A–C** via existing interfaces — no parallel DFS feature tracks.
 
 ---
 
-## Verification (by component)
+## Verification by phase
 
-| Component | Metric | How to check |
-|-----------|--------|--------------|
-| #1 SERP Fetch | Provider flip | `/health/providers`; deep SERP `provider` field |
-| #1 | DFS SERP → 0 | DFS dashboard / logs after flip |
-| #2 Keyword Metrics | Off DFS | `KEYWORD_PROVIDER`; planner works |
-| #3 Keyword Discovery | Stub gone | Seed topical map QA |
-| #4 Rank Snapshot | Snapshots OK | Worker + #16 UI; `rank_snapshot` usage |
-| #5 Site Crawl | No OnPage vendor | Audit on Playwright only |
-| #8–#17 Features | No vendor types in Application | Smoke per feature after its data plane is ready |
-| DFS zero | No `dataforseo.com` in prod logs | 7-day log grep after #1–#4 migrated |
+| Phase | Metric | How to check |
+|-------|--------|--------------|
+| 0 | Env switch changes DI type | Breakpoint or `/health/providers` |
+| A | DFS SERP/rank calls | DataForSEO dashboard or HTTP client logs → ~0 |
+| A | `ProviderName` accurate | SERP cache / API `Provider` field = `serpapi` |
+| B | DFS keyword calls | DFS dashboard → ~0 for `keywords_for_keywords` |
+| C | Parity | `GeekSeoBackend.Tests/DataForSEOSerpProviderTests.cs` → shared fixture |
+| D | Zero DFS | Log grep `dataforseo.com` in production |
 
 ---
 
