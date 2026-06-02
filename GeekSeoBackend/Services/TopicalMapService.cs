@@ -4,7 +4,9 @@ using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Services;
 using GeekSeo.Application.Services.Seo;
 using GeekSeo.Persistence.Entities;
+using GeekSeoBackend.Auth;
 using GeekSeoBackend.Models;
+using GeekSeoBackend.Providers.Seo.Metering;
 
 namespace GeekSeoBackend.Services;
 
@@ -19,7 +21,10 @@ public sealed class TopicalMapService(
     ITopicalHierarchyBuilder hierarchyBuilder,
     IKeywordDiscoveryProvider keywordDiscoveryProvider,
     IAIProvider aiProvider,
-    ISerpDeepCacheRepository serpDeepCache)
+    ISerpDeepCacheRepository serpDeepCache,
+    IUsageMeteringService metering,
+    ICurrentUserContext userContext,
+    ILogger<TopicalMapService> logger)
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     private static readonly TimeSpan MapTtl = TimeSpan.FromDays(14);
@@ -554,6 +559,8 @@ Types: Person | Organization | Concept | Tool | Location | Event";
 
             if (!serpResult.IsSuccess || serpResult.Value is null)
                 continue;
+
+            await SerpFetchMetering.TryIncrementAsync(metering, userContext, logger, ct);
 
             var urls = serpResult.Value.OrganicResults
                 .OrderBy(o => o.Position)

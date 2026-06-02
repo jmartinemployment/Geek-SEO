@@ -1122,6 +1122,27 @@ export async function getLinksBlueprint(
   return seoJson<InternalLinkingBlueprint>(res);
 }
 
+export type EntityGapAnalysis = {
+  name: string;
+  mainKeyword?: string;
+  tier?: TopicalTier;
+  entityCoverage: number;
+  entityGaps: string[];
+  gapCount: number;
+};
+
+export async function getEntityGaps(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<EntityGapAnalysis[] | null> {
+  const res = await fetch(`${API_URL}/api/seo/topical-map/${projectId}/entity-gaps`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (res.status === 404) return null;
+  return seoJson<EntityGapAnalysis[]>(res);
+}
+
 export type PublishedPageMetrics = {
   url: string;
   publishedPageId?: string;

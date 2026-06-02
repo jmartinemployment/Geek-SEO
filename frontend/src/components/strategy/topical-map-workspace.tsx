@@ -10,12 +10,14 @@ import {
   generateTopicalMap,
   getGoogleIntegrationStatus,
   getTopicalMap,
+  getEntityGaps,
+  type EntityGapAnalysis,
   type TopicalMapCoverage,
   type TopicalMapResult,
   type TopicalMapTopic,
 } from '@/lib/seo-api';
 
-type ViewMode = 'table' | 'map' | 'links';
+type ViewMode = 'table' | 'map' | 'links' | 'entity-gaps';
 type SortKey = 'priority' | 'impressions' | 'position' | 'volume';
 
 function coverageStyle(coverage: TopicalMapCoverage): string {
@@ -47,6 +49,7 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
   const [creatingId, setCreatingId] = useState<string | null>(null);
   const [mode, setMode] = useState<GenerationMode>('gsc');
   const [seedKeyword, setSeedKeyword] = useState('');
+  const [entityGaps, setEntityGaps] = useState<EntityGapAnalysis[] | null>(null);
 
   const loadCached = useCallback(async () => {
     if (!projectId) return;
@@ -76,6 +79,20 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
     setSelected(null);
     void loadCached();
   }, [loadCached]);
+
+  useEffect(() => {
+    if (view === 'entity-gaps' && projectId) {
+      const loadEntityGaps = async () => {
+        try {
+          const gaps = await getEntityGaps(projectId, accessToken);
+          setEntityGaps(gaps);
+        } catch (err) {
+          console.error('Failed to load entity gaps:', err);
+        }
+      };
+      void loadEntityGaps();
+    }
+  }, [view, projectId, accessToken]);
 
   async function regenerate(force = true) {
     if (!projectId) return;
@@ -341,6 +358,13 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
               >
                 Internal Links
               </button>
+              <button
+                type="button"
+                className={`rounded-md px-3 py-1.5 ${view === 'entity-gaps' ? 'bg-[var(--color-accent)] text-white' : ''}`}
+                onClick={() => setView('entity-gaps')}
+              >
+                Entity Gaps
+              </button>
             </div>
             <label className="text-xs font-medium text-[var(--color-text-secondary)]">
               Coverage
@@ -396,6 +420,53 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
               ) : view === 'links' ? (
                 <div className="rounded-xl border bg-white p-6">
                   <LinkingBlueprintTab projectId={projectId} accessToken={accessToken} />
+                </div>
+              ) : view === 'entity-gaps' ? (
+                <div className="overflow-x-auto rounded-xl border bg-white">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="border-b bg-[var(--color-surface)] text-xs uppercase text-[var(--color-text-muted)]">
+                      <tr>
+                        <th className="px-3 py-2">Topic</th>
+                        <th className="px-3 py-2">Coverage %</th>
+                        <th className="px-3 py-2">Gap Count</th>
+                        <th className="px-3 py-2">Missing Entities</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {entityGaps && entityGaps.length > 0 ? (
+                        entityGaps.map((gap) => (
+                          <tr key={gap.name} className="border-b hover:bg-slate-50">
+                            <td className="px-3 py-2 font-medium">{gap.name}</td>
+                            <td className="px-3 py-2 tabular-nums">{(gap.entityCoverage * 100).toFixed(1)}%</td>
+                            <td className="px-3 py-2 tabular-nums text-red-600 font-medium">{gap.gapCount}</td>
+                            <td className="px-3 py-2 text-xs">
+                              <div className="flex flex-wrap gap-1">
+                                {gap.entityGaps.slice(0, 3).map((entity) => (
+                                  <span
+                                    key={entity}
+                                    className="rounded-full bg-red-50 border border-red-200 px-2 py-0.5 text-red-700"
+                                  >
+                                    {entity}
+                                  </span>
+                                ))}
+                                {gap.entityGaps.length > 3 && (
+                                  <span className="rounded-full bg-red-50 border border-red-200 px-2 py-0.5 text-red-700">
+                                    +{gap.entityGaps.length - 3}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={4} className="px-3 py-4 text-center text-sm text-[var(--color-text-secondary)]">
+                            No entity gaps found
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border bg-white">

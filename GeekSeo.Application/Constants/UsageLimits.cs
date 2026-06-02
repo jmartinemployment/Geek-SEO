@@ -19,6 +19,11 @@ public static class UsageLimits
         ["auto_optimize"] = [20, 100, int.MaxValue, int.MaxValue],
         ["topical_map_refresh"] = [0, 2, 4, int.MaxValue],
         ["bulk_job"] = [0, 1, 3, int.MaxValue],
+        // Outbound provider calls (Phase A.1 — SEO-PROVIDER-STRATEGY.md)
+        [UsageFeatures.SerpFetch] = [100, 500, 2_000, int.MaxValue],
+        [UsageFeatures.RankSnapshot] = [50, 400, 2_500, int.MaxValue],
+        // Max enabled tracked keywords per project (enforced in RankTrackingService)
+        [UsageFeatures.TrackedRankKeyword] = [5, 25, 100, 500],
     };
 
     public static int GetLimit(SubscriptionTier tier, string feature)

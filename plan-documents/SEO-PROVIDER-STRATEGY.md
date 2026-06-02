@@ -64,7 +64,7 @@ Feature services (TopicalMap, SerpAnalysis, ContentScoring, SiteAudit, RankTrack
         └── Geek*Provider         ← end state (fetch + parse + corpus)
 ```
 
-**Registration** in [`GeekSeoBackend/Extensions/SeoBackendExtensions.cs`](../GeekSeoBackend/Extensions/SeoBackendExtensions.cs) must select implementation via **env vars** (see [Phase 0](#phase-0--env-driven-di-prerequisite)). Today registrations are **hardcoded** to DataForSEO — flipping env alone does nothing until Phase 0 ships.
+**Registration** via [`SeoProviderRegistration.AddSeoDataProviders()`](../GeekSeoBackend/Extensions/SeoProviderRegistration.cs), called from [`SeoBackendExtensions.cs`](../GeekSeoBackend/Extensions/SeoBackendExtensions.cs). Implementation is selected by **env vars** (Phase 0 shipped June 2026).
 
 Swapping vendors must not require feature rewrites if `SerpResult` / keyword DTO contracts stay stable.
 
@@ -89,17 +89,26 @@ Swapping vendors must not require feature rewrites if `SerpResult` / keyword DTO
 
 ## Today (as-built)
 
-Registered in `SeoBackendExtensions.cs` (**hardcoded — Phase 0 not done**):
+**Default env** (production posture when unset): all `*_PROVIDER` → `dataforseo`. No SerpApi key required.
 
-| Interface | Implementation today | Vendor |
-|-----------|---------------------|--------|
-| `ISerpProvider` | `DataForSEOSerpProvider` | DataForSEO `…/serp/google/organic/live/advanced` |
-| `IKeywordProvider` | `DataForSEOKeywordProvider` | DataForSEO `…/keywords_for_keywords/live` |
-| `IRankSnapshotProvider` | `DataForSeoRankSnapshotProvider` | DataForSEO `…/organic/live/regular` |
-| `IKeywordDiscoveryProvider` | `InternalKeywordDiscoveryProvider` | **Geek** stub (in-memory modifiers; no external API) |
-| `ICrawlerProvider` | `PlaywrightCrawlerProvider` (or no-op) | **Geek** (Playwright) |
+| Interface | Default implementation | Also available (env) |
+|-----------|------------------------|----------------------|
+| `ISerpProvider` | `DataForSEOSerpProvider` | `SerpApiSerpProvider`; optional `FallbackSerpProvider` (`SERP_PROVIDER_FALLBACK=dataforseo`) |
+| `IKeywordProvider` | `DataForSEOKeywordProvider` | Phase B: `gsc_ads`, `geek` (not implemented) |
+| `IRankSnapshotProvider` | `DataForSeoRankSnapshotProvider` | `SerpApiRankSnapshotProvider` |
+| `IKeywordDiscoveryProvider` | `InternalKeywordDiscoveryProvider` | **Stub** — replace per [KEYWORD-DISCOVERY-STRATEGY.md](KEYWORD-DISCOVERY-STRATEGY.md) |
+| `ICrawlerProvider` | `PlaywrightCrawlerProvider` (or no-op) | Geek (Playwright) |
 
-**Env:** `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD`
+**Env (credentials):**
+
+| Vendor | Variables |
+|--------|-----------|
+| DataForSEO | `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD` |
+| SerpApi (only if `serpapi` provider) | `SERPAPI_API_KEY` |
+
+**Env (selection):** `SERP_PROVIDER`, `KEYWORD_PROVIDER`, `RANK_SNAPSHOT_PROVIDER`, optional `SERP_PROVIDER_FALLBACK`
+
+**Ops:** `GET /health/providers` — resolved names + credential flags (no secrets)
 
 ### Who consumes what
 
@@ -264,45 +273,54 @@ Execute in order. Each phase ends with **measurable DFS call reduction** and pas
 
 ### Phase 0 — Env-driven DI (prerequisite)
 
-**Blocks Phase A** until done.
+**Status: shipped (June 2026)** in `GeekSeoBackend/Extensions/SeoProviderRegistration.cs`.
 
 | Task | Detail |
 |------|--------|
-| Provider factory | Read `SERP_PROVIDER`, `KEYWORD_PROVIDER`, `RANK_SNAPSHOT_PROVIDER` in `SeoBackendExtensions` (or dedicated `ProviderRegistrationExtensions`) |
-| Defaults | Production-safe defaults: current behavior (`dataforseo`) until env explicitly set |
-| HttpClient names | `SerpApi` named client + existing `DataForSEO` client |
-| Folder layout | Start `Providers/Seo/{SerpApi,DataForSeo,Geek,Composite}/` for new types |
-| Health | `GET /health/providers` (or extend `/health`) — reports resolved provider names + configured keys present (not secret values) |
+| Provider factory | `AddSeoDataProviders()` — `SERP_PROVIDER`, `KEYWORD_PROVIDER`, `RANK_SNAPSHOT_PROVIDER` (default `dataforseo`) |
+| HttpClient names | `DataForSEO`, `SerpApi` named clients registered |
+| Health | `GET /health/providers` — resolved names + credential flags (no secrets) |
+| Unimplemented env | `geek` / `gsc_ads` → **fail at startup** with message pointing to next phase |
+| Folder layout | SerpApi under `Providers/Seo/SerpApi/`; DFS providers still at `Providers/Seo/` (move deferred) |
 
 **Verification:**
 
-- [ ] `dotnet test` — existing provider tests still pass with default env
-- [ ] Local: set `SERP_PROVIDER=serpapi` + key → DI resolves `SerpApiSerpProvider` (once implemented in Phase A)
+- [x] `SeoProviderRegistrationTests` — default env → DataForSEO implementations
+- [x] `SeoProviderRegistrationTests` — `serpapi` + `SERPAPI_API_KEY` → SerpApi implementations
+- [x] Local DI: `SERP_PROVIDER=serpapi` + `SERPAPI_API_KEY` → `SerpApiSerpProvider` (unit tests)
 
 ### Phase A — Bridge: SerpApi primary
 
-| Task | Detail |
-|------|--------|
-| Implement | `SerpApiSerpProvider`, `SerpApiRankSnapshotProvider` under `Providers/Seo/SerpApi/` |
-| Wire env | `SERP_PROVIDER=serpapi`, `RANK_SNAPSHOT_PROVIDER=serpapi` on Railway |
-| Fallback | Optional `FallbackSerpProvider` when `SERP_PROVIDER_FALLBACK=dataforseo` |
-| DFS client | Refactor static `DataForSeoClient.cs` to injectable when touching DFS code |
-| GEO scope | SerpApi for SERP + rank only in this phase |
+**Status: code shipped (June 2026)** in `GeekSeoBackend/Providers/Seo/SerpApi/`. **Production:** stays on `dataforseo` until env flip + SerpApi key.
+
+| Task | Detail | Status |
+|------|--------|--------|
+| Implement | `SerpApiSerpProvider`, `SerpApiRankSnapshotProvider` under `Providers/Seo/SerpApi/` | [x] |
+| Wire env | `SERP_PROVIDER=serpapi`, `RANK_SNAPSHOT_PROVIDER=serpapi` | [x] code; [ ] Railway flip (optional) |
+| Fallback | `FallbackSerpProvider` when `SERP_PROVIDER_FALLBACK=dataforseo` | [x] |
+| DFS client | Refactor static `DataForSeoClient.cs` to injectable | [ ] deferred |
+| GEO scope | SerpApi for SERP + rank only in this phase | [x] |
 
 **Verification:**
 
-- [ ] `DataForSEOSerpProviderTests` — add parallel `SerpApiSerpProviderTests` (or shared contract test fixture) for same keyword/location → required `SerpResult` fields
-- [ ] Deep SERP API/UI: response or cache shows `provider: serpapi` (`SerpAnalysisService` maps `serp.ProviderName`)
-- [ ] Rank tracker: snapshot job completes; logs show SerpApi calls; DFS rank endpoint call count → ~0
-- [ ] **Optional schema:** persist `ProviderName` on `SeoRankTracking` rows (GeekRepository migration) for support/debug
+- [x] `SerpApiSerpProviderTests`, `SerpApiRankSnapshotProviderTests` (JSON parse fixtures)
+- [x] `DataForSEOSerpProviderTests` (existing DFS baseline)
+- [ ] Deep SERP API/UI: response or cache shows `provider: serpapi` after env flip
+- [ ] Rank tracker: snapshot job completes on SerpApi; DFS rank endpoint call count → ~0 after flip
+- [ ] **Optional schema:** persist `ProviderName` on `SeoRankTracking` rows (GeekRepository migration)
 
 ### Phase A.1 — Metering & ops (same release train as A)
 
-| Task | Detail |
-|------|--------|
-| Metering | Count SerpApi SERP + rank calls in `IUsageMeteringService` |
-| Alerts | Document SerpApi dashboard + monthly budget check |
-| Rank caps | Enforce max tracked keywords per subscription tier before poll |
+**Status: code shipped (June 2026)** — rank + background SERP metering; ops alert env documented only.
+
+| Task | Detail | Status |
+|------|--------|--------|
+| Metering | `rank_snapshot` on each successful rank provider call (`MeteredRankSnapshotProvider`) | [x] |
+| Metering | `serp_fetch` for topical map + GEO background SERP (`SerpFetchMetering`); user deep SERP stays `deep_serp` via middleware (no double count) | [x] |
+| Rank caps | Max enabled keywords per project (`tracked_rank_keyword` tier limits) on add | [x] |
+| Rank caps | Pre-flight monthly `rank_snapshot` budget before worker batch per project | [x] |
+| Alerts | `SERPAPI_MONTHLY_BUDGET_USD` documented in `.env.example` (alerting TBD) | [x] doc |
+| Alerts | SerpApi dashboard + monthly budget check | [ ] ops process |
 
 ### Phase B — Keyword path off DFS
 
@@ -424,4 +442,4 @@ Rank/agency UI backlog lives in [`TODO.md`](TODO.md) (integrations, post-v1 upgr
 | Rank tracker on DFS today? | **Expected** — Sprint 2; swap provider in Phase A. |
 | Site audit vs DFS OnPage? | **Playwright / Geek crawl only.** |
 | Topical map vs DFS Labs? | **`IKeywordProvider` + `IKeywordDiscoveryProvider`** — see KEYWORD-DISCOVERY-STRATEGY. |
-| Env vars work today? | **No** — Phase 0 required. |
+| Env vars work today? | **Yes** — Phase 0 + A shipped; default `dataforseo`; SerpApi when `serpapi` + `SERPAPI_API_KEY`. |

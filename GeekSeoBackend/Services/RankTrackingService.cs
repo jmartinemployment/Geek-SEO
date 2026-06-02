@@ -1,5 +1,6 @@
 namespace GeekSeoBackend.Services;
 
+using GeekSeo.Application.Constants.Seo;
 using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
@@ -13,6 +14,8 @@ public class RankTrackingService
     private readonly IRankSnapshotProvider _provider;
     private readonly IProjectRepository _projects;
     private readonly ICurrentUserContext _userContext;
+    private readonly IUsageMeteringService _metering;
+    private readonly ISubscriptionService _subscriptions;
     private readonly ILogger<RankTrackingService> _logger;
 
     public RankTrackingService(
@@ -20,12 +23,16 @@ public class RankTrackingService
         IRankSnapshotProvider provider,
         IProjectRepository projects,
         ICurrentUserContext userContext,
+        IUsageMeteringService metering,
+        ISubscriptionService subscriptions,
         ILogger<RankTrackingService> logger)
     {
         _repository = repository;
         _provider = provider;
         _projects = projects;
         _userContext = userContext;
+        _metering = metering;
+        _subscriptions = subscriptions;
         _logger = logger;
     }
 
@@ -55,6 +62,22 @@ public class RankTrackingService
             var projectResult = await _projects.GetByIdAsync(projectId, _userContext.UserId, ct);
             if (!projectResult.IsSuccess)
                 return Result<SeoTrackedKeyword>.Failure(projectResult.Error!);
+
+            var tierResult = await _subscriptions.GetActiveTierAsync(_userContext.UserId, ct);
+            if (!tierResult.IsSuccess)
+                return Result<SeoTrackedKeyword>.Failure(tierResult.Error ?? "Subscription lookup failed");
+
+            var existing = await _repository.GetKeywordsAsync(projectId, ct);
+            if (!existing.IsSuccess)
+                return Result<SeoTrackedKeyword>.Failure(existing.Error ?? "Failed to list tracked keywords");
+
+            var enabledCount = existing.Value!.Count(k => k.Enabled);
+            var keywordLimit = UsageLimits.GetLimit(tierResult.Value!, UsageFeatures.TrackedRankKeyword);
+            if (enabledCount >= keywordLimit)
+            {
+                return Result<SeoTrackedKeyword>.Failure(
+                    $"Tracked keyword limit reached for this project ({enabledCount}/{keywordLimit}). Remove a keyword or upgrade your plan.");
+            }
 
             var entity = new SeoTrackedKeyword
             {
@@ -138,6 +161,30 @@ public class RankTrackingService
             var keywords = keywordsResult.Value!
                 .Where(k => k.Enabled)
                 .ToList();
+
+            if (keywords.Count > 0)
+            {
+                var tierResult = await _subscriptions.GetActiveTierAsync(_userContext.UserId, ct);
+                if (tierResult.IsSuccess)
+                {
+                    var usageResult = await _metering.GetUsageAsync(_userContext.UserId, UsageFeatures.RankSnapshot, ct);
+                    var limit = UsageLimits.GetLimit(tierResult.Value!, UsageFeatures.RankSnapshot);
+                    var used = 0;
+                    if (usageResult.IsSuccess)
+                        used = usageResult.Value;
+                    if (used + keywords.Count > limit)
+                    {
+                        _logger.LogWarning(
+                            "Skipping rank snapshot for project {ProjectId}: monthly rank_snapshot budget ({Used}+{Needed} > {Limit})",
+                            projectId,
+                            used,
+                            keywords.Count,
+                            limit);
+                        return Result.Failure(
+                            $"Monthly rank check limit reached ({used}/{limit}). Try again next month or upgrade your plan.");
+                    }
+                }
+            }
 
             foreach (var keyword in keywords)
             {

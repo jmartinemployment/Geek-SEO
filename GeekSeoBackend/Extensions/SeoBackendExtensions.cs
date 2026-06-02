@@ -56,19 +56,11 @@ public static class SeoBackendExtensions
 
         // External providers + scoring (product host only)
         services.AddScoped<IRichTextProvider, HtmlRichTextProvider>();
-        services.AddHttpClient("DataForSEO", client =>
-        {
-            client.BaseAddress = new Uri("https://api.dataforseo.com");
-            client.Timeout = TimeSpan.FromSeconds(60);
-        });
+        services.AddSeoDataProviders();
         services.AddHttpClient("Anthropic", client => client.BaseAddress = new Uri("https://api.anthropic.com"));
         services.AddHttpClient("WordPress");
-        services.AddScoped<ISerpProvider, DataForSEOSerpProvider>();
-        services.AddScoped<IKeywordProvider, DataForSEOKeywordProvider>();
-        services.AddScoped<IKeywordDiscoveryProvider, InternalKeywordDiscoveryProvider>();
         services.AddScoped<IAIProvider, ClaudeProvider>();
         services.AddScoped<IWordPressProvider, WordPressRestProvider>();
-        services.AddScoped<IRankSnapshotProvider, DataForSeoRankSnapshotProvider>();
 
         if (playwrightHolder?.Browser is not null)
             services.AddSingleton<ICrawlerProvider>(_ => new PlaywrightCrawlerProvider(playwrightHolder.Browser));
