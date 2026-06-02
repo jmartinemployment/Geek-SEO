@@ -1,6 +1,6 @@
 # Keyword Discovery Strategy — IKeywordDiscoveryProvider Implementation Plan
 
-**Parent plan:** [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md) (Phase B — keyword path off DFS)  
+**Parent plan:** [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md) — **Component #3 Keyword Discovery** (not a monolithic phase)  
 **Status:** Stub implemented, planning phase  
 **Last Updated:** 2026-06-01  
 **Owner:** Jeff Martin

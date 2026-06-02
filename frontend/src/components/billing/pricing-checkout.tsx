@@ -1,6 +1,5 @@
 'use client';
 
-import Script from 'next/script';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
@@ -83,6 +82,29 @@ export function PricingCheckout() {
   }, [checkoutAvailable, plans?.checkout.clientId]);
 
   useEffect(() => {
+    if (!checkoutAvailable || !plans?.checkout.clientId) return;
+
+    const scriptId = 'paypal-sdk-script';
+    if (document.getElementById(scriptId)) return;
+
+    const script = document.createElement('script');
+    script.id = scriptId;
+    script.src = `${payPalSdkHost}/sdk/js?client-id=${encodeURIComponent(plans.checkout.clientId)}&vault=true&intent=subscription`;
+    script.async = true;
+
+    const handleLoad = () => setSdkReady(true);
+    script.addEventListener('load', handleLoad);
+
+    document.body.appendChild(script);
+
+    return () => {
+      script.removeEventListener('load', handleLoad);
+      document.body.removeChild(script);
+      script.remove();
+    };
+  }, [checkoutAvailable, plans?.checkout.clientId, payPalSdkHost]);
+
+  useEffect(() => {
     if (!sdkReady || !checkoutAvailable || !plans?.checkout.clientId || !plans.checkout.planIds || !billingUserId) {
       return;
     }
@@ -140,14 +162,6 @@ export function PricingCheckout() {
 
   return (
     <>
-      {checkoutAvailable && plans?.checkout.clientId ? (
-        <Script
-          src={`${payPalSdkHost}/sdk/js?client-id=${encodeURIComponent(plans.checkout.clientId)}&vault=true&intent=subscription`}
-          strategy="afterInteractive"
-          onLoad={() => setSdkReady(true)}
-        />
-      ) : null}
-
       {checkoutAvailable && plans?.checkout.environment === 'sandbox' ? (
         <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           PayPal is in <strong>sandbox</strong> mode — use a PayPal sandbox buyer account to test. No real charges
