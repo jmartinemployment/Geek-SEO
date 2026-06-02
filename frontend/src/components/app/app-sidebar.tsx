@@ -5,7 +5,6 @@ import {
   FileText,
   Globe,
   LayoutDashboard,
-  LineChart,
   Map,
   MoreHorizontal,
   Search,
@@ -27,7 +26,6 @@ const primaryItems: SidebarItem[] = [
   { href: '/app/content', label: 'Content Documents', icon: FileText },
   { href: '/app/keywords', label: 'Keyword Research', icon: Search },
   { href: '/app/cannibalization', label: 'Cannibalization', icon: TrendingUp },
-  { href: '/app/rank-tracker', label: 'Rank Tracker', icon: LineChart },
   { href: '/app/audit', label: 'Site Audit', icon: ShieldCheck },
   { href: '/app/analytics', label: 'Analytics', icon: BarChart3 },
 ];
