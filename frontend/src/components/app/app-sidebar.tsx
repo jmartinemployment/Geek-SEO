@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import Link from 'next/link';
 import {
   BarChart3,
+  Compass,
   FileText,
   Globe,
   LayoutDashboard,
@@ -23,6 +24,7 @@ type SidebarItem = {
 const primaryItems: SidebarItem[] = [
   { href: '/app/dashboard', label: 'Home', icon: LayoutDashboard },
   { href: '/app/strategy/topical-map', label: 'Topical Map', icon: Map },
+  { href: '/app/strategy/niche-analyzer', label: 'Niche Analyzer', icon: Compass },
   { href: '/app/content', label: 'Content Documents', icon: FileText },
   { href: '/app/keywords', label: 'Keyword Research', icon: Search },
   { href: '/app/cannibalization', label: 'Cannibalization', icon: TrendingUp },

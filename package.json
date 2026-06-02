@@ -31,8 +31,8 @@
   "homepage": "https://github.com/jmartinemployment/Geek-SEO#readme",
   "devDependencies": {
     "@playwright/test": "^1.60.0",
-    "playwright": "^1.60.0",
     "@types/node": "^25.9.1",
+    "playwright": "^1.60.0",
     "vitest": "^4.1.7"
   },
   "dependencies": {

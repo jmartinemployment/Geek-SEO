@@ -1436,3 +1436,232 @@ export async function getRankHistory(
   );
   return seoJson<RankHistoryPoint[]>(res);
 }
+
+// ─── Niche Analyzer ──────────────────────────────────────────────────────────
+
+export type NicheAnalysisStatus = {
+  profileId: string;
+  status: 'queued' | 'processing' | 'complete' | 'failed';
+  step?: string;
+  stepNumber?: number;
+  totalSteps?: number;
+  errorMessage?: string;
+};
+
+export type NicheSubtopicResult = {
+  id: string;
+  subtopicTitle: string;
+  targetKeyword: string;
+  searchIntent: string;
+  searchVolume: number;
+  keywordDifficulty: number;
+  coverageStatus: 'covered' | 'partial' | 'gap';
+  existingUrl?: string;
+  recommendedFormat: string;
+  recommendedWordCount: number;
+  fixEffort: string;
+  isQuickWin: boolean;
+};
+
+export type NichePillarResult = {
+  id: string;
+  pillarTopic: string;
+  pillarSlug: string;
+  primaryKeyword: string;
+  pageUrl?: string;
+  searchIntent: string;
+  searchVolume: number;
+  keywordDifficulty: number;
+  coverageStatus: 'covered' | 'partial' | 'gap';
+  coverageScore: number;
+  existingPageCount: number;
+  requiredSubtopicCount: number;
+  coveredSubtopicCount: number;
+  strategicPriority: 'must_have' | 'high_value' | 'expansion';
+  contentAngle?: string;
+  source: string;
+  displayOrder: number;
+  subtopics: NicheSubtopicResult[];
+};
+
+export type NicheProfileResult = {
+  id: string;
+  projectId: string;
+  domain: string;
+  primaryNiche: string;
+  nicheDescription: string;
+  nicheTags: string[];
+  audienceType: string;
+  competitionLevel: string;
+  discoveryMethod: string;
+  topicalAuthorityScore: number;
+  totalPillarsIdentified: number;
+  pillarsCovered: number;
+  pillarsPartial: number;
+  pillarsGap: number;
+  analyzedAt?: string;
+  nextAnalysisDue?: string;
+  status: string;
+  pillars: NichePillarResult[];
+  competitors: NicheCompetitorResult[];
+  entities: NicheEntityResult[];
+};
+
+export type NicheCompetitorResult = {
+  id: string;
+  domain: string;
+  serpPresence: number;
+  estimatedAuthorityScore: number;
+  pillarsRanking: number;
+  strengthAssessment: string;
+};
+
+export type NicheEntityResult = {
+  id: string;
+  entityName: string;
+  entityType: string;
+  mentionFrequency: number;
+  presentOnDomain: boolean;
+};
+
+export type PillarCoverageMatrix = {
+  pillarId: string;
+  pillarTopic: string;
+  primaryKeyword: string;
+  searchVolume: number;
+  keywordDifficulty: number;
+  coverageScore: number;
+  coveredSubtopics: number;
+  totalSubtopics: number;
+  gapSubtopics: number;
+  coverageStatus: string;
+  strategicPriority: string;
+  hasQuickWins: boolean;
+};
+
+export type TopicalGapSummary = {
+  subtopicId: string;
+  pillarTopic: string;
+  subtopicTitle: string;
+  targetKeyword: string;
+  searchVolume: number;
+  keywordDifficulty: number;
+  isQuickWin: boolean;
+  recommendedFormat: string;
+  fixEffort: string;
+};
+
+export type AuthorityProgressPoint = {
+  snapshotDate: string;
+  topicalAuthorityScore: number;
+  pillarsCovered: number;
+  totalSubtopicsCovered: number;
+  totalGaps: number;
+};
+
+export type NicheProfileSummary = {
+  id: string;
+  domain: string;
+  primaryNiche: string;
+  topicalAuthorityScore: number;
+  totalPillars: number;
+  pillarsCovered: number;
+  pillarsGap: number;
+  competitionLevel: string;
+  analyzedAt?: string;
+  status: string;
+};
+
+export async function analyzeNiche(
+  projectId: string,
+  domain: string,
+  accessToken?: string | null,
+  seedTopic?: string,
+): Promise<{ profileId: string; status: string }> {
+  const res = await fetch(`${API_URL}/api/seo/niche-analyzer/analyze`, {
+    method: 'POST',
+    headers: { ...apiHeaders(accessToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId, domain, seedTopic }),
+  });
+  return seoJson(res);
+}
+
+export async function getNicheAnalysisStatus(
+  profileId: string,
+  accessToken?: string | null,
+): Promise<NicheAnalysisStatus> {
+  const res = await fetch(`${API_URL}/api/seo/niche-analyzer/${profileId}/status`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson(res);
+}
+
+export async function getNicheProfile(
+  profileId: string,
+  accessToken?: string | null,
+): Promise<NicheProfileResult> {
+  const res = await fetch(`${API_URL}/api/seo/niche-analyzer/${profileId}`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson(res);
+}
+
+export async function getLatestNicheProfile(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<NicheProfileResult | null> {
+  const res = await fetch(`${API_URL}/api/seo/niche-analyzer/project/${projectId}/latest`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (res.status === 204) return null;
+  return seoJson(res);
+}
+
+export async function getNicheCoverageMatrix(
+  profileId: string,
+  accessToken?: string | null,
+): Promise<PillarCoverageMatrix[]> {
+  const res = await fetch(`${API_URL}/api/seo/niche-analyzer/${profileId}/coverage-matrix`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson(res);
+}
+
+export async function getNicheGaps(
+  profileId: string,
+  quickWinsOnly: boolean,
+  accessToken?: string | null,
+): Promise<TopicalGapSummary[]> {
+  const res = await fetch(
+    `${API_URL}/api/seo/niche-analyzer/${profileId}/gaps?quickWinsOnly=${quickWinsOnly}`,
+    { headers: apiHeaders(accessToken), cache: 'no-store' },
+  );
+  return seoJson(res);
+}
+
+export async function getNicheProgress(
+  projectId: string,
+  accessToken?: string | null,
+  months = 12,
+): Promise<AuthorityProgressPoint[]> {
+  const res = await fetch(
+    `${API_URL}/api/seo/niche-analyzer/project/${projectId}/progress?months=${months}`,
+    { headers: apiHeaders(accessToken), cache: 'no-store' },
+  );
+  return seoJson(res);
+}
+
+export async function getNicheHistory(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<NicheProfileSummary[]> {
+  const res = await fetch(
+    `${API_URL}/api/seo/niche-analyzer/project/${projectId}/history`,
+    { headers: apiHeaders(accessToken), cache: 'no-store' },
+  );
+  return seoJson(res);
+}

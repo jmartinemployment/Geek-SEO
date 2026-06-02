@@ -162,5 +162,66 @@ public partial class SeoDbContext
             .WithMany()
             .HasForeignKey(x => x.OrgId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<NicheProfile>(e =>
+        {
+            e.ToTable("niche_profiles");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.NicheTags).HasColumnType("text[]");
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => x.Status);
+            e.HasIndex(x => x.Domain);
+        });
+
+        modelBuilder.Entity<NichePillar>(e =>
+        {
+            e.ToTable("niche_pillars");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.NicheProfile).WithMany(p => p.Pillars).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.NicheProfileId);
+            e.HasIndex(x => x.CoverageStatus);
+        });
+
+        modelBuilder.Entity<NicheSubtopic>(e =>
+        {
+            e.ToTable("niche_subtopics");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.Pillar).WithMany(p => p.Subtopics).HasForeignKey(x => x.PillarId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.PillarId);
+            e.HasIndex(x => x.IsQuickWin);
+        });
+
+        modelBuilder.Entity<NicheCompetitor>(e =>
+        {
+            e.ToTable("niche_competitors");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.NicheProfile).WithMany(p => p.Competitors).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.NicheProfileId);
+        });
+
+        modelBuilder.Entity<NicheEntity>(e =>
+        {
+            e.ToTable("niche_entities");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.AssociatedPillarIds).HasColumnType("uuid[]");
+            e.HasOne(x => x.NicheProfile).WithMany(p => p.Entities).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.NicheProfileId);
+        });
+
+        modelBuilder.Entity<NichePillarPage>(e =>
+        {
+            e.ToTable("niche_pillar_pages");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.TopicsFound).HasColumnType("text[]");
+            e.Property(x => x.GapsFound).HasColumnType("text[]");
+            e.HasOne(x => x.Pillar).WithMany(p => p.ExistingPages).HasForeignKey(x => x.PillarId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.PillarId);
+        });
     }
 }

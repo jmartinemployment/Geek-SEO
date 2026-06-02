@@ -1,6 +1,8 @@
 using System.Text;
 using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
+using GeekSeoBackend.Jobs;
+using GeekSeoBackend.Services.NicheExtraction;
 using GeekSeo.Application.Services.Seo;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.HttpClients.Repo;
@@ -99,6 +101,19 @@ public static class SeoBackendExtensions
         services.AddScoped<GeoVisibilityService>();
         services.AddScoped<ContentGuardService>();
         services.AddScoped<RankTrackingService>();
+
+        // Niche Analyzer
+        services.AddScoped<INicheProfileRepository, HttpNicheProfileRepository>();
+        services.AddScoped<INicheAnalyticsDapperRepository, HttpNicheAnalyticsDapperRepository>();
+        services.AddScoped<SchemaOrgExtractor>();
+        services.AddScoped<SitemapExtractor>();
+        services.AddScoped<NavMenuExtractor>();
+        services.AddScoped<PillarValidator>();
+        services.AddScoped<PillarMerger>();
+        services.AddScoped<NicheAuthorityScorer>();
+        services.AddScoped<NicheRootEntityBuilder>();
+        services.AddScoped<NicheAnalyzerService>();
+        services.AddScoped<NicheAnalysisBackgroundJob>();
 
         services.AddHttpClient("PayPal");
         services.AddSingleton(_ => new PayPalOptions

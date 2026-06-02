@@ -45,6 +45,12 @@ public partial class SeoDbContext : DbContext
     public DbSet<SeoContentGuardRun> ContentGuardRuns => Set<SeoContentGuardRun>();
     public DbSet<SeoOrganization> Organizations => Set<SeoOrganization>();
     public DbSet<SeoOrganizationMember> OrganizationMembers => Set<SeoOrganizationMember>();
+    public DbSet<NicheProfile> NicheProfiles => Set<NicheProfile>();
+    public DbSet<NichePillar> NichePillars => Set<NichePillar>();
+    public DbSet<NicheSubtopic> NicheSubtopics => Set<NicheSubtopic>();
+    public DbSet<NicheCompetitor> NicheCompetitors => Set<NicheCompetitor>();
+    public DbSet<NicheEntity> NicheEntities => Set<NicheEntity>();
+    public DbSet<NichePillarPage> NichePillarPages => Set<NichePillarPage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
