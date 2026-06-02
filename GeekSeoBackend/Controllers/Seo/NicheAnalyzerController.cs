@@ -50,7 +50,7 @@ public sealed class NicheAnalyzerController(
             var step = p.AnalysisStep ?? p.Status;
             var stepNumber = p.AnalysisStepNumber > 0
                 ? p.AnalysisStepNumber
-                : p.Status switch { "complete" => 10, "processing" => 1, _ => 0 };
+                : p.Status switch { "complete" => 10, _ => 0 };
             var totalSteps = p.AnalysisTotalSteps > 0 ? p.AnalysisTotalSteps : 10;
             return Ok(new NicheAnalysisStatus(
                 p.Id, p.Status, step, stepNumber, totalSteps, p.ErrorMessage));

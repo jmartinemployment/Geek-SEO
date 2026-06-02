@@ -25,6 +25,17 @@ type Props = {
   onError: (message: string) => void;
 };
 
+function mergeStatus(
+  prev: NicheAnalysisStatus | null,
+  next: NicheAnalysisStatus,
+): NicheAnalysisStatus {
+  const prevStep = prev?.stepNumber ?? 0;
+  const nextStep = next.stepNumber ?? 0;
+  if (prev && prevStep > nextStep && prev.status === 'processing')
+    return { ...next, step: prev.step, stepNumber: prevStep };
+  return next;
+}
+
 export function AnalysisStatusListener({ profileId, accessToken, onComplete, onError }: Props) {
   const [progress, setProgress] = useState<NicheAnalysisStatus | null>(null);
   const hubRef = useRef<WebSocket | null>(null);
@@ -46,7 +57,7 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
           onError(status.errorMessage ?? 'Analysis failed');
           return;
         }
-        setProgress(status);
+        setProgress((prev) => mergeStatus(prev, status));
       } catch {
         // ignore transient errors
       }
@@ -79,14 +90,16 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
         conn.on('AnalysisProgress', (msg: NicheAnalysisStatus & { message?: string; ProfileId?: string }) => {
           const msgProfileId = msg.profileId ?? msg.ProfileId;
           if (msgProfileId && msgProfileId !== profileId) return;
-          setProgress({
-            profileId: msgProfileId ?? profileId,
-            status: msg.status ?? (msg as { Status?: string }).Status ?? 'processing',
-            step: msg.step ?? (msg as { Step?: string }).Step,
-            stepNumber: msg.stepNumber ?? (msg as { StepNumber?: number }).StepNumber,
-            totalSteps: msg.totalSteps ?? (msg as { TotalSteps?: number }).TotalSteps ?? 10,
-            errorMessage: msg.errorMessage ?? (msg as { ErrorMessage?: string }).ErrorMessage,
-          });
+          setProgress((prev) =>
+            mergeStatus(prev, {
+              profileId: msgProfileId ?? profileId,
+              status: msg.status ?? (msg as { Status?: string }).Status ?? 'processing',
+              step: msg.step ?? (msg as { Step?: string }).Step,
+              stepNumber: msg.stepNumber ?? (msg as { StepNumber?: number }).StepNumber,
+              totalSteps: msg.totalSteps ?? (msg as { TotalSteps?: number }).TotalSteps ?? 10,
+              errorMessage: msg.errorMessage ?? (msg as { ErrorMessage?: string }).ErrorMessage,
+            }),
+          );
           if (msg.status === 'complete' && !completedRef.current) {
             completedRef.current = true;
             onComplete(profileId);

@@ -47,7 +47,7 @@ public sealed class NicheAnalyzerService(
 
     public async Task RunAnalysisAsync(Guid profileId, Guid userId, IBrowser? browser, CancellationToken ct)
     {
-        await PushProgress(userId, profileId, "schema", 1, "Extracting schema.org data…");
+        await PushProgress(userId, profileId, "schema", 1, "Extracting schema.org data…", ct);
 
         try
         {
@@ -67,11 +67,11 @@ public sealed class NicheAnalyzerService(
 
             // Step 1 — Schema.org
             var schemaData = await schemaExtractor.ExtractAsync(domain, ct);
-            await PushProgress(userId, profileId, "sitemap", 2, "Parsing sitemap…");
+            await PushProgress(userId, profileId, "sitemap", 2, "Parsing sitemap…", ct);
 
             // Step 2 — Sitemap
             var sitemapData = await sitemapExtractor.ExtractAsync(domain, ct);
-            await PushProgress(userId, profileId, "nav", 3, "Crawling navigation menu…");
+            await PushProgress(userId, profileId, "nav", 3, "Crawling navigation menu…", ct);
 
             // Step 3 — Nav menu (Playwright)
             NavMenuData navData = new([], "skipped");
@@ -79,11 +79,11 @@ public sealed class NicheAnalyzerService(
             {
                 navData = await navMenuExtractor.ExtractAsync(domain, browser, ct);
             }
-            await PushProgress(userId, profileId, "headings", 4, "Extracting homepage headings…");
+            await PushProgress(userId, profileId, "headings", 4, "Extracting homepage headings…", ct);
 
             // Step 4 — Title + meta from sitemap/schema (no Playwright needed)
             var headings = BuildHeadingsFromSchema(schemaData);
-            await PushProgress(userId, profileId, "merging", 5, "Merging pillar signals…");
+            await PushProgress(userId, profileId, "merging", 5, "Merging pillar signals…", ct);
 
             // Step 5 — Merge all sources
             var schemaPillars = BuildSchemaDiscoveredPillars(schemaData);
@@ -94,7 +94,7 @@ public sealed class NicheAnalyzerService(
                 [],
                 schemaData.AreaServed.ToList());
 
-            await PushProgress(userId, profileId, "validating", 6, "Validating pillars…");
+            await PushProgress(userId, profileId, "validating", 6, "Validating pillars…", ct);
 
             // Step 6 — Root entity + niche string
             var nicheEntities = BuildNichePillars(merged, profileId);
@@ -105,7 +105,7 @@ public sealed class NicheAnalyzerService(
 
             // Step 7 — Determine audience type
             var audienceType = DetermineAudienceType(nicheEntities, schemaData);
-            await PushProgress(userId, profileId, "scoring", 7, "Computing topical authority score…");
+            await PushProgress(userId, profileId, "scoring", 7, "Computing topical authority score…", ct);
 
             // Step 8 — Score
             var authorityScore = scorer.ComputeTopicalAuthorityScore(nicheEntities);
@@ -113,7 +113,7 @@ public sealed class NicheAnalyzerService(
             var partial = nicheEntities.Count(p => p.CoverageStatus == "partial");
             var gap = nicheEntities.Count(p => p.CoverageStatus == "gap");
 
-            await PushProgress(userId, profileId, "saving", 8, "Saving analysis results…");
+            await PushProgress(userId, profileId, "saving", 8, "Saving analysis results…", ct);
 
             // Step 9 — Persist
             profile.PrimaryNiche = rootEntity;
@@ -132,7 +132,7 @@ public sealed class NicheAnalyzerService(
 
             await profileRepo.UpdateScoresAsync(profileId, authorityScore, covered, partial, gap, ct);
 
-            await PushProgress(userId, profileId, "complete", TotalSteps, "Analysis complete!");
+            await PushProgress(userId, profileId, "complete", TotalSteps, "Analysis complete!", ct);
             await profileRepo.UpdateStatusAsync(profileId, "complete", "complete", TotalSteps, TotalSteps, ct: ct);
 
             logger.LogInformation(
@@ -167,8 +167,25 @@ public sealed class NicheAnalyzerService(
         }
     }
 
-    private async Task PushProgress(Guid userId, Guid profileId, string step, int stepNumber, string message)
+    private async Task PushProgress(
+        Guid userId,
+        Guid profileId,
+        string step,
+        int stepNumber,
+        string message,
+        CancellationToken ct = default)
     {
+        var status = stepNumber >= TotalSteps ? "complete" : "processing";
+        try
+        {
+            await profileRepo.UpdateStatusAsync(
+                profileId, status, step, stepNumber, TotalSteps, ct: ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to persist niche step {Step} for {ProfileId}", step, profileId);
+        }
+
         try
         {
             await hub.Clients.User(userId.ToString()).SendAsync("AnalysisProgress", new

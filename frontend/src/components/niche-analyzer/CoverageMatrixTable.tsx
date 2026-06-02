@@ -20,7 +20,11 @@ export function CoverageMatrixTable({ pillars }: Props) {
   if (pillars.length === 0) {
     return (
       <div className="rounded-xl border border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-text-muted)]">
-        No pillars found.
+        <p className="font-medium text-[var(--color-text-primary)]">No pillars found</p>
+        <p className="mt-2">
+          The run completed but could not infer topics from schema.org, sitemap paths, or navigation.
+          Sites with only a single-page sitemap often need richer JSON-LD (services, knowsAbout) or interior URLs.
+        </p>
       </div>
     );
   }

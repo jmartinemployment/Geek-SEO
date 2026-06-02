@@ -31,15 +31,7 @@ public sealed class SchemaOrgExtractor(IHttpClientFactory factory, ILogger<Schem
                 try
                 {
                     using var doc = JsonDocument.Parse(block);
-                    var root = doc.RootElement;
-
-                    if (!IsBusinessType(root)) continue;
-
-                    description ??= TryGetString(root, "description");
-                    brand ??= CleanBrandName(TryGetString(root, "name"));
-
-                    ExtractAreaServed(root, areas);
-                    ExtractServiceNames(root, serviceNames);
+                    ProcessJsonLdNode(doc.RootElement, serviceNames, areas, ref description, ref brand);
                 }
                 catch (JsonException)
                 {
@@ -90,6 +82,87 @@ public sealed class SchemaOrgExtractor(IHttpClientFactory factory, ILogger<Schem
         }
 
         return results;
+    }
+
+    private static void ProcessJsonLdNode(
+        JsonElement node,
+        List<string> serviceNames,
+        List<string> areas,
+        ref string? description,
+        ref string? brand)
+    {
+        if (node.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in node.EnumerateArray())
+                ProcessJsonLdNode(item, serviceNames, areas, ref description, ref brand);
+            return;
+        }
+
+        if (node.ValueKind != JsonValueKind.Object)
+            return;
+
+        if (!IsSchemaPillarSource(node))
+            return;
+
+        description ??= TryGetString(node, "description");
+        brand ??= CleanBrandName(TryGetString(node, "name"));
+
+        ExtractAreaServed(node, areas);
+        ExtractServiceNames(node, serviceNames);
+        ExtractKnowsAbout(node, serviceNames);
+    }
+
+    private static bool IsSchemaPillarSource(JsonElement root) =>
+        IsBusinessType(root) || HasSchemaType(root, "Service");
+
+    private static bool HasSchemaType(JsonElement root, string typeName)
+    {
+        if (!root.TryGetProperty("@type", out var typeProp))
+            return false;
+
+        if (typeProp.ValueKind == JsonValueKind.String)
+            return string.Equals(typeProp.GetString(), typeName, StringComparison.OrdinalIgnoreCase);
+
+        if (typeProp.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var t in typeProp.EnumerateArray())
+            {
+                if (t.ValueKind == JsonValueKind.String &&
+                    string.Equals(t.GetString(), typeName, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void ExtractKnowsAbout(JsonElement root, List<string> names)
+    {
+        if (!root.TryGetProperty("knowsAbout", out var knowsAbout))
+            return;
+
+        if (knowsAbout.ValueKind == JsonValueKind.String)
+        {
+            AddName(knowsAbout.GetString(), names);
+            return;
+        }
+
+        if (knowsAbout.ValueKind != JsonValueKind.Array)
+            return;
+
+        foreach (var item in knowsAbout.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.String)
+                AddName(item.GetString(), names);
+            else
+                AddStringValue(item, "name", names);
+        }
+    }
+
+    private static void AddName(string? value, List<string> names)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+            names.Add(value.Trim());
     }
 
     private static bool IsBusinessType(JsonElement root)

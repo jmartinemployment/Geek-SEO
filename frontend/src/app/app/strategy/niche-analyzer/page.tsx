@@ -6,6 +6,7 @@ import {
   listProjects,
   analyzeNiche,
   getLatestNicheProfile,
+  getNicheProfile,
   getNicheCoverageMatrix,
   getNicheGaps,
   getNicheProgress,
@@ -80,6 +81,9 @@ export default function NicheAnalyzerPage() {
     const selected = projects.find((p) => p.id === projectId);
     if (!selected) return;
     setError(null);
+    setProfile(null);
+    setCoverage([]);
+    setGaps([]);
     setAnalyzing(true);
     try {
       const { profileId } = await analyzeNiche(projectId, selected.url, accessToken);
@@ -90,14 +94,17 @@ export default function NicheAnalyzerPage() {
     }
   }
 
-  async function handleAnalysisComplete(profileId: string) {
+  async function handleAnalysisComplete(completedProfileId: string) {
     setAnalyzing(false);
     setAnalyzeProfileId(null);
     try {
-      const p = await getLatestNicheProfile(projectId, accessToken);
-      if (p) {
-        setProfile(p);
-        await loadAnalytics(p.id);
+      const p = await getNicheProfile(completedProfileId, accessToken);
+      setProfile(p);
+      await loadAnalytics(p.id);
+      if (p.pillars.length === 0) {
+        setError(
+          'Analysis finished but no pillars were detected. Check that the site exposes schema.org services, a sitemap with interior pages, or crawlable navigation.',
+        );
       }
     } catch (e) {
       setError('Analysis complete but failed to load results.');
