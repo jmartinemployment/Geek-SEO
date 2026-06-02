@@ -54,18 +54,23 @@ public sealed class HttpNicheAnalyticsDapperRepository(
     public async Task<Result<IReadOnlyList<AuthorityProgressPoint>>> GetAuthorityProgressAsync(
         Guid projectId, int months = 12, CancellationToken ct = default)
     {
-        var res = await _http.GetAsync(
-            $"api/seo/internal/niche-profiles/project/{projectId}/progress?months={months}&userId={user.UserId}", ct);
-        if (!res.IsSuccessStatusCode)
+        try
         {
-            var body = await res.Content.ReadAsStringAsync(ct);
-            // Progress is optional — treat repo errors as empty series so the API can return 200.
-            if (res.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.BadRequest)
+            if (!user.IsAuthenticated)
                 return Result<IReadOnlyList<AuthorityProgressPoint>>.Success([]);
-            return Result<IReadOnlyList<AuthorityProgressPoint>>.Failure(body);
+
+            var res = await _http.GetAsync(
+                $"api/seo/internal/niche-profiles/project/{projectId}/progress?months={months}&userId={user.UserId}", ct);
+            if (!res.IsSuccessStatusCode)
+                return Result<IReadOnlyList<AuthorityProgressPoint>>.Success([]);
+
+            var value = await res.Content.ReadFromJsonAsync<List<AuthorityProgressPoint>>(Json, ct);
+            return Result<IReadOnlyList<AuthorityProgressPoint>>.Success(value ?? []);
         }
-        var value = await res.Content.ReadFromJsonAsync<List<AuthorityProgressPoint>>(Json, ct);
-        return Result<IReadOnlyList<AuthorityProgressPoint>>.Success(value ?? []);
+        catch (Exception)
+        {
+            return Result<IReadOnlyList<AuthorityProgressPoint>>.Success([]);
+        }
     }
 
     public async Task<Result<IReadOnlyList<CompetitorNicheOverlap>>> GetCompetitorOverlapAsync(

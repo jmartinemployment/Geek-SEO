@@ -47,9 +47,13 @@ public sealed class NicheAnalyzerController(
                 return NotFound();
 
             var p = result.Value;
-            var (step, stepNumber) = MapStatusToProgress(p.Status);
+            var step = p.AnalysisStep ?? p.Status;
+            var stepNumber = p.AnalysisStepNumber > 0
+                ? p.AnalysisStepNumber
+                : p.Status switch { "complete" => 10, "processing" => 1, _ => 0 };
+            var totalSteps = p.AnalysisTotalSteps > 0 ? p.AnalysisTotalSteps : 10;
             return Ok(new NicheAnalysisStatus(
-                p.Id, p.Status, step, stepNumber, 10, p.ErrorMessage));
+                p.Id, p.Status, step, stepNumber, totalSteps, p.ErrorMessage));
         }
         catch (InvalidOperationException ex)
         {
@@ -160,24 +164,26 @@ public sealed class NicheAnalyzerController(
     public async Task<IActionResult> GetProgress(
         Guid projectId, [FromQuery] int months = 12, CancellationToken ct = default)
     {
+        if (!user.IsAuthenticated)
+            return Ok(Array.Empty<AuthorityProgressPoint>());
+
         try
         {
-            user.RequireUserId();
             var result = await analyticsRepo.GetAuthorityProgressAsync(projectId, months, ct);
             if (!result.IsSuccess)
             {
-                // Progress is optional chart data — never surface 500 to the client.
                 logger.LogWarning(
                     "Niche authority progress unavailable for project {ProjectId}: {Error}",
                     projectId,
                     result.Error);
-                return Ok(Array.Empty<AuthorityProgressPoint>());
             }
-            return Ok(result.Value ?? []);
+
+            return Ok(result.IsSuccess ? result.Value ?? [] : []);
         }
-        catch (InvalidOperationException ex)
+        catch (Exception ex)
         {
-            return BadRequest(new { error = ex.Message });
+            logger.LogWarning(ex, "Niche authority progress failed for project {ProjectId}", projectId);
+            return Ok(Array.Empty<AuthorityProgressPoint>());
         }
     }
 
@@ -196,15 +202,6 @@ public sealed class NicheAnalyzerController(
             return BadRequest(new { error = ex.Message });
         }
     }
-
-    private static (string? Step, int StepNumber) MapStatusToProgress(string status) =>
-        status switch
-        {
-            "complete" => ("complete", 10),
-            "failed" => ("failed", 0),
-            "processing" => ("processing", 1),
-            _ => (null, 0),
-        };
 
     private static NicheProfileResult MapToResult(NicheProfile p) => new()
     {

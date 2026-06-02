@@ -143,6 +143,7 @@ public static class SeoBackendExtensions
         services.AddScoped<IPublicSiteScanService, PublicSiteScanService>();
 
         services.AddSignalR();
+        services.AddSingleton<Microsoft.AspNetCore.SignalR.IUserIdProvider, Hubs.SubUserIdProvider>();
         AddAuthentication(services, configuration);
 
         return services;

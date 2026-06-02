@@ -20,6 +20,9 @@ public sealed class NicheProfile
     public DateTimeOffset? NextAnalysisDue { get; set; }
     public string AnalysisVersion { get; set; } = "1.0";
     public string Status { get; set; } = "queued";
+    public string? AnalysisStep { get; set; }
+    public int AnalysisStepNumber { get; set; }
+    public int AnalysisTotalSteps { get; set; } = 10;
     public string? ErrorMessage { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

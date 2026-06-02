@@ -65,6 +65,7 @@ export default function NicheAnalyzerPage() {
   }
 
   async function loadAnalytics(profileId: string) {
+    if (!accessToken) return;
     const [cov, g, prog] = await Promise.allSettled([
       getNicheCoverageMatrix(profileId, accessToken),
       getNicheGaps(profileId, quickWinsOnly, accessToken),
