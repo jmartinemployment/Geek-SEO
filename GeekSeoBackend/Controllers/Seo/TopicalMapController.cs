@@ -17,7 +17,7 @@ public sealed class TopicalMapController(
         try
         {
             var cached = await topicalMap.GetCachedAsync(user.RequireUserId(), projectId, ct);
-            return cached is null ? NotFound() : Ok(cached);
+            return cached is null ? NoContent() : Ok(cached);
         }
         catch (InvalidOperationException ex)
         {
@@ -61,7 +61,7 @@ public sealed class TopicalMapController(
         {
             var cached = await topicalMap.GetCachedAsync(user.RequireUserId(), projectId, ct);
             if (cached?.LinkingBlueprint is null)
-                return NotFound();
+                return NoContent();
             return Ok(cached.LinkingBlueprint);
         }
         catch (InvalidOperationException ex)
@@ -77,7 +77,7 @@ public sealed class TopicalMapController(
         {
             var cached = await topicalMap.GetCachedAsync(user.RequireUserId(), projectId, ct);
             if (cached is null)
-                return NotFound();
+                return NoContent();
 
             var gapAnalysis = cached.Topics
                 .OrderBy(t => t.EntityCoverage)

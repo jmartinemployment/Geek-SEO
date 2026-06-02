@@ -1106,7 +1106,7 @@ export async function getTopicalMap(
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
-  if (res.status === 404) return null;
+  if (res.status === 404 || res.status === 204) return null;
   return seoJson<TopicalMapResult>(res);
 }
 
@@ -1118,7 +1118,7 @@ export async function getLinksBlueprint(
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
-  if (res.status === 404) return null;
+  if (res.status === 404 || res.status === 204) return null;
   return seoJson<InternalLinkingBlueprint>(res);
 }
 
@@ -1139,7 +1139,7 @@ export async function getEntityGaps(
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
-  if (res.status === 404) return null;
+  if (res.status === 404 || res.status === 204) return null;
   return seoJson<EntityGapAnalysis[]>(res);
 }
 
