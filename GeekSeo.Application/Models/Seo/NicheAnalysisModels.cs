@@ -10,6 +10,13 @@ public record NicheAnalysisStatus(
     int TotalSteps,
     string? ErrorMessage);
 
+/// <summary>Queued niche analysis job with owning user (from seo_projects).</summary>
+public record NicheQueuedJob(
+    Guid ProfileId,
+    Guid ProjectId,
+    Guid UserId,
+    string Domain);
+
 // --- Result (full profile returned to API callers) ------------------------
 
 public record NicheProfileResult

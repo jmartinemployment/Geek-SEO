@@ -3,8 +3,6 @@ using GeekSeo.Application.Models.Seo;
 using GeekSeo.Persistence.Entities;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Extensions;
-using GeekSeoBackend.Infrastructure;
-using GeekSeoBackend.Jobs;
 using GeekSeoBackend.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -28,23 +26,7 @@ public sealed class NicheAnalyzerController(
             var userId = user.RequireUserId();
             var profileId = await analyzer.EnqueueAsync(userId, request.ProjectId, request.Domain, request.SeedTopic, ct);
 
-            // Fire and forget — runs background job
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await using var scope = HttpContext.RequestServices.CreateAsyncScope();
-                    var job = scope.ServiceProvider.GetRequiredService<NicheAnalysisBackgroundJob>();
-                    await job.RunAsync(new NicheAnalysisJobPayload(profileId, userId, request.Domain),
-                        CancellationToken.None);
-                }
-                catch (Exception ex)
-                {
-                    var logger = HttpContext.RequestServices.GetRequiredService<ILogger<NicheAnalyzerController>>();
-                    logger.LogError(ex, "Niche analysis background job failed for {ProfileId}", profileId);
-                }
-            }, ct);
-
+            // NicheAnalysisJobWorker dequeues profiles with status "queued" (every ~5s).
             return Ok(new { profileId, status = "queued" });
         }
         catch (InvalidOperationException ex)
@@ -64,8 +46,9 @@ public sealed class NicheAnalyzerController(
                 return NotFound();
 
             var p = result.Value;
+            var (step, stepNumber) = MapStatusToProgress(p.Status);
             return Ok(new NicheAnalysisStatus(
-                p.Id, p.Status, null, 0, 10, p.ErrorMessage));
+                p.Id, p.Status, step, stepNumber, 10, p.ErrorMessage));
         }
         catch (InvalidOperationException ex)
         {
@@ -204,6 +187,15 @@ public sealed class NicheAnalyzerController(
             return BadRequest(new { error = ex.Message });
         }
     }
+
+    private static (string? Step, int StepNumber) MapStatusToProgress(string status) =>
+        status switch
+        {
+            "complete" => ("complete", 10),
+            "failed" => ("failed", 0),
+            "processing" => ("processing", 1),
+            _ => (null, 0),
+        };
 
     private static NicheProfileResult MapToResult(NicheProfile p) => new()
     {

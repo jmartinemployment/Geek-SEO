@@ -130,4 +130,15 @@ public sealed class HttpNicheProfileRepository(
         var value = await res.Content.ReadFromJsonAsync<List<NicheProfileSummary>>(Json, ct);
         return Result<IReadOnlyList<NicheProfileSummary>>.Success(value ?? []);
     }
+
+    public async Task<Result<IReadOnlyList<NicheQueuedJob>>> ListQueuedAsync(
+        int limit, CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/niche-profiles/maintenance/queued?limit={limit}&userId={user.UserId}", ct);
+        if (!res.IsSuccessStatusCode)
+            return Result<IReadOnlyList<NicheQueuedJob>>.Failure(await res.Content.ReadAsStringAsync(ct));
+        var value = await res.Content.ReadFromJsonAsync<List<NicheQueuedJob>>(Json, ct);
+        return Result<IReadOnlyList<NicheQueuedJob>>.Success(value ?? []);
+    }
 }

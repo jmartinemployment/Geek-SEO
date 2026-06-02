@@ -76,9 +76,17 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
           .withAutomaticReconnect()
           .build();
 
-        conn.on('AnalysisProgress', (msg: NicheAnalysisStatus & { message?: string }) => {
-          if (msg.profileId !== profileId) return;
-          setProgress(msg);
+        conn.on('AnalysisProgress', (msg: NicheAnalysisStatus & { message?: string; ProfileId?: string }) => {
+          const msgProfileId = msg.profileId ?? msg.ProfileId;
+          if (msgProfileId && msgProfileId !== profileId) return;
+          setProgress({
+            profileId: msgProfileId ?? profileId,
+            status: msg.status ?? (msg as { Status?: string }).Status ?? 'processing',
+            step: msg.step ?? (msg as { Step?: string }).Step,
+            stepNumber: msg.stepNumber ?? (msg as { StepNumber?: number }).StepNumber,
+            totalSteps: msg.totalSteps ?? (msg as { TotalSteps?: number }).TotalSteps ?? 10,
+            errorMessage: msg.errorMessage ?? (msg as { ErrorMessage?: string }).ErrorMessage,
+          });
           if (msg.status === 'complete' && !completedRef.current) {
             completedRef.current = true;
             onComplete(profileId);
@@ -105,7 +113,11 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
   const stepNumber = progress?.stepNumber ?? 0;
   const totalSteps = progress?.totalSteps ?? 10;
   const pct = totalSteps > 0 ? Math.round((stepNumber / totalSteps) * 100) : 0;
-  const label = progress?.step ? (STEP_LABELS[progress.step] ?? progress.step) : 'Queued…';
+  const label = progress?.step
+    ? (STEP_LABELS[progress.step] ?? progress.step)
+    : progress?.status === 'processing'
+      ? 'Analyzing…'
+      : 'Queued…';
 
   return (
     <div className="space-y-3">
