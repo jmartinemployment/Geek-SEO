@@ -14,7 +14,8 @@ public sealed class NicheAnalyzerController(
     NicheAnalyzerService analyzer,
     INicheProfileRepository profileRepo,
     INicheAnalyticsDapperRepository analyticsRepo,
-    ICurrentUserContext user) : ControllerBase
+    ICurrentUserContext user,
+    ILogger<NicheAnalyzerController> logger) : ControllerBase
 {
     [HttpPost("analyze")]
     public async Task<IActionResult> Analyze(
@@ -165,13 +166,14 @@ public sealed class NicheAnalyzerController(
             var result = await analyticsRepo.GetAuthorityProgressAsync(projectId, months, ct);
             if (!result.IsSuccess)
             {
-                // Progress is optional chart data — empty series beats a 500 in the console.
-                if (result.Error?.Contains("Not Found", StringComparison.OrdinalIgnoreCase) == true
-                    || result.Error?.Contains("\"status\":404", StringComparison.Ordinal) == true)
-                    return Ok(Array.Empty<AuthorityProgressPoint>());
-                return StatusCode(500, new { error = result.Error });
+                // Progress is optional chart data — never surface 500 to the client.
+                logger.LogWarning(
+                    "Niche authority progress unavailable for project {ProjectId}: {Error}",
+                    projectId,
+                    result.Error);
+                return Ok(Array.Empty<AuthorityProgressPoint>());
             }
-            return Ok(result.Value);
+            return Ok(result.Value ?? []);
         }
         catch (InvalidOperationException ex)
         {

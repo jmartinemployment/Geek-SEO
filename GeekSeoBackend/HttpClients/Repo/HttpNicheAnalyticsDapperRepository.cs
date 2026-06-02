@@ -56,10 +56,14 @@ public sealed class HttpNicheAnalyticsDapperRepository(
     {
         var res = await _http.GetAsync(
             $"api/seo/internal/niche-profiles/project/{projectId}/progress?months={months}&userId={user.UserId}", ct);
-        if (res.StatusCode is HttpStatusCode.NotFound)
-            return Result<IReadOnlyList<AuthorityProgressPoint>>.Success([]);
         if (!res.IsSuccessStatusCode)
-            return Result<IReadOnlyList<AuthorityProgressPoint>>.Failure(await res.Content.ReadAsStringAsync(ct));
+        {
+            var body = await res.Content.ReadAsStringAsync(ct);
+            // Progress is optional — treat repo errors as empty series so the API can return 200.
+            if (res.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.BadRequest)
+                return Result<IReadOnlyList<AuthorityProgressPoint>>.Success([]);
+            return Result<IReadOnlyList<AuthorityProgressPoint>>.Failure(body);
+        }
         var value = await res.Content.ReadFromJsonAsync<List<AuthorityProgressPoint>>(Json, ct);
         return Result<IReadOnlyList<AuthorityProgressPoint>>.Success(value ?? []);
     }
