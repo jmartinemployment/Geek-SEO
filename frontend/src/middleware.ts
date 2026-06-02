@@ -7,6 +7,12 @@ export function middleware(request: NextRequest) {
   const devUserId = process.env.NEXT_PUBLIC_DEV_USER_ID;
   const hasRefreshCookie = Boolean(request.cookies.get(REFRESH_COOKIE)?.value);
 
+  // Next.js RSC prefetch requests must not be redirected cross-origin —
+  // Chrome blocks the chain and logs "Unsafe attempt to load URL". Let prefetches
+  // pass through; the actual navigation is still protected.
+  const isPrefetch = request.headers.get('Next-Router-Prefetch') === '1';
+  if (isPrefetch) return NextResponse.next();
+
   if (requiresAppAuth(pathname, hasRefreshCookie, devUserId)) {
     const login = new URL('/api/auth/start', request.url);
     return NextResponse.redirect(login);
