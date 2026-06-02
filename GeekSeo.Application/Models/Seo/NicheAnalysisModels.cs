@@ -170,3 +170,73 @@ public record HomepageHeadings
     public IReadOnlyList<PageHeading> Headings { get; init; } = [];
     public IReadOnlyList<string> H2Texts { get; init; } = [];
 }
+
+// --- Bulk insert DTOs (no EF navigation properties — safe for JSON APIs) ----
+
+public sealed record NichePillarBulkInsert(
+    Guid Id,
+    Guid NicheProfileId,
+    string PillarTopic,
+    string PillarSlug,
+    string PrimaryKeyword,
+    string? PageUrl,
+    string SearchIntent,
+    int SearchVolume,
+    decimal KeywordDifficulty,
+    string CoverageStatus,
+    decimal CoverageScore,
+    int ExistingPageCount,
+    int RequiredSubtopicCount,
+    int CoveredSubtopicCount,
+    int Priority,
+    string StrategicPriority,
+    string? ContentAngle,
+    decimal EstimatedTrafficPotential,
+    string Source,
+    int DisplayOrder,
+    DateTimeOffset? CreatedAt = null);
+
+public sealed record NicheSubtopicBulkInsert(
+    Guid Id,
+    Guid PillarId,
+    string SubtopicTitle,
+    string TargetKeyword,
+    string SearchIntent,
+    int SearchVolume,
+    decimal KeywordDifficulty,
+    string CoverageStatus,
+    string? ExistingUrl,
+    string RecommendedFormat,
+    int RecommendedWordCount,
+    string FixEffort,
+    bool IsQuickWin,
+    DateTimeOffset? CreatedAt = null);
+
+public sealed record NicheCompetitorBulkInsert(
+    Guid Id,
+    Guid NicheProfileId,
+    string Domain,
+    int SerpPresence,
+    decimal EstimatedAuthorityScore,
+    int PillarsRanking,
+    string StrengthAssessment);
+
+public sealed record NicheEntityBulkInsert(
+    Guid Id,
+    Guid NicheProfileId,
+    string EntityName,
+    string EntityType,
+    int MentionFrequency,
+    bool PresentOnDomain,
+    Guid[] AssociatedPillarIds);
+
+public sealed record NichePillarPageBulkInsert(
+    Guid Id,
+    Guid PillarId,
+    string Url,
+    string? PageTitle,
+    int WordCount,
+    string CoverageQuality,
+    decimal RelevanceScore,
+    string[] TopicsFound,
+    string[] GapsFound);

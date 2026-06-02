@@ -5,6 +5,7 @@ import { useAuthReady } from '@/hooks/use-auth-ready';
 import {
   listProjects,
   analyzeNiche,
+  getNicheAnalysisStatus,
   getLatestNicheProfile,
   getNicheProfile,
   getNicheCoverageMatrix,
@@ -57,6 +58,11 @@ export default function NicheAnalyzerPage() {
     try {
       const p = await getLatestNicheProfile(projectId, accessToken);
       if (p) {
+        if (p.status === 'failed') {
+          const status = await getNicheAnalysisStatus(p.id, accessToken);
+          setError(status.errorMessage ?? 'The last analysis failed. Click Re-analyze to try again.');
+          return;
+        }
         setProfile(p);
         await loadAnalytics(p.id);
       }

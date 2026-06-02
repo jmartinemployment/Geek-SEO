@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using GeekSeo.Application.Interfaces;
+using GeekSeo.Application.Mapping;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
 using GeekSeo.Persistence.Entities;
@@ -103,36 +104,41 @@ public sealed class HttpNicheProfileRepository(
 
     public async Task<Result> BulkInsertPillarsAsync(IEnumerable<NichePillar> pillars, CancellationToken ct = default)
     {
+        var body = pillars.Select(NicheBulkInsertMapper.ToBulkInsert).ToList();
         var res = await _http.PostAsJsonAsync(
-            $"api/seo/internal/niche-profiles/pillars?userId={user.UserId}", pillars, Json, ct);
+            $"api/seo/internal/niche-profiles/pillars?userId={user.UserId}", body, Json, ct);
         return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await res.Content.ReadAsStringAsync(ct));
     }
 
     public async Task<Result> BulkInsertSubtopicsAsync(IEnumerable<NicheSubtopic> subtopics, CancellationToken ct = default)
     {
+        var body = subtopics.Select(NicheBulkInsertMapper.ToBulkInsert).ToList();
         var res = await _http.PostAsJsonAsync(
-            $"api/seo/internal/niche-profiles/subtopics?userId={user.UserId}", subtopics, Json, ct);
+            $"api/seo/internal/niche-profiles/subtopics?userId={user.UserId}", body, Json, ct);
         return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await res.Content.ReadAsStringAsync(ct));
     }
 
     public async Task<Result> BulkInsertCompetitorsAsync(IEnumerable<NicheCompetitor> competitors, CancellationToken ct = default)
     {
+        var body = competitors.Select(NicheBulkInsertMapper.ToBulkInsert).ToList();
         var res = await _http.PostAsJsonAsync(
-            $"api/seo/internal/niche-profiles/competitors?userId={user.UserId}", competitors, ct);
+            $"api/seo/internal/niche-profiles/competitors?userId={user.UserId}", body, Json, ct);
         return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await res.Content.ReadAsStringAsync(ct));
     }
 
     public async Task<Result> BulkInsertEntitiesAsync(IEnumerable<NicheEntity> entities, CancellationToken ct = default)
     {
+        var body = entities.Select(NicheBulkInsertMapper.ToBulkInsert).ToList();
         var res = await _http.PostAsJsonAsync(
-            $"api/seo/internal/niche-profiles/entities?userId={user.UserId}", entities, ct);
+            $"api/seo/internal/niche-profiles/entities?userId={user.UserId}", body, Json, ct);
         return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await res.Content.ReadAsStringAsync(ct));
     }
 
     public async Task<Result> BulkInsertPillarPagesAsync(IEnumerable<NichePillarPage> pages, CancellationToken ct = default)
     {
+        var body = pages.Select(NicheBulkInsertMapper.ToBulkInsert).ToList();
         var res = await _http.PostAsJsonAsync(
-            $"api/seo/internal/niche-profiles/pillar-pages?userId={user.UserId}", pages, ct);
+            $"api/seo/internal/niche-profiles/pillar-pages?userId={user.UserId}", body, Json, ct);
         return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await res.Content.ReadAsStringAsync(ct));
     }
 
