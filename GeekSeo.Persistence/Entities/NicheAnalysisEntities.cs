@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+
 namespace GeekSeo.Persistence.Entities;
 
 public sealed class NicheProfile
@@ -26,8 +28,11 @@ public sealed class NicheProfile
     public string? ErrorMessage { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
+    [ValidateNever]
     public ICollection<NichePillar> Pillars { get; set; } = [];
+    [ValidateNever]
     public ICollection<NicheCompetitor> Competitors { get; set; } = [];
+    [ValidateNever]
     public ICollection<NicheEntity> Entities { get; set; } = [];
 }
 
@@ -55,8 +60,11 @@ public sealed class NichePillar
     public int DisplayOrder { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
-    public NicheProfile NicheProfile { get; set; } = null!;
+    [ValidateNever]
+    public NicheProfile? NicheProfile { get; set; }
+    [ValidateNever]
     public ICollection<NicheSubtopic> Subtopics { get; set; } = [];
+    [ValidateNever]
     public ICollection<NichePillarPage> ExistingPages { get; set; } = [];
 }
 
@@ -77,7 +85,8 @@ public sealed class NicheSubtopic
     public bool IsQuickWin { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
-    public NichePillar Pillar { get; set; } = null!;
+    [ValidateNever]
+    public NichePillar? Pillar { get; set; }
 }
 
 public sealed class NicheCompetitor
@@ -90,7 +99,8 @@ public sealed class NicheCompetitor
     public int PillarsRanking { get; set; }
     public string StrengthAssessment { get; set; } = "moderate";
 
-    public NicheProfile NicheProfile { get; set; } = null!;
+    [ValidateNever]
+    public NicheProfile? NicheProfile { get; set; }
 }
 
 public sealed class NicheEntity
@@ -103,7 +113,8 @@ public sealed class NicheEntity
     public bool PresentOnDomain { get; set; }
     public Guid[] AssociatedPillarIds { get; set; } = [];
 
-    public NicheProfile NicheProfile { get; set; } = null!;
+    [ValidateNever]
+    public NicheProfile? NicheProfile { get; set; }
 }
 
 public sealed class NichePillarPage
@@ -118,5 +129,6 @@ public sealed class NichePillarPage
     public string[] TopicsFound { get; set; } = [];
     public string[] GapsFound { get; set; } = [];
 
-    public NichePillar Pillar { get; set; } = null!;
+    [ValidateNever]
+    public NichePillar? Pillar { get; set; }
 }

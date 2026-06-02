@@ -60,7 +60,15 @@ export default function NicheAnalyzerPage() {
       if (p) {
         if (p.status === 'failed') {
           const status = await getNicheAnalysisStatus(p.id, accessToken);
-          setError(status.errorMessage ?? 'The last analysis failed. Click Re-analyze to try again.');
+          const raw = status.errorMessage ?? '';
+          const isPillarSaveValidation =
+            raw.includes('NicheProfile field is required') ||
+            raw.includes('[0].NicheProfile');
+          setError(
+            isPillarSaveValidation
+              ? 'The last run failed while saving pillars (a server deploy fix is required). Click Re-analyze after GeekRepository and GeekSeoBackend have redeployed — the red message will clear on success.'
+              : raw || 'The last analysis failed. Click Re-analyze to try again.',
+          );
           return;
         }
         setProfile(p);
