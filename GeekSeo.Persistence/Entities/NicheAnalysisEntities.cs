@@ -27,6 +27,7 @@ public sealed class NicheProfile
     public int AnalysisTotalSteps { get; set; } = 10;
     public string? ErrorMessage { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? AnalysisProgressAt { get; set; }
 
     [ValidateNever]
     public ICollection<NichePillar> Pillars { get; set; } = [];

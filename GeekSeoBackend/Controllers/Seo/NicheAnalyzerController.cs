@@ -53,7 +53,7 @@ public sealed class NicheAnalyzerController(
                 : p.Status switch { "complete" => 10, _ => 0 };
             var totalSteps = p.AnalysisTotalSteps > 0 ? p.AnalysisTotalSteps : 10;
             return Ok(new NicheAnalysisStatus(
-                p.Id, p.Status, step, stepNumber, totalSteps, p.ErrorMessage));
+                p.Id, p.Status, step, stepNumber, totalSteps, p.ErrorMessage, p.CreatedAt, p.AnalysisProgressAt));
         }
         catch (InvalidOperationException ex)
         {
@@ -221,6 +221,7 @@ public sealed class NicheAnalyzerController(
         PillarsGap = p.PillarsGap,
         AnalyzedAt = p.AnalyzedAt,
         NextAnalysisDue = p.NextAnalysisDue,
+        CreatedAt = p.CreatedAt,
         Status = p.Status,
         Pillars = p.Pillars.OrderBy(x => x.DisplayOrder).Select(pi => new NichePillarResult
         {

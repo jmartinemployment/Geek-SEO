@@ -14,6 +14,9 @@ public sealed class NicheAnalysisJobWorker(
     WorkerUserContext workerUser,
     ILogger<NicheAnalysisJobWorker> logger) : BackgroundService
 {
+    private static readonly TimeSpan StaleProcessingAge = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan JobTimeout = TimeSpan.FromMinutes(8);
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -42,6 +45,16 @@ public sealed class NicheAnalysisJobWorker(
         using var scope = services.CreateScope();
         var nicheRepo = scope.ServiceProvider.GetRequiredService<INicheProfileRepository>();
         var nicheJob = scope.ServiceProvider.GetRequiredService<NicheAnalysisBackgroundJob>();
+
+        var stale = await nicheRepo.FailStaleProcessingAsync(StaleProcessingAge, ct);
+        if (stale.IsSuccess && stale.Value > 0)
+        {
+            logger.LogWarning(
+                "Marked {Count} stale niche analysis profile(s) as failed (no progress for {Minutes} min)",
+                stale.Value,
+                StaleProcessingAge.TotalMinutes);
+        }
+
         var playwrightHolder = scope.ServiceProvider.GetService<PlaywrightBrowserHolder>();
 
         workerUser.UserId = serviceUserId;
@@ -68,7 +81,9 @@ public sealed class NicheAnalysisJobWorker(
                 }
 
                 var payload = new NicheAnalysisJobPayload(item.ProfileId, item.UserId, item.Domain);
-                await nicheJob.RunAsync(payload, ct);
+                using var jobCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                jobCts.CancelAfter(JobTimeout);
+                await nicheJob.RunAsync(payload, jobCts.Token);
                 logger.LogInformation("Niche analysis finished for profile {ProfileId}", item.ProfileId);
             }
             catch (Exception ex)

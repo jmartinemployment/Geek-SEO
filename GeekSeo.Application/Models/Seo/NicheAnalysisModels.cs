@@ -8,7 +8,9 @@ public record NicheAnalysisStatus(
     string? Step,
     int StepNumber,
     int TotalSteps,
-    string? ErrorMessage);
+    string? ErrorMessage,
+    DateTimeOffset? CreatedAt = null,
+    DateTimeOffset? ProgressAt = null);
 
 /// <summary>Persisted when a niche analysis run completes (metadata + scores).</summary>
 public sealed record NicheAnalysisSaveRequest(
@@ -52,6 +54,7 @@ public record NicheProfileResult
     public int PillarsGap { get; init; }
     public DateTimeOffset? AnalyzedAt { get; init; }
     public DateTimeOffset? NextAnalysisDue { get; init; }
+    public DateTimeOffset CreatedAt { get; init; }
     public string Status { get; init; } = "complete";
     public IReadOnlyList<NichePillarResult> Pillars { get; init; } = [];
     public IReadOnlyList<NicheCompetitorResult> Competitors { get; init; } = [];

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { getHubUrl, getNicheAnalysisStatus, type NicheAnalysisStatus } from '@/lib/seo-api';
+import { isNicheRunStale, isNicheStepStalled, NICHE_STALL_MS } from '@/lib/niche-analysis-stale';
 
 const DEV_USER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID;
 
@@ -47,9 +48,32 @@ function hubUrl(accessToken?: string | null): string {
 export function AnalysisStatusListener({ profileId, accessToken, onComplete, onError }: Props) {
   const [progress, setProgress] = useState<NicheAnalysisStatus | null>(null);
   const [liveMessage, setLiveMessage] = useState<string | null>(null);
+  const [stalled, setStalled] = useState(false);
   const completedRef = useRef(false);
   const onCompleteRef = useRef(onComplete);
   const onErrorRef = useRef(onError);
+  const stepTrackerRef = useRef({ step: 0, at: Date.now() });
+
+  function applyStatus(status: NicheAnalysisStatus) {
+    if (isNicheRunStale(status)) {
+      onErrorRef.current(
+        status.errorMessage ??
+          'Analysis stopped responding. Click Re-analyze to start a fresh run.',
+      );
+      return true;
+    }
+
+    const step = status.stepNumber ?? 0;
+    if (step > 0 && step !== stepTrackerRef.current.step) {
+      stepTrackerRef.current = { step, at: Date.now() };
+      setStalled(false);
+    } else if (isNicheStepStalled(status, stepTrackerRef.current.step, stepTrackerRef.current.at)) {
+      setStalled(true);
+    }
+
+    setProgress((prev) => mergeStatus(prev, status));
+    return false;
+  }
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
@@ -58,6 +82,8 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
 
   useEffect(() => {
     completedRef.current = false;
+    stepTrackerRef.current = { step: 0, at: Date.now() };
+    setStalled(false);
   }, [profileId]);
 
   // Fallback: poll /status if SignalR is unavailable or the tab was refreshed mid-run
@@ -78,7 +104,7 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
           onErrorRef.current(status.errorMessage ?? 'Analysis failed');
           return;
         }
-        setProgress((prev) => mergeStatus(prev, status));
+        if (applyStatus(status)) return;
       } catch {
         // ignore transient errors
       }
@@ -123,24 +149,24 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
             if (detail) setLiveMessage(detail);
 
             const status = msg.status ?? (msg as { Status?: string }).Status ?? 'processing';
-            setProgress((prev) =>
-              mergeStatus(prev, {
-                profileId: msgProfileId ?? profileId,
-                status,
-                step: msg.step ?? (msg as { Step?: string }).Step,
-                stepNumber: msg.stepNumber ?? (msg as { StepNumber?: number }).StepNumber,
-                totalSteps: msg.totalSteps ?? (msg as { TotalSteps?: number }).TotalSteps ?? 10,
-                errorMessage: msg.errorMessage ?? (msg as { ErrorMessage?: string }).ErrorMessage,
-              }),
-            );
-
             if (status === 'complete' && !completedRef.current) {
               completedRef.current = true;
               onCompleteRef.current(profileId);
+              return;
             }
             if (status === 'failed') {
               onErrorRef.current(msg.errorMessage ?? 'Analysis failed');
+              return;
             }
+
+            applyStatus({
+              profileId: msgProfileId ?? profileId,
+              status: status as NicheAnalysisStatus['status'],
+              step: msg.step ?? (msg as { Step?: string }).Step,
+              stepNumber: msg.stepNumber ?? (msg as { StepNumber?: number }).StepNumber,
+              totalSteps: msg.totalSteps ?? (msg as { TotalSteps?: number }).TotalSteps ?? 10,
+              errorMessage: msg.errorMessage ?? (msg as { ErrorMessage?: string }).ErrorMessage,
+            });
           },
         );
 
@@ -192,6 +218,12 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
       <p className="text-xs text-[var(--color-text-muted)]">
         Step {stepNumber} of {totalSteps}
       </p>
+      {stalled ? (
+        <p className="text-xs text-amber-700">
+          This step has not changed for {Math.round(NICHE_STALL_MS / 60_000)} minutes. If nothing
+          moves soon, click Re-analyze — the server will abandon stuck runs automatically.
+        </p>
+      ) : null}
     </div>
   );
 }

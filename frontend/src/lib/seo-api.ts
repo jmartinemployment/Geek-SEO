@@ -1446,6 +1446,8 @@ export type NicheAnalysisStatus = {
   stepNumber?: number;
   totalSteps?: number;
   errorMessage?: string;
+  createdAt?: string;
+  progressAt?: string;
 };
 
 export type NicheSubtopicResult = {
@@ -1501,6 +1503,7 @@ export type NicheProfileResult = {
   pillarsGap: number;
   analyzedAt?: string;
   nextAnalysisDue?: string;
+  createdAt?: string;
   status: string;
   pillars: NichePillarResult[];
   competitors: NicheCompetitorResult[];

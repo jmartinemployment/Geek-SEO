@@ -163,4 +163,19 @@ public sealed class HttpNicheProfileRepository(
         var value = await res.Content.ReadFromJsonAsync<List<NicheQueuedJob>>(Json, ct);
         return Result<IReadOnlyList<NicheQueuedJob>>.Success(value ?? []);
     }
+
+    public async Task<Result<int>> FailStaleProcessingAsync(TimeSpan maxAge, CancellationToken ct = default)
+    {
+        var minutes = Math.Clamp((int)Math.Ceiling(maxAge.TotalMinutes), 1, 60);
+        var res = await _http.PostAsync(
+            $"api/seo/internal/niche-profiles/maintenance/fail-stale-processing?maxAgeMinutes={minutes}&userId={user.UserId}",
+            null,
+            ct);
+        if (!res.IsSuccessStatusCode)
+            return Result<int>.Failure(await res.Content.ReadAsStringAsync(ct));
+        var payload = await res.Content.ReadFromJsonAsync<FailStaleResponse>(Json, ct);
+        return Result<int>.Success(payload?.FailedCount ?? 0);
+    }
+
+    private sealed record FailStaleResponse(int FailedCount);
 }

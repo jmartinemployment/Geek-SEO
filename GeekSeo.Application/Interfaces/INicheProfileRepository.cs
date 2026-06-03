@@ -20,4 +20,5 @@ public interface INicheProfileRepository
     Task<Result> BulkInsertPillarPagesAsync(IEnumerable<NichePillarPage> pages, CancellationToken ct = default);
     Task<Result<IReadOnlyList<NicheProfileSummary>>> ListDueForReanalysisAsync(int limit, CancellationToken ct = default);
     Task<Result<IReadOnlyList<NicheQueuedJob>>> ListQueuedAsync(int limit, CancellationToken ct = default);
+    Task<Result<int>> FailStaleProcessingAsync(TimeSpan maxAge, CancellationToken ct = default);
 }

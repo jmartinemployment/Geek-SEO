@@ -170,7 +170,10 @@ public sealed class NicheAnalyzerService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Niche analysis failed for {ProfileId}", profileId);
-            await FailAsync(userId, profileId, ex.Message, ct);
+            var message = ex is OperationCanceledException
+                ? "Analysis timed out. Click Re-analyze to run again."
+                : ex.Message;
+            await FailAsync(userId, profileId, message, ct);
         }
     }
 

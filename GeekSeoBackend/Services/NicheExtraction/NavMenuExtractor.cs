@@ -5,6 +5,8 @@ namespace GeekSeoBackend.Services.NicheExtraction;
 
 public sealed class NavMenuExtractor(ILogger<NavMenuExtractor> logger)
 {
+    private const int NavTimeoutMs = 45_000;
+
     private static readonly string[] NavSelectors =
     [
         "nav a",
@@ -21,30 +23,47 @@ public sealed class NavMenuExtractor(ILogger<NavMenuExtractor> logger)
 
     public async Task<NavMenuData> ExtractAsync(string siteUrl, IBrowser browser, CancellationToken ct)
     {
-        var page = await browser.NewPageAsync();
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(NavTimeoutMs);
+
+        IPage? page = null;
         try
         {
+            page = await browser.NewPageAsync();
             await page.SetViewportSizeAsync(1440, 900);
-            await page.GotoAsync(siteUrl, new() { Timeout = 20_000, WaitUntil = WaitUntilState.DOMContentLoaded });
-            await page.WaitForTimeoutAsync(1_500);
+            await page.GotoAsync(
+                siteUrl,
+                new PageGotoOptions
+                {
+                    Timeout = 15_000,
+                    WaitUntil = WaitUntilState.DOMContentLoaded,
+                });
+
+            await page.WaitForTimeoutAsync(800);
 
             var links = await ExtractLinksAsync(page, siteUrl);
             if (links.Count < 2)
             {
-                // Mobile nav fallback
                 await page.SetViewportSizeAsync(375, 812);
                 var hamburger = await page.QuerySelectorAsync(
                     "button[aria-label*='menu' i], button[class*='hamburger' i], .menu-toggle, .nav-toggle");
                 if (hamburger is not null)
                 {
-                    await hamburger.ClickAsync();
-                    await page.WaitForTimeoutAsync(600);
+                    await hamburger.ClickAsync(new ElementHandleClickOptions { Timeout = 3_000 });
+                    await page.WaitForTimeoutAsync(400);
                 }
                 links = await ExtractLinksAsync(page, siteUrl);
             }
 
+            timeoutCts.Token.ThrowIfCancellationRequested();
+
             var pillars = BuildPillars(links, siteUrl);
             return new NavMenuData(pillars, links.Count < 2 ? "fallback" : "nav");
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
+        {
+            logger.LogWarning("Nav menu extraction timed out after {Ms}ms for {Url}", NavTimeoutMs, siteUrl);
+            return new NavMenuData([], "timeout");
         }
         catch (Exception ex)
         {
@@ -53,7 +72,17 @@ public sealed class NavMenuExtractor(ILogger<NavMenuExtractor> logger)
         }
         finally
         {
-            await page.CloseAsync();
+            if (page is not null)
+            {
+                try
+                {
+                    await page.CloseAsync();
+                }
+                catch
+                {
+                    // Best-effort cleanup after timeout/cancel
+                }
+            }
         }
     }
 
@@ -108,7 +137,6 @@ public sealed class NavMenuExtractor(ILogger<NavMenuExtractor> logger)
 
             if (segments.Length == 0) continue;
 
-            // If link is a dropdown child (/services/computer-repair), use the child as a pillar
             if (segments.Length >= 2 && !NoisePaths.IsNoise(segments[1]))
             {
                 var childSlug = segments[1];
@@ -127,7 +155,6 @@ public sealed class NavMenuExtractor(ILogger<NavMenuExtractor> logger)
                 continue;
             }
 
-            // Top-level nav item
             if (!pillars.ContainsKey(slug))
             {
                 pillars[slug] = new DiscoveredPillar
