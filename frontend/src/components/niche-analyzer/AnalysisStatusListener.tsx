@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { getNicheAnalysisStatus, type NicheAnalysisStatus } from '@/lib/seo-api';
+import { getHubUrl, getNicheAnalysisStatus, type NicheAnalysisStatus } from '@/lib/seo-api';
 
-const SEO_API_URL = process.env.NEXT_PUBLIC_SEO_API_URL ?? 'http://localhost:5051';
+const DEV_USER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID;
 
 const STEP_LABELS: Record<string, string> = {
   schema: 'Extracting schema.org data…',
@@ -36,95 +36,135 @@ function mergeStatus(
   return next;
 }
 
+function hubUrl(accessToken?: string | null): string {
+  const base = getHubUrl();
+  if (!accessToken && DEV_USER_ID) {
+    return `${base}?access_token=${encodeURIComponent(DEV_USER_ID)}`;
+  }
+  return base;
+}
+
 export function AnalysisStatusListener({ profileId, accessToken, onComplete, onError }: Props) {
   const [progress, setProgress] = useState<NicheAnalysisStatus | null>(null);
   const [liveMessage, setLiveMessage] = useState<string | null>(null);
-  const hubRef = useRef<WebSocket | null>(null);
   const completedRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  const onErrorRef = useRef(onError);
 
-  // Fallback: poll /status for initial state or if SignalR drops
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+    onErrorRef.current = onError;
+  }, [onComplete, onError]);
+
+  useEffect(() => {
+    completedRef.current = false;
+  }, [profileId]);
+
+  // Fallback: poll /status if SignalR is unavailable or the tab was refreshed mid-run
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
+    let cancelled = false;
 
     async function poll() {
+      if (cancelled || completedRef.current) return;
       try {
         const status = await getNicheAnalysisStatus(profileId, accessToken);
         if (status.status === 'complete' && !completedRef.current) {
           completedRef.current = true;
-          onComplete(profileId);
+          onCompleteRef.current(profileId);
           return;
         }
         if (status.status === 'failed') {
-          onError(status.errorMessage ?? 'Analysis failed');
+          onErrorRef.current(status.errorMessage ?? 'Analysis failed');
           return;
         }
         setProgress((prev) => mergeStatus(prev, status));
       } catch {
         // ignore transient errors
       }
-      timer = setTimeout(poll, 3_000);
+      if (!cancelled && !completedRef.current) {
+        timer = setTimeout(poll, 3_000);
+      }
     }
 
-    // Check immediately (handles page-refresh-after-complete)
     void poll();
 
-    return () => clearTimeout(timer);
-  }, [profileId, accessToken, onComplete, onError]);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [profileId, accessToken]);
 
-  // SignalR (primary) — connect to /hubs/seo-scoring
+  // SignalR live progress (optional; polling remains the source of truth)
   useEffect(() => {
-    if (completedRef.current) return;
-
-    let connection: { invoke?: () => void; stop?: () => void } | null = null;
+    let disposed = false;
+    let connection: import('@microsoft/signalr').HubConnection | null = null;
 
     async function connect() {
       try {
         const { HubConnectionBuilder, LogLevel } = await import('@microsoft/signalr');
+        if (disposed) return;
+
         const conn = new HubConnectionBuilder()
-          .withUrl(`${SEO_API_URL}/hubs/seo-scoring`, {
+          .withUrl(hubUrl(accessToken), {
             accessTokenFactory: () => accessToken ?? '',
+            withCredentials: true,
           })
-          .configureLogging(LogLevel.Warning)
-          .withAutomaticReconnect()
+          .configureLogging(LogLevel.Error)
+          .withAutomaticReconnect([0, 2_000, 5_000, 10_000])
           .build();
 
-        conn.on('AnalysisProgress', (msg: NicheAnalysisStatus & { message?: string; Message?: string; ProfileId?: string }) => {
-          const msgProfileId = msg.profileId ?? msg.ProfileId;
-          if (msgProfileId && msgProfileId !== profileId) return;
-          const detail = msg.message ?? msg.Message;
-          if (detail) setLiveMessage(detail);
-          setProgress((prev) =>
-            mergeStatus(prev, {
-              profileId: msgProfileId ?? profileId,
-              status: msg.status ?? (msg as { Status?: string }).Status ?? 'processing',
-              step: msg.step ?? (msg as { Step?: string }).Step,
-              stepNumber: msg.stepNumber ?? (msg as { StepNumber?: number }).StepNumber,
-              totalSteps: msg.totalSteps ?? (msg as { TotalSteps?: number }).TotalSteps ?? 10,
-              errorMessage: msg.errorMessage ?? (msg as { ErrorMessage?: string }).ErrorMessage,
-            }),
-          );
-          if (msg.status === 'complete' && !completedRef.current) {
-            completedRef.current = true;
-            onComplete(profileId);
-          }
-          if (msg.status === 'failed') {
-            onError(msg.errorMessage ?? 'Analysis failed');
-          }
-        });
+        conn.on(
+          'AnalysisProgress',
+          (msg: NicheAnalysisStatus & { message?: string; Message?: string; ProfileId?: string }) => {
+            const msgProfileId = msg.profileId ?? msg.ProfileId;
+            if (msgProfileId && msgProfileId !== profileId) return;
+            const detail = msg.message ?? msg.Message;
+            if (detail) setLiveMessage(detail);
 
+            const status = msg.status ?? (msg as { Status?: string }).Status ?? 'processing';
+            setProgress((prev) =>
+              mergeStatus(prev, {
+                profileId: msgProfileId ?? profileId,
+                status,
+                step: msg.step ?? (msg as { Step?: string }).Step,
+                stepNumber: msg.stepNumber ?? (msg as { StepNumber?: number }).StepNumber,
+                totalSteps: msg.totalSteps ?? (msg as { TotalSteps?: number }).TotalSteps ?? 10,
+                errorMessage: msg.errorMessage ?? (msg as { ErrorMessage?: string }).ErrorMessage,
+              }),
+            );
+
+            if (status === 'complete' && !completedRef.current) {
+              completedRef.current = true;
+              onCompleteRef.current(profileId);
+            }
+            if (status === 'failed') {
+              onErrorRef.current(msg.errorMessage ?? 'Analysis failed');
+            }
+          },
+        );
+
+        connection = conn;
         await conn.start();
-        connection = conn as unknown as typeof connection;
+        if (disposed) {
+          await conn.stop();
+        }
       } catch {
-        // SignalR unavailable — polling fallback continues
+        // Polling fallback continues
       }
     }
 
     void connect();
 
     return () => {
-      void (connection as unknown as { stop?: () => Promise<void> })?.stop?.();
+      disposed = true;
+      const conn = connection;
+      connection = null;
+      if (conn) {
+        void conn.stop();
+      }
     };
-  }, [profileId, accessToken, onComplete, onError]);
+  }, [profileId, accessToken]);
 
   const stepNumber = progress?.stepNumber ?? 0;
   const totalSteps = progress?.totalSteps ?? 10;

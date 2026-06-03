@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuthReady } from '@/hooks/use-auth-ready';
 import {
   listProjects,
@@ -152,34 +152,37 @@ export default function NicheAnalyzerPage() {
     }
   }
 
-  async function handleAnalysisComplete(completedProfileId: string) {
-    setAnalyzing(false);
-    setAnalyzeProfileId(null);
-    try {
-      const p = await getNicheProfile(completedProfileId, accessToken);
-      setProfile(p);
-      await loadAnalytics(p.id);
-      if (p.pillars.length === 0) {
-        if (p.totalPillarsIdentified > 0) {
-          setError(
-            'Analysis saved pillar counts but the pillar list did not persist. Run Re-analyze once; if the table stays empty, we need to fix storage on the server.',
-          );
-        } else {
-          setError(
-            'No pillars were detected. A homepage-only sitemap is fine — Geek SEO reads schema.org JSON-LD (knowsAbout, services, area served). Hidden or off-canvas navigation is also fine.',
-          );
+  const handleAnalysisComplete = useCallback(
+    async (completedProfileId: string) => {
+      setAnalyzing(false);
+      setAnalyzeProfileId(null);
+      try {
+        const p = await getNicheProfile(completedProfileId, accessToken);
+        setProfile(p);
+        await loadAnalytics(p.id);
+        if (p.pillars.length === 0) {
+          if (p.totalPillarsIdentified > 0) {
+            setError(
+              'Analysis saved pillar counts but the pillar list did not persist. Run Re-analyze once; if the table stays empty, we need to fix storage on the server.',
+            );
+          } else {
+            setError(
+              'No pillars were detected. A homepage-only sitemap is fine — Geek SEO reads schema.org JSON-LD (knowsAbout, services, area served). Hidden or off-canvas navigation is also fine.',
+            );
+          }
         }
+      } catch {
+        setError('Analysis complete but failed to load results.');
       }
-    } catch (e) {
-      setError('Analysis complete but failed to load results.');
-    }
-  }
+    },
+    [accessToken, projectId, quickWinsOnly],
+  );
 
-  function handleAnalysisError(msg: string) {
+  const handleAnalysisError = useCallback((msg: string) => {
     setAnalyzing(false);
     setAnalyzeProfileId(null);
     setError(msg);
-  }
+  }, []);
 
   async function handleQuickWinsToggle(qw: boolean) {
     setQuickWinsOnly(qw);
