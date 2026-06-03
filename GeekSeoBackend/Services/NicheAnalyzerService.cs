@@ -31,10 +31,11 @@ public sealed class NicheAnalyzerService(
         Guid userId, Guid projectId, string domain,
         string? seedTopic = null, CancellationToken ct = default)
     {
+        var siteUrl = await ResolveSiteUrlAsync(projectId, domain, ct);
         var profile = new NicheProfile
         {
             ProjectId = projectId,
-            Domain = NormalizeDomain(domain),
+            Domain = siteUrl,
             Status = "queued",
             AnalysisVersion = "1.0",
         };
@@ -48,8 +49,6 @@ public sealed class NicheAnalyzerService(
 
     public async Task RunAnalysisAsync(Guid profileId, Guid userId, IBrowser? browser, CancellationToken ct)
     {
-        await PushProgress(userId, profileId, "schema", 1, "Extracting schema.org data…", ct);
-
         try
         {
             // Load project to get domain + location
@@ -61,7 +60,7 @@ public sealed class NicheAnalyzerService(
             }
 
             var profile = profileResult.Value;
-            var domain = EnsureHttps(profile.Domain);
+            var domain = NicheSiteUrlNormalizer.Normalize(profile.Domain);
 
             await profileRepo.UpdateStatusAsync(profileId, "processing",
                 step: "schema", stepNumber: 1, totalSteps: TotalSteps, ct: ct);
@@ -378,17 +377,13 @@ public sealed class NicheAnalyzerService(
         System.Text.RegularExpressions.Regex.Replace(
             name.Trim().ToLowerInvariant(), @"[^a-z0-9]+", "-").Trim('-');
 
-    private static string NormalizeDomain(string domain)
+    private async Task<string> ResolveSiteUrlAsync(
+        Guid projectId, string domainFromRequest, CancellationToken ct)
     {
-        if (!domain.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-            domain = "https://" + domain;
-        try { return new Uri(domain).GetLeftPart(UriPartial.Authority); }
-        catch { return domain.TrimEnd('/'); }
-    }
+        var projectResult = await projectRepo.GetByIdAsync(projectId, ct);
+        if (projectResult.IsSuccess && !string.IsNullOrWhiteSpace(projectResult.Value?.Url))
+            return NicheSiteUrlNormalizer.Normalize(projectResult.Value.Url);
 
-    private static string EnsureHttps(string domain)
-    {
-        if (domain.StartsWith("http", StringComparison.OrdinalIgnoreCase)) return domain;
-        return "https://" + domain;
+        return NicheSiteUrlNormalizer.Normalize(domainFromRequest);
     }
 }

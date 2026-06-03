@@ -50,6 +50,12 @@ export default function NicheAnalyzerPage() {
 
   useEffect(() => {
     if (!authReady || !projectId) return;
+    setAnalyzing(false);
+    setAnalyzeProfileId(null);
+    setProfile(null);
+    setCoverage([]);
+    setGaps([]);
+    setProgress([]);
     void loadExisting();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, authReady, accessToken]);
@@ -101,6 +107,9 @@ export default function NicheAnalyzerPage() {
       }
 
       if (p.status === 'processing' || p.status === 'queued') {
+        setProfile(null);
+        setCoverage([]);
+        setGaps([]);
         setAnalyzeProfileId(p.id);
         setAnalyzing(true);
         return;
@@ -135,7 +144,7 @@ export default function NicheAnalyzerPage() {
     setGaps([]);
     setAnalyzing(true);
     try {
-      const { profileId } = await analyzeNiche(projectId, selected.url, accessToken);
+      const { profileId } = await analyzeNiche(projectId, selected.url.trim(), accessToken);
       setAnalyzeProfileId(profileId);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to start analysis');
