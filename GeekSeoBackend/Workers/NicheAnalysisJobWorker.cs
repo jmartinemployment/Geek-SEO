@@ -46,8 +46,17 @@ public sealed class NicheAnalysisJobWorker(
         var nicheRepo = scope.ServiceProvider.GetRequiredService<INicheProfileRepository>();
         var nicheJob = scope.ServiceProvider.GetRequiredService<NicheAnalysisBackgroundJob>();
 
+        // Must set before any repo HTTP call — CurrentUserContext reads WorkerUserContext.
+        workerUser.UserId = serviceUserId;
+
         var stale = await nicheRepo.FailStaleProcessingAsync(StaleProcessingAge, ct);
-        if (stale.IsSuccess && stale.Value > 0)
+        if (!stale.IsSuccess)
+        {
+            logger.LogDebug(
+                "Stale niche cleanup skipped (repo may not support it yet): {Error}",
+                stale.Error);
+        }
+        else if (stale.Value > 0)
         {
             logger.LogWarning(
                 "Marked {Count} stale niche analysis profile(s) as failed (no progress for {Minutes} min)",
@@ -55,9 +64,6 @@ public sealed class NicheAnalysisJobWorker(
                 StaleProcessingAge.TotalMinutes);
         }
 
-        var playwrightHolder = scope.ServiceProvider.GetService<PlaywrightBrowserHolder>();
-
-        workerUser.UserId = serviceUserId;
         var queued = await nicheRepo.ListQueuedAsync(3, ct);
         if (!queued.IsSuccess || queued.Value is null || queued.Value.Count == 0)
         {

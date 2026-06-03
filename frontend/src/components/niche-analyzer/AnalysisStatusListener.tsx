@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { getHubUrl, getNicheAnalysisStatus, type NicheAnalysisStatus } from '@/lib/seo-api';
-import { isNicheRunStale, isNicheStepStalled, NICHE_STALL_MS } from '@/lib/niche-analysis-stale';
+import { isNicheStepStalled, NICHE_STALL_MS } from '@/lib/niche-analysis-stale';
 
 const DEV_USER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID;
 
@@ -55,14 +55,6 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
   const stepTrackerRef = useRef({ step: 0, at: Date.now() });
 
   function applyStatus(status: NicheAnalysisStatus) {
-    if (isNicheRunStale(status)) {
-      onErrorRef.current(
-        status.errorMessage ??
-          'Analysis stopped responding. Click Re-analyze to start a fresh run.',
-      );
-      return true;
-    }
-
     const step = status.stepNumber ?? 0;
     if (step > 0 && step !== stepTrackerRef.current.step) {
       stepTrackerRef.current = { step, at: Date.now() };
@@ -72,7 +64,6 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
     }
 
     setProgress((prev) => mergeStatus(prev, status));
-    return false;
   }
 
   useEffect(() => {
@@ -104,7 +95,7 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
           onErrorRef.current(status.errorMessage ?? 'Analysis failed');
           return;
         }
-        if (applyStatus(status)) return;
+        applyStatus(status);
       } catch {
         // ignore transient errors
       }

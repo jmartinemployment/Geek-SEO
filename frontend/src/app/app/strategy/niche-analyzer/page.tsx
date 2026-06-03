@@ -23,7 +23,6 @@ import { CoverageMatrixTable } from '@/components/niche-analyzer/CoverageMatrixT
 import { TopicalGapsPanel } from '@/components/niche-analyzer/TopicalGapsPanel';
 import { AuthorityProgressChart } from '@/components/niche-analyzer/AuthorityProgressChart';
 import { AnalysisStatusListener } from '@/components/niche-analyzer/AnalysisStatusListener';
-import { isNicheRunStale } from '@/lib/niche-analysis-stale';
 
 type Tab = 'pillars' | 'gaps' | 'progress';
 
@@ -109,11 +108,8 @@ export default function NicheAnalyzerPage() {
 
       if (p.status === 'processing' || p.status === 'queued') {
         const status = await getNicheAnalysisStatus(p.id, accessToken);
-        if (status.status === 'failed' || isNicheRunStale(status)) {
-          setError(
-            status.errorMessage ??
-              'A previous analysis stopped responding (often during the navigation crawl). Click Re-analyze to start a fresh run.',
-          );
+        if (status.status === 'failed') {
+          setError(status.errorMessage ?? 'The last analysis failed. Click Re-analyze to try again.');
           const history = await getNicheHistory(projectId, accessToken);
           const lastComplete = history.find((h) => h.status === 'complete');
           if (lastComplete) {
@@ -124,6 +120,7 @@ export default function NicheAnalyzerPage() {
           return;
         }
 
+        // Resume in-progress run — poll until complete or failed (no stale banner on load).
         setProfile(null);
         setCoverage([]);
         setGaps([]);
@@ -237,10 +234,10 @@ export default function NicheAnalyzerPage() {
           </select>
           <button
             onClick={handleAnalyze}
-            disabled={analyzing || !projectId}
+            disabled={!projectId}
             className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {analyzing ? 'Analyzing…' : profile ? 'Re-analyze' : 'Analyze'}
+            {analyzing ? 'Re-analyze (restart)' : profile ? 'Re-analyze' : 'Analyze'}
           </button>
         </div>
       </div>
