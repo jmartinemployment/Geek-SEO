@@ -5,10 +5,33 @@ import type { AuthorityProgressPoint } from '@/lib/seo-api';
 type Props = { points: AuthorityProgressPoint[] };
 
 export function AuthorityProgressChart({ points }: Props) {
-  if (points.length < 2) {
+  if (points.length === 0) {
     return (
       <div className="flex h-32 items-center justify-center rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text-muted)]">
-        Not enough data yet — re-analyze monthly to track authority progression.
+        No completed analyses yet — run Analyze, then re-analyze monthly to track authority over time.
+      </div>
+    );
+  }
+
+  if (points.length === 1) {
+    const p = points[0]!;
+    const date = new Date(p.snapshotDate).toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    return (
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+        <p className="text-sm font-medium text-[var(--color-text-primary)]">Authority snapshot</p>
+        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+          First data point from {date}. Re-analyze monthly to unlock the trend chart.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-4">
+          <Metric label="Topical authority" value={`${Math.round(p.topicalAuthorityScore)}`} />
+          <Metric label="Pillars covered" value={`${p.pillarsCovered}`} />
+          <Metric label="Subtopics covered" value={`${p.totalSubtopicsCovered}`} />
+          <Metric label="Gaps" value={`${p.totalGaps}`} />
+        </div>
       </div>
     );
   }
@@ -60,6 +83,15 @@ export function AuthorityProgressChart({ points }: Props) {
           </g>
         ))}
       </svg>
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-secondary)] px-4 py-3">
+      <p className="text-xs text-[var(--color-text-muted)]">{label}</p>
+      <p className="mt-1 text-xl font-semibold tabular-nums text-[var(--color-text-primary)]">{value}</p>
     </div>
   );
 }

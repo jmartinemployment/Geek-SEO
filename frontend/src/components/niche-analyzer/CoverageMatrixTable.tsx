@@ -1,9 +1,10 @@
 'use client';
 
-import type { NichePillarResult } from '@/lib/seo-api';
+import type { NichePillarResult, PillarCoverageMatrix } from '@/lib/seo-api';
 
 type Props = {
   pillars: NichePillarResult[];
+  coverageFallback?: PillarCoverageMatrix[];
   totalPillarsIdentified?: number;
 };
 
@@ -19,7 +20,62 @@ const COVERAGE_BADGE: Record<string, string> = {
   gap: 'bg-red-100 text-red-700',
 };
 
-export function CoverageMatrixTable({ pillars, totalPillarsIdentified = 0 }: Props) {
+export function CoverageMatrixTable({
+  pillars,
+  coverageFallback = [],
+  totalPillarsIdentified = 0,
+}: Props) {
+  if (pillars.length === 0 && coverageFallback.length > 0) {
+    return (
+      <div className="overflow-x-auto rounded-xl border border-[var(--color-border)]">
+        <table className="w-full text-sm">
+          <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface-secondary)]">
+            <tr>
+              <th className="px-4 py-3 text-left font-medium text-[var(--color-text-secondary)]">Pillar</th>
+              <th className="px-4 py-3 text-right font-medium text-[var(--color-text-secondary)]">Score</th>
+              <th className="px-4 py-3 text-right font-medium text-[var(--color-text-secondary)]">Subtopics</th>
+              <th className="px-4 py-3 text-left font-medium text-[var(--color-text-secondary)]">Coverage</th>
+              <th className="px-4 py-3 text-left font-medium text-[var(--color-text-secondary)]">Priority</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[var(--color-border)]">
+            {coverageFallback.map((row) => (
+              <tr key={row.pillarId} className="bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)]">
+                <td className="px-4 py-3">
+                  <div className="font-medium text-[var(--color-text-primary)]">{row.pillarTopic}</div>
+                  {row.primaryKeyword ? (
+                    <div className="text-xs text-[var(--color-text-muted)]">{row.primaryKeyword}</div>
+                  ) : null}
+                  {row.hasQuickWins ? (
+                    <span className="mt-0.5 inline-block rounded-full bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-700">
+                      Quick wins
+                    </span>
+                  ) : null}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <ScoreBar score={row.coverageScore} />
+                </td>
+                <td className="px-4 py-3 text-right text-[var(--color-text-secondary)]">
+                  {row.coveredSubtopics}/{row.totalSubtopics}
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${COVERAGE_BADGE[row.coverageStatus] ?? ''}`}>
+                    {row.coverageStatus}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${PRIORITY_BADGE[row.strategicPriority] ?? ''}`}>
+                    {row.strategicPriority.replace('_', ' ')}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
   if (pillars.length === 0) {
     const savedCountsOnly = totalPillarsIdentified > 0;
     return (

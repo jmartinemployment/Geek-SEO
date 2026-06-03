@@ -11,6 +11,7 @@ import {
   getNicheCoverageMatrix,
   getNicheGaps,
   getNicheProgress,
+  getNicheHistory,
   type SeoProject,
   type NicheProfileResult,
   type PillarCoverageMatrix,
@@ -53,28 +54,62 @@ export default function NicheAnalyzerPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, authReady, accessToken]);
 
+  useEffect(() => {
+    if (!authReady || !accessToken || !profile || tab !== 'pillars') return;
+    if (profile.status !== 'complete' || profile.pillars.length > 0) return;
+    void resolveProfileWithPillars(profile).then((full) => {
+      if (full.pillars.length > 0) setProfile(full);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, profile?.id, profile?.pillars.length, authReady, accessToken]);
+
+  async function resolveProfileWithPillars(p: NicheProfileResult): Promise<NicheProfileResult> {
+    const needsFull =
+      p.status === 'complete' &&
+      (p.pillars.length === 0 ||
+        (p.totalPillarsIdentified > 0 && p.pillars.length < p.totalPillarsIdentified));
+    if (!needsFull) return p;
+    return getNicheProfile(p.id, accessToken);
+  }
+
   async function loadExisting() {
     setError(null);
     try {
       const p = await getLatestNicheProfile(projectId, accessToken);
-      if (p) {
-        if (p.status === 'failed') {
-          const status = await getNicheAnalysisStatus(p.id, accessToken);
-          const raw = status.errorMessage ?? '';
-          const isPillarSaveValidation =
-            raw.includes('NicheProfile field is required') ||
-            raw.includes('[0].NicheProfile');
-          setError(
-            isPillarSaveValidation
-              ? 'The last run failed while saving pillars (a server deploy fix is required). Click Re-analyze after GeekRepository and GeekSeoBackend have redeployed — the red message will clear on success.'
-              : raw || 'The last analysis failed. Click Re-analyze to try again.',
-          );
-          return;
+      if (!p) return;
+
+      if (p.status === 'failed') {
+        const status = await getNicheAnalysisStatus(p.id, accessToken);
+        const raw = status.errorMessage ?? '';
+        const isPillarSaveValidation =
+          raw.includes('NicheProfile field is required') ||
+          raw.includes('[0].NicheProfile');
+        setError(
+          isPillarSaveValidation
+            ? 'The last run failed while saving pillars (a server deploy fix is required). Click Re-analyze after GeekRepository and GeekSeoBackend have redeployed — the red message will clear on success.'
+            : raw || 'The last analysis failed. Click Re-analyze to try again.',
+        );
+
+        const history = await getNicheHistory(projectId, accessToken);
+        const lastComplete = history.find((h) => h.status === 'complete');
+        if (lastComplete) {
+          const full = await getNicheProfile(lastComplete.id, accessToken);
+          setProfile(await resolveProfileWithPillars(full));
+          await loadAnalytics(full.id);
         }
-        setProfile(p);
-        await loadAnalytics(p.id);
+        return;
       }
-    } catch (e) {
+
+      if (p.status === 'processing' || p.status === 'queued') {
+        setAnalyzeProfileId(p.id);
+        setAnalyzing(true);
+        return;
+      }
+
+      const full = await resolveProfileWithPillars(p);
+      setProfile(full);
+      await loadAnalytics(full.id);
+    } catch {
       // no existing profile — show form
     }
   }
@@ -234,6 +269,7 @@ export default function NicheAnalyzerPage() {
           {tab === 'pillars' && (
             <CoverageMatrixTable
               pillars={profile.pillars}
+              coverageFallback={coverage}
               totalPillarsIdentified={profile.totalPillarsIdentified}
             />
           )}

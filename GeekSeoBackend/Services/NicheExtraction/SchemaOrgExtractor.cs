@@ -1,9 +1,11 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using GeekSeo.Application.Models.Seo;
+using Microsoft.Playwright;
 
 namespace GeekSeoBackend.Services.NicheExtraction;
 
-public sealed class SchemaOrgExtractor(IHttpClientFactory factory, ILogger<SchemaOrgExtractor> logger)
+public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogger<SchemaOrgExtractor> logger)
 {
     private static readonly HashSet<string> BusinessTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -13,14 +15,35 @@ public sealed class SchemaOrgExtractor(IHttpClientFactory factory, ILogger<Schem
         "TechCompany", "ITConsultant", "ComputerRepairService",
     };
 
-    public async Task<SchemaOrgData> ExtractAsync(string siteUrl, CancellationToken ct)
+    public async Task<SchemaOrgData> ExtractAsync(
+        string siteUrl, IBrowser? browser, CancellationToken ct)
     {
         try
         {
-            var html = await FetchHomePageAsync(siteUrl, ct);
-            if (string.IsNullOrWhiteSpace(html)) return Empty();
+            var blocks = new List<string>();
 
-            var blocks = ExtractJsonLdBlocks(html);
+            if (browser is not null)
+            {
+                try
+                {
+                    blocks.AddRange(await ExtractJsonLdWithPlaywrightAsync(siteUrl, browser, ct));
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(
+                        ex,
+                        "Playwright schema.org extraction failed for {Url}, falling back to HTTP",
+                        siteUrl);
+                }
+            }
+
+            if (blocks.Count == 0)
+            {
+                var html = await FetchHomePageAsync(siteUrl, ct);
+                if (!string.IsNullOrWhiteSpace(html))
+                    blocks.AddRange(ExtractJsonLdBlocks(html));
+            }
+
             var serviceNames = new List<string>();
             string? description = null;
             string? brand = null;
@@ -39,17 +62,68 @@ public sealed class SchemaOrgExtractor(IHttpClientFactory factory, ILogger<Schem
                 }
             }
 
-            return new SchemaOrgData(
+            var data = new SchemaOrgData(
                 serviceNames.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
                 description,
                 brand,
                 areas.Distinct(StringComparer.OrdinalIgnoreCase).ToList());
+
+            logger.LogInformation(
+                "Schema.org for {Url}: {TopicCount} topics, brand={HasBrand}, areas={AreaCount}, blocks={BlockCount}",
+                siteUrl,
+                data.ServiceNames.Count,
+                !string.IsNullOrWhiteSpace(data.BrandName),
+                data.AreaServed.Count,
+                blocks.Count);
+
+            return data;
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Schema.org extraction failed for {Url}", siteUrl);
             return Empty();
         }
+    }
+
+    private static async Task<IReadOnlyList<string>> ExtractJsonLdWithPlaywrightAsync(
+        string siteUrl, IBrowser browser, CancellationToken ct)
+    {
+        await using var context = await browser.NewContextAsync(new BrowserNewContextOptions
+        {
+            UserAgent = "Mozilla/5.0 (compatible; GeekSEO/1.0; +https://seo.geekatyourspot.com)",
+        });
+        var page = await context.NewPageAsync();
+        await page.GotoAsync(siteUrl, new PageGotoOptions
+        {
+            WaitUntil = WaitUntilState.DOMContentLoaded,
+            Timeout = 20_000,
+        });
+
+        var payload = await page.EvaluateAsync<string>(@"() => {
+            const scripts = Array.from(
+                document.querySelectorAll('script[type=""application/ld+json""]'));
+            const blocks = scripts
+                .map(s => (s.textContent || '').trim())
+                .filter(t => t.length > 0);
+            return JSON.stringify(blocks);
+        }");
+
+        using var doc = JsonDocument.Parse(payload);
+        if (doc.RootElement.ValueKind != JsonValueKind.Array)
+            return [];
+
+        var results = new List<string>();
+        foreach (var item in doc.RootElement.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.String)
+            {
+                var text = item.GetString();
+                if (!string.IsNullOrWhiteSpace(text))
+                    results.Add(text);
+            }
+        }
+
+        return results;
     }
 
     private async Task<string> FetchHomePageAsync(string siteUrl, CancellationToken ct)
@@ -66,19 +140,31 @@ public sealed class SchemaOrgExtractor(IHttpClientFactory factory, ILogger<Schem
     private static IEnumerable<string> ExtractJsonLdBlocks(string html)
     {
         var results = new List<string>();
-        var searchFrom = 0;
-        const string openTag = "<script type=\"application/ld+json\">";
-        const string closeTag = "</script>";
 
-        while (true)
+        foreach (Match match in JsonLdScriptRegex().Matches(html))
         {
-            var start = html.IndexOf(openTag, searchFrom, StringComparison.OrdinalIgnoreCase);
-            if (start < 0) break;
-            start += openTag.Length;
-            var end = html.IndexOf(closeTag, start, StringComparison.OrdinalIgnoreCase);
-            if (end < 0) break;
-            results.Add(html[start..end].Trim());
-            searchFrom = end + closeTag.Length;
+            var body = match.Groups["body"].Value.Trim();
+            if (!string.IsNullOrWhiteSpace(body))
+                results.Add(body);
+        }
+
+        // Legacy exact tag (in case regex misses an edge case)
+        if (results.Count == 0)
+        {
+            var searchFrom = 0;
+            const string openTag = "<script type=\"application/ld+json\">";
+            const string closeTag = "</script>";
+
+            while (true)
+            {
+                var start = html.IndexOf(openTag, searchFrom, StringComparison.OrdinalIgnoreCase);
+                if (start < 0) break;
+                start += openTag.Length;
+                var end = html.IndexOf(closeTag, start, StringComparison.OrdinalIgnoreCase);
+                if (end < 0) break;
+                results.Add(html[start..end].Trim());
+                searchFrom = end + closeTag.Length;
+            }
         }
 
         return results;
@@ -101,16 +187,27 @@ public sealed class SchemaOrgExtractor(IHttpClientFactory factory, ILogger<Schem
         if (node.ValueKind != JsonValueKind.Object)
             return;
 
-        if (!IsSchemaPillarSource(node))
-            return;
+        if (node.TryGetProperty("@graph", out var graph) && graph.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in graph.EnumerateArray())
+                ProcessJsonLdNode(item, serviceNames, areas, ref description, ref brand);
+        }
 
-        description ??= TryGetString(node, "description");
-        brand ??= CleanBrandName(TryGetString(node, "name"));
-
-        ExtractAreaServed(node, areas);
-        ExtractServiceNames(node, serviceNames);
-        ExtractKnowsAbout(node, serviceNames);
+        if (IsSchemaPillarSource(node) || HasServiceSignals(node))
+        {
+            description ??= TryGetString(node, "description");
+            brand ??= CleanBrandName(TryGetString(node, "name"));
+            ExtractAreaServed(node, areas);
+            ExtractServiceNames(node, serviceNames);
+            ExtractKnowsAbout(node, serviceNames);
+        }
     }
+
+    private static bool HasServiceSignals(JsonElement root) =>
+        root.TryGetProperty("knowsAbout", out _) ||
+        root.TryGetProperty("hasOfferCatalog", out _) ||
+        root.TryGetProperty("makesOffer", out _) ||
+        root.TryGetProperty("serviceType", out _);
 
     private static bool IsSchemaPillarSource(JsonElement root) =>
         IsBusinessType(root) || HasSchemaType(root, "Service");
@@ -289,4 +386,9 @@ public sealed class SchemaOrgExtractor(IHttpClientFactory factory, ILogger<Schem
     }
 
     private static SchemaOrgData Empty() => new([], null, null, []);
+
+    [GeneratedRegex(
+        "<script[^>]*type\\s*=\\s*[\"']application/ld\\+json[\"'][^>]*>(?<body>[\\s\\S]*?)</script>",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex JsonLdScriptRegex();
 }

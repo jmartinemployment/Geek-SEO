@@ -66,8 +66,12 @@ public sealed class NicheAnalyzerService(
             await profileRepo.UpdateStatusAsync(profileId, "processing",
                 step: "schema", stepNumber: 1, totalSteps: TotalSteps, ct: ct);
 
-            // Step 1 — Schema.org
-            var schemaData = await schemaExtractor.ExtractAsync(domain, ct);
+            // Step 1 — Schema.org (HTTP + optional Playwright for JS-rendered JSON-LD)
+            var schemaData = await schemaExtractor.ExtractAsync(domain, browser, ct);
+            var schemaMessage = schemaData.ServiceNames.Count > 0
+                ? $"Found {schemaData.ServiceNames.Count} topics from schema.org (knowsAbout, services)…"
+                : "No schema.org service topics found on homepage — using sitemap and headings…";
+            await PushProgress(userId, profileId, "schema", 1, schemaMessage, ct);
             await PushProgress(userId, profileId, "sitemap", 2, "Parsing sitemap…", ct);
 
             // Step 2 — Sitemap
