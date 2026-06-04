@@ -108,7 +108,11 @@ export function AppHeaderActions() {
 export function AppHeader() {
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4 md:px-10">
-      <Link href="/app/dashboard" className="shrink-0 text-lg font-bold tracking-[-0.02em] text-[var(--color-text-primary)]">
+      <Link
+        href="/app/dashboard"
+        prefetch={false}
+        className="shrink-0 text-lg font-bold tracking-[-0.02em] text-[var(--color-text-primary)]"
+      >
         Geek SEO
       </Link>
       <div className="flex flex-1 justify-center">

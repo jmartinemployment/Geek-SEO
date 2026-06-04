@@ -53,6 +53,7 @@ function SidebarLink({
   return (
     <Link
       href={href}
+      prefetch={false}
       title={label}
       aria-label={label}
       className={cn(
@@ -92,6 +93,7 @@ export function AppSidebar({ pathname }: { pathname: string }) {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 className="block rounded-md px-3 py-2 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)]"
               >
                 {item.label}

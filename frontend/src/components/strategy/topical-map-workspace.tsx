@@ -1,9 +1,21 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
-import { TopicalMapGraph } from '@/components/strategy/topical-map-graph';
+
+const TopicalMapGraph = dynamic(
+  () => import('@/components/strategy/topical-map-graph').then((mod) => mod.TopicalMapGraph),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[480px] items-center justify-center rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text-muted)]">
+        Loading map…
+      </div>
+    ),
+  },
+);
 import { LinkingBlueprintTab } from '@/components/strategy/linking-blueprint-tab';
 import {
   createContent,
@@ -232,10 +244,10 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
           >
             {loading ? 'Working…' : result ? 'Refresh map' : 'Generate map'}
           </button>
-          <Link href="/app/planner" className="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50">
+          <Link href="/app/planner" prefetch={false} className="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50">
             Keyword planner
           </Link>
-          <Link href="/app/rankings" className="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50">
+          <Link href="/app/rankings" prefetch={false} className="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50">
             Rankings / GSC
           </Link>
         </div>
@@ -246,7 +258,7 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
       {gscConnected === false ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Google Search Console is not connected for this project.{' '}
-          <Link href="/app/rankings" className="font-medium underline">
+          <Link href="/app/rankings" prefetch={false} className="font-medium underline">
             Connect GSC
           </Link>{' '}
           to build a topical map from real query data.

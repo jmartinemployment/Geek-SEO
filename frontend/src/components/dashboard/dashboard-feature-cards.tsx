@@ -27,7 +27,7 @@ export function DashboardFeatureCards() {
         {FEATURE_MODULES.map((module) => {
           const Icon = moduleIcons[module.id as keyof typeof moduleIcons] ?? Sparkles;
           return (
-            <Link key={module.id} href={module.href} className="shrink-0">
+            <Link key={module.id} href={module.href} prefetch={false} className="shrink-0">
               <Card className="h-full w-40 hover:border-[var(--color-border-strong)]">
                 <CardHeader className="gap-3 pb-0">
                   <div
