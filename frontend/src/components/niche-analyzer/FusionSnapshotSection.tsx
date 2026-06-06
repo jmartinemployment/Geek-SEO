@@ -75,6 +75,7 @@ export function FusionSnapshotSection({
     <FusionInsightsStack
       fusion={fusion}
       projectId={projectId}
+      profileId={profileId}
       accessToken={accessToken}
     />
   );

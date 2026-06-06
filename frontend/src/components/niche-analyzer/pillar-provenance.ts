@@ -219,6 +219,25 @@ export function buildPillarProvenanceSummary(
   return parts.length > 0 ? parts.join(' ') : null;
 }
 
+/** Resolve GSC-silent pillar slugs to display names using the fusion snapshot. */
+export function resolveGscSilentPillars(
+  steps: NicheAnalysisStepLogEntry[],
+  fusion?: { selectedPillars?: { slug: string; name: string }[] } | null,
+): { slug: string; name: string }[] {
+  const merging = steps.find((s) => s.slug === 'merging');
+  const slugs = outputStringArray(merging, 'gscSilentPillarSlugs');
+  if (slugs.length === 0) return [];
+
+  const nameBySlug = new Map(
+    (fusion?.selectedPillars ?? []).map((p) => [p.slug.toLowerCase(), p.name]),
+  );
+
+  return slugs.map((slug) => ({
+    slug,
+    name: nameBySlug.get(slug.toLowerCase()) ?? slug.replaceAll('-', ' '),
+  }));
+}
+
 export const OUTPUT_LABELS: Record<string, string> = {
   knowsAboutTopics: 'knowsAbout topics',
   offerCatalogTopics: 'Offer catalog / serviceType topics',
@@ -276,6 +295,13 @@ export const OUTPUT_LABELS: Record<string, string> = {
   linkGraphEdgeCount: 'Internal link graph edges',
   orphanPillarCount: 'Orphan pillars (no cross-links)',
   recommendedActionCount: 'Recommended actions (Phase E)',
+  enabled: 'Step enabled',
+  pillarsCovered: 'Pillars fully covered',
+  pillarsPartial: 'Pillars partially covered',
+  pillarsGap: 'Pillar gaps',
+  subtopicsCovered: 'Subtopics matched to URLs',
+  subtopicsTotal: 'Subtopics evaluated',
+  samplePartialPillars: 'Partial pillars (sample)',
   fromGsc: 'Candidates with GSC query confirmation',
   gscConnected: 'GSC connected for this project',
   gscSkipped: 'GSC overlay skipped',

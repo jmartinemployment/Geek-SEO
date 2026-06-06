@@ -255,6 +255,26 @@ internal static class NicheAnalysisStepLogBuilder
             ["message"] = summary,
         });
 
+    internal static NicheAnalysisStepLogEntry Coverage(
+        int step,
+        int pillarsCovered,
+        int pillarsPartial,
+        int pillarsGap,
+        int subtopicsCovered,
+        int subtopicsTotal,
+        IReadOnlyList<string> samplePartialPillars,
+        string summary) =>
+        Entry(step, "coverage", summary, new Dictionary<string, object?>
+        {
+            ["enabled"] = true,
+            ["pillarsCovered"] = pillarsCovered,
+            ["pillarsPartial"] = pillarsPartial,
+            ["pillarsGap"] = pillarsGap,
+            ["subtopicsCovered"] = subtopicsCovered,
+            ["subtopicsTotal"] = subtopicsTotal,
+            ["samplePartialPillars"] = samplePartialPillars.Take(SampleLimit).ToArray(),
+        });
+
     internal static NicheAnalysisStepLogEntry Scoring(
         int step,
         decimal authorityScore,

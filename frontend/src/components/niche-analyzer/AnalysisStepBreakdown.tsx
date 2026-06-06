@@ -167,6 +167,7 @@ export function AnalysisStepBreakdown({
               <FusionInsightsStack
                 fusion={details.fusionSnapshot}
                 projectId={projectId}
+                profileId={profileId}
                 accessToken={accessToken}
               />
             </div>

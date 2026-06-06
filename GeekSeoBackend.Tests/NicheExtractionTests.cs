@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using GeekSeo.Application.Models.Seo;
+using GeekSeo.Persistence.Entities;
 using GeekSeoBackend.Services;
 using GeekSeoBackend.Services.NicheExtraction;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -1146,5 +1147,141 @@ public sealed class NicheExtractionTests
             HttpRequestMessage request,
             CancellationToken cancellationToken) =>
             Task.FromResult(responder(request));
+    }
+
+    [Fact]
+    public void NicheContentCoverageMatcher_MarksDedicatedPageAsCovered()
+    {
+        var profileId = Guid.NewGuid();
+        var pillarId = Guid.NewGuid();
+        var pillars = new List<NichePillar>
+        {
+            new()
+            {
+                Id = pillarId,
+                NicheProfileId = profileId,
+                PillarTopic = "Managed IT",
+                PillarSlug = "managed-it",
+                PrimaryKeyword = "managed it",
+                PageUrl = "https://example.com/services/managed-it",
+                RequiredSubtopicCount = 5,
+            },
+        };
+
+        var subtopics = new List<NicheSubtopic>
+        {
+            new()
+            {
+                PillarId = pillarId,
+                SubtopicTitle = "Managed IT – How To",
+                TargetKeyword = "managed it how to",
+            },
+        };
+
+        var fused = new FusedSiteUnderstanding
+        {
+            AllCandidates = [],
+            SelectedPillars =
+            [
+                new TopicCandidate
+                {
+                    Name = "Managed IT",
+                    Slug = "managed-it",
+                    DedicatedPageUrl = "https://example.com/services/managed-it",
+                    InternalLinkCount = 3,
+                    Evidence = [new TopicEvidence { Source = "schema", Weight = 0.35m }],
+                },
+            ],
+            ExcludedCandidates = [],
+            ExclusionReasons = new Dictionary<string, string>(),
+            FusionVersion = TopicFusionEngine.FusionVersion,
+            SignalSourcesPresent = ["schema"],
+            PillarCap = 15,
+            NormalizedTopicalityBySlug = new Dictionary<string, decimal>
+            {
+                ["managed-it"] = 0.12m,
+            },
+        };
+
+        var discovered = new List<DiscoveredPillar>
+        {
+            new()
+            {
+                Name = "Managed IT",
+                Slug = "managed-it",
+                PageUrl = "https://example.com/services/managed-it",
+                ChildSlugs = ["how-to"],
+            },
+        };
+
+        var crawl = new SiteCrawlData(
+            [new CrawledPage("https://example.com/services/managed-it", "<html><body>Managed IT services content here with enough words to count.</body></html>")],
+            1,
+            1);
+
+        var result = NicheContentCoverageMatcher.Apply(
+            pillars,
+            subtopics,
+            fused,
+            discovered,
+            crawl,
+            new SitemapData([], 0, []),
+            []);
+
+        Assert.Equal("covered", pillars[0].CoverageStatus);
+        Assert.Equal(1, result.PillarsCovered);
+        Assert.True(pillars[0].ExistingPages.Count > 0);
+    }
+
+    [Fact]
+    public void NicheContentCoverageMatcher_SchemaOnlyPillarIsPartialOrGap()
+    {
+        var pillarId = Guid.NewGuid();
+        var pillars = new List<NichePillar>
+        {
+            new()
+            {
+                Id = pillarId,
+                PillarTopic = "AI Chatbots",
+                PillarSlug = "ai-chatbots",
+                PrimaryKeyword = "ai chatbots",
+                RequiredSubtopicCount = 5,
+            },
+        };
+
+        var fused = new FusedSiteUnderstanding
+        {
+            AllCandidates = [],
+            SelectedPillars =
+            [
+                new TopicCandidate
+                {
+                    Name = "AI Chatbots",
+                    Slug = "ai-chatbots",
+                    Evidence = [new TopicEvidence { Source = "schema", Weight = 0.35m }],
+                },
+            ],
+            ExcludedCandidates = [],
+            ExclusionReasons = new Dictionary<string, string>(),
+            FusionVersion = TopicFusionEngine.FusionVersion,
+            SignalSourcesPresent = ["schema"],
+            PillarCap = 15,
+            NormalizedTopicalityBySlug = new Dictionary<string, decimal>
+            {
+                ["ai-chatbots"] = 0.02m,
+            },
+        };
+
+        var result = NicheContentCoverageMatcher.Apply(
+            pillars,
+            [],
+            fused,
+            [],
+            new SiteCrawlData([], 0, 0),
+            new SitemapData([], 0, []),
+            []);
+
+        Assert.Equal("partial", pillars[0].CoverageStatus);
+        Assert.Equal(1, result.PillarsPartial);
     }
 }

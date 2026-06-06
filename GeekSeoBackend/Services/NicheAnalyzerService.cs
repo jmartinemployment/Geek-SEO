@@ -233,7 +233,6 @@ public sealed class NicheAnalyzerService(
 
             // Step 10 — Niche identity
             var nicheEntities = BuildNichePillars(merged, profileId, demand.Keywords);
-            scorer.ScorePillars(nicheEntities);
             var rootEntity = rootBuilder.Build(schemaData, headings, nicheEntities);
             var audienceType = DetermineAudienceType(nicheEntities, schemaData);
             var nicheTags = BuildNicheTags(schemaData, nicheEntities).ToArray();
@@ -250,11 +249,40 @@ public sealed class NicheAnalyzerService(
                 NicheAnalysisStepLogBuilder.LocalDisabled(11, localMessage),
                 ct);
 
-            // Step 12 — Content coverage (progress only until coverage matcher ships)
-            const string coverageMessage = "Content coverage: not enabled in this release.";
+            // Step 12 — Content coverage (fusion + crawl → pillar/subtopic status)
+            foreach (var pillar in nicheEntities)
+            {
+                if (pillar.Id == Guid.Empty)
+                    pillar.Id = Guid.NewGuid();
+            }
+
+            var subtopics = BuildSubtopics(nicheEntities, merged);
+            AttachSubtopics(nicheEntities, subtopics);
+
+            var coverageResult = NicheContentCoverageMatcher.Apply(
+                nicheEntities,
+                subtopics,
+                fused,
+                merged,
+                crawlData,
+                sitemapData,
+                demand.SerpValidations);
+
+            scorer.ScorePillars(nicheEntities);
+
+            var coverageMessage =
+                $"Content coverage: {coverageResult.PillarsCovered} covered, {coverageResult.PillarsPartial} partial, {coverageResult.PillarsGap} gap — {coverageResult.SubtopicsCovered}/{coverageResult.SubtopicsTotal} subtopics matched to URLs.";
             await PushProgress(
                 userId, profileId, 12,
-                NicheAnalysisStepLogBuilder.CoverageDisabled(12, coverageMessage),
+                NicheAnalysisStepLogBuilder.Coverage(
+                    12,
+                    coverageResult.PillarsCovered,
+                    coverageResult.PillarsPartial,
+                    coverageResult.PillarsGap,
+                    coverageResult.SubtopicsCovered,
+                    coverageResult.SubtopicsTotal,
+                    coverageResult.SamplePartialPillars,
+                    coverageMessage),
                 ct);
 
             // Step 13 — Authority score + persist
@@ -273,7 +301,6 @@ public sealed class NicheAnalyzerService(
             if (!pillarsResult.IsSuccess)
                 throw new InvalidOperationException($"Failed to save pillars: {pillarsResult.Error}");
 
-            var subtopics = BuildSubtopics(nicheEntities, merged);
             var subtopicsResult = await profileRepo.BulkInsertSubtopicsAsync(subtopics, ct);
             if (!subtopicsResult.IsSuccess)
             {
@@ -509,6 +536,20 @@ public sealed class NicheAnalyzerService(
         }
 
         return subtopics;
+    }
+
+    private static void AttachSubtopics(List<NichePillar> pillars, List<NicheSubtopic> subtopics)
+    {
+        var byPillar = subtopics
+            .GroupBy(s => s.PillarId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var pillar in pillars)
+        {
+            pillar.Subtopics = byPillar.TryGetValue(pillar.Id, out var list)
+                ? list
+                : [];
+        }
     }
 
     private static string InferFormat(string slug)
