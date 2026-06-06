@@ -17,6 +17,13 @@
 | [`SEARCH-UNDERSTANDING-LAYER.md`](SEARCH-UNDERSTANDING-LAYER.md) | **North star** — public-signal composite approximating shared search-engine understanding; fusion architecture + phased rollout |
 | [`TopicalMapUpgrade.md`](TopicalMapUpgrade.md) | Topical map UX gaps — data deps per [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md) |
 
+## Research
+
+| Document | Purpose |
+|----------|---------|
+| [`SEARCH-ENGINE-SITE-UNDERSTANDING.md`](SEARCH-ENGINE-SITE-UNDERSTANDING.md) | How Google, Bing, Yahoo, DuckDuckGo, Yandex, Baidu determine what a site is about — signal inventory, engine-by-engine breakdown, GeekSEO gap analysis |
+| [`SEARCH-ENGINE-NLP-PIPELINE-DEEP-DIVE.md`](SEARCH-ENGINE-NLP-PIPELINE-DEEP-DIVE.md) | 8-stage NLP pipeline technical deep dive — tokenization → NER → entity resolution → salience scoring → semantic indexing; entity-to-keyword bridge; confirmed 2024 Google API leak signals; GeekSEO mirror gaps |
+
 ## Deep dives (reference only)
 
 | Document | Purpose |
