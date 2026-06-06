@@ -8,10 +8,15 @@ type Props = {
   projectId?: string;
 };
 
-function topicalMapHref(projectId: string | undefined, seed: string): string {
+function topicalMapHref(
+  projectId: string | undefined,
+  options: { seed?: string; mode?: 'niche'; autogen?: boolean },
+): string {
   const params = new URLSearchParams();
   if (projectId) params.set('projectId', projectId);
-  params.set('seed', seed);
+  if (options.seed) params.set('seed', options.seed);
+  if (options.mode) params.set('mode', options.mode);
+  if (options.autogen) params.set('autogen', '1');
   const query = params.toString();
   return query ? `/app/strategy/topical-map?${query}` : '/app/strategy/topical-map';
 }
@@ -36,9 +41,7 @@ export function FusionPillarMapLauncher({ fusion, projectId }: Readonly<Props>) 
   const seed = pickMapSeed(fusion);
   if (!seed) return null;
 
-  const gapCount = (fusion.recommendedActions ?? []).filter(
-    (a) => a.actionType === 'suggest_pillar_page',
-  ).length;
+  const gapCount = fusion.selectedPillars.filter((p) => !p.dedicatedPageUrl).length;
 
   return (
     <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)]/30 px-5 py-3">
@@ -47,16 +50,24 @@ export function FusionPillarMapLauncher({ fusion, projectId }: Readonly<Props>) 
           Plan content from this analysis
         </p>
         <p className="text-xs text-[var(--color-text-muted)]">
-          Open topical map with {gapCount > 0 ? `${gapCount} pillar gap(s)` : 'your top pillar'} as
-          the seed keyword.
+          Build a topical map from niche pillars
+          {gapCount > 0 ? ` — ${gapCount} without a dedicated page` : ''}.
         </p>
       </div>
-      <Link
-        href={topicalMapHref(projectId, seed)}
-        className="rounded-lg bg-[var(--color-accent)] px-3 py-2 text-xs font-medium text-white hover:opacity-90"
-      >
-        Open topical map
-      </Link>
+      <div className="flex flex-wrap gap-2">
+        <Link
+          href={topicalMapHref(projectId, { mode: 'niche', autogen: true })}
+          className="rounded-lg bg-[var(--color-accent)] px-3 py-2 text-xs font-medium text-white hover:opacity-90"
+        >
+          Build from gap pillars
+        </Link>
+        <Link
+          href={topicalMapHref(projectId, { seed })}
+          className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs font-medium hover:bg-[var(--color-surface-muted)]"
+        >
+          Single seed: {seed}
+        </Link>
+      </div>
     </section>
   );
 }

@@ -1085,11 +1085,12 @@ export type TopicalMapResult = {
 export async function generateTopicalMap(
   projectId: string,
   accessToken?: string | null,
-  options?: { force?: boolean; seedKeyword?: string },
+  options?: { force?: boolean; seedKeyword?: string; fromNiche?: boolean },
 ): Promise<TopicalMapResult> {
   const params = new URLSearchParams();
   if (options?.force) params.set('force', 'true');
   if (options?.seedKeyword) params.set('seedKeyword', options.seedKeyword);
+  if (options?.fromNiche) params.set('fromNiche', 'true');
   const query = params.toString() ? `?${params.toString()}` : '';
   const res = await fetch(`${API_URL}/api/seo/topical-map/${projectId}/generate${query}`, {
     method: 'POST',

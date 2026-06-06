@@ -10,6 +10,8 @@ export default function TopicalMapPage() {
   const searchParams = useSearchParams();
   const seedFromUrl = searchParams.get('seed') ?? '';
   const projectFromUrl = searchParams.get('projectId') ?? '';
+  const modeFromUrl = searchParams.get('mode') ?? '';
+  const autogenFromUrl = searchParams.get('autogen') === '1';
   const { accessToken, authLoading, authReady } = useAuthReady();
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [projectId, setProjectId] = useState('');
@@ -62,6 +64,8 @@ export default function TopicalMapPage() {
             projectName={selected.name}
             accessToken={accessToken}
             initialSeedKeyword={seedFromUrl}
+            initialMode={modeFromUrl === 'niche' ? 'niche' : seedFromUrl.trim() ? 'seed' : 'gsc'}
+            autoGenerateNiche={modeFromUrl === 'niche' && autogenFromUrl}
           />
         </div>
       ) : null}

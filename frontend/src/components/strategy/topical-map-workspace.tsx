@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 
 const TopicalMapGraph = dynamic(
@@ -44,15 +44,19 @@ type TopicalMapWorkspaceProps = {
   projectName: string;
   accessToken: string | null;
   initialSeedKeyword?: string;
+  initialMode?: GenerationMode;
+  autoGenerateNiche?: boolean;
 };
 
-type GenerationMode = 'gsc' | 'seed';
+type GenerationMode = 'gsc' | 'seed' | 'niche';
 
 export function TopicalMapWorkspace({
   projectId,
   projectName,
   accessToken,
   initialSeedKeyword = '',
+  initialMode = initialSeedKeyword.trim() ? 'seed' : 'gsc',
+  autoGenerateNiche = false,
 }: Readonly<TopicalMapWorkspaceProps>) {
   const [result, setResult] = useState<TopicalMapResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -65,9 +69,10 @@ export function TopicalMapWorkspace({
   const [sortKey, setSortKey] = useState<SortKey>('priority');
   const [selected, setSelected] = useState<TopicalMapTopic | null>(null);
   const [creatingId, setCreatingId] = useState<string | null>(null);
-  const [mode, setMode] = useState<GenerationMode>(initialSeedKeyword.trim() ? 'seed' : 'gsc');
+  const [mode, setMode] = useState<GenerationMode>(initialMode);
   const [seedKeyword, setSeedKeyword] = useState(initialSeedKeyword.trim());
   const [entityGaps, setEntityGaps] = useState<EntityGapAnalysis[] | null>(null);
+  const nicheAutoGenRef = useRef(false);
 
   const loadCached = useCallback(async () => {
     if (!projectId) return;
@@ -76,7 +81,7 @@ export function TopicalMapWorkspace({
     try {
       const status = await getGoogleIntegrationStatus(projectId, accessToken);
       setGscConnected(status.connected);
-      if (!status.connected) {
+      if (!status.connected && mode !== 'niche') {
         setResult(null);
         setInitialLoad(false);
         return;
@@ -93,7 +98,7 @@ export function TopicalMapWorkspace({
       setLoading(false);
       setInitialLoad(false);
     }
-  }, [projectId, accessToken]);
+  }, [projectId, accessToken, mode]);
 
   useEffect(() => {
     setInitialLoad(true);
@@ -121,7 +126,11 @@ export function TopicalMapWorkspace({
     setLoading(true);
     setError(null);
     try {
-      if (mode === 'seed') {
+      if (mode === 'niche') {
+        const next = await generateTopicalMap(projectId, accessToken, { fromNiche: true, force });
+        setResult(next);
+        setSelected(next.recommendations?.[0] ?? next.topics[0] ?? null);
+      } else if (mode === 'seed') {
         if (!seedKeyword.trim()) {
           setError(new Error('Enter a seed keyword to generate map.'));
           return;
@@ -184,6 +193,14 @@ export function TopicalMapWorkspace({
     }
   }
 
+  useEffect(() => {
+    if (!autoGenerateNiche || mode !== 'niche' || !projectId || initialLoad || nicheAutoGenRef.current) {
+      return;
+    }
+    nicheAutoGenRef.current = true;
+    void regenerate(true);
+  }, [autoGenerateNiche, mode, projectId, initialLoad]);
+
   const summary = result
     ? {
         covered: result.coveredCount,
@@ -213,6 +230,13 @@ export function TopicalMapWorkspace({
             >
               Seed keyword
             </button>
+            <button
+              type="button"
+              className={`rounded-md px-3 py-1.5 ${mode === 'niche' ? 'bg-[var(--color-accent)] text-white' : ''}`}
+              onClick={() => setMode('niche')}
+            >
+              From niche analysis
+            </button>
           </div>
         </div>
         {mode === 'seed' ? (
@@ -223,6 +247,11 @@ export function TopicalMapWorkspace({
             onChange={(e) => setSeedKeyword(e.target.value)}
             className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
           />
+        ) : mode === 'niche' ? (
+          <p className="text-sm text-[var(--color-text-muted)]">
+            Uses your latest niche analyzer fusion snapshot — all pillars plus keyword expansion on
+            gap topics. No Search Console required.
+          </p>
         ) : null}
       </div>
 
@@ -244,7 +273,11 @@ export function TopicalMapWorkspace({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            disabled={loading || !projectId || (mode === 'seed' && !seedKeyword.trim())}
+            disabled={
+              loading
+              || !projectId
+              || (mode === 'seed' && !seedKeyword.trim())
+            }
             onClick={() => void regenerate(true)}
             className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
           >

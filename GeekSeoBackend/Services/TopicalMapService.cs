@@ -1,4 +1,5 @@
 using System.Text.Json;
+using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Services;
@@ -7,6 +8,7 @@ using GeekSeo.Persistence.Entities;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Models;
 using GeekSeoBackend.Providers.Seo.Metering;
+using GeekSeoBackend.Services.NicheExtraction;
 
 namespace GeekSeoBackend.Services;
 
@@ -15,6 +17,7 @@ public sealed class TopicalMapService(
     IContentDocumentRepository documents,
     IProjectRepository projects,
     ITopicalMapRepository topicalMaps,
+    INicheProfileRepository nicheProfiles,
     ISerpProvider serp,
     IKeywordRepository keywordRepository,
     IKeywordProvider keywordProvider,
@@ -295,6 +298,272 @@ public sealed class TopicalMapService(
         }, ct);
 
         return result;
+    }
+
+    public async Task<TopicalMapResult> GenerateFromNicheAsync(
+        Guid userId,
+        Guid projectId,
+        string? location = null,
+        CancellationToken ct = default)
+    {
+        var project = await EnsureProjectAsync(userId, projectId, ct);
+        location ??= project.DefaultLocation;
+
+        var profileResult = await nicheProfiles.GetLatestByProjectAsync(projectId, ct);
+        if (!profileResult.IsSuccess || profileResult.Value is null)
+        {
+            throw new InvalidOperationException(
+                "No niche analysis found for this project. Run Niche Analyzer first.");
+        }
+
+        var profile = profileResult.Value;
+        if (!string.Equals(profile.Status, "complete", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Niche analysis is still in progress. Wait for it to complete before building a topical map.");
+        }
+
+        var fused = FusedSiteUnderstandingJson.Parse(profile.FusionSnapshot);
+        if (fused is null || fused.SelectedPillars.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "No fusion snapshot on the latest niche profile. Re-analyze to refresh pillar data.");
+        }
+
+        var seeds = NicheTopicalMapSeedResolver.ResolveSeeds(fused);
+        var docsResult = await documents.GetByProjectAsync(projectId, ct);
+        var docs = docsResult.IsSuccess && docsResult.Value is not null
+            ? docsResult.Value.ToList()
+            : [];
+
+        var topics = fused.SelectedPillars
+            .Select(p => ToNichePillarTopic(p, docs))
+            .ToList();
+
+        foreach (var seed in seeds.Take(NicheTopicalMapSeedResolver.DefaultExpansionSeeds))
+        {
+            var expansion = await CollectExpansionTopicsFromSeedAsync(
+                seed,
+                fused.SelectedPillars,
+                location,
+                ct);
+            topics.AddRange(expansion);
+        }
+
+        var assignedTopics = await hierarchyBuilder.AssignTiersAsync(topics.ToArray(), ct);
+        var enrichedTopics = ApplyDocumentCoverage(assignedTopics, docs);
+        enrichedTopics = EnforceNichePillarTiers(enrichedTopics, fused.SelectedPillars);
+
+        var deduped = TopicalHierarchyBuilder.DeduplicateTopics(enrichedTopics);
+        var withPriority = AssignStrategicPriority(deduped);
+        var quickWins = BuildQuickWins(withPriority);
+        var semanticEntities = await BuildSemanticEntitiesAsync(withPriority, ct);
+        var linkingBlueprint = InternalLinkingBlueprintBuilder.Build(withPriority);
+
+        var entityGapAnalyzer = new EntityGapAnalyzer(serpDeepCache);
+        var projectQueries = withPriority
+            .Select(t => t.MainKeyword ?? t.Name)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var topicsWithGaps = await entityGapAnalyzer.AnalyzeAsync(
+            withPriority,
+            projectQueries,
+            location,
+            ct);
+
+        var now = DateTimeOffset.UtcNow;
+        var recommendations = topicsWithGaps
+            .Where(t => t.Coverage is "gap" or "partial" or "opportunity")
+            .OrderByDescending(t => t.PriorityScore)
+            .Take(10)
+            .ToList();
+
+        var result = new TopicalMapResult
+        {
+            Version = 2,
+            ProjectId = projectId,
+            GeneratedAt = now.ToString("O"),
+            ExpiresAt = now.Add(MapTtl).ToString("O"),
+            Topics = topicsWithGaps,
+            Mode = "niche",
+            SeedKeyword = string.Join(", ", seeds.Take(3)),
+            CoveredCount = topicsWithGaps.Count(t => t.Coverage == "covered"),
+            GapCount = topicsWithGaps.Count(t => t.Coverage == "gap"),
+            PartialCount = topicsWithGaps.Count(t => t.Coverage == "partial"),
+            OpportunityCount = topicsWithGaps.Count(t => t.Coverage == "opportunity"),
+            Recommendations = recommendations,
+            PillarCount = topicsWithGaps.Count(t => t.Tier == TopicalTier.Pillar),
+            ClusterCount = topicsWithGaps.Count(t => t.Tier == TopicalTier.Cluster),
+            ArticleCount = topicsWithGaps.Count(t => t.Tier == TopicalTier.Article),
+            QuickWins = quickWins,
+            SemanticEntities = semanticEntities,
+            DuplicateCount = topicsWithGaps.Count(t => t.IsDuplicate),
+            LinkingBlueprint = linkingBlueprint,
+        };
+
+        await topicalMaps.UpsertAsync(new SeoTopicalMap
+        {
+            ProjectId = projectId,
+            Status = "ready",
+            ClustersJson = JsonSerializer.Serialize(withPriority, JsonOptions),
+            ContentGapsJson = JsonSerializer.Serialize(
+                withPriority.Where(t => t.Coverage is "gap" or "opportunity").ToList(),
+                JsonOptions),
+            GeneratedAt = now,
+            ExpiresAt = now.Add(MapTtl),
+        }, ct);
+
+        return result;
+    }
+
+    private async Task<IReadOnlyList<TopicalMapTopic>> CollectExpansionTopicsFromSeedAsync(
+        string seed,
+        IReadOnlyList<TopicCandidate> nichePillars,
+        string location,
+        CancellationToken ct)
+    {
+        var keywordSuggestionsResult = await keywordProvider.GetKeywordSuggestionsAsync(
+            seed,
+            location,
+            30,
+            ct);
+
+        if (!keywordSuggestionsResult.IsSuccess || keywordSuggestionsResult.Value is null)
+            return [];
+
+        var discoveredKeywordsResult = await keywordDiscoveryProvider.GetRelatedKeywordsAsync(
+            seed,
+            location,
+            30,
+            ct);
+
+        var discoveredKeywords = discoveredKeywordsResult.IsSuccess && discoveredKeywordsResult.Value is not null
+            ? discoveredKeywordsResult.Value.ToList()
+            : [];
+
+        var pillarName = NicheTopicalMapSeedResolver.MatchPillarName(seed, nichePillars) ?? seed;
+
+        return keywordSuggestionsResult.Value
+            .Concat(discoveredKeywords)
+            .DistinctBy(k => k.Keyword.ToLowerInvariant())
+            .OrderByDescending(k => k.SearchVolume)
+            .Take(40)
+            .Select(suggestion => new TopicalMapTopic
+            {
+                Name = suggestion.Keyword,
+                MainKeyword = suggestion.Keyword,
+                Queries = [suggestion.Keyword],
+                SearchVolume = (int?)suggestion.SearchVolume,
+                KeywordDifficulty = (decimal)suggestion.KeywordDifficulty,
+                Coverage = "gap",
+                TotalImpressions = 0,
+                AveragePosition = 0,
+                PriorityScore = 0,
+                ClusterMethod = "niche_seed",
+                PillarName = pillarName,
+                CompetitorDomains = [],
+            })
+            .ToList();
+    }
+
+    private static TopicalMapTopic ToNichePillarTopic(
+        TopicCandidate pillar,
+        IReadOnlyList<SeoContentDocument> docs)
+    {
+        var docMatch = FindBestDocument(pillar.Name, [pillar.Name], docs);
+        var coverage = "gap";
+        string? matchSource = null;
+        string? matchedDocumentId = null;
+        string? matchedDocumentTitle = null;
+        string? matchedPageUrl = pillar.DedicatedPageUrl;
+
+        if (docMatch is not null)
+        {
+            matchSource = "document";
+            matchedDocumentId = docMatch.Id.ToString();
+            matchedDocumentTitle = docMatch.Title;
+            coverage = docMatch.SeoScore is > 0 and < 60 ? "partial" : "covered";
+        }
+        else if (!string.IsNullOrWhiteSpace(pillar.DedicatedPageUrl))
+        {
+            matchSource = "niche";
+            coverage = "partial";
+        }
+
+        return new TopicalMapTopic
+        {
+            Name = pillar.Name,
+            MainKeyword = pillar.Name,
+            Queries = [pillar.Name],
+            Coverage = coverage,
+            MatchSource = matchSource,
+            MatchedDocumentId = matchedDocumentId,
+            MatchedDocumentTitle = matchedDocumentTitle,
+            MatchedPageUrl = matchedPageUrl,
+            TotalImpressions = 0,
+            AveragePosition = 0,
+            PriorityScore = (double)pillar.Confidence * 100,
+            ClusterMethod = "niche_pillar",
+            Tier = TopicalTier.Pillar,
+            PillarName = pillar.Name,
+            CompetitorDomains = [],
+        };
+    }
+
+    private static IReadOnlyList<TopicalMapTopic> ApplyDocumentCoverage(
+        IReadOnlyList<TopicalMapTopic> topics,
+        IReadOnlyList<SeoContentDocument> docs)
+    {
+        var enriched = new List<TopicalMapTopic>();
+        foreach (var topic in topics)
+        {
+            if (topic.MatchSource is not null)
+            {
+                enriched.Add(topic);
+                continue;
+            }
+
+            var docMatch = FindBestDocument(topic.MainKeyword ?? topic.Name, [topic.Name], docs);
+            if (docMatch is null)
+            {
+                enriched.Add(topic);
+                continue;
+            }
+
+            enriched.Add(topic with
+            {
+                Coverage = docMatch.SeoScore is > 0 and < 60 ? "partial" : "covered",
+                MatchSource = "document",
+                MatchedDocumentId = docMatch.Id.ToString(),
+                MatchedDocumentTitle = docMatch.Title,
+            });
+        }
+
+        return enriched;
+    }
+
+    private static IReadOnlyList<TopicalMapTopic> EnforceNichePillarTiers(
+        IReadOnlyList<TopicalMapTopic> topics,
+        IReadOnlyList<TopicCandidate> nichePillars)
+    {
+        var pillarNames = nichePillars
+            .Select(p => p.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return topics
+            .Select(topic =>
+            {
+                if (!pillarNames.Contains(topic.Name))
+                    return topic;
+
+                return topic with
+                {
+                    Tier = TopicalTier.Pillar,
+                    PillarName = topic.Name,
+                    ClusterMethod = "niche_pillar",
+                };
+            })
+            .ToList();
     }
 
     private static TopicalMapResult CreateEmptyResult(Guid projectId, string mode, string seedKeyword)

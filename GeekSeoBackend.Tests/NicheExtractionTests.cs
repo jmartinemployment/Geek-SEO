@@ -1284,4 +1284,70 @@ public sealed class NicheExtractionTests
         Assert.Equal("partial", pillars[0].CoverageStatus);
         Assert.Equal(1, result.PillarsPartial);
     }
+
+    [Fact]
+    public void NicheTopicalMapSeedResolver_PrefersActionAndGapPillars()
+    {
+        var fused = new FusedSiteUnderstanding
+        {
+            AllCandidates = [],
+            SelectedPillars =
+            [
+                new TopicCandidate
+                {
+                    Name = "Managed IT",
+                    Slug = "managed-it",
+                    Evidence = [],
+                    Confidence = 0.9m,
+                    DedicatedPageUrl = "https://example.com/managed-it",
+                },
+                new TopicCandidate
+                {
+                    Name = "Accounting Software",
+                    Slug = "accounting-software",
+                    Evidence = [],
+                    Confidence = 0.7m,
+                },
+            ],
+            ExcludedCandidates = [],
+            ExclusionReasons = new Dictionary<string, string>(),
+            FusionVersion = TopicFusionEngine.FusionVersion,
+            SignalSourcesPresent = ["schema"],
+            PillarCap = 15,
+            RecommendedActions =
+            [
+                new FusionRecommendedAction(
+                    "entity_thin_content",
+                    "cloud-migration",
+                    "Cloud Migration",
+                    "Thin entity coverage",
+                    0.85m),
+            ],
+        };
+
+        var seeds = NicheTopicalMapSeedResolver.ResolveSeeds(fused);
+
+        Assert.Equal("Cloud Migration", seeds[0]);
+        Assert.Contains("Accounting Software", seeds);
+        Assert.DoesNotContain("Managed IT", seeds);
+    }
+
+    [Fact]
+    public void NicheTopicalMapSeedResolver_MatchPillarName_FindsSlugOverlap()
+    {
+        var pillars = new[]
+        {
+            new TopicCandidate
+            {
+                Name = "Accounting Software",
+                Slug = "accounting-software",
+                Evidence = [],
+                Confidence = 0.8m,
+            },
+        };
+
+        var match = NicheTopicalMapSeedResolver.MatchPillarName("best accounting software tools", pillars);
+
+        Assert.Equal("Accounting Software", match);
+    }
 }

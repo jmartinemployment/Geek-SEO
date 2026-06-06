@@ -31,10 +31,18 @@ public sealed class TopicalMapController(
         [FromQuery] string? seedKeyword = null,
         [FromQuery] string? location = null,
         [FromQuery] bool force = false,
+        [FromQuery] bool fromNiche = false,
         CancellationToken ct = default)
     {
         try
         {
+            if (fromNiche)
+            {
+                var nicheResult = await topicalMap.GenerateFromNicheAsync(
+                    user.RequireUserId(), projectId, location, ct);
+                return Ok(nicheResult);
+            }
+
             if (!string.IsNullOrWhiteSpace(seedKeyword))
             {
                 var result = await topicalMap.GenerateSeedModeAsync(user.RequireUserId(), projectId, seedKeyword, location, ct);
