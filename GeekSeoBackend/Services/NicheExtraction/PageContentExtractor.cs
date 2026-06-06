@@ -6,209 +6,240 @@ using Microsoft.Playwright;
 namespace GeekSeoBackend.Services.NicheExtraction;
 
 /// <summary>
-/// Extracts service-like phrases from visible homepage content (lists, section headings).
-/// H3 section titles are tracked separately as page verticals (e.g. Accounting).
+/// Extracts service-like phrases from homepage body content (lists + section headings).
+/// Playwright when available; HTTP + regex fallback.
 /// </summary>
 public sealed partial class PageContentExtractor(
-    IHttpClientFactory factory,
+    IHttpClientFactory httpClientFactory,
     ILogger<PageContentExtractor> logger)
 {
-    private const int MaxPhrases = 40;
+    private const int MaxPhrases = 20;
     private const int MaxVerticalTopics = 12;
+    private const int MaxListItems = 30;
 
-    public async Task<PageContentData> ExtractAsync(
-        string siteUrl, IBrowser? browser, CancellationToken ct)
+    public async Task<PageContentData> ExtractAsync(string domain, IBrowser? browser, CancellationToken ct)
     {
-        IReadOnlyList<string> phrases;
-        IReadOnlyList<string> verticalTopics;
-        int listItemsScanned;
-
         if (browser is not null)
         {
             try
             {
-                (phrases, verticalTopics, listItemsScanned) =
-                    await ExtractWithPlaywrightAsync(siteUrl, browser, ct);
-                return new PageContentData(phrases, verticalTopics, listItemsScanned);
+                var (phrases, verticalTopics, listCount) = await ExtractWithPlaywrightAsync(domain, browser, ct);
+                return new PageContentData(phrases, verticalTopics, listCount);
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Playwright page content extraction failed for {Url}", siteUrl);
+                logger.LogWarning(ex, "Playwright page content extraction failed for {Domain}, falling back to HTTP", domain);
             }
         }
 
-        (phrases, verticalTopics, listItemsScanned) = await ExtractFromHttpAsync(siteUrl, ct);
-        return new PageContentData(phrases, verticalTopics, listItemsScanned);
+        var httpResult = await ExtractFromHttpAsync(domain, ct);
+        return new PageContentData(httpResult.Phrases, httpResult.VerticalTopics, httpResult.ListItemsScanned);
     }
 
     private async Task<(IReadOnlyList<string> Phrases, IReadOnlyList<string> VerticalTopics, int ListItemsScanned)> ExtractWithPlaywrightAsync(
-        string siteUrl, IBrowser browser, CancellationToken ct)
+        string domain,
+        IBrowser browser,
+        CancellationToken ct)
     {
-        await using var context = await browser.NewContextAsync(new BrowserNewContextOptions
-        {
-            UserAgent = "Mozilla/5.0 (compatible; GeekSEO/1.0; +https://seo.geekatyourspot.com)",
-        });
+        await using var context = await browser.NewContextAsync(new BrowserNewContextOptions { IgnoreHTTPSErrors = true });
         var page = await context.NewPageAsync();
-        await page.GotoAsync(siteUrl, new PageGotoOptions
-        {
-            WaitUntil = WaitUntilState.DOMContentLoaded,
-            Timeout = 20_000,
-        });
+        await page.GotoAsync(domain, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30_000 });
 
-        var payload = await page.EvaluateAsync<string>(@"() => {
-            const phrases = [];
-            const verticalTopics = [];
-            const seen = new Set();
-            const seenVertical = new Set();
-
-            const add = (text, target) => {
+        var json = await page.EvaluateAsync<string>(
+            """
+            () => {
+              const result = { headings: [], listItems: [] };
+              const seen = new Set();
+              const add = (arr, text) => {
                 const t = (text || '').replace(/\s+/g, ' ').trim();
                 if (t.length < 4 || t.length > 80) return;
                 const key = t.toLowerCase();
-                const bucket = target === 'vertical' ? seenVertical : seen;
-                if (bucket.has(key)) return;
-                bucket.add(key);
-                if (target === 'vertical') verticalTopics.push(t);
-                else phrases.push(t);
-            };
+                if (seen.has(key)) return;
+                seen.add(key);
+                arr.push(t);
+              };
 
-            let listCount = 0;
-            for (const li of document.querySelectorAll('main li, section li, article li, ul li, ol li')) {
-                listCount++;
-                add(li.textContent, 'phrase');
+              document.querySelectorAll('h1,h2,h3,h4').forEach(h => {
+                const level = parseInt(h.tagName.substring(1), 10);
+                const text = (h.textContent || '').replace(/\s+/g, ' ').trim();
+                if (text) result.headings.push({ level, text });
+              });
+
+              document.querySelectorAll('main li, article li, section li, ul li, ol li').forEach(li => {
+                if (result.listItems.length >= 30) return;
+                const text = (li.textContent || '').replace(/\s+/g, ' ').trim();
+                if (text.length >= 4 && text.length <= 80) add(result.listItems, text);
+              });
+
+              return JSON.stringify(result);
             }
+            """);
 
-            for (const h3 of document.querySelectorAll('h3')) {
-                add(h3.textContent, 'vertical');
-            }
-
-            for (const h of document.querySelectorAll('h2,h4')) {
-                add(h.textContent, 'phrase');
-            }
-
-            return JSON.stringify({ phrases, verticalTopics, listCount });
-        }");
-
-        return ParsePayload(payload);
+        return ParsePayload(json);
     }
 
     private async Task<(IReadOnlyList<string> Phrases, IReadOnlyList<string> VerticalTopics, int ListItemsScanned)> ExtractFromHttpAsync(
-        string siteUrl, CancellationToken ct)
+        string domain,
+        CancellationToken ct)
     {
-        var client = factory.CreateClient();
-        client.Timeout = TimeSpan.FromSeconds(15);
-        client.DefaultRequestHeaders.Add("User-Agent",
-            "Mozilla/5.0 (compatible; GeekSEO/1.0; +https://seo.geekatyourspot.com)");
+        using var client = httpClientFactory.CreateClient("SeoFetch");
+        using var response = await client.GetAsync(domain, ct);
+        if (!response.IsSuccessStatusCode)
+            return ([], [], 0);
 
-        var html = await client.GetStringAsync(siteUrl, ct);
+        var html = await response.Content.ReadAsStringAsync(ct);
         return ExtractFromHtml(html);
     }
 
     internal static (IReadOnlyList<string> Phrases, IReadOnlyList<string> VerticalTopics, int ListItemsScanned) ExtractFromHtml(string html)
     {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var verticalSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var phrases = new List<string>();
-        var verticalTopics = new List<string>();
-        var listItemsScanned = 0;
+        var orderedHeadings = ExtractOrderedHeadings(html);
+        var (phrases, verticalTopics) = ClassifyHeadings(orderedHeadings);
 
+        var listItems = new List<string>();
         foreach (Match match in ListItemRegex().Matches(html))
         {
-            listItemsScanned++;
-            TryAddPhrase(seen, phrases, StripTags(match.Groups[1].Value));
+            if (listItems.Count >= MaxListItems)
+                break;
+
+            var text = WebUtility.HtmlDecode(match.Groups[1].Value.Trim());
+            text = TagStripRegex().Replace(text, " ").Trim();
+            if (text.Length is >= 4 and <= 80 && !NoisePaths.IsNoise(NicheAnalyzerService.NameToSlug(text)))
+                listItems.Add(text);
         }
 
-        foreach (Match match in HeadingRegex().Matches(html))
-        {
-            if (!int.TryParse(match.Groups[1].Value, out var level) || level is < 2 or > 4)
-                continue;
-
-            var text = StripTags(match.Groups[2].Value);
-            if (level == 3)
-                TryAddPhrase(verticalSeen, verticalTopics, text);
-            else
-                TryAddPhrase(seen, phrases, text);
-        }
+        foreach (var item in listItems)
+            phrases.Add(item);
 
         return (
             phrases.Take(MaxPhrases).ToList(),
             verticalTopics.Take(MaxVerticalTopics).ToList(),
-            listItemsScanned);
+            listItems.Count);
+    }
+
+    internal static (List<string> Phrases, List<string> VerticalTopics) ClassifyHeadings(
+        IReadOnlyList<(int Level, string Text)> orderedHeadings)
+    {
+        var phrases = new List<string>();
+        var verticalTopics = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var underSectionParent = false;
+
+        foreach (var (level, rawText) in orderedHeadings)
+        {
+            var text = rawText.Trim();
+            if (string.IsNullOrWhiteSpace(text))
+                continue;
+
+            if (level == 2 && PageVerticalClassifier.IsSectionParent(text))
+            {
+                underSectionParent = true;
+                AddUnique(phrases, seen, text);
+                continue;
+            }
+
+            if (PageVerticalClassifier.ShouldTreatAsVertical(level, text, underSectionParent))
+            {
+                AddUnique(verticalTopics, seen, text);
+                if (level == 2)
+                    underSectionParent = false;
+                continue;
+            }
+
+            if (PageVerticalClassifier.ResetsSectionContext(level, text))
+                underSectionParent = false;
+
+            AddUnique(phrases, seen, text);
+        }
+
+        return (phrases, verticalTopics);
+    }
+
+    private static void AddUnique(List<string> target, HashSet<string> seen, string text)
+    {
+        if (!seen.Add(text))
+            return;
+
+        target.Add(text);
+    }
+
+    private static List<(int Level, string Text)> ExtractOrderedHeadings(string html)
+    {
+        var headings = new List<(int Level, string Text)>();
+        foreach (Match match in OrderedHeadingRegex().Matches(html))
+        {
+            if (!int.TryParse(match.Groups[1].Value, out var level))
+                continue;
+
+            var text = WebUtility.HtmlDecode(match.Groups[2].Value.Trim());
+            text = TagStripRegex().Replace(text, " ").Trim();
+            if (text.Length > 0)
+                headings.Add((level, text));
+        }
+
+        return headings;
     }
 
     private static (IReadOnlyList<string> Phrases, IReadOnlyList<string> VerticalTopics, int ListItemsScanned) ParsePayload(string json)
     {
-        using var doc = System.Text.Json.JsonDocument.Parse(json);
-        var root = doc.RootElement;
-        var listCount = root.TryGetProperty("listCount", out var countEl) ? countEl.GetInt32() : 0;
-
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var phrases = new List<string>();
-        var verticalSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var verticalTopics = new List<string>();
+        var listItems = new List<string>();
+        var orderedHeadings = new List<(int Level, string Text)>();
 
-        if (root.TryGetProperty("verticalTopics", out var verticalArr)
-            && verticalArr.ValueKind == System.Text.Json.JsonValueKind.Array)
+        try
         {
-            foreach (var item in verticalArr.EnumerateArray())
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("headings", out var headingsEl))
             {
-                if (item.ValueKind != System.Text.Json.JsonValueKind.String)
-                    continue;
+                foreach (var h in headingsEl.EnumerateArray())
+                {
+                    if (!h.TryGetProperty("level", out var levelEl) || !h.TryGetProperty("text", out var textEl))
+                        continue;
 
-                TryAddPhrase(verticalSeen, verticalTopics, item.GetString() ?? string.Empty);
+                    orderedHeadings.Add((levelEl.GetInt32(), textEl.GetString() ?? string.Empty));
+                }
+            }
+
+            if (doc.RootElement.TryGetProperty("listItems", out var listEl))
+            {
+                foreach (var item in listEl.EnumerateArray())
+                {
+                    var text = item.GetString();
+                    if (!string.IsNullOrWhiteSpace(text))
+                        listItems.Add(text);
+                }
             }
         }
-
-        if (root.TryGetProperty("phrases", out var arr) && arr.ValueKind == System.Text.Json.JsonValueKind.Array)
+        catch
         {
-            foreach (var item in arr.EnumerateArray())
-            {
-                if (item.ValueKind != System.Text.Json.JsonValueKind.String)
-                    continue;
+            return ([], [], 0);
+        }
 
-                TryAddPhrase(seen, phrases, item.GetString() ?? string.Empty);
-            }
+        var classified = ClassifyHeadings(orderedHeadings);
+        phrases.AddRange(classified.Phrases);
+        verticalTopics.AddRange(classified.VerticalTopics);
+
+        foreach (var item in listItems)
+        {
+            if (NoisePaths.IsNoise(NicheAnalyzerService.NameToSlug(item)))
+                continue;
+
+            phrases.Add(item);
         }
 
         return (
             phrases.Take(MaxPhrases).ToList(),
             verticalTopics.Take(MaxVerticalTopics).ToList(),
-            listCount);
+            listItems.Count);
     }
 
-    private static void TryAddPhrase(HashSet<string> seen, List<string> phrases, string text)
-    {
-        var trimmed = text.Trim();
-        if (trimmed.Length < 4 || trimmed.Length > 80)
-            return;
+    [GeneratedRegex(@"<h([234])[^>]*>(.*?)</h\1>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex OrderedHeadingRegex();
 
-        if (NoisePaths.H2Noise.Contains(trimmed))
-            return;
-
-        var slug = NicheAnalyzerService.NameToSlug(trimmed);
-        if (string.IsNullOrWhiteSpace(slug) || NoisePaths.IsNoise(slug))
-            return;
-
-        if (!seen.Add(trimmed))
-            return;
-
-        phrases.Add(trimmed);
-    }
-
-    private static string StripTags(string value)
-    {
-        var stripped = TagRegex().Replace(value, " ")
-            .Replace("&nbsp;", " ", StringComparison.OrdinalIgnoreCase)
-            .Trim();
-        return WebUtility.HtmlDecode(stripped).Trim();
-    }
-
-    [GeneratedRegex("<li[^>]*>([\\s\\S]*?)</li>", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"<li[^>]*>(.*?)</li>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex ListItemRegex();
 
-    [GeneratedRegex("<h([2-4])(?:\\s[^>]*)?>([\\s\\S]*?)</h\\1>", RegexOptions.IgnoreCase)]
-    private static partial Regex HeadingRegex();
-
     [GeneratedRegex("<[^>]+>")]
-    private static partial Regex TagRegex();
+    private static partial Regex TagStripRegex();
 }

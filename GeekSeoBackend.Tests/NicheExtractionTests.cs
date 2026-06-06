@@ -199,6 +199,100 @@ public sealed class NicheExtractionTests
     }
 
     [Fact]
+    public void PageContentExtractor_PromotesH2UnderIndustriesSection()
+    {
+        const string html = """
+            <html><body>
+            <h2>Industries We Serve</h2>
+            <h2>Accounting</h2>
+            <h2>Healthcare</h2>
+            <h2>Why Choose Us</h2>
+            </body></html>
+            """;
+
+        var (phrases, verticalTopics, _) = PageContentExtractor.ExtractFromHtml(html);
+
+        Assert.Contains("Accounting", verticalTopics);
+        Assert.Contains("Healthcare", verticalTopics);
+        Assert.Contains("Industries We Serve", phrases);
+        Assert.Contains("Why Choose Us", phrases);
+        Assert.DoesNotContain("Accounting", phrases);
+    }
+
+    [Fact]
+    public void PageContentExtractor_PromotesStandaloneVerticalH2()
+    {
+        const string html = """
+            <html><body>
+            <h2>AI Consulting</h2>
+            <h2>How It Works</h2>
+            </body></html>
+            """;
+
+        var (phrases, verticalTopics, _) = PageContentExtractor.ExtractFromHtml(html);
+
+        Assert.Contains("AI Consulting", verticalTopics);
+        Assert.Contains("How It Works", phrases);
+        Assert.DoesNotContain("AI Consulting", phrases);
+    }
+
+    [Fact]
+    public void GscQueryExtractor_ScorePillarMatch_MatchesAccountingQuery()
+    {
+        var score = GscQueryExtractor.ScorePillarMatch(
+            "Accounting",
+            NicheAnalyzerService.NameToSlug("Accounting"),
+            "small business accounting services miami");
+
+        Assert.True(score >= 2);
+    }
+
+    [Fact]
+    public void GscQueryExtractor_ApplyToPool_AddsGscEvidence()
+    {
+        var pool = new List<TopicCandidate>
+        {
+            new()
+            {
+                Name = "Accounting",
+                Slug = NicheAnalyzerService.NameToSlug("Accounting"),
+                Confidence = TopicEvidenceWeights.PageVertical,
+                Evidence =
+                [
+                    new TopicEvidence
+                    {
+                        Source = "page_vertical",
+                        Snippet = "homepage H2/H3 vertical section",
+                        Weight = TopicEvidenceWeights.PageVertical,
+                    },
+                ],
+            },
+        };
+
+        var overlay = new GscOwnerOverlay(
+            Connected: true,
+            Skipped: false,
+            SkipReason: null,
+            QueryRowCount: 100,
+            Clusters: [],
+            Matches:
+            [
+                new GscPillarMatch(
+                    "accounting services near me",
+                    "accounting",
+                    500,
+                    12.4,
+                    ["accounting services near me", "accounting firm"]),
+            ]);
+
+        var updated = GscQueryExtractor.ApplyToPool(pool, overlay);
+        var accounting = updated.Single(c => c.Slug == NicheAnalyzerService.NameToSlug("Accounting"));
+
+        Assert.Contains(accounting.Evidence, e => e.Source == "gsc");
+        Assert.True(accounting.Confidence > TopicEvidenceWeights.PageVertical);
+    }
+
+    [Fact]
     public void PageContentExtractor_ParsesListItemsFromHtml()
     {
         const string html = """

@@ -23,6 +23,7 @@ public sealed class NicheAnalyzerService(
     UrlPatternExtractor urlPatternExtractor,
     TopicFusionEngine topicFusionEngine,
     PillarDemandEnricher pillarDemandEnricher,
+    GscQueryExtractor gscQueryExtractor,
     NicheAuthorityScorer scorer,
     NicheRootEntityBuilder rootBuilder,
     IHubContext<SeoContentScoringHub> hub,
@@ -120,7 +121,7 @@ public sealed class NicheAnalyzerService(
             var pageContent = await pageContentExtractor.ExtractAsync(domain, browser, ct);
             var pageParts = new List<string>();
             if (pageContent.VerticalTopics.Count > 0)
-                pageParts.Add($"{pageContent.VerticalTopics.Count} H3 vertical section(s)");
+                pageParts.Add($"{pageContent.VerticalTopics.Count} H2/H3 vertical section(s)");
             if (pageContent.ServicePhrases.Count > 0)
                 pageParts.Add($"{pageContent.ServicePhrases.Count} body phrase(s)");
             var pageMessage = pageParts.Count > 0
@@ -154,19 +155,20 @@ public sealed class NicheAnalyzerService(
                     6, crawlData, internalLinkData, urlPatternData, structureMessage),
                 ct);
 
-            // Step 7 — Fuse all Tier-1 signals
+            // Step 7 — GSC owner overlay (Tier 3, optional) + fuse all signals
+            var gscOverlay = await gscQueryExtractor.ExtractAsync(userId, profile.ProjectId, ct);
             var candidatePool = TopicCandidatePoolBuilder.Build(
                 schemaData, sitemapData, navData, headings, pageContent,
                 internalLinkData, urlPatternData);
+            candidatePool = GscQueryExtractor.ApplyToPool(candidatePool, gscOverlay);
             var fused = topicFusionEngine.Fuse(
                 candidatePool,
                 schemaData.AreaServed.ToList());
             var mergeResult = topicFusionEngine.ToPillarMergeResult(fused);
             var merged = mergeResult.Selected;
-            var mergeMessage =
-                mergeResult.ExcludedByCap.Count > 0
-                    ? $"Topic pillars: {merged.Count} selected, {mergeResult.ExcludedByCap.Count} held back (cap {mergeResult.PillarCap}). Fused {fused.AllCandidates.Count} peer candidate(s) ({string.Join(", ", fused.SignalSourcesPresent)})."
-                    : $"Topic pillars: {merged.Count} after fusion of {fused.AllCandidates.Count} peer candidate(s) ({string.Join(", ", fused.SignalSourcesPresent)}).";
+            var silentGscSlugs = GscQueryExtractor.FindSilentPillarSlugs(merged, gscOverlay);
+            var gscMatchedCount = CountBySource(fused.AllCandidates, "gsc");
+            var mergeMessage = BuildMergeMessage(mergeResult, fused, gscOverlay, gscMatchedCount, silentGscSlugs);
             await PushProgress(
                 userId, profileId, 7,
                 NicheAnalysisStepLogBuilder.Merging(
@@ -185,9 +187,16 @@ public sealed class NicheAnalyzerService(
                     CountBySource(fused.AllCandidates, "internal_link"),
                     CountBySource(fused.AllCandidates, "url_pattern"),
                     CountBySource(fused.AllCandidates, "same_as"),
+                    CountBySource(fused.AllCandidates, "gsc"),
                     fused.FusionVersion,
                     fused.SignalSourcesPresent,
                     SampleExclusionReasons(fused),
+                    gscOverlay.Connected,
+                    gscOverlay.Skipped,
+                    gscOverlay.SkipReason,
+                    gscOverlay.QueryRowCount,
+                    gscMatchedCount,
+                    silentGscSlugs,
                     mergeMessage),
                 ct);
 
@@ -522,6 +531,33 @@ public sealed class NicheAnalyzerService(
     internal static string NameToSlug(string name) =>
         System.Text.RegularExpressions.Regex.Replace(
             name.Trim().ToLowerInvariant(), @"[^a-z0-9]+", "-").Trim('-');
+
+    private static string BuildMergeMessage(
+        PillarMergeResult mergeResult,
+        FusedSiteUnderstanding fused,
+        GscOwnerOverlay gscOverlay,
+        int gscMatchedCount,
+        IReadOnlyList<string> silentGscSlugs)
+    {
+        var baseMessage = mergeResult.ExcludedByCap.Count > 0
+            ? $"Topic pillars: {mergeResult.Selected.Count} selected, {mergeResult.ExcludedByCap.Count} held back (cap {mergeResult.PillarCap}). Fused {fused.AllCandidates.Count} peer candidate(s) ({string.Join(", ", fused.SignalSourcesPresent)})."
+            : $"Topic pillars: {mergeResult.Selected.Count} after fusion of {fused.AllCandidates.Count} peer candidate(s) ({string.Join(", ", fused.SignalSourcesPresent)}).";
+
+        if (!gscOverlay.Connected)
+            return $"{baseMessage} GSC not connected — owner query overlay skipped.";
+
+        if (gscOverlay.Skipped)
+            return $"{baseMessage} GSC overlay skipped — {gscOverlay.SkipReason ?? "unavailable"}.";
+
+        var gscPart = gscMatchedCount > 0
+            ? $"GSC: {gscOverlay.QueryRowCount} query rows, {gscMatchedCount} pillar(s) confirmed."
+            : $"GSC: {gscOverlay.QueryRowCount} query rows, no pillar matches yet.";
+
+        if (silentGscSlugs.Count > 0)
+            gscPart += $" {silentGscSlugs.Count} selected pillar(s) have no matching GSC cluster.";
+
+        return $"{baseMessage} {gscPart}";
+    }
 
     private static int CountBySource(IReadOnlyList<TopicCandidate> pool, string source) =>
         pool.Count(c => c.Evidence.Any(e => e.Source.Equals(source, StringComparison.OrdinalIgnoreCase)));

@@ -59,7 +59,7 @@ internal static class TopicCandidatePoolBuilder
             AddEvidence(bySlug, phrase, "page", TopicEvidenceWeights.Page, "homepage body");
 
         foreach (var vertical in pageContent.VerticalTopics)
-            AddEvidence(bySlug, vertical, "page_vertical", TopicEvidenceWeights.PageVertical, "homepage H3 section");
+            AddEvidence(bySlug, vertical, "page_vertical", TopicEvidenceWeights.PageVertical, "homepage H2/H3 vertical section");
 
         if (schema.EntityResolved)
         {

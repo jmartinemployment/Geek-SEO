@@ -110,7 +110,7 @@ export function buildPillarProvenanceSummary(
 
   if (fromPageVertical !== null && fromPageVertical > 0) {
     parts.push(
-      `${fromPageVertical} candidate(s) came from H3 vertical sections on the homepage (e.g. use-case silos like Accounting).`,
+      `${fromPageVertical} candidate(s) came from H2/H3 vertical sections on the homepage (e.g. industry or use-case silos like Accounting).`,
     );
   } else if (fromPage !== null && fromPage > 0) {
     parts.push(
@@ -134,6 +134,31 @@ export function buildPillarProvenanceSummary(
     parts.push(
       `${fromSameAs} schema topic(s) received a sameAs entity-resolution boost (brand linked to Wikipedia, LinkedIn, or similar).`,
     );
+  }
+
+  const gscConnected = merging.outputs.gscConnected === true;
+  const gscSkipped = merging.outputs.gscSkipped === true;
+  const fromGsc = outputNumber(merging, 'fromGsc');
+  const gscMatchedPillars = outputNumber(merging, 'gscMatchedPillars');
+  const gscSilentSlugs = outputStringArray(merging, 'gscSilentPillarSlugs');
+  if (gscConnected === false) {
+    parts.push(
+      'Google Search Console is not connected — owner query data was not used. Connect GSC in project settings to confirm pillars with real search demand.',
+    );
+  } else if (gscSkipped) {
+    const reason = merging.outputs.gscSkipReason;
+    if (typeof reason === 'string' && reason.length > 0) {
+      parts.push(`GSC owner overlay was skipped (${reason}).`);
+    }
+  } else if (fromGsc !== null && fromGsc > 0) {
+    parts.push(
+      `${gscMatchedPillars ?? fromGsc} pillar(s) were confirmed by GSC query clusters (${fromGsc} with gsc evidence).`,
+    );
+    if (gscSilentSlugs.length > 0) {
+      parts.push(
+        `${gscSilentSlugs.length} selected pillar(s) have no matching GSC queries yet — the site may not rank for those topics.`,
+      );
+    }
   }
 
   const keywords = steps.find((s) => s.slug === 'keywords');
@@ -211,7 +236,7 @@ export const OUTPUT_LABELS: Record<string, string> = {
   fromNav: 'Candidates from navigation',
   fromHeadings: 'Candidates from headings',
   fromPageContent: 'Candidates from page body',
-  fromPageVertical: 'Candidates from H3 vertical sections',
+  fromPageVertical: 'Candidates from H2/H3 vertical sections',
   entityResolved: 'Brand entity resolved via sameAs',
   sameAsUrls: 'sameAs URLs in schema',
   resolvedEntityPlatforms: 'Entity authority platforms matched',
@@ -231,9 +256,9 @@ export const OUTPUT_LABELS: Record<string, string> = {
   sampleUrlPatterns: 'URL pattern topics (sample)',
   fromInternalLink: 'Candidates from internal links',
   fromUrlPattern: 'Candidates from URL patterns',
-  verticalTopicCount: 'H3 vertical section count',
+  verticalTopicCount: 'H2/H3 vertical section count',
   servicePhraseCount: 'Body phrase count',
-  sampleVerticalTopics: 'H3 vertical topics (sample)',
+  sampleVerticalTopics: 'H2/H3 vertical topics (sample)',
   sampleServicePhrases: 'Body phrases (sample)',
   fusionVersion: 'Fusion engine version',
   signalSourcesPresent: 'Signals present in fusion pool',
@@ -246,4 +271,11 @@ export const OUTPUT_LABELS: Record<string, string> = {
   excludedSampleNames: 'Held-back topic names (sample)',
   samplePillarNames: 'Final pillar names',
   pillarSources: 'Pillar → source',
+  fromGsc: 'Candidates with GSC query confirmation',
+  gscConnected: 'GSC connected for this project',
+  gscSkipped: 'GSC overlay skipped',
+  gscSkipReason: 'GSC skip reason',
+  gscQueryRowCount: 'GSC query rows analyzed',
+  gscMatchedPillars: 'Pillars matched to GSC clusters',
+  gscSilentPillarSlugs: 'Selected pillars with no GSC match',
 };

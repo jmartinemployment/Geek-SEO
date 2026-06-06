@@ -117,6 +117,7 @@ public static class SeoBackendExtensions
         services.AddScoped<PillarMerger>();
         services.AddScoped<TopicFusionEngine>();
         services.AddScoped<PillarDemandEnricher>();
+        services.AddScoped<GscQueryExtractor>();
         services.AddScoped<NicheAuthorityScorer>();
         services.AddScoped<NicheRootEntityBuilder>();
         services.AddScoped<NicheAnalyzerService>();

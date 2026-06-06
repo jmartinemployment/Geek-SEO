@@ -11,5 +11,6 @@ internal static class TopicEvidenceWeights
     internal const decimal PageVertical = 0.28m;
     internal const decimal UrlPattern = 0.12m;
     internal const decimal Heading = 0.10m;
+    internal const decimal Gsc = 0.20m;
     internal const decimal MaxConfidence = 1.0m;
 }
