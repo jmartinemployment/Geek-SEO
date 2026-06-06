@@ -143,8 +143,9 @@ public sealed class NicheAnalyzerService(
                     CountBySource(fused.AllCandidates, "heading"),
                     mergeResult.ExcludedByCap,
                     mergeResult.PillarCap,
-                    pageContent.ServicePhrases.Count,
+                    CountBySource(fused.AllCandidates, "page"),
                     fused.FusionVersion,
+                    fused.SignalSourcesPresent,
                     SampleExclusionReasons(fused),
                     mergeMessage),
                 ct);

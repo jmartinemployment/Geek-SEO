@@ -47,7 +47,7 @@ public sealed class NicheAnalyzerController(
                 return NotFound();
 
             var profile = result.Value;
-            if (profile.Status is not ("complete" or "failed" or "processing" or "queued"))
+            if (!NicheAnalysisDetailsPolicy.IsStepLogAvailable(profile.Status))
                 return NotFound();
 
             var steps = NicheAnalysisStepLogJson.Parse(profile.AnalysisStepLog);

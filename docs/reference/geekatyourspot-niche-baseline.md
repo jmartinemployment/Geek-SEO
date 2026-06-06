@@ -73,7 +73,24 @@ For a **whole-site picture** outside the product, use `scripts/scrape` with `--l
 
 ---
 
-## Expected Niche Analyzer output (v1, current code)
+## Expected Niche Analyzer output (v1.5+, fusion `sul-1.0`)
+
+When analysis runs successfully against this domain (after June 2026 deploy):
+
+| Step | Expected finding |
+|------|------------------|
+| 1 Schema | 7 `knowsAbout` + 5 offer catalog / `serviceType` topics → **12 schema candidates** |
+| 2 Sitemap | `totalUrls = 1`, `pillars = []` |
+| 3 Nav | 0–2 weak pillars or empty |
+| 4 Headings | Title + H2s from homepage |
+| 5 Fuse | **~11 pillars** selected (Gate 2 merges e.g. AI Strategy Consulting + AI Consulting); cap 12; `fusionVersion = sul-1.0` |
+| 6–10 | Profile, scoring, persist |
+
+**Why not 12 pillars:** similarity merge collapses near-duplicate AI consulting topics before the cap applies.
+
+---
+
+## Expected Niche Analyzer output (v1, legacy merge)
 
 When analysis runs successfully against this domain:
 

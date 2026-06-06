@@ -38,6 +38,11 @@ export function buildPillarProvenanceSummary(
   const excludedCount = outputNumber(merging, 'excludedByCapCount');
   const pillarCap = outputNumber(merging, 'pillarCap');
   const excludedSample = outputStringArray(merging, 'excludedSampleNames');
+  const exclusionReasons = outputStringArray(merging, 'exclusionReasonsSample');
+  const fusionVersion = merging.outputs.fusionVersion;
+  const peerCandidates = outputNumber(merging, 'candidateCount');
+  const signalSources = outputStringArray(merging, 'signalSourcesPresent');
+  const fromPage = outputNumber(merging, 'fromPageContent');
   const totalUrls = outputNumber(siteUrls, 'totalUrls');
   const sitemapPillars = outputNumber(siteUrls, 'pillarCount');
 
@@ -80,11 +85,32 @@ export function buildPillarProvenanceSummary(
     parts.push('Navigation and homepage headings did not add extra pillar candidates this run.');
   }
 
+  if (typeof fusionVersion === 'string' && fusionVersion.length > 0 && peerCandidates !== null) {
+    const sources =
+      signalSources.length > 0
+        ? signalSources.join(', ')
+        : 'schema, page, sitemap, nav, and headings';
+    parts.push(
+      `Topic fusion (${fusionVersion}) ranked ${peerCandidates} peer candidate(s) from ${sources} before applying the pillar cap.`,
+    );
+  }
+
+  if (fromPage !== null && fromPage > 0) {
+    parts.push(`${fromPage} candidate(s) also came from visible homepage copy (lists and section headings).`);
+  }
+
+  const mergedAway = exclusionReasons.filter((line) => line.includes('Merged with similar topic'));
+  if (mergedAway.length > 0) {
+    parts.push(
+      `Similar topics were merged to avoid duplicates (e.g. ${mergedAway.slice(0, 2).join('; ')}).`,
+    );
+  }
+
   if (excludedCount !== null && excludedCount > 0 && pillarCap !== null) {
     const heldBack =
       excludedSample.length > 0 ? excludedSample.join(', ') : `${excludedCount} topic(s)`;
     parts.push(
-      `${excludedCount} schema topic(s) were not promoted to pillars because of the ${pillarCap}-pillar strategy cap: ${heldBack}.`,
+      `${excludedCount} topic(s) were not promoted to pillars because of the ${pillarCap}-pillar strategy cap: ${heldBack}.`,
     );
   }
 
@@ -109,6 +135,7 @@ export const OUTPUT_LABELS: Record<string, string> = {
   fromHeadings: 'Candidates from headings',
   fromPageContent: 'Candidates from page body',
   fusionVersion: 'Fusion engine version',
+  signalSourcesPresent: 'Signals present in fusion pool',
   exclusionReasonsSample: 'Excluded topics (sample reasons)',
   primarySource: 'Winning source after merge',
   mergedCount: 'Final pillar count',

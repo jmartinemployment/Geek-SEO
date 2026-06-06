@@ -86,6 +86,7 @@ internal static class NicheAnalysisStepLogBuilder
         int pillarCap,
         int fromPageContent,
         string fusionVersion,
+        IReadOnlyList<string> signalSourcesPresent,
         IReadOnlyList<string> exclusionReasonsSample,
         string summary) =>
         Entry(step, "merging", summary, new Dictionary<string, object?>
@@ -98,6 +99,7 @@ internal static class NicheAnalysisStepLogBuilder
             ["fromHeadings"] = fromHeadings,
             ["fromPageContent"] = fromPageContent,
             ["fusionVersion"] = fusionVersion,
+            ["signalSourcesPresent"] = signalSourcesPresent.ToArray(),
             ["pillarCap"] = pillarCap,
             ["excludedByCapCount"] = excludedByCap.Count,
             ["excludedSampleNames"] = excludedByCap.Select(p => p.Name).Take(SampleLimit).ToArray(),
