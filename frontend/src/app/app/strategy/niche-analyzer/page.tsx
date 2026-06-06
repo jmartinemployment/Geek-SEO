@@ -309,7 +309,11 @@ export default function NicheAnalyzerPage() {
                 accessToken={accessToken}
                 pillarCount={profile.pillars.length || profile.totalPillarsIdentified}
               />
-              <FusionSnapshotSection profileId={profile.id} accessToken={accessToken} />
+              <FusionSnapshotSection
+                profileId={profile.id}
+                projectId={projectId}
+                accessToken={accessToken}
+              />
               <CoverageMatrixTable
                 pillars={profile.pillars}
                 coverageFallback={coverage}

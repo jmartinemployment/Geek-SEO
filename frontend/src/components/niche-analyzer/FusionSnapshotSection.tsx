@@ -5,15 +5,18 @@ import { getNicheAnalysisDetails, type FusedSiteUnderstanding } from '@/lib/seo-
 import { TopicCandidateMatrix } from '@/components/niche-analyzer/TopicCandidateMatrix';
 import { EntityCoveragePanel } from '@/components/niche-analyzer/EntityCoveragePanel';
 import { InternalLinkGraphPanel } from '@/components/niche-analyzer/InternalLinkGraphPanel';
+import { FusionActionPanel } from '@/components/niche-analyzer/FusionActionPanel';
 
 type Props = {
   profileId: string;
+  projectId?: string;
   accessToken?: string | null;
   pollIntervalMs?: number;
 };
 
 export function FusionSnapshotSection({
   profileId,
+  projectId,
   accessToken,
   pollIntervalMs,
 }: Readonly<Props>) {
@@ -73,6 +76,7 @@ export function FusionSnapshotSection({
 
   return (
     <div className="space-y-4">
+      <FusionActionPanel fusion={fusion} projectId={projectId} accessToken={accessToken} />
       <EntityCoveragePanel fusion={fusion} />
       <InternalLinkGraphPanel fusion={fusion} />
       <TopicCandidateMatrix fusion={fusion} />

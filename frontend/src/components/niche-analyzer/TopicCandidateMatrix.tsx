@@ -258,6 +258,7 @@ export function TopicCandidateMatrix({ fusion }: Readonly<Props>) {
               <th className="px-3 py-2 font-medium">Topic</th>
               <th className="px-3 py-2 font-medium">Confidence</th>
               <th className="px-3 py-2 font-medium">Topicality</th>
+              <th className="px-3 py-2 font-medium">SERP coverage</th>
               <th className="px-3 py-2 font-medium">Sources</th>
               <th className="px-3 py-2 font-medium">Structure</th>
               <th className="px-3 py-2 font-medium">Outcome</th>
@@ -266,7 +267,7 @@ export function TopicCandidateMatrix({ fusion }: Readonly<Props>) {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-5 py-8 text-center text-[var(--color-text-muted)]">
+                <td colSpan={8} className="px-5 py-8 text-center text-[var(--color-text-muted)]">
                   No candidates match the current filters.
                 </td>
               </tr>
@@ -277,6 +278,7 @@ export function TopicCandidateMatrix({ fusion }: Readonly<Props>) {
               const expanded = expandedSlug === row.slug;
               const sources = uniqueSources(row);
               const topicality = fusion.normalizedTopicalityBySlug?.[row.slug];
+              const coverage = fusion.entityCoverageBySlug?.[row.slug];
 
               return (
                 <Fragment key={row.slug}>
@@ -307,6 +309,16 @@ export function TopicCandidateMatrix({ fusion }: Readonly<Props>) {
                     <td className="px-3 py-2 text-[var(--color-text-secondary)]">
                       {topicality !== undefined && topicality > 0 ? (
                         <span className="tabular-nums">{Math.round(topicality * 100)}%</span>
+                      ) : (
+                        <span className="text-[var(--color-text-muted)]">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-[var(--color-text-secondary)]">
+                      {coverage && coverage.expectedEntityCount > 0 ? (
+                        <span className={coverage.isEntityThin ? 'text-rose-600' : ''}>
+                          {Math.round(coverage.coverageScore * 100)}%
+                          {coverage.isEntityThin ? ' · thin' : ''}
+                        </span>
                       ) : (
                         <span className="text-[var(--color-text-muted)]">—</span>
                       )}

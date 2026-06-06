@@ -1486,6 +1486,20 @@ export type FusedSiteUnderstanding = {
   normalizedTopicalityBySlug?: Record<string, number>;
   entityCoverageBySlug?: Record<string, PillarEntityCoverage>;
   internalLinkGraph?: InternalLinkGraph | null;
+  recommendedActions?: FusionRecommendedAction[];
+};
+
+export type FusionRecommendedAction = {
+  actionType:
+    | 'suggest_pillar_page'
+    | 'schema_sync'
+    | 'entity_thin_content'
+    | 'link_orphan_pillar'
+    | string;
+  topicSlug: string;
+  topicName: string;
+  summary: string;
+  priority: number;
 };
 
 export type PillarEntityCoverage = {

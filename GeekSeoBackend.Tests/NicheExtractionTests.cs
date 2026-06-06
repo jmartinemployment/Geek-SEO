@@ -633,6 +633,74 @@ public sealed class NicheExtractionTests
 
         Assert.True(enriched.EntityCoverageBySlug.ContainsKey("accounting"));
         Assert.NotNull(enriched.InternalLinkGraph);
+        Assert.NotEmpty(enriched.RecommendedActions);
+    }
+
+    [Fact]
+    public void FusionActionRecommender_SuggestsPageSchemaAndEntityActions()
+    {
+        var fused = new FusedSiteUnderstanding
+        {
+            AllCandidates =
+            [
+                new TopicCandidate
+                {
+                    Name = "Accounting",
+                    Slug = "accounting",
+                    Confidence = 0.72m,
+                    Evidence =
+                    [
+                        new TopicEvidence { Source = "page_vertical", Weight = 0.2m },
+                    ],
+                },
+                new TopicCandidate
+                {
+                    Name = "Managed IT",
+                    Slug = "managed-it",
+                    Confidence = 0.8m,
+                    DedicatedPageUrl = "https://example.com/services/managed-it",
+                    Evidence = [new TopicEvidence { Source = "schema", Weight = 0.35m }],
+                },
+            ],
+            SelectedPillars =
+            [
+                new TopicCandidate
+                {
+                    Name = "Accounting",
+                    Slug = "accounting",
+                    Confidence = 0.72m,
+                    Evidence =
+                    [
+                        new TopicEvidence { Source = "page_vertical", Weight = 0.2m },
+                    ],
+                },
+                new TopicCandidate
+                {
+                    Name = "Managed IT",
+                    Slug = "managed-it",
+                    Confidence = 0.8m,
+                    DedicatedPageUrl = "https://example.com/services/managed-it",
+                    Evidence = [new TopicEvidence { Source = "schema", Weight = 0.35m }],
+                },
+            ],
+            ExcludedCandidates = [],
+            ExclusionReasons = new Dictionary<string, string>(),
+            FusionVersion = TopicFusionEngine.FusionVersion,
+            SignalSourcesPresent = ["page_vertical", "schema"],
+            PillarCap = 15,
+            EntityCoverageBySlug = new Dictionary<string, PillarEntityCoverage>
+            {
+                ["managed-it"] = new("managed-it", "Managed IT", 0.4m, 5, 2, ["SOC"], true),
+            },
+            InternalLinkGraph = new InternalLinkGraph([], ["accounting"]),
+        };
+
+        var actions = FusionActionRecommender.Recommend(fused);
+
+        Assert.Contains(actions, a => a.ActionType == "suggest_pillar_page" && a.TopicSlug == "accounting");
+        Assert.Contains(actions, a => a.ActionType == "schema_sync" && a.TopicSlug == "accounting");
+        Assert.Contains(actions, a => a.ActionType == "entity_thin_content" && a.TopicSlug == "managed-it");
+        Assert.Contains(actions, a => a.ActionType == "link_orphan_pillar" && a.TopicSlug == "accounting");
     }
 
     [Fact]

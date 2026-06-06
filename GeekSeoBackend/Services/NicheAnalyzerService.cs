@@ -316,10 +316,23 @@ public sealed class NicheAnalyzerService(
                 throw new InvalidOperationException($"Failed to save analysis results: {saveResult.Error}");
 
             var scoringMessage = $"Authority score: {authorityScore:F0}/100 — results saved.";
+            var entityThinCount = fused.EntityCoverageBySlug.Values.Count(c => c.IsEntityThin);
+            var linkGraphEdgeCount = fused.InternalLinkGraph?.Edges.Count ?? 0;
+            var orphanPillarCount = fused.InternalLinkGraph?.OrphanSlugs.Count ?? 0;
             await PushProgress(
                 userId, profileId, 13,
                 NicheAnalysisStepLogBuilder.Scoring(
-                    13, authorityScore, covered, partial, gap, nicheEntities.Count, scoringMessage),
+                    13,
+                    authorityScore,
+                    covered,
+                    partial,
+                    gap,
+                    nicheEntities.Count,
+                    scoringMessage,
+                    entityThinCount,
+                    linkGraphEdgeCount,
+                    orphanPillarCount,
+                    fused.RecommendedActions.Count),
                 ct);
 
             const string completeMessage = "Analysis complete!";

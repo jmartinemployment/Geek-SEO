@@ -9,10 +9,20 @@ internal static class FusionSnapshotEnricher
         FusedSiteUnderstanding fused,
         InternalLinkData internalLinks,
         UrlPatternData urlPatterns,
-        IReadOnlyList<PillarSerpEnrichment> serpValidations) =>
-        fused with
+        IReadOnlyList<PillarSerpEnrichment> serpValidations)
+    {
+        var entityCoverage = EntityCoverageScorer.Compute(fused, serpValidations);
+        var linkGraph = InternalLinkGraphBuilder.Build(fused, internalLinks, urlPatterns);
+
+        var enriched = fused with
         {
-            EntityCoverageBySlug = EntityCoverageScorer.Compute(fused, serpValidations),
-            InternalLinkGraph = InternalLinkGraphBuilder.Build(fused, internalLinks, urlPatterns),
+            EntityCoverageBySlug = entityCoverage,
+            InternalLinkGraph = linkGraph,
         };
+
+        return enriched with
+        {
+            RecommendedActions = FusionActionRecommender.Recommend(enriched),
+        };
+    }
 }

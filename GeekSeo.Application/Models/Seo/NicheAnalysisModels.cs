@@ -219,6 +219,8 @@ public sealed record FusedSiteUnderstanding
         = new Dictionary<string, PillarEntityCoverage>();
     /// <summary>Pillar-to-pillar internal link graph from crawled anchors (Gap 5).</summary>
     public InternalLinkGraph? InternalLinkGraph { get; init; }
+    /// <summary>Phase E draft actions derived from the same snapshot (no auto-execution).</summary>
+    public IReadOnlyList<FusionRecommendedAction> RecommendedActions { get; init; } = [];
 }
 
 /// <summary>How well the site covers SERP-expected topic entities for one pillar.</summary>
@@ -240,6 +242,14 @@ public sealed record InternalLinkGraphEdge(
 public sealed record InternalLinkGraph(
     IReadOnlyList<InternalLinkGraphEdge> Edges,
     IReadOnlyList<string> OrphanSlugs);
+
+/// <summary>User-approvable action suggested from fusion snapshot analysis (Phase E).</summary>
+public sealed record FusionRecommendedAction(
+    string ActionType,
+    string TopicSlug,
+    string TopicName,
+    string Summary,
+    decimal Priority);
 
 public sealed record PageContentData(
     IReadOnlyList<string> ServicePhrases,

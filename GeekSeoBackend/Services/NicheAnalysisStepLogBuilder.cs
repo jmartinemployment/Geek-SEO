@@ -256,7 +256,17 @@ internal static class NicheAnalysisStepLogBuilder
         });
 
     internal static NicheAnalysisStepLogEntry Scoring(
-        int step, decimal authorityScore, int covered, int partial, int gap, int pillarCount, string summary) =>
+        int step,
+        decimal authorityScore,
+        int covered,
+        int partial,
+        int gap,
+        int pillarCount,
+        string summary,
+        int entityThinCount = 0,
+        int linkGraphEdgeCount = 0,
+        int orphanPillarCount = 0,
+        int recommendedActionCount = 0) =>
         Entry(step, "scoring", summary, new Dictionary<string, object?>
         {
             ["authorityScore"] = authorityScore,
@@ -264,6 +274,10 @@ internal static class NicheAnalysisStepLogBuilder
             ["partial"] = partial,
             ["gap"] = gap,
             ["pillarCount"] = pillarCount,
+            ["entityThinCount"] = entityThinCount,
+            ["linkGraphEdgeCount"] = linkGraphEdgeCount,
+            ["orphanPillarCount"] = orphanPillarCount,
+            ["recommendedActionCount"] = recommendedActionCount,
         });
 
     internal static NicheAnalysisStepLogEntry Complete(
