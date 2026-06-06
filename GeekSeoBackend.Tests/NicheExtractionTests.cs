@@ -219,6 +219,113 @@ public sealed class NicheExtractionTests
     }
 
     [Fact]
+    public void UrlPatternExtractor_ParsesServicePathSegments()
+    {
+        var extractor = new UrlPatternExtractor();
+        var urls = new[]
+        {
+            "https://example.com/services/accounting-software",
+            "https://example.com/solutions/cloud-migration",
+        };
+
+        var data = extractor.Extract(urls, "https://example.com");
+
+        Assert.Equal(2, data.Topics.Count);
+        Assert.Contains(data.Topics, t => t.Slug == "accounting-software");
+        Assert.Contains(data.Topics, t => t.Name == "Accounting Software");
+    }
+
+    [Fact]
+    public void InternalLinkExtractor_ParsesAnchorTextFromHtml()
+    {
+        const string html = """
+            <html><body>
+            <a href="/services/managed-it">Managed IT Support</a>
+            <a href="/contact">Learn More</a>
+            </body></html>
+            """;
+
+        var edges = InternalLinkExtractor.ExtractLinksFromHtml(
+            html,
+            "https://example.com/",
+            "https://example.com").ToList();
+
+        Assert.Single(edges);
+        Assert.Equal("Managed IT Support", edges[0].AnchorText);
+        Assert.Equal("https://example.com/services/managed-it", edges[0].TargetUrl);
+    }
+
+    [Fact]
+    public void InternalLinkExtractor_InfersTopicFromUrlWhenAnchorIsGeneric()
+    {
+        const string html = """
+            <html><body>
+            <a href="/services/accounting">Learn More</a>
+            </body></html>
+            """;
+
+        var edges = InternalLinkExtractor.ExtractLinksFromHtml(
+            html,
+            "https://example.com/",
+            "https://example.com").ToList();
+
+        Assert.Single(edges);
+        Assert.True(edges[0].InferredFromUrlSlug);
+        Assert.Equal("Accounting", edges[0].AnchorText);
+    }
+
+    [Fact]
+    public void TopicCandidatePoolBuilder_StacksInternalLinkAndUrlPatternEvidence()
+    {
+        var internalLinks = new InternalLinkData(
+            [
+                new InternalLinkEdge(
+                    "https://example.com/",
+                    "https://example.com/services/accounting",
+                    "Accounting Services"),
+            ],
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["https://example.com/services/accounting"] = 2,
+            },
+            1);
+
+        var urlPatterns = new UrlPatternData(
+            [
+                new UrlPatternTopic(
+                    "Accounting",
+                    "accounting",
+                    "https://example.com/services/accounting",
+                    "accounting"),
+            ],
+            1);
+
+        var pool = TopicCandidatePoolBuilder.Build(
+            new SchemaOrgData([], [], [], null, null, []),
+            new SitemapData([], 0, []),
+            new NavMenuData([], "skipped"),
+            new HomepageHeadings(),
+            new PageContentData([], [], 0),
+            internalLinks,
+            urlPatterns);
+
+        Assert.Equal(2, pool.Count);
+        var accountingServices = pool.First(c =>
+            c.Slug.Equals(NicheAnalyzerService.NameToSlug("Accounting Services"), StringComparison.OrdinalIgnoreCase));
+        var accountingSlug = pool.First(c => c.Slug == "accounting");
+
+        Assert.Contains(accountingServices.Evidence, e => e.Source == "internal_link");
+        Assert.Contains(accountingSlug.Evidence, e => e.Source == "url_pattern");
+    }
+
+    [Fact]
+    public void AnchorTextFilter_RejectsGenericAnchors()
+    {
+        Assert.False(AnchorTextFilter.IsUsableTopic("Learn More"));
+        Assert.True(AnchorTextFilter.IsUsableTopic("Managed IT Support"));
+    }
+
+    [Fact]
     public void TopicCandidatePoolBuilder_StacksEvidenceForSameSlug()
     {
         var schema = new SchemaOrgData(

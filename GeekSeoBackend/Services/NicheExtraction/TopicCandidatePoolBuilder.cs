@@ -11,7 +11,9 @@ internal static class TopicCandidatePoolBuilder
         SitemapData sitemap,
         NavMenuData nav,
         HomepageHeadings headings,
-        PageContentData pageContent)
+        PageContentData pageContent,
+        InternalLinkData? internalLinks = null,
+        UrlPatternData? urlPatterns = null)
     {
         var bySlug = new Dictionary<string, TopicCandidateBuilder>(StringComparer.OrdinalIgnoreCase);
 
@@ -59,6 +61,43 @@ internal static class TopicCandidatePoolBuilder
         foreach (var vertical in pageContent.VerticalTopics)
             AddEvidence(bySlug, vertical, "page_vertical", TopicEvidenceWeights.PageVertical, "homepage H3 section");
 
+        if (internalLinks is not null)
+        {
+            foreach (var edge in internalLinks.Links)
+            {
+                AddEvidence(
+                    bySlug,
+                    edge.AnchorText,
+                    "internal_link",
+                    TopicEvidenceWeights.InternalLink,
+                    edge.InferredFromUrlSlug
+                        ? $"URL slug: {edge.TargetUrl}"
+                        : edge.AnchorText,
+                    edge.TargetUrl,
+                    trackInbound: true);
+            }
+        }
+
+        if (urlPatterns is not null)
+        {
+            foreach (var topic in urlPatterns.Topics)
+            {
+                AddEvidence(
+                    bySlug,
+                    topic.Name,
+                    "url_pattern",
+                    TopicEvidenceWeights.UrlPattern,
+                    topic.PathSegment,
+                    topic.Url);
+            }
+        }
+
+        if (internalLinks is not null)
+        {
+            foreach (var builder in bySlug.Values)
+                builder.ApplyInboundCounts(internalLinks.InboundCountByTargetUrl);
+        }
+
         return bySlug.Values
             .Select(b => b.ToCandidate())
             .OrderByDescending(c => c.Confidence)
@@ -72,7 +111,8 @@ internal static class TopicCandidatePoolBuilder
         string source,
         decimal weight,
         string? snippet,
-        string? url = null)
+        string? url = null,
+        bool trackInbound = false)
     {
         var trimmed = name.Trim();
         if (trimmed.Length < 3)
@@ -88,18 +128,28 @@ internal static class TopicCandidatePoolBuilder
             bySlug[slug] = builder;
         }
 
-        builder.AddEvidence(source, weight, snippet, url);
+        builder.AddEvidence(source, weight, snippet, url, trackInbound);
     }
 
     private sealed class TopicCandidateBuilder(string name, string slug)
     {
         private readonly List<TopicEvidence> _evidence = [];
+        private readonly HashSet<string> _inboundTargets = new(StringComparer.OrdinalIgnoreCase);
         private string? _pageUrl;
+        private int _inboundLinkCount;
 
-        internal void AddEvidence(string source, decimal weight, string? snippet, string? url)
+        internal void AddEvidence(
+            string source,
+            decimal weight,
+            string? snippet,
+            string? url,
+            bool trackInbound = false)
         {
             if (url is not null && _pageUrl is null && url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                 _pageUrl = url;
+
+            if (trackInbound && url is not null)
+                _inboundTargets.Add(url);
 
             _evidence.Add(new TopicEvidence
             {
@@ -110,11 +160,27 @@ internal static class TopicCandidatePoolBuilder
             });
         }
 
+        internal void ApplyInboundCounts(IReadOnlyDictionary<string, int> inboundByTarget)
+        {
+            foreach (var target in _inboundTargets)
+            {
+                if (inboundByTarget.TryGetValue(target, out var count))
+                    _inboundLinkCount += count;
+            }
+
+            if (_pageUrl is not null && inboundByTarget.TryGetValue(_pageUrl, out var pageInbound))
+                _inboundLinkCount = Math.Max(_inboundLinkCount, pageInbound);
+        }
+
         internal TopicCandidate ToCandidate()
         {
             var confidence = Math.Min(
                 TopicEvidenceWeights.MaxConfidence,
                 _evidence.Sum(e => e.Weight));
+
+            var linkSignals = _evidence.Count(e =>
+                e.Source is "internal_link" or "nav" or "url_pattern");
+            var internalLinkCount = Math.Max(_inboundLinkCount, linkSignals);
 
             return new TopicCandidate
             {
@@ -123,7 +189,7 @@ internal static class TopicCandidatePoolBuilder
                 Evidence = _evidence,
                 Confidence = confidence,
                 DedicatedPageUrl = _pageUrl,
-                InternalLinkCount = _evidence.Count(e => e.Source == "nav"),
+                InternalLinkCount = internalLinkCount,
             };
         }
     }

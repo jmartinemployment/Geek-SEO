@@ -77,7 +77,7 @@ public sealed class NicheAnalysisJobWorker(
             {
                 workerUser.UserId = item.UserId;
                 var claim = await nicheRepo.UpdateStatusAsync(
-                    item.ProfileId, "processing", step: "schema", stepNumber: 1, totalSteps: 11, ct: ct);
+                    item.ProfileId, "processing", step: "schema", stepNumber: 1, totalSteps: 12, ct: ct);
                 if (!claim.IsSuccess)
                 {
                     logger.LogWarning(

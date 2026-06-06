@@ -14,6 +14,7 @@ internal static class NicheAnalysisStepLogBuilder
             ["nav"] = "Navigation",
             ["headings"] = "Homepage headings",
             ["page_content"] = "Page content",
+            ["site_structure"] = "Site structure",
             ["merging"] = "Pillar merge",
             ["profile"] = "Niche profile",
             ["local"] = "Local geography",
@@ -85,6 +86,32 @@ internal static class NicheAnalysisStepLogBuilder
             ["becomesPillars"] = true,
         });
 
+    internal static NicheAnalysisStepLogEntry SiteStructure(
+        int step,
+        SiteCrawlData crawl,
+        InternalLinkData internalLinks,
+        UrlPatternData urlPatterns,
+        string summary) =>
+        Entry(step, "site_structure", summary, new Dictionary<string, object?>
+        {
+            ["pagesCrawled"] = crawl.PagesFetched,
+            ["pagesAttempted"] = crawl.PagesAttempted,
+            ["internalLinkCount"] = internalLinks.Links.Count,
+            ["internalLinkAnchorCount"] = internalLinks.Links.Count(l => !l.InferredFromUrlSlug),
+            ["internalLinkSlugInferredCount"] = internalLinks.Links.Count(l => l.InferredFromUrlSlug),
+            ["urlPatternTopicCount"] = urlPatterns.Topics.Count,
+            ["sampleInternalAnchors"] = internalLinks.Links
+                .Select(l => l.AnchorText)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(SampleLimit)
+                .ToArray(),
+            ["sampleUrlPatterns"] = urlPatterns.Topics
+                .Select(t => t.Name)
+                .Take(SampleLimit)
+                .ToArray(),
+            ["becomesPillars"] = true,
+        });
+
     internal static NicheAnalysisStepLogEntry Merging(
         int step,
         int candidateCount,
@@ -98,6 +125,8 @@ internal static class NicheAnalysisStepLogBuilder
         int pillarCap,
         int fromPageContent,
         int fromPageVertical,
+        int fromInternalLink,
+        int fromUrlPattern,
         string fusionVersion,
         IReadOnlyList<string> signalSourcesPresent,
         IReadOnlyList<string> exclusionReasonsSample,
@@ -112,6 +141,8 @@ internal static class NicheAnalysisStepLogBuilder
             ["fromHeadings"] = fromHeadings,
             ["fromPageContent"] = fromPageContent,
             ["fromPageVertical"] = fromPageVertical,
+            ["fromInternalLink"] = fromInternalLink,
+            ["fromUrlPattern"] = fromUrlPattern,
             ["fusionVersion"] = fusionVersion,
             ["signalSourcesPresent"] = signalSourcesPresent.ToArray(),
             ["pillarCap"] = pillarCap,

@@ -44,6 +44,8 @@ export function buildPillarProvenanceSummary(
   const signalSources = outputStringArray(merging, 'signalSourcesPresent');
   const fromPage = outputNumber(merging, 'fromPageContent');
   const fromPageVertical = outputNumber(merging, 'fromPageVertical');
+  const fromInternalLink = outputNumber(merging, 'fromInternalLink');
+  const fromUrlPattern = outputNumber(merging, 'fromUrlPattern');
   const totalUrls = outputNumber(siteUrls, 'totalUrls');
   const sitemapPillars = outputNumber(siteUrls, 'pillarCount');
 
@@ -106,6 +108,18 @@ export function buildPillarProvenanceSummary(
     );
   }
 
+  if (fromInternalLink !== null && fromInternalLink > 0) {
+    parts.push(
+      `${fromInternalLink} candidate(s) were confirmed by internal link anchor text across crawled pages.`,
+    );
+  }
+
+  if (fromUrlPattern !== null && fromUrlPattern > 0) {
+    parts.push(
+      `${fromUrlPattern} candidate(s) were inferred from URL path patterns (e.g. /services/… slugs).`,
+    );
+  }
+
   const mergedAway = exclusionReasons.filter((line) => line.includes('Merged with similar topic'));
   if (mergedAway.length > 0) {
     parts.push(
@@ -142,6 +156,13 @@ export const OUTPUT_LABELS: Record<string, string> = {
   fromHeadings: 'Candidates from headings',
   fromPageContent: 'Candidates from page body',
   fromPageVertical: 'Candidates from H3 vertical sections',
+  pagesCrawled: 'Pages crawled for structure signals',
+  internalLinkCount: 'Internal links parsed',
+  urlPatternTopicCount: 'Topics from URL path patterns',
+  sampleInternalAnchors: 'Internal link anchor text (sample)',
+  sampleUrlPatterns: 'URL pattern topics (sample)',
+  fromInternalLink: 'Candidates from internal links',
+  fromUrlPattern: 'Candidates from URL patterns',
   verticalTopicCount: 'H3 vertical section count',
   servicePhraseCount: 'Body phrase count',
   sampleVerticalTopics: 'H3 vertical topics (sample)',

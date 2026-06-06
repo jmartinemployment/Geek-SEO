@@ -7,7 +7,7 @@ namespace GeekSeoBackend.Services.NicheExtraction;
 /// </summary>
 public sealed class TopicFusionEngine(PillarValidator validator)
 {
-    public const string FusionVersion = "sul-1.0";
+    public const string FusionVersion = "sul-1.1";
     private const int MinPillars = 3;
 
     public FusedSiteUnderstanding Fuse(

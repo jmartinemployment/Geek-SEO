@@ -213,6 +213,35 @@ public sealed record PageContentData(
     IReadOnlyList<string> VerticalTopics,
     int ListItemsScanned);
 
+public sealed record CrawledPage(string Url, string Html);
+
+/// <summary>Bounded same-origin crawl for structure-signal extractors (Phase B).</summary>
+public sealed record SiteCrawlData(
+    IReadOnlyList<CrawledPage> Pages,
+    int PagesAttempted,
+    int PagesFetched);
+
+public sealed record InternalLinkEdge(
+    string SourceUrl,
+    string TargetUrl,
+    string AnchorText,
+    bool InferredFromUrlSlug = false);
+
+public sealed record InternalLinkData(
+    IReadOnlyList<InternalLinkEdge> Links,
+    IReadOnlyDictionary<string, int> InboundCountByTargetUrl,
+    int PagesScanned);
+
+public sealed record UrlPatternTopic(
+    string Name,
+    string Slug,
+    string Url,
+    string PathSegment);
+
+public sealed record UrlPatternData(
+    IReadOnlyList<UrlPatternTopic> Topics,
+    int UrlsScanned);
+
 public record SitemapData(
     IReadOnlyList<DiscoveredPillar> Pillars,
     int TotalUrlsScanned,

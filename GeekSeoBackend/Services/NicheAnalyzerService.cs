@@ -18,6 +18,9 @@ public sealed class NicheAnalyzerService(
     NavMenuExtractor navMenuExtractor,
     HomepageHeadingsExtractor headingsExtractor,
     PageContentExtractor pageContentExtractor,
+    SitePageCrawler sitePageCrawler,
+    InternalLinkExtractor internalLinkExtractor,
+    UrlPatternExtractor urlPatternExtractor,
     TopicFusionEngine topicFusionEngine,
     NicheAuthorityScorer scorer,
     NicheRootEntityBuilder rootBuilder,
@@ -25,7 +28,7 @@ public sealed class NicheAnalyzerService(
     ICurrentUserContext userContext,
     ILogger<NicheAnalyzerService> logger)
 {
-    private const int TotalSteps = 11;
+    private const int TotalSteps = 12;
 
     public async Task<Guid> EnqueueAsync(
         Guid userId, Guid projectId, string domain,
@@ -127,9 +130,33 @@ public sealed class NicheAnalyzerService(
                 NicheAnalysisStepLogBuilder.PageContent(5, pageContent, pageMessage),
                 ct);
 
-            // Step 6 — Fuse all Tier-1 signals
+            // Step 6 — Site structure (multi-page crawl, internal links, URL patterns)
+            var crawlData = await sitePageCrawler.CrawlAsync(domain, sitemapData.SampleUrls, browser, ct);
+            var internalLinkData = internalLinkExtractor.Extract(crawlData, domain);
+            var crawlUrls = crawlData.Pages.Select(p => p.Url).ToList();
+            var patternUrls = sitemapData.SampleUrls
+                .Concat(crawlUrls)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var urlPatternData = urlPatternExtractor.Extract(patternUrls, domain);
+            var structureParts = new List<string>
+            {
+                $"{crawlData.PagesFetched} page(s) crawled",
+                $"{internalLinkData.Links.Count} internal link(s) ({internalLinkData.Links.Count(l => !l.InferredFromUrlSlug)} anchor, {internalLinkData.Links.Count(l => l.InferredFromUrlSlug)} from URL slug)",
+                $"{urlPatternData.Topics.Count} URL pattern topic(s)",
+            };
+            var structureMessage =
+                $"Site structure: {string.Join(", ", structureParts)}.";
+            await PushProgress(
+                userId, profileId, 6,
+                NicheAnalysisStepLogBuilder.SiteStructure(
+                    6, crawlData, internalLinkData, urlPatternData, structureMessage),
+                ct);
+
+            // Step 7 — Fuse all Tier-1 signals
             var candidatePool = TopicCandidatePoolBuilder.Build(
-                schemaData, sitemapData, navData, headings, pageContent);
+                schemaData, sitemapData, navData, headings, pageContent,
+                internalLinkData, urlPatternData);
             var fused = topicFusionEngine.Fuse(
                 candidatePool,
                 schemaData.AreaServed.ToList());
@@ -140,9 +167,9 @@ public sealed class NicheAnalyzerService(
                     ? $"Topic pillars: {merged.Count} selected, {mergeResult.ExcludedByCap.Count} held back (cap {mergeResult.PillarCap}). Fused {fused.AllCandidates.Count} peer candidate(s) ({string.Join(", ", fused.SignalSourcesPresent)})."
                     : $"Topic pillars: {merged.Count} after fusion of {fused.AllCandidates.Count} peer candidate(s) ({string.Join(", ", fused.SignalSourcesPresent)}).";
             await PushProgress(
-                userId, profileId, 6,
+                userId, profileId, 7,
                 NicheAnalysisStepLogBuilder.Merging(
-                    6,
+                    7,
                     fused.AllCandidates.Count,
                     merged.Count,
                     merged,
@@ -154,13 +181,15 @@ public sealed class NicheAnalyzerService(
                     mergeResult.PillarCap,
                     CountBySource(fused.AllCandidates, "page"),
                     CountBySource(fused.AllCandidates, "page_vertical"),
+                    CountBySource(fused.AllCandidates, "internal_link"),
+                    CountBySource(fused.AllCandidates, "url_pattern"),
                     fused.FusionVersion,
                     fused.SignalSourcesPresent,
                     SampleExclusionReasons(fused),
                     mergeMessage),
                 ct);
 
-            // Step 7 — Niche identity
+            // Step 8 — Niche identity
             var nicheEntities = BuildNichePillars(merged, profileId);
             scorer.ScorePillars(nicheEntities);
             var rootEntity = rootBuilder.Build(schemaData, headings, nicheEntities);
@@ -168,25 +197,25 @@ public sealed class NicheAnalyzerService(
             var nicheTags = BuildNicheTags(schemaData, nicheEntities).ToArray();
             var profileMessage = $"Niche profile: {rootEntity}.";
             await PushProgress(
-                userId, profileId, 7,
-                NicheAnalysisStepLogBuilder.Profile(7, rootEntity, audienceType, nicheTags, profileMessage),
+                userId, profileId, 8,
+                NicheAnalysisStepLogBuilder.Profile(8, rootEntity, audienceType, nicheTags, profileMessage),
                 ct);
 
-            // Step 8 — Local geography (progress only until LocalGapGenerator ships)
+            // Step 9 — Local geography (progress only until LocalGapGenerator ships)
             const string localMessage = "Local geography: not enabled in this release.";
             await PushProgress(
-                userId, profileId, 8,
-                NicheAnalysisStepLogBuilder.LocalDisabled(8, localMessage),
+                userId, profileId, 9,
+                NicheAnalysisStepLogBuilder.LocalDisabled(9, localMessage),
                 ct);
 
-            // Step 9 — Content coverage (progress only until coverage matcher ships)
+            // Step 10 — Content coverage (progress only until coverage matcher ships)
             const string coverageMessage = "Content coverage: not enabled in this release.";
             await PushProgress(
-                userId, profileId, 9,
-                NicheAnalysisStepLogBuilder.CoverageDisabled(9, coverageMessage),
+                userId, profileId, 10,
+                NicheAnalysisStepLogBuilder.CoverageDisabled(10, coverageMessage),
                 ct);
 
-            // Step 10 — Authority score + persist
+            // Step 11 — Authority score + persist
             var authorityScore = scorer.ComputeTopicalAuthorityScore(nicheEntities);
             var covered = nicheEntities.Count(p => p.CoverageStatus == "covered");
             var partial = nicheEntities.Count(p => p.CoverageStatus == "partial");
@@ -231,9 +260,9 @@ public sealed class NicheAnalyzerService(
 
             var scoringMessage = $"Authority score: {authorityScore:F0}/100 — results saved.";
             await PushProgress(
-                userId, profileId, 10,
+                userId, profileId, 11,
                 NicheAnalysisStepLogBuilder.Scoring(
-                    10, authorityScore, covered, partial, gap, nicheEntities.Count, scoringMessage),
+                    11, authorityScore, covered, partial, gap, nicheEntities.Count, scoringMessage),
                 ct);
 
             const string completeMessage = "Analysis complete!";
