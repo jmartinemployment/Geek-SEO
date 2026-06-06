@@ -43,6 +43,7 @@ export function buildPillarProvenanceSummary(
   const peerCandidates = outputNumber(merging, 'candidateCount');
   const signalSources = outputStringArray(merging, 'signalSourcesPresent');
   const fromPage = outputNumber(merging, 'fromPageContent');
+  const fromPageVertical = outputNumber(merging, 'fromPageVertical');
   const totalUrls = outputNumber(siteUrls, 'totalUrls');
   const sitemapPillars = outputNumber(siteUrls, 'pillarCount');
 
@@ -95,9 +96,13 @@ export function buildPillarProvenanceSummary(
     );
   }
 
-  if (fromPage !== null && fromPage > 0) {
+  if (fromPageVertical !== null && fromPageVertical > 0) {
     parts.push(
-      `${fromPage} candidate(s) also came from visible homepage copy (H3 vertical sections, lists, and headings).`,
+      `${fromPageVertical} candidate(s) came from H3 vertical sections on the homepage (e.g. use-case silos like Accounting).`,
+    );
+  } else if (fromPage !== null && fromPage > 0) {
+    parts.push(
+      `${fromPage} candidate(s) also came from visible homepage copy (lists and section headings).`,
     );
   }
 
@@ -136,6 +141,11 @@ export const OUTPUT_LABELS: Record<string, string> = {
   fromNav: 'Candidates from navigation',
   fromHeadings: 'Candidates from headings',
   fromPageContent: 'Candidates from page body',
+  fromPageVertical: 'Candidates from H3 vertical sections',
+  verticalTopicCount: 'H3 vertical section count',
+  servicePhraseCount: 'Body phrase count',
+  sampleVerticalTopics: 'H3 vertical topics (sample)',
+  sampleServicePhrases: 'Body phrases (sample)',
   fusionVersion: 'Fusion engine version',
   signalSourcesPresent: 'Signals present in fusion pool',
   exclusionReasonsSample: 'Excluded topics (sample reasons)',

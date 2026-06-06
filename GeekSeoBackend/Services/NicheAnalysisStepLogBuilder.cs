@@ -13,6 +13,7 @@ internal static class NicheAnalysisStepLogBuilder
             ["site_urls"] = "Site URLs",
             ["nav"] = "Navigation",
             ["headings"] = "Homepage headings",
+            ["page_content"] = "Page content",
             ["merging"] = "Pillar merge",
             ["profile"] = "Niche profile",
             ["local"] = "Local geography",
@@ -73,6 +74,17 @@ internal static class NicheAnalysisStepLogBuilder
                 .ToArray(),
         });
 
+    internal static NicheAnalysisStepLogEntry PageContent(int step, PageContentData data, string summary) =>
+        Entry(step, "page_content", summary, new Dictionary<string, object?>
+        {
+            ["verticalTopicCount"] = data.VerticalTopics.Count,
+            ["servicePhraseCount"] = data.ServicePhrases.Count,
+            ["listItemsScanned"] = data.ListItemsScanned,
+            ["sampleVerticalTopics"] = data.VerticalTopics.Take(SampleLimit).ToArray(),
+            ["sampleServicePhrases"] = data.ServicePhrases.Take(SampleLimit).ToArray(),
+            ["becomesPillars"] = true,
+        });
+
     internal static NicheAnalysisStepLogEntry Merging(
         int step,
         int candidateCount,
@@ -85,6 +97,7 @@ internal static class NicheAnalysisStepLogBuilder
         IReadOnlyList<DiscoveredPillar> excludedByCap,
         int pillarCap,
         int fromPageContent,
+        int fromPageVertical,
         string fusionVersion,
         IReadOnlyList<string> signalSourcesPresent,
         IReadOnlyList<string> exclusionReasonsSample,
@@ -98,6 +111,7 @@ internal static class NicheAnalysisStepLogBuilder
             ["fromNav"] = fromNav,
             ["fromHeadings"] = fromHeadings,
             ["fromPageContent"] = fromPageContent,
+            ["fromPageVertical"] = fromPageVertical,
             ["fusionVersion"] = fusionVersion,
             ["signalSourcesPresent"] = signalSourcesPresent.ToArray(),
             ["pillarCap"] = pillarCap,
