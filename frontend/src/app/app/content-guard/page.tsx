@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuthReady } from '@/hooks/use-auth-ready';
+import { NicheStrategyContextBanner } from '@/components/niche-analyzer/NicheStrategyContextBanner';
 import {
   approveContentGuardRun,
   getContentGuardPolicy,
@@ -43,6 +45,8 @@ function Sparkline({ points }: { points: PerformanceSnapshotPoint[] }) {
 }
 
 export default function ContentGuardPage() {
+  const searchParams = useSearchParams();
+  const projectFromUrl = searchParams.get('projectId') ?? '';
   const { accessToken, authLoading, authReady } = useAuthReady();
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [projectId, setProjectId] = useState('');
@@ -61,9 +65,13 @@ export default function ContentGuardPage() {
     if (!authReady) return;
     void listProjects(accessToken).then((list) => {
       setProjects(list);
-      if (list[0]) setProjectId(list[0].id);
+      if (projectFromUrl && list.some((p) => p.id === projectFromUrl)) {
+        setProjectId(projectFromUrl);
+      } else if (list[0]) {
+        setProjectId(list[0].id);
+      }
     });
-  }, [accessToken, authReady]);
+  }, [accessToken, authReady, projectFromUrl]);
 
   useEffect(() => {
     if (!authReady || !projectId) return;
@@ -157,9 +165,13 @@ export default function ContentGuardPage() {
     <main className="mx-auto max-w-6xl px-6 py-10">
       <h1 className="text-2xl font-semibold tracking-tight">Content Guard</h1>
       <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        GSC-backed decay detection with optional AI refresh drafts in WordPress. Enable auto-patch to
-        queue draft posts when decay is detected.
+        GSC-backed decay detection with optional AI refresh drafts. Enable auto-patch to queue draft
+        updates when decay is detected.
       </p>
+
+      {projectId ? (
+        <NicheStrategyContextBanner projectId={projectId} accessToken={accessToken} />
+      ) : null}
 
       <section className="mt-6 rounded-xl border bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold">Automation policy</h2>
@@ -170,7 +182,7 @@ export default function ContentGuardPage() {
           </label>
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={autoPatch} onChange={(e) => setAutoPatch(e.target.checked)} />
-            Auto-patch decaying pages (WP draft)
+            Auto-patch decaying pages (draft queue)
           </label>
           <button
             type="button"

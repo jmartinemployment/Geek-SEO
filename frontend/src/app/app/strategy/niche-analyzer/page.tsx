@@ -18,6 +18,7 @@ import {
   type TopicalGapSummary,
   type AuthorityProgressPoint,
 } from '@/lib/seo-api';
+import { ContentGuardContextBanner } from '@/components/niche-analyzer/ContentGuardContextBanner';
 import { AnalysisStepBreakdown } from '@/components/niche-analyzer/AnalysisStepBreakdown';
 import { FusionSnapshotSection } from '@/components/niche-analyzer/FusionSnapshotSection';
 import { PillarProvenanceCallout } from '@/components/niche-analyzer/PillarProvenanceCallout';
@@ -284,6 +285,7 @@ export default function NicheAnalyzerPage() {
       {profile && !analyzing && (
         <div className="mt-6 space-y-6">
           <NicheHeader profile={profile} />
+          <ContentGuardContextBanner projectId={projectId} />
           <AnalysisStepBreakdown
             profileId={profile.id}
             projectId={projectId}
