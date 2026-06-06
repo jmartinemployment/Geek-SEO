@@ -1,11 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { TopicalMapWorkspace } from '@/components/strategy/topical-map-workspace';
 import { useAuthReady } from '@/hooks/use-auth-ready';
 import { listProjects, type SeoProject } from '@/lib/seo-api';
 
 export default function TopicalMapPage() {
+  const searchParams = useSearchParams();
+  const seedFromUrl = searchParams.get('seed') ?? '';
+  const projectFromUrl = searchParams.get('projectId') ?? '';
   const { accessToken, authLoading, authReady } = useAuthReady();
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [projectId, setProjectId] = useState('');
@@ -14,9 +18,13 @@ export default function TopicalMapPage() {
     if (!authReady) return;
     void listProjects(accessToken).then((list) => {
       setProjects(list);
-      if (list[0]) setProjectId(list[0].id);
+      if (projectFromUrl && list.some((p) => p.id === projectFromUrl)) {
+        setProjectId(projectFromUrl);
+      } else if (list[0]) {
+        setProjectId(list[0].id);
+      }
     });
-  }, [accessToken, authReady]);
+  }, [accessToken, authReady, projectFromUrl]);
 
   const selected = projects.find((p) => p.id === projectId);
 
@@ -53,6 +61,7 @@ export default function TopicalMapPage() {
             projectId={projectId}
             projectName={selected.name}
             accessToken={accessToken}
+            initialSeedKeyword={seedFromUrl}
           />
         </div>
       ) : null}

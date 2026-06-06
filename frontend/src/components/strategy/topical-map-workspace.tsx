@@ -43,11 +43,17 @@ type TopicalMapWorkspaceProps = {
   projectId: string;
   projectName: string;
   accessToken: string | null;
+  initialSeedKeyword?: string;
 };
 
 type GenerationMode = 'gsc' | 'seed';
 
-export function TopicalMapWorkspace({ projectId, projectName, accessToken }: TopicalMapWorkspaceProps) {
+export function TopicalMapWorkspace({
+  projectId,
+  projectName,
+  accessToken,
+  initialSeedKeyword = '',
+}: Readonly<TopicalMapWorkspaceProps>) {
   const [result, setResult] = useState<TopicalMapResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
@@ -59,8 +65,8 @@ export function TopicalMapWorkspace({ projectId, projectName, accessToken }: Top
   const [sortKey, setSortKey] = useState<SortKey>('priority');
   const [selected, setSelected] = useState<TopicalMapTopic | null>(null);
   const [creatingId, setCreatingId] = useState<string | null>(null);
-  const [mode, setMode] = useState<GenerationMode>('gsc');
-  const [seedKeyword, setSeedKeyword] = useState('');
+  const [mode, setMode] = useState<GenerationMode>(initialSeedKeyword.trim() ? 'seed' : 'gsc');
+  const [seedKeyword, setSeedKeyword] = useState(initialSeedKeyword.trim());
   const [entityGaps, setEntityGaps] = useState<EntityGapAnalysis[] | null>(null);
 
   const loadCached = useCallback(async () => {
