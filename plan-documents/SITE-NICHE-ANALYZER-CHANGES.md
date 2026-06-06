@@ -12,19 +12,19 @@
 | Phase | Status | One-line goal |
 |-------|--------|----------------|
 | **1** | Shipped (`a649e16`, `fac20ea`) | Canonical 10 step slugs; no `discoveryMethod` on read API/UI |
-| **1.5** | Implemented (local) | Persist + show what each step found (no re-analyze to audit) |
+| **1.5** | Shipped (`2ef7bf9`, GeekRepository `d7cd9df`) | Persist + show what each step found (no re-analyze to audit) |
 | **2** | Later | `INicheScanStep` refactor only — no new behavior |
 | **Other** | Separate plans | PillarMerger, crawl, coverage matcher, local/GBP, keywords |
 
 ---
 
-## Phase 1.5 — step log (implemented locally)
+## Phase 1.5 — step log (shipped)
 
-**Shipped in workspace:** migration `20260606120000_AddNicheProfileAnalysisStepLog`, GeekRepository SQL `0008`, `GET …/analysis-details`, `AnalysisStepBreakdown.tsx` on results + live poll during analyze.
+**Production (2026-06-06):** GeekRepository `d7cd9df` (SQL `0008` applied on boot), GeekSeoBackend `2ef7bf9`, frontend Vercel `2ef7bf9` at seo.geekatyourspot.com.
 
-**Deploy:** Run SQL `0008` on production if EF auto-migrate does not apply; redeploy GeekRepository + GeekSeoBackend + frontend.
+**Smoke test:** Re-analyze geekatyourspot.com once (runs before deploy have empty `AnalysisStepLog`). Refresh — **How this scan worked** should list 10 steps with outputs.
 
-**Problem:** Step messages go out on SignalR only. After complete (or refresh), the UI shows generic labels or pillars — not what each step found. Users must **Re-analyze** to see discovery detail again.
+**Problem (solved):** Step messages went out on SignalR only. After complete (or refresh), the UI showed generic labels or pillars — not what each step found.
 
 **Rule:** One write path, one read path. **Do not** build a throwaway SignalR-only step list in the frontend.
 
