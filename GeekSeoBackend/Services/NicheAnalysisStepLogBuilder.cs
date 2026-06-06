@@ -248,6 +248,27 @@ internal static class NicheAnalysisStepLogBuilder
             ["message"] = summary,
         });
 
+    internal static NicheAnalysisStepLogEntry Local(
+        int step,
+        LocalGeographyAnalysis local,
+        string summary) =>
+        Entry(step, "local", summary, new Dictionary<string, object?>
+        {
+            ["enabled"] = true,
+            ["isLocalBusiness"] = local.IsLocalBusiness,
+            ["areasServed"] = local.AreasServed.Take(SampleLimit).ToArray(),
+            ["locationPageCount"] = local.LocationPagesFound.Count,
+            ["sampleLocationPages"] = local.LocationPagesFound
+                .Take(SampleLimit)
+                .Select(p => $"{p.Name} ({p.Url})")
+                .ToArray(),
+            ["localGapCount"] = local.Gaps.Count,
+            ["sampleLocalGaps"] = local.Gaps
+                .Take(SampleLimit)
+                .Select(g => g.AreaName)
+                .ToArray(),
+        });
+
     internal static NicheAnalysisStepLogEntry CoverageDisabled(int step, string summary) =>
         Entry(step, "coverage", summary, new Dictionary<string, object?>
         {

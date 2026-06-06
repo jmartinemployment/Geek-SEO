@@ -221,7 +221,28 @@ public sealed record FusedSiteUnderstanding
     public InternalLinkGraph? InternalLinkGraph { get; init; }
     /// <summary>Phase E draft actions derived from the same snapshot (no auto-execution).</summary>
     public IReadOnlyList<FusionRecommendedAction> RecommendedActions { get; init; } = [];
+    /// <summary>Step 11 — schema areaServed vs location pages on site.</summary>
+    public LocalGeographyAnalysis? LocalGeography { get; init; }
 }
+
+/// <summary>Compares declared service areas to location landing pages on the site.</summary>
+public sealed record LocalGeographyAnalysis(
+    IReadOnlyList<string> AreasServed,
+    IReadOnlyList<LocalLocationPage> LocationPagesFound,
+    IReadOnlyList<LocalGeographyGap> Gaps,
+    bool IsLocalBusiness);
+
+public sealed record LocalLocationPage(
+    string Name,
+    string Slug,
+    string Url,
+    string MatchSource);
+
+public sealed record LocalGeographyGap(
+    string AreaName,
+    string SuggestedSlug,
+    string SuggestedTitle,
+    string Reason);
 
 /// <summary>How well the site covers SERP-expected topic entities for one pillar.</summary>
 public sealed record PillarEntityCoverage(

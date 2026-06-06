@@ -7,6 +7,7 @@ import { InternalLinkGraphPanel } from '@/components/niche-analyzer/InternalLink
 import { TopicCandidateMatrix } from '@/components/niche-analyzer/TopicCandidateMatrix';
 import { GscSilentPillarPanel } from '@/components/niche-analyzer/GscSilentPillarPanel';
 import { FusionPillarMapLauncher } from '@/components/niche-analyzer/FusionPillarMapLauncher';
+import { LocalGeographyPanel } from '@/components/niche-analyzer/LocalGeographyPanel';
 
 type Props = {
   fusion: FusedSiteUnderstanding;
@@ -26,6 +27,7 @@ export function FusionInsightsStack({
   return (
     <div className="space-y-4">
       <FusionPillarMapLauncher fusion={fusion} projectId={projectId} />
+      <LocalGeographyPanel fusion={fusion} />
       {profileId ? (
         <GscSilentPillarPanel profileId={profileId} fusion={fusion} accessToken={accessToken} />
       ) : null}

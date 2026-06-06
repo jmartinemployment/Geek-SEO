@@ -309,4 +309,9 @@ export const OUTPUT_LABELS: Record<string, string> = {
   gscQueryRowCount: 'GSC query rows analyzed',
   gscMatchedPillars: 'Pillars matched to GSC clusters',
   gscSilentPillarSlugs: 'Selected pillars with no GSC match',
+  isLocalBusiness: 'Local business signals detected',
+  locationPageCount: 'Location landing pages found',
+  sampleLocationPages: 'Location pages (sample)',
+  localGapCount: 'Service areas missing location pages',
+  sampleLocalGaps: 'Missing location areas (sample)',
 };

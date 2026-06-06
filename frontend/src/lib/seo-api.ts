@@ -1488,11 +1488,34 @@ export type FusedSiteUnderstanding = {
   entityCoverageBySlug?: Record<string, PillarEntityCoverage>;
   internalLinkGraph?: InternalLinkGraph | null;
   recommendedActions?: FusionRecommendedAction[];
+  localGeography?: LocalGeographyAnalysis | null;
+};
+
+export type LocalGeographyAnalysis = {
+  areasServed: string[];
+  locationPagesFound: LocalLocationPage[];
+  gaps: LocalGeographyGap[];
+  isLocalBusiness: boolean;
+};
+
+export type LocalLocationPage = {
+  name: string;
+  slug: string;
+  url: string;
+  matchSource: string;
+};
+
+export type LocalGeographyGap = {
+  areaName: string;
+  suggestedSlug: string;
+  suggestedTitle: string;
+  reason: string;
 };
 
 export type FusionRecommendedAction = {
   actionType:
     | 'suggest_pillar_page'
+    | 'suggest_local_page'
     | 'schema_sync'
     | 'entity_thin_content'
     | 'link_orphan_pillar'

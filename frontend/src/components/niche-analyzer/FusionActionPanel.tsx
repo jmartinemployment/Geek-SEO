@@ -22,6 +22,7 @@ type Props = {
 
 const ACTION_LABELS: Record<string, string> = {
   suggest_pillar_page: 'Create pillar page',
+  suggest_local_page: 'Create location page',
   schema_sync: 'Add to schema',
   entity_thin_content: 'Expand content cluster',
   link_orphan_pillar: 'Add internal links',
@@ -33,6 +34,8 @@ function actionBadgeClass(actionType: string): string {
       return 'bg-rose-50 text-rose-800';
     case 'suggest_pillar_page':
       return 'bg-blue-50 text-blue-800';
+    case 'suggest_local_page':
+      return 'bg-teal-50 text-teal-800';
     case 'schema_sync':
       return 'bg-violet-50 text-violet-800';
     default:
@@ -134,7 +137,7 @@ function ActionRow({
               {schemaCopied ? 'Copied!' : 'Copy knowsAbout'}
             </button>
           ) : null}
-          {action.actionType === 'suggest_pillar_page' ? (
+          {action.actionType === 'suggest_pillar_page' || action.actionType === 'suggest_local_page' ? (
             <Link
               href={topicalMapHref(projectId, action.topicName)}
               className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)]"

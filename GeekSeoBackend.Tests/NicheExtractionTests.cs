@@ -1350,4 +1350,78 @@ public sealed class NicheExtractionTests
 
         Assert.Equal("Accounting Software", match);
     }
+
+    [Fact]
+    public void LocalGapGenerator_FlagsAreaServedWithoutLocationPages()
+    {
+        var schema = new SchemaOrgData(
+            [],
+            [],
+            [],
+            "AI consulting in South Florida",
+            "Geek at Your Spot",
+            ["Broward County FL", "Palm Beach County FL", "Miami-Dade County FL"],
+            [],
+            [],
+            EntityResolved: true);
+
+        var result = LocalGapGenerator.Analyze(
+            schema,
+            new SitemapData([], 1, ["https://www.geekatyourspot.com"]),
+            ["https://www.geekatyourspot.com"],
+            new UrlPatternData([], 1),
+            []);
+
+        Assert.True(result.IsLocalBusiness);
+        Assert.Equal(3, result.AreasServed.Count);
+        Assert.Empty(result.LocationPagesFound);
+        Assert.Equal(3, result.Gaps.Count);
+        Assert.Contains(result.Gaps, g => g.AreaName.Contains("Broward", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void LocalGapGenerator_MatchesLocationPageToAreaServed()
+    {
+        Assert.True(LocalGapGenerator.AreaMatchesLocation(
+            "Broward County FL",
+            "broward-county",
+            "Broward County"));
+
+        var schema = new SchemaOrgData(
+            [],
+            [],
+            [],
+            null,
+            null,
+            ["Broward County FL"],
+            [],
+            [],
+            false);
+
+        var crawlUrls = new[] { "https://example.com/locations/broward-county" };
+        var result = LocalGapGenerator.Analyze(
+            schema,
+            new SitemapData([], 0, []),
+            crawlUrls,
+            new UrlPatternData([], 0),
+            []);
+
+        Assert.Single(result.LocationPagesFound);
+        Assert.Empty(result.Gaps);
+    }
+
+    [Fact]
+    public void LocalGapGenerator_ReturnsInactiveForNonLocalSite()
+    {
+        var schema = new SchemaOrgData([], [], [], null, null, [], [], [], false);
+        var result = LocalGapGenerator.Analyze(
+            schema,
+            new SitemapData([], 0, []),
+            [],
+            new UrlPatternData([], 0),
+            []);
+
+        Assert.False(result.IsLocalBusiness);
+        Assert.Empty(result.Gaps);
+    }
 }

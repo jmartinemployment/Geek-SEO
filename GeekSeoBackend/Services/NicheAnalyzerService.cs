@@ -242,11 +242,27 @@ public sealed class NicheAnalyzerService(
                 NicheAnalysisStepLogBuilder.Profile(10, rootEntity, audienceType, nicheTags, profileMessage),
                 ct);
 
-            // Step 11 — Local geography (progress only until LocalGapGenerator ships)
-            const string localMessage = "Local geography: not enabled in this release.";
+            // Step 11 — Local geography (areaServed vs location pages)
+            var localGeo = LocalGapGenerator.Analyze(
+                schemaData,
+                sitemapData,
+                crawlUrls,
+                urlPatternData,
+                merged);
+            fused = fused with { LocalGeography = localGeo };
+
+            var localMessage = !localGeo.IsLocalBusiness
+                ? "Local geography: no areaServed or location URLs detected."
+                : localGeo.Gaps.Count > 0
+                    ? $"Local geography: {localGeo.AreasServed.Count} area(s) declared, {localGeo.LocationPagesFound.Count} location page(s), {localGeo.Gaps.Count} gap(s)."
+                    : localGeo.AreasServed.Count > 0
+                        ? $"Local geography: {localGeo.AreasServed.Count} area(s) declared — all have matching location pages."
+                        : $"Local geography: {localGeo.LocationPagesFound.Count} location page(s) found.";
             await PushProgress(
                 userId, profileId, 11,
-                NicheAnalysisStepLogBuilder.LocalDisabled(11, localMessage),
+                localGeo.IsLocalBusiness
+                    ? NicheAnalysisStepLogBuilder.Local(11, localGeo, localMessage)
+                    : NicheAnalysisStepLogBuilder.LocalDisabled(11, localMessage),
                 ct);
 
             // Step 12 — Content coverage (fusion + crawl → pillar/subtopic status)

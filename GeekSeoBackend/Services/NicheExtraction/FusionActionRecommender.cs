@@ -67,6 +67,16 @@ internal static class FusionActionRecommender
                 0.55m));
         }
 
+        foreach (var gap in fused.LocalGeography?.Gaps ?? [])
+        {
+            TryAdd(actions, seen, new FusionRecommendedAction(
+                "suggest_local_page",
+                gap.SuggestedSlug,
+                gap.SuggestedTitle,
+                gap.Reason,
+                0.72m));
+        }
+
         return actions
             .OrderByDescending(a => a.Priority)
             .ThenBy(a => a.TopicName, StringComparer.OrdinalIgnoreCase)
