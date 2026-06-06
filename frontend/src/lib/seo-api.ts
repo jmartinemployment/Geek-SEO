@@ -1621,6 +1621,9 @@ export async function getNicheAnalysisDetails(
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
+  if (res.status === 404) {
+    return { stepLogVersion: 1, steps: [] };
+  }
   return seoJson(res);
 }
 

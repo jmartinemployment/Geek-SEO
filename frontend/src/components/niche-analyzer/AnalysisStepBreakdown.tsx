@@ -144,7 +144,9 @@ export function AnalysisStepBreakdown({
           {error ? <p className="text-sm text-amber-700">{error}</p> : null}
           {!loading && details && details.steps.length === 0 ? (
             <p className="text-sm text-[var(--color-text-secondary)]">
-              No step log for this run. Re-analyze once to capture discovery detail.
+              {pollIntervalMs
+                ? 'Step log will appear as each discovery step completes…'
+                : 'No step log for this run. Re-analyze once to capture discovery detail.'}
             </p>
           ) : null}
           {details && details.steps.length > 0 ? (
