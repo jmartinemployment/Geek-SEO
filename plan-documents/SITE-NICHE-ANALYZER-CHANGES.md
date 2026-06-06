@@ -70,7 +70,7 @@ Phase 1 does **not** implement steps 2/7/8 beyond slug + progress — no new ser
 | Step | Work | Verify |
 |------|------|--------|
 | 1 | Replace step slugs + `PushProgress` / `UpdateStatusAsync` to canonical 10; fix `TotalSteps`; update frontend listener labels if slugs changed | SignalR shows 1–10 with new names |
-| 2 | Delete `BuildHeadingsFromSchema`, `DetermineDiscovery`; stop passing `discoveryMethod` into `SaveAnalysisResultsAsync` (and model/API if required for compile) | Grep clean; profile save without discovery field |
+| 2 | Delete `BuildHeadingsFromSchema`, `DetermineDiscovery`; stop exposing `discoveryMethod` on profile API/UI; **still send empty `discoveryMethod` on save** until GeekRepository drops the column | Grep clean; analysis completes in prod |
 | 3 | Reorder pipeline: after merge → `profile` → `local` (progress only) → `coverage` (progress only) → `scoring` → persist → `complete` | Step numbers monotonic; no `validating`/`saving` slugs |
 
 **Do not in Phase 1:** introduce `INicheScanStep`, new step classes, step-log interfaces, migrations, or placeholder services for local/coverage/crawl.
@@ -93,7 +93,7 @@ That refactor has its own blast radius — keep it out of the cleanup PR.
 
 - `BuildHeadingsFromSchema`
 - `DetermineDiscovery`
-- `discoveryMethod` argument on save (and profile field/API if nothing else uses it)
+- `discoveryMethod` on **profile API/UI** (and `DetermineDiscovery` logic)
 - User-facing progress text that frames sitemap/headings as **fallback** when schema is empty
 
 ---
@@ -110,4 +110,12 @@ That refactor has its own blast radius — keep it out of the cleanup PR.
 
 ---
 
-*Last updated: 2026-06-03*
+## Cross-repo dependency (Phase 1)
+
+`PATCH repo/seo/niche-profiles/{id}/analysis-results` in **GeekRepository** still requires `discoveryMethod` in the JSON body (`SaveNicheAnalysisResultsRequest`). Phase 1 removes it from the **read** API and UI only; the orchestrator sends `""` on save until GeekRepository makes the field optional or the column is dropped.
+
+**Before deploy:** run one niche analysis against staging/production and confirm status reaches `complete` (not failed at step 9 save).
+
+---
+
+*Last updated: 2026-06-06*

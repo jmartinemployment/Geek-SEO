@@ -166,6 +166,7 @@ public sealed class NicheAnalyzerService(
                 schemaData.Description ?? string.Empty,
                 BuildNicheTags(schemaData, nicheEntities).ToArray(),
                 audienceType,
+                string.Empty,
                 authorityScore,
                 nicheEntities.Count,
                 covered,

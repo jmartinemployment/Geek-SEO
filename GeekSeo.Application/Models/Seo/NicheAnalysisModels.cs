@@ -18,6 +18,8 @@ public sealed record NicheAnalysisSaveRequest(
     string NicheDescription,
     string[] NicheTags,
     string AudienceType,
+    /// <summary>Deprecated DB column; GeekRepository still requires the field on PATCH analysis-results.</summary>
+    string DiscoveryMethod,
     decimal AuthorityScore,
     int TotalPillarsIdentified,
     int Covered,
