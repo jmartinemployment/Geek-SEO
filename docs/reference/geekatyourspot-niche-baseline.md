@@ -83,7 +83,7 @@ When analysis runs successfully against this domain (after June 2026 deploy):
 | 2 Sitemap | `totalUrls = 1`, `pillars = []` |
 | 3 Nav | 0–2 weak pillars or empty |
 | 4 Headings | Title + H2s from homepage |
-| 5 Fuse | **13 pillars** selected — **12 schema** + **Accounting** (H3 page vertical); cap auto-raised; `fusionVersion = sul-1.0` |
+| 5 Fuse | **13–15 pillars** typical — **12 schema** + top page verticals (incl. **Accounting**); cap 15; `fusionVersion = sul-1.0` |
 | 6–10 | Profile, scoring, persist |
 
 **Why 13 pillars:** All 12 distinct JSON-LD topics are kept (schema topics no longer similarity-merged). **Accounting** is an H3 use-case section on the homepage — not in schema — added via `page_vertical` evidence.

@@ -172,6 +172,7 @@ public sealed class NicheExtractionTests
         var result = engine.ToPillarMergeResult(engine.Fuse(pool, []));
 
         Assert.Equal(13, result.Selected.Count);
+        Assert.Equal(15, result.PillarCap);
         Assert.Contains(
             result.Selected,
             p => p.Slug.Equals(NicheAnalyzerService.NameToSlug("Accounting"), StringComparison.OrdinalIgnoreCase));

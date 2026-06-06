@@ -167,15 +167,8 @@ public sealed class TopicFusionEngine(PillarValidator validator)
 
         var schemaSelected = afterGate1.Count(p => schemaSlugs.Contains(p.Slug));
 
-        var pageVerticalSlugs = pool
-            .Where(c => c.Evidence.Any(e => e.Source == "page_vertical")
-                        && !c.Evidence.Any(e => e.Source == "schema"))
-            .Select(c => c.Slug)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        var pageVerticalSelected = afterGate1.Count(p => pageVerticalSlugs.Contains(p.Slug));
-
-        var floor = schemaSelected + pageVerticalSelected;
+        // Reserve room for all schema topics; page verticals (e.g. Accounting) compete within maxPillars.
+        var floor = schemaSelected;
         return Math.Max(MinPillars, Math.Max(maxPillars, floor));
     }
 }
