@@ -3,6 +3,7 @@ import {
   compareDecayingPagesByPillarPriority,
   matchUrlToNichePillar,
   normalizePagePath,
+  pillarCoverageLabel,
 } from '@/lib/niche-url-match';
 import type { NichePillarResult } from '@/lib/seo-api';
 
@@ -82,6 +83,12 @@ describe('matchUrlToNichePillar', () => {
 
   it('returns null when no pillar matches', () => {
     expect(matchUrlToNichePillar('https://example.com/contact', pillars)).toBeNull();
+  });
+});
+
+describe('pillarCoverageLabel', () => {
+  it('uses plain language for gap status', () => {
+    expect(pillarCoverageLabel('gap')).toContain('No strong page');
   });
 });
 

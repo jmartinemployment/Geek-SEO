@@ -16,8 +16,8 @@ export function ContentGuardContextBanner({ projectId }: Readonly<Props>) {
           Monitor published page decay
         </p>
         <p className="text-xs text-[var(--color-text-muted)]">
-          Content Guard flags GSC click drops on live URLs — useful after you publish pillar or gap
-          content from this analysis.
+          After you publish new articles from this analysis, use Content Guard to watch for click
+          drops on those live URLs in Search Console.
         </p>
       </div>
       <Link

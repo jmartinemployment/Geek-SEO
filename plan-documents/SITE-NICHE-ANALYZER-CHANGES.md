@@ -14,7 +14,7 @@
 | **1** | Shipped (`a649e16`, `fac20ea`) | Canonical 10 step slugs; no `discoveryMethod` on read API/UI |
 | **1.5** | Shipped (`2ef7bf9`, GeekRepository `d7cd9df`) | Persist + show what each step found (no re-analyze to audit) |
 | **2** | Later | `INicheScanStep` refactor only — no new behavior |
-| **Other** | Separate plans | PillarMerger, crawl, coverage matcher, **[local/GBP → LOCAL-GBP-INTEGRATION.md](./LOCAL-GBP-INTEGRATION.md)**, keywords |
+| **Other** | Separate plans | PillarMerger, crawl, coverage matcher, **[local → LOCAL-SERVICE-AREA.md](./LOCAL-SERVICE-AREA.md)** (address + 20 mi radius; GBP on hold), keywords |
 
 ---
 
@@ -62,7 +62,7 @@
 | 4 | `headings` | `title`, `headingCount`, `sampleHeadings[]` |
 | 5 | `merging` | `candidateCount`, `mergedCount`, `samplePillarNames[]` |
 | 6 | `profile` | `primaryNiche`, `audienceType`, `nicheTags[]` |
-| 7 | `local` | `enabled: false`, `message` (until LocalGapGenerator plan) |
+| 7 | `local` | `isLocalBusiness`, `areasServed[]`, `locationPagesFound[]`, `gaps[]`, `sampleLocalGaps[]` |
 | 8 | `coverage` | `enabled: false`, `message` (until NicheCoverageMatcher plan) |
 | 9 | `scoring` | `authorityScore`, `covered`, `partial`, `gap`, `pillarCount` |
 | 10 | `complete` | `analyzedAt`, `nextAnalysisDue` |
@@ -110,7 +110,7 @@ Do **not** write `SITE-NICHE-ANALYZER-SCAN-STEPS.md` until Phase 1.5 ships.
 | 4 | `headings` | `HomepageHeadingsExtractor` — no schema substitution |
 | 5 | `merging` | `PillarMerger.Merge` (all four lists) |
 | 6 | `profile` | Root entity, audience, tags |
-| 7 | `local` | Progress only until LocalGapGenerator |
+| 7 | `local` | `LocalGapGenerator` — `areaServed` vs location URLs (radius + Maps: [`LOCAL-SERVICE-AREA.md`](./LOCAL-SERVICE-AREA.md)) |
 | 8 | `coverage` | Progress only until NicheCoverageMatcher |
 | 9 | `scoring` | `NicheAuthorityScorer` + persist pillars/scores |
 | 10 | `complete` | Final status + `next_analysis_due` |
@@ -119,7 +119,7 @@ Do **not** write `SITE-NICHE-ANALYZER-SCAN-STEPS.md` until Phase 1.5 ships.
 
 ## Out of scope (own plans when needed)
 
-PillarMerger algorithm, SiteUrlDiscovery crawl, NicheCoverageMatcher, LocalGapGenerator (shipped — on-site only), **[GBP/Maps → LOCAL-GBP-INTEGRATION.md](./LOCAL-GBP-INTEGRATION.md)**, keywords/SERP, step-class extraction before Phase 2.
+PillarMerger algorithm, SiteUrlDiscovery crawl, NicheCoverageMatcher, LocalGapGenerator (shipped — on-site only), **[local radius → LOCAL-SERVICE-AREA.md](./LOCAL-SERVICE-AREA.md)** (planned; default 20 mi), keywords/SERP, step-class extraction before Phase 2. GBP OAuth on hold — [`LOCAL-GBP-INTEGRATION.md`](./LOCAL-GBP-INTEGRATION.md).
 
 ---
 

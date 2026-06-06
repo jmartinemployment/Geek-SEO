@@ -8,6 +8,16 @@ export type PillarUrlMatch = {
   matchKind: 'pillar_page' | 'subtopic_page' | 'path_slug';
 };
 
+const coverageLabels: Record<NichePillarResult['coverageStatus'], string> = {
+  gap: 'No strong page for this topic yet',
+  partial: 'Topic only partly covered on your site',
+  covered: 'You already have a solid page for this topic',
+};
+
+export function pillarCoverageLabel(status: NichePillarResult['coverageStatus']): string {
+  return coverageLabels[status];
+}
+
 export function normalizePagePath(url: string): string {
   const trimmed = url.trim();
   if (!trimmed) return '/';
@@ -89,7 +99,7 @@ const coverageRank: Record<NichePillarResult['coverageStatus'], number> = {
   covered: 2,
 };
 
-/** Decaying URLs on gap/must-have pillars surface first in Content Guard. */
+/** Decaying URLs on gap/partial pillars surface first in Content Guard. */
 export function compareDecayingPagesByPillarPriority(
   aUrl: string,
   bUrl: string,

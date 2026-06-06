@@ -27,7 +27,7 @@ export const FEATURE_MODULES: FeatureModule[] = [
   {
     id: 'niche-analyzer',
     title: 'Niche Analyzer',
-    description: 'Map pillars from schema, nav, and crawl — no GSC required',
+    description: 'See which topics your site covers and what is missing',
     href: '/app/strategy/niche-analyzer',
     iconBg: '#EEF2FF',
     iconColor: '#4F46E5',

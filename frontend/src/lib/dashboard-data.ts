@@ -42,8 +42,9 @@ function buildNicheCopilotSuggestion(
   if (!profile || profile.status !== 'complete') {
     return {
       id: `niche-run-${project.id}`,
-      title: `Map niche pillars for ${project.name}`,
-      detail: 'Run the niche analyzer to discover coverage gaps before planning new content.',
+      title: `Analyze ${project.name}'s content topics`,
+      detail:
+        'Scan your site to see which subjects you cover well and which need new or updated pages.',
       href: '/app/strategy/niche-analyzer',
     };
   }
@@ -52,8 +53,8 @@ function buildNicheCopilotSuggestion(
 
   return {
     id: `niche-gaps-${project.id}`,
-    title: `${profile.pillarsGap} pillar gap${profile.pillarsGap === 1 ? '' : 's'} on ${project.name}`,
-    detail: `${profile.primaryNiche} — build a topical map from your latest fusion snapshot.`,
+    title: `${profile.pillarsGap} topic${profile.pillarsGap === 1 ? '' : 's'} missing on ${project.name}`,
+    detail: `Your site is "${profile.primaryNiche}" — open the topical map to plan articles for uncovered topics.`,
     href: `/app/strategy/topical-map?projectId=${encodeURIComponent(project.id)}&mode=niche&autogen=1`,
   };
 }

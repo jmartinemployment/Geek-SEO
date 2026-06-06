@@ -11,16 +11,17 @@ function LocalGeographyContent({ local }: { local: LocalGeographyAnalysis }) {
 
   return (
     <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-      <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Local geography</h3>
+      <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Service areas on your site</h3>
       <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-        Compares schema <code className="text-[10px]">areaServed</code> to location landing pages
-        under /locations, /areas, and similar paths.
+        Checks whether counties or cities listed on your site also have their own landing page
+        (for example <span className="font-medium">/locations/broward-county</span>). Uses only
+        what we can read from your website — no extra accounts to connect.
       </p>
 
       {local.areasServed.length > 0 ? (
         <div className="mt-3">
           <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
-            Declared service areas
+            Counties &amp; areas listed on your site
           </p>
           <ul className="mt-1 flex flex-wrap gap-1.5">
             {local.areasServed.map((area) => (
@@ -38,7 +39,7 @@ function LocalGeographyContent({ local }: { local: LocalGeographyAnalysis }) {
       {local.locationPagesFound.length > 0 ? (
         <div className="mt-3">
           <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
-            Location pages found ({local.locationPagesFound.length})
+            Location pages we found on your site ({local.locationPagesFound.length})
           </p>
           <ul className="mt-1 space-y-1 text-xs text-[var(--color-text-secondary)]">
             {local.locationPagesFound.slice(0, 8).map((page) => (
@@ -56,8 +57,8 @@ function LocalGeographyContent({ local }: { local: LocalGeographyAnalysis }) {
       {local.gaps.length > 0 ? (
         <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2">
           <p className="text-xs font-medium text-amber-900">
-            {local.gaps.length} service area{local.gaps.length === 1 ? '' : 's'} without a location
-            page
+            {local.gaps.length} area{local.gaps.length === 1 ? '' : 's'} you claim to serve but
+            don&apos;t have a dedicated page for yet
           </p>
           <ul className="mt-2 space-y-1.5 text-xs text-amber-950">
             {local.gaps.map((gap) => (

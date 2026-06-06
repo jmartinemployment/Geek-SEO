@@ -37,11 +37,11 @@ export function NicheStrategyContextBanner({ projectId, accessToken }: Readonly<
     return (
       <section className="mt-6 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-muted)]/20 px-5 py-4">
         <p className="text-sm font-medium text-[var(--color-text-primary)]">
-          No completed niche analysis
+          No niche analysis yet
         </p>
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          Run the niche analyzer to map pillars before prioritizing which decaying pages to refresh
-          first.
+          Run a site scan first so decaying pages can be grouped by topic — that makes it easier to
+          choose whether to refresh an existing page or write something new.
         </p>
         <Link
           href="/app/strategy/niche-analyzer"
@@ -59,12 +59,14 @@ export function NicheStrategyContextBanner({ projectId, accessToken }: Readonly<
     <section className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)]/30 px-5 py-4">
       <div>
         <p className="text-sm font-medium text-[var(--color-text-primary)]">
-          Niche strategy context
+          Your site&apos;s main topics
         </p>
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          {profile.primaryNiche} — {profile.pillarsCovered} covered, {profile.pillarsPartial}{' '}
-          partial, {profile.pillarsGap} gap pillar{profile.pillarsGap === 1 ? '' : 's'}. Use this
-          when deciding which decaying URLs to refresh first.
+          {profile.primaryNiche}. You have strong pages for {profile.pillarsCovered} topic
+          {profile.pillarsCovered === 1 ? '' : 's'}, partial coverage on {profile.pillarsPartial},
+          and {profile.pillarsGap} topic{profile.pillarsGap === 1 ? '' : 's'} with little or no
+          dedicated content. When a URL below is losing clicks, check its topic label — a &quot;gap&quot;
+          topic may need a new page, not just an edit.
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -79,7 +81,7 @@ export function NicheStrategyContextBanner({ projectId, accessToken }: Readonly<
             href={topicalMapHref}
             className="rounded-lg bg-[var(--color-accent)] px-3 py-2 text-xs font-medium text-white hover:opacity-90"
           >
-            Plan gap pillars
+            Plan missing topics
           </Link>
         ) : null}
       </div>

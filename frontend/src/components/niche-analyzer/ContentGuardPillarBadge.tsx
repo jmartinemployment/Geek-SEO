@@ -1,4 +1,4 @@
-import type { PillarUrlMatch } from '@/lib/niche-url-match';
+import { pillarCoverageLabel, type PillarUrlMatch } from '@/lib/niche-url-match';
 
 type Props = {
   match: PillarUrlMatch;
@@ -11,13 +11,16 @@ const coverageClass: Record<PillarUrlMatch['coverageStatus'], string> = {
 };
 
 export function ContentGuardPillarBadge({ match }: Readonly<Props>) {
+  const hint = pillarCoverageLabel(match.coverageStatus);
+
   return (
-    <span
-      className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${coverageClass[match.coverageStatus]}`}
-      title={`Matched niche pillar (${match.matchKind.replace('_', ' ')})`}
+    <div
+      className={`inline-flex max-w-full flex-col gap-0.5 rounded-lg border px-2.5 py-1.5 text-xs ${coverageClass[match.coverageStatus]}`}
     >
-      <span className="truncate">{match.pillarTopic}</span>
-      <span className="shrink-0 opacity-70">· {match.coverageStatus}</span>
-    </span>
+      <p className="font-medium leading-snug">
+        Topic from niche analysis: <span className="font-semibold">{match.pillarTopic}</span>
+      </p>
+      <p className="leading-snug opacity-90">{hint}</p>
+    </div>
   );
 }

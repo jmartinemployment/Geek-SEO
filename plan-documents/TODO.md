@@ -77,18 +77,20 @@ Competitors win on **SERP term checklist + score that moves when you add specifi
 
 ---
 
-## Local SEO — Google Business Profile (planned)
+## Local SEO — address + service radius (planned, skipped for now)
 
-Jeff confirmed interest; full spec: [`LOCAL-GBP-INTEGRATION.md`](LOCAL-GBP-INTEGRATION.md).
+**Direction (2026-06-06):** Global local via **business address** + **adjustable service radius** (default **20 miles**). **Google Maps Platform** (Geocoding/Places, server API key) for geocode — **not** Google My Business OAuth.
 
-| Phase | Scope |
-|-------|--------|
-| **A** | GBP OAuth + location picker (mirror GSC connect) |
-| **B** | Listing snapshot + NAP/service-area compare vs schema + Step 11 location pages |
-| **C** | Performance metrics, worker refresh, Content Guard + action recommendations |
-| **D** | Posts, reviews, map-grid rank, multi-directory (later) |
+Full spec: [`LOCAL-SERVICE-AREA.md`](LOCAL-SERVICE-AREA.md). My Business deferred: [`LOCAL-GBP-INTEGRATION.md`](LOCAL-GBP-INTEGRATION.md).
 
-Step 11 `LocalGapGenerator` (shipped) remains on-site only — no Google account required.
+| Phase | Scope | Status |
+|-------|--------|--------|
+| **1** | Project settings — address + radius (default 20 mi) | Not started |
+| **2** | Geocode + places within radius | Not started |
+| **3** | Step 11 uses radius places + location URL gaps | Not started |
+| **4** | Topical map, copilot, Content Guard share same service area | Not started |
+
+**Shipped today:** Step 11 `LocalGapGenerator` — schema `areaServed` vs on-site location pages only; no extra accounts.
 
 ---
 
