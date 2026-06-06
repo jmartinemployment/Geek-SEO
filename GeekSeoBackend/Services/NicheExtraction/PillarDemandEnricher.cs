@@ -233,11 +233,13 @@ public sealed class PillarDemandEnricher(
                     SitePosition: null,
                     TopCompetitorDomains: [],
                     serpProvider.ProviderName,
-                    result.Error));
+                    result.Error,
+                    []));
                 continue;
             }
 
             var organic = result.Value.OrganicResults;
+            var expectedTopics = SerpEntityExtractor.ExtractTopicSlugs(result.Value);
             var hasFootprint = organic.Count > 0;
             int? sitePosition = null;
             foreach (var row in organic)
@@ -266,7 +268,8 @@ public sealed class PillarDemandEnricher(
                 sitePosition,
                 topDomains,
                 serpProvider.ProviderName,
-                null));
+                null,
+                expectedTopics));
         }
 
         if (validations.Count == 0)
@@ -345,4 +348,5 @@ public sealed record PillarSerpEnrichment(
     int? SitePosition,
     IReadOnlyList<string> TopCompetitorDomains,
     string Provider,
-    string? Error = null);
+    string? Error = null,
+    IReadOnlyList<string>? ExpectedTopicSlugs = null);

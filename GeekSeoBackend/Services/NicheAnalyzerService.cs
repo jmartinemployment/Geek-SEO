@@ -293,6 +293,9 @@ public sealed class NicheAnalyzerService(
                 }
             }
 
+            fused = FusionSnapshotEnricher.Apply(
+                fused, internalLinkData, urlPatternData, demand.SerpValidations);
+
             var analyzedAt = DateTimeOffset.UtcNow;
             var nextDue = analyzedAt.AddDays(30);
             var saveResult = await profileRepo.SaveAnalysisResultsAsync(profileId, new NicheAnalysisSaveRequest(

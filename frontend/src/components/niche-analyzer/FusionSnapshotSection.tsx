@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { getNicheAnalysisDetails, type FusedSiteUnderstanding } from '@/lib/seo-api';
 import { TopicCandidateMatrix } from '@/components/niche-analyzer/TopicCandidateMatrix';
+import { EntityCoveragePanel } from '@/components/niche-analyzer/EntityCoveragePanel';
+import { InternalLinkGraphPanel } from '@/components/niche-analyzer/InternalLinkGraphPanel';
 
 type Props = {
   profileId: string;
@@ -69,5 +71,11 @@ export function FusionSnapshotSection({
     );
   }
 
-  return <TopicCandidateMatrix fusion={fusion} />;
+  return (
+    <div className="space-y-4">
+      <EntityCoveragePanel fusion={fusion} />
+      <InternalLinkGraphPanel fusion={fusion} />
+      <TopicCandidateMatrix fusion={fusion} />
+    </div>
+  );
 }

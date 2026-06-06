@@ -1484,6 +1484,30 @@ export type FusedSiteUnderstanding = {
   signalSourcesPresent: string[];
   pillarCap: number;
   normalizedTopicalityBySlug?: Record<string, number>;
+  entityCoverageBySlug?: Record<string, PillarEntityCoverage>;
+  internalLinkGraph?: InternalLinkGraph | null;
+};
+
+export type PillarEntityCoverage = {
+  slug: string;
+  name: string;
+  coverageScore: number;
+  expectedEntityCount: number;
+  matchedEntityCount: number;
+  missingEntities: string[];
+  isEntityThin: boolean;
+};
+
+export type InternalLinkGraphEdge = {
+  fromSlug: string;
+  toSlug: string;
+  linkCount: number;
+  sampleAnchors: string[];
+};
+
+export type InternalLinkGraph = {
+  edges: InternalLinkGraphEdge[];
+  orphanSlugs: string[];
 };
 
 export type NicheAnalysisDetails = {

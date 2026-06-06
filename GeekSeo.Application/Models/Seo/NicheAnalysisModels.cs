@@ -214,7 +214,32 @@ public sealed record FusedSiteUnderstanding
     /// <summary>Share of crawled site word-weight attributed to each selected pillar slug (0–1).</summary>
     public IReadOnlyDictionary<string, decimal> NormalizedTopicalityBySlug { get; init; }
         = new Dictionary<string, decimal>();
+    /// <summary>SERP-derived entity coverage per selected pillar slug (Gap 3).</summary>
+    public IReadOnlyDictionary<string, PillarEntityCoverage> EntityCoverageBySlug { get; init; }
+        = new Dictionary<string, PillarEntityCoverage>();
+    /// <summary>Pillar-to-pillar internal link graph from crawled anchors (Gap 5).</summary>
+    public InternalLinkGraph? InternalLinkGraph { get; init; }
 }
+
+/// <summary>How well the site covers SERP-expected topic entities for one pillar.</summary>
+public sealed record PillarEntityCoverage(
+    string Slug,
+    string Name,
+    decimal CoverageScore,
+    int ExpectedEntityCount,
+    int MatchedEntityCount,
+    IReadOnlyList<string> MissingEntities,
+    bool IsEntityThin);
+
+public sealed record InternalLinkGraphEdge(
+    string FromSlug,
+    string ToSlug,
+    int LinkCount,
+    IReadOnlyList<string> SampleAnchors);
+
+public sealed record InternalLinkGraph(
+    IReadOnlyList<InternalLinkGraphEdge> Edges,
+    IReadOnlyList<string> OrphanSlugs);
 
 public sealed record PageContentData(
     IReadOnlyList<string> ServicePhrases,

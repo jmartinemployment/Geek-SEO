@@ -381,6 +381,290 @@ public sealed class NicheExtractionTests
             SignalSourcesPresent = ["page_vertical"],
             PillarCap = 15,
             NormalizedTopicalityBySlug = new Dictionary<string, decimal> { ["accounting"] = 0.34m },
+            EntityCoverageBySlug = new Dictionary<string, PillarEntityCoverage>
+            {
+                ["accounting"] = new(
+                    "accounting",
+                    "Accounting",
+                    0.75m,
+                    4,
+                    3,
+                    ["Payroll"],
+                    false),
+            },
+            InternalLinkGraph = new InternalLinkGraph(
+                [new InternalLinkGraphEdge("managed-it", "accounting", 2, ["Accounting"])],
+                ["cloud-services"]),
+        };
+
+        var json = FusedSiteUnderstandingJson.Serialize(fused);
+        var parsed = FusedSiteUnderstandingJson.Parse(json);
+
+        Assert.NotNull(parsed);
+        Assert.Equal(0.34m, parsed!.NormalizedTopicalityBySlug["accounting"]);
+        Assert.Equal(0.75m, parsed.EntityCoverageBySlug["accounting"].CoverageScore);
+        Assert.Single(parsed.InternalLinkGraph!.Edges);
+        Assert.Equal("cloud-services", parsed.InternalLinkGraph.OrphanSlugs[0]);
+    }
+
+    [Fact]
+    public void SerpEntityExtractor_ExtractsUrlAndRelatedTopicSlugs()
+    {
+        var serp = new SerpResult
+        {
+            Keyword = "accounting services",
+            Location = "United States",
+            OrganicResults =
+            [
+                new SerpOrganicResult
+                {
+                    Position = 1,
+                    Url = "https://competitor.com/services/small-business-accounting",
+                    Title = "Accounting",
+                    Snippet = "…",
+                    Domain = "competitor.com",
+                },
+            ],
+            RelatedSearches = ["bookkeeping for small business"],
+            PeopleAlsoAsk =
+            [
+                new PeopleAlsoAskResult { Question = "What is payroll outsourcing?" },
+            ],
+            Features = new SerpFeatures(),
+            FetchedAt = DateTimeOffset.UtcNow,
+        };
+
+        var slugs = SerpEntityExtractor.ExtractTopicSlugs(serp);
+
+        Assert.Contains("small-business-accounting", slugs);
+        Assert.Contains(NicheAnalyzerService.NameToSlug("bookkeeping for small business"), slugs);
+        Assert.Contains(NicheAnalyzerService.NameToSlug("What is payroll outsourcing?"), slugs);
+    }
+
+    [Fact]
+    public void EntityCoverageScorer_FlagsEntityThinWhenBelowThreshold()
+    {
+        var fused = new FusedSiteUnderstanding
+        {
+            AllCandidates =
+            [
+                new TopicCandidate
+                {
+                    Name = "Accounting",
+                    Slug = "accounting",
+                    Confidence = 0.8m,
+                    Evidence = [new TopicEvidence { Source = "schema", Weight = 0.35m }],
+                },
+            ],
+            SelectedPillars =
+            [
+                new TopicCandidate
+                {
+                    Name = "Accounting",
+                    Slug = "accounting",
+                    Confidence = 0.8m,
+                    Evidence = [new TopicEvidence { Source = "schema", Weight = 0.35m }],
+                },
+            ],
+            ExcludedCandidates = [],
+            ExclusionReasons = new Dictionary<string, string>(),
+            FusionVersion = TopicFusionEngine.FusionVersion,
+            SignalSourcesPresent = ["schema"],
+            PillarCap = 15,
+        };
+
+        var serp = new List<PillarSerpEnrichment>
+        {
+            new(
+                "accounting",
+                true,
+                10,
+                false,
+                null,
+                ["competitor.com"],
+                "test",
+                null,
+                ["payroll", "bookkeeping", "tax-planning", "cfo-services"]),
+        };
+
+        var coverage = EntityCoverageScorer.Compute(fused, serp);
+
+        Assert.True(coverage["accounting"].IsEntityThin);
+        Assert.True(coverage["accounting"].CoverageScore < EntityCoverageScorer.EntityThinThreshold);
+        Assert.Equal(4, coverage["accounting"].ExpectedEntityCount);
+    }
+
+    [Fact]
+    public void InternalLinkGraphBuilder_BuildsEdgesAndOrphans()
+    {
+        var fused = new FusedSiteUnderstanding
+        {
+            AllCandidates =
+            [
+                new TopicCandidate
+                {
+                    Name = "Accounting",
+                    Slug = "accounting",
+                    Confidence = 0.8m,
+                    DedicatedPageUrl = "https://example.com/services/accounting",
+                    Evidence = [new TopicEvidence { Source = "schema", Weight = 0.35m }],
+                },
+                new TopicCandidate
+                {
+                    Name = "Managed IT",
+                    Slug = "managed-it",
+                    Confidence = 0.75m,
+                    DedicatedPageUrl = "https://example.com/services/managed-it",
+                    Evidence = [new TopicEvidence { Source = "schema", Weight = 0.35m }],
+                },
+                new TopicCandidate
+                {
+                    Name = "Cloud",
+                    Slug = "cloud",
+                    Confidence = 0.7m,
+                    DedicatedPageUrl = "https://example.com/services/cloud",
+                    Evidence = [new TopicEvidence { Source = "schema", Weight = 0.35m }],
+                },
+            ],
+            SelectedPillars =
+            [
+                new TopicCandidate
+                {
+                    Name = "Accounting",
+                    Slug = "accounting",
+                    Confidence = 0.8m,
+                    DedicatedPageUrl = "https://example.com/services/accounting",
+                    Evidence = [new TopicEvidence { Source = "schema", Weight = 0.35m }],
+                },
+                new TopicCandidate
+                {
+                    Name = "Managed IT",
+                    Slug = "managed-it",
+                    Confidence = 0.75m,
+                    DedicatedPageUrl = "https://example.com/services/managed-it",
+                    Evidence = [new TopicEvidence { Source = "schema", Weight = 0.35m }],
+                },
+                new TopicCandidate
+                {
+                    Name = "Cloud",
+                    Slug = "cloud",
+                    Confidence = 0.7m,
+                    DedicatedPageUrl = "https://example.com/services/cloud",
+                    Evidence = [new TopicEvidence { Source = "schema", Weight = 0.35m }],
+                },
+            ],
+            ExcludedCandidates = [],
+            ExclusionReasons = new Dictionary<string, string>(),
+            FusionVersion = TopicFusionEngine.FusionVersion,
+            SignalSourcesPresent = ["schema"],
+            PillarCap = 15,
+        };
+
+        var internalLinks = new InternalLinkData(
+            [
+                new InternalLinkEdge(
+                    "https://example.com/services/managed-it",
+                    "https://example.com/services/accounting",
+                    "Accounting Services"),
+            ],
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+            2);
+
+        var urlPatterns = new UrlPatternData(
+            [
+                new UrlPatternTopic("Accounting", "accounting", "https://example.com/services/accounting", "accounting"),
+                new UrlPatternTopic("Managed IT", "managed-it", "https://example.com/services/managed-it", "managed-it"),
+                new UrlPatternTopic("Cloud", "cloud", "https://example.com/services/cloud", "cloud"),
+            ],
+            3);
+
+        var graph = InternalLinkGraphBuilder.Build(fused, internalLinks, urlPatterns);
+
+        Assert.Single(graph.Edges);
+        Assert.Equal("managed-it", graph.Edges[0].FromSlug);
+        Assert.Equal("accounting", graph.Edges[0].ToSlug);
+        Assert.Contains("cloud", graph.OrphanSlugs);
+    }
+
+    [Fact]
+    public void FusionSnapshotEnricher_AppliesCoverageAndLinkGraph()
+    {
+        var fused = new FusedSiteUnderstanding
+        {
+            AllCandidates =
+            [
+                new TopicCandidate
+                {
+                    Name = "Accounting",
+                    Slug = "accounting",
+                    Confidence = 0.8m,
+                    DedicatedPageUrl = "https://example.com/services/accounting",
+                    Evidence = [new TopicEvidence { Source = "schema", Weight = 0.35m }],
+                },
+            ],
+            SelectedPillars =
+            [
+                new TopicCandidate
+                {
+                    Name = "Accounting",
+                    Slug = "accounting",
+                    Confidence = 0.8m,
+                    DedicatedPageUrl = "https://example.com/services/accounting",
+                    Evidence = [new TopicEvidence { Source = "schema", Weight = 0.35m }],
+                },
+            ],
+            ExcludedCandidates = [],
+            ExclusionReasons = new Dictionary<string, string>(),
+            FusionVersion = TopicFusionEngine.FusionVersion,
+            SignalSourcesPresent = ["schema"],
+            PillarCap = 15,
+        };
+
+        var serp = new List<PillarSerpEnrichment>
+        {
+            new("accounting", true, 10, false, null, [], "test", null, ["bookkeeping"]),
+        };
+
+        var enriched = FusionSnapshotEnricher.Apply(
+            fused,
+            new InternalLinkData([], new Dictionary<string, int>(), 0),
+            new UrlPatternData([], 0),
+            serp);
+
+        Assert.True(enriched.EntityCoverageBySlug.ContainsKey("accounting"));
+        Assert.NotNull(enriched.InternalLinkGraph);
+    }
+
+    [Fact]
+    public void FusedSiteUnderstandingJson_RoundTripsSnapshot_LegacyFieldsOnly()
+    {
+        var fused = new FusedSiteUnderstanding
+        {
+            AllCandidates =
+            [
+                new TopicCandidate
+                {
+                    Name = "Accounting",
+                    Slug = "accounting",
+                    Confidence = 0.55m,
+                    Evidence =
+                    [
+                        new TopicEvidence
+                        {
+                            Source = "page_vertical",
+                            Snippet = "homepage H2/H3 vertical section",
+                            Weight = TopicEvidenceWeights.PageVertical,
+                        },
+                    ],
+                },
+            ],
+            SelectedPillars = [],
+            ExcludedCandidates = [],
+            ExclusionReasons = new Dictionary<string, string>(),
+            FusionVersion = "sul-1.2",
+            SignalSourcesPresent = ["page_vertical"],
+            PillarCap = 15,
+            NormalizedTopicalityBySlug = new Dictionary<string, decimal> { ["accounting"] = 0.34m },
         };
 
         var json = FusedSiteUnderstandingJson.Serialize(fused);
