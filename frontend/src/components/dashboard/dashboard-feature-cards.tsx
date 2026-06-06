@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import {
   BarChart3,
+  Compass,
   FileSearch,
   Map,
   PenLine,
@@ -14,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 const moduleIcons = {
   content: PenLine,
   'topical-map': Map,
+  'niche-analyzer': Compass,
   keywords: Search,
   rankings: BarChart3,
   audit: ShieldCheck,

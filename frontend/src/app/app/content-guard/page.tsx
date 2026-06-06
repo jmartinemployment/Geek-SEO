@@ -5,9 +5,11 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuthReady } from '@/hooks/use-auth-ready';
 import { NicheStrategyContextBanner } from '@/components/niche-analyzer/NicheStrategyContextBanner';
+import { ContentGuardPillarBadge } from '@/components/niche-analyzer/ContentGuardPillarBadge';
 import {
   approveContentGuardRun,
   getContentGuardPolicy,
+  getLatestNicheProfile,
   getPublishedContentAudit,
   listContentGuardRuns,
   listProjects,
@@ -15,10 +17,15 @@ import {
   scanContentGuard,
   upsertContentGuardPolicy,
   type ContentGuardRun,
+  type NicheProfileResult,
   type PerformanceSnapshotPoint,
   type PublishedPageMetrics,
   type SeoProject,
 } from '@/lib/seo-api';
+import {
+  compareDecayingPagesByPillarPriority,
+  matchUrlToNichePillar,
+} from '@/lib/niche-url-match';
 
 function statusClass(status: PublishedPageMetrics['status']): string {
   if (status === 'critical') return 'bg-red-50 text-red-800 border-red-200';
@@ -60,6 +67,7 @@ export default function ContentGuardPage() {
   const [savingPolicy, setSavingPolicy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [nicheProfile, setNicheProfile] = useState<NicheProfileResult | null>(null);
 
   useEffect(() => {
     if (!authReady) return;
@@ -72,6 +80,13 @@ export default function ContentGuardPage() {
       }
     });
   }, [accessToken, authReady, projectFromUrl]);
+
+  useEffect(() => {
+    if (!authReady || !projectId) return;
+    void getLatestNicheProfile(projectId, accessToken)
+      .then(setNicheProfile)
+      .catch(() => setNicheProfile(null));
+  }, [projectId, accessToken, authReady]);
 
   useEffect(() => {
     if (!authReady || !projectId) return;
@@ -155,9 +170,13 @@ export default function ContentGuardPage() {
     }
   }
 
-  const visiblePages = showAll
+  const nichePillars =
+    nicheProfile?.status === 'complete' ? nicheProfile.pillars : [];
+
+  const visiblePages = (showAll
     ? pages
-    : pages.filter((p) => p.status === 'decaying' || p.status === 'critical');
+    : pages.filter((p) => p.status === 'decaying' || p.status === 'critical')
+  ).toSorted((a, b) => compareDecayingPagesByPillarPriority(a.url, b.url, nichePillars));
 
   if (authLoading) return <main className="p-8">Loading…</main>;
 
@@ -300,7 +319,11 @@ export default function ContentGuardPage() {
       ) : null}
 
       <ul className="mt-8 space-y-4">
-        {visiblePages.map((page) => (
+        {visiblePages.map((page) => {
+          const pillarMatch =
+            nichePillars.length > 0 ? matchUrlToNichePillar(page.url, nichePillars) : null;
+
+          return (
           <li key={page.url} className="rounded-xl border bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
@@ -312,6 +335,11 @@ export default function ContentGuardPage() {
                 >
                   {page.url}
                 </Link>
+                {pillarMatch ? (
+                  <div className="mt-2">
+                    <ContentGuardPillarBadge match={pillarMatch} />
+                  </div>
+                ) : null}
                 <p className="mt-2 text-xs text-[var(--color-text-secondary)]">{page.recommendation}</p>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-2">
@@ -342,7 +370,8 @@ export default function ContentGuardPage() {
               </div>
             </dl>
           </li>
-        ))}
+          );
+        })}
       </ul>
     </main>
   );

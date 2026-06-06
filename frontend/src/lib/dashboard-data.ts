@@ -1,5 +1,7 @@
 import {
   getDashboardOverview,
+  getLatestNicheProfile,
+  type NicheProfileResult,
   type SeoContentDocument,
   type SeoProject,
 } from '@/lib/seo-api';
@@ -33,7 +35,33 @@ export type DashboardData = {
   copilotSuggestions: CopilotSuggestion[];
 };
 
-function buildCopilotSuggestions(projects: ProjectWithDocuments[]): CopilotSuggestion[] {
+function buildNicheCopilotSuggestion(
+  project: SeoProject,
+  profile: NicheProfileResult | null,
+): CopilotSuggestion | null {
+  if (!profile || profile.status !== 'complete') {
+    return {
+      id: `niche-run-${project.id}`,
+      title: `Map niche pillars for ${project.name}`,
+      detail: 'Run the niche analyzer to discover coverage gaps before planning new content.',
+      href: '/app/strategy/niche-analyzer',
+    };
+  }
+
+  if (profile.pillarsGap <= 0) return null;
+
+  return {
+    id: `niche-gaps-${project.id}`,
+    title: `${profile.pillarsGap} pillar gap${profile.pillarsGap === 1 ? '' : 's'} on ${project.name}`,
+    detail: `${profile.primaryNiche} — build a topical map from your latest fusion snapshot.`,
+    href: `/app/strategy/topical-map?projectId=${encodeURIComponent(project.id)}&mode=niche&autogen=1`,
+  };
+}
+
+function buildCopilotSuggestions(
+  projects: ProjectWithDocuments[],
+  nicheSuggestion: CopilotSuggestion | null,
+): CopilotSuggestion[] {
   const lowScoreDocs = projects
     .flatMap((project) =>
       project.documents.map((doc) => ({
@@ -44,23 +72,27 @@ function buildCopilotSuggestions(projects: ProjectWithDocuments[]): CopilotSugge
     .filter((doc) => doc.seoScore > 0 && doc.seoScore < 70)
     .slice(0, 3);
 
-  if (lowScoreDocs.length === 0) {
-    return [
-      {
-        id: 'welcome',
-        title: 'Add your first site',
-        detail: 'Create a project to unlock topical maps, audits, and content scoring.',
-        href: '/app/projects',
-      },
-    ];
-  }
+  const docSuggestions =
+    lowScoreDocs.length === 0
+      ? projects.length === 0
+        ? [
+            {
+              id: 'welcome',
+              title: 'Add your first site',
+              detail: 'Create a project to unlock topical maps, audits, and content scoring.',
+              href: '/app/projects',
+            },
+          ]
+        : []
+      : lowScoreDocs.map((doc) => ({
+          id: doc.id,
+          title: `"${doc.title || 'Untitled'}" scores ${doc.seoScore}%`,
+          detail: `Improve structure and topic coverage for "${doc.targetKeyword || 'your target keyword'}".`,
+          href: `/app/content/${doc.id}`,
+        }));
 
-  return lowScoreDocs.map((doc) => ({
-    id: doc.id,
-    title: `"${doc.title || 'Untitled'}" scores ${doc.seoScore}%`,
-    detail: `Improve structure and topic coverage for "${doc.targetKeyword || 'your target keyword'}".`,
-    href: `/app/content/${doc.id}`,
-  }));
+  const merged = nicheSuggestion ? [nicheSuggestion, ...docSuggestions] : docSuggestions;
+  return merged.slice(0, 4);
 }
 
 function mapOverviewToProjects(
@@ -77,9 +109,24 @@ function mapOverviewToProjects(
   }));
 }
 
+async function loadPrimaryNicheSuggestion(
+  accessToken: string | null,
+  projects: ProjectWithDocuments[],
+): Promise<CopilotSuggestion | null> {
+  if (!accessToken || projects.length === 0) return null;
+
+  try {
+    const profile = await getLatestNicheProfile(projects[0].id, accessToken);
+    return buildNicheCopilotSuggestion(projects[0], profile);
+  } catch {
+    return null;
+  }
+}
+
 export async function loadDashboardData(accessToken: string | null): Promise<DashboardData> {
   const overview = await getDashboardOverview(accessToken);
   const projects = mapOverviewToProjects(overview);
+  const nicheSuggestion = await loadPrimaryNicheSuggestion(accessToken, projects);
 
   const projectById = new Map(projects.map((p) => [p.id, p]));
   const recentDocuments = overview.recentDocuments.slice(0, 5).map((doc) => {
@@ -94,7 +141,7 @@ export async function loadDashboardData(accessToken: string | null): Promise<Das
   return {
     projects,
     recentDocuments,
-    copilotSuggestions: buildCopilotSuggestions(projects),
+    copilotSuggestions: buildCopilotSuggestions(projects, nicheSuggestion),
   };
 }
 

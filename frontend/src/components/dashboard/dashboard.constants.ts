@@ -25,6 +25,14 @@ export const FEATURE_MODULES: FeatureModule[] = [
     iconColor: '#16A34A',
   },
   {
+    id: 'niche-analyzer',
+    title: 'Niche Analyzer',
+    description: 'Map pillars from schema, nav, and crawl — no GSC required',
+    href: '/app/strategy/niche-analyzer',
+    iconBg: '#EEF2FF',
+    iconColor: '#4F46E5',
+  },
+  {
     id: 'keywords',
     title: 'Keyword Research',
     description: 'Find keywords your competitors rank for',
