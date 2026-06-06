@@ -1,9 +1,12 @@
 import {
   getDashboardOverview,
   getLatestNicheProfile,
+  getTopicalMap,
   type NicheProfileResult,
   type SeoContentDocument,
   type SeoProject,
+  type TopicalMapResult,
+  type TopicalMapTopic,
 } from '@/lib/seo-api';
 
 export type ProjectSiteMetrics = {
@@ -35,9 +38,35 @@ export type DashboardData = {
   copilotSuggestions: CopilotSuggestion[];
 };
 
+function topicalRecommendationDetail(projectName: string, topic: TopicalMapTopic): string {
+  if (topic.coverage === 'gap') {
+    return `${projectName} does not have a strong page for this topic yet — add it to your content plan.`;
+  }
+  if (topic.coverage === 'partial') {
+    return `You have partial coverage — a dedicated article could capture more searches for this topic.`;
+  }
+  return `High-priority topic from your saved topical map.`;
+}
+
+export function buildTopicalMapCopilotSuggestions(
+  project: SeoProject,
+  map: TopicalMapResult | null,
+  limit = 2,
+): CopilotSuggestion[] {
+  if (!map?.recommendations?.length) return [];
+
+  return map.recommendations.slice(0, limit).map((topic, index) => ({
+    id: `topical-rec-${project.id}-${index}-${topic.name}`,
+    title: `Write next: ${topic.suggestedTitle ?? topic.name}`,
+    detail: topicalRecommendationDetail(project.name, topic),
+    href: `/app/strategy/topical-map?projectId=${encodeURIComponent(project.id)}`,
+  }));
+}
+
 function buildNicheCopilotSuggestion(
   project: SeoProject,
   profile: NicheProfileResult | null,
+  hasTopicalRecommendations: boolean,
 ): CopilotSuggestion | null {
   if (!profile || profile.status !== 'complete') {
     return {
@@ -49,7 +78,7 @@ function buildNicheCopilotSuggestion(
     };
   }
 
-  if (profile.pillarsGap <= 0) return null;
+  if (hasTopicalRecommendations || profile.pillarsGap <= 0) return null;
 
   return {
     id: `niche-gaps-${project.id}`,
@@ -62,6 +91,7 @@ function buildNicheCopilotSuggestion(
 function buildCopilotSuggestions(
   projects: ProjectWithDocuments[],
   nicheSuggestion: CopilotSuggestion | null,
+  topicalSuggestions: CopilotSuggestion[],
 ): CopilotSuggestion[] {
   const lowScoreDocs = projects
     .flatMap((project) =>
@@ -92,8 +122,22 @@ function buildCopilotSuggestions(
           href: `/app/content/${doc.id}`,
         }));
 
-  const merged = nicheSuggestion ? [nicheSuggestion, ...docSuggestions] : docSuggestions;
-  return merged.slice(0, 4);
+  const merged = [
+    ...(nicheSuggestion ? [nicheSuggestion] : []),
+    ...topicalSuggestions,
+    ...docSuggestions,
+  ];
+
+  return dedupeCopilotSuggestions(merged).slice(0, 4);
+}
+
+function dedupeCopilotSuggestions(suggestions: CopilotSuggestion[]): CopilotSuggestion[] {
+  const seen = new Set<string>();
+  return suggestions.filter((s) => {
+    if (seen.has(s.id)) return false;
+    seen.add(s.id);
+    return true;
+  });
 }
 
 function mapOverviewToProjects(
@@ -110,24 +154,40 @@ function mapOverviewToProjects(
   }));
 }
 
-async function loadPrimaryNicheSuggestion(
+async function loadPrimaryCopilotInputs(
   accessToken: string | null,
   projects: ProjectWithDocuments[],
-): Promise<CopilotSuggestion | null> {
-  if (!accessToken || projects.length === 0) return null;
+): Promise<{ nicheSuggestion: CopilotSuggestion | null; topicalSuggestions: CopilotSuggestion[] }> {
+  if (!accessToken || projects.length === 0) {
+    return { nicheSuggestion: null, topicalSuggestions: [] };
+  }
+
+  const project = projects[0];
 
   try {
-    const profile = await getLatestNicheProfile(projects[0].id, accessToken);
-    return buildNicheCopilotSuggestion(projects[0], profile);
+    const [profile, map] = await Promise.all([
+      getLatestNicheProfile(project.id, accessToken),
+      getTopicalMap(project.id, accessToken).catch(() => null),
+    ]);
+    const topicalSuggestions = buildTopicalMapCopilotSuggestions(project, map);
+    const nicheSuggestion = buildNicheCopilotSuggestion(
+      project,
+      profile,
+      topicalSuggestions.length > 0,
+    );
+    return { nicheSuggestion, topicalSuggestions };
   } catch {
-    return null;
+    return { nicheSuggestion: null, topicalSuggestions: [] };
   }
 }
 
 export async function loadDashboardData(accessToken: string | null): Promise<DashboardData> {
   const overview = await getDashboardOverview(accessToken);
   const projects = mapOverviewToProjects(overview);
-  const nicheSuggestion = await loadPrimaryNicheSuggestion(accessToken, projects);
+  const { nicheSuggestion, topicalSuggestions } = await loadPrimaryCopilotInputs(
+    accessToken,
+    projects,
+  );
 
   const projectById = new Map(projects.map((p) => [p.id, p]));
   const recentDocuments = overview.recentDocuments.slice(0, 5).map((doc) => {
@@ -142,7 +202,7 @@ export async function loadDashboardData(accessToken: string | null): Promise<Das
   return {
     projects,
     recentDocuments,
-    copilotSuggestions: buildCopilotSuggestions(projects, nicheSuggestion),
+    copilotSuggestions: buildCopilotSuggestions(projects, nicheSuggestion, topicalSuggestions),
   };
 }
 

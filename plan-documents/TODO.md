@@ -49,7 +49,7 @@ Competitors win on **SERP term checklist + score that moves when you add specifi
 | Step | Work |
 |------|------|
 | V2.2 | Market **opportunities** — keyword-discovery provider diff vs GSC-only gaps (`coverage: opportunity` enrichment) — see [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md) |
-| V2.4 | Dashboard **“Do this next”** panel wired to `GET /api/seo/topical-map` `recommendations` |
+| V2.4 | Dashboard **“Do this next”** panel wired to `GET /api/seo/topical-map` `recommendations` | ✅ Copilot panel (`dashboard-data.ts`) |
 | V2.5 | Playwright **E2E** — GSC test project → generate map → open gap → create document *(subset of E2E below)* |
 
 **Already shipped (Jun 2026):** V2.0–V2.1, V2.3, map-page recommendations rail, competitor domains on clusters, planner `TopicClusteringService` clustering.
