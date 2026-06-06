@@ -73,9 +73,9 @@ For a **whole-site picture** outside the product, use `scripts/scrape` with `--l
 
 ---
 
-## Expected Niche Analyzer output (v1.5+, fusion `sul-1.0`)
+## Expected Niche Analyzer output (SUL `sul-1.3`)
 
-When analysis runs successfully against this domain (after June 2026 deploy):
+When analysis runs successfully against this domain:
 
 | Step | Expected finding |
 |------|------------------|
@@ -83,14 +83,19 @@ When analysis runs successfully against this domain (after June 2026 deploy):
 | 2 Sitemap | `totalUrls = 1`, `pillars = []` |
 | 3 Nav | 0–2 weak pillars or empty |
 | 4 Headings | Title + H2s from homepage |
-| 5 Fuse | **13–15 pillars** typical — **12 schema** + top page verticals (incl. **Accounting**); cap 15; `fusionVersion = sul-1.0` |
-| 6–10 | Profile, scoring, persist |
+| 5 Page content | H3 verticals incl. **Accounting** (page-only) |
+| 6 Structure | Limited crawl (thin sitemap); internal links from homepage |
+| 7 Fuse | **13–15 pillars** typical; `fusionVersion = sul-1.3`; provenance per candidate |
+| 8–9 | Keyword + SERP when providers configured |
+| 11 Local | 3 counties in `areaServed`; location-page gaps if no `/locations/*` |
+| 12 Coverage | Partial/gap from URL matching (single-URL site) |
+| 13 Persist | `FusedSiteUnderstanding` JSON on profile |
 
-**Why 13 pillars:** All 12 distinct JSON-LD topics are kept (schema topics no longer similarity-merged). **Accounting** is an H3 use-case section on the homepage — not in schema — added via `page_vertical` evidence.
+**Why 13+ pillars:** All 12 distinct JSON-LD topics kept. **Accounting** from homepage H3 — not in schema — via `page_vertical` evidence.
 
 ---
 
-## Expected Niche Analyzer output (v1, legacy merge)
+## Expected Niche Analyzer output (v1, legacy merge — deprecated)
 
 When analysis runs successfully against this domain:
 
@@ -112,10 +117,11 @@ When analysis runs successfully against this domain:
 
 ## Product gaps relevant to this site
 
-1. **Full-site crawl** — needed to discover content not listed in sitemap (and to score real coverage).
-2. **areaServed always visible** — today counties appear in **tags** but become **pillars** only when total pillars &lt; 3 after merge.
-3. **Coverage matching** — no pass that maps existing URLs/pages to subtopics; everything stays `gap`.
-4. **Keyword metrics** — `IKeywordProvider` not wired in niche pipeline; volume/KD/quick wins inactive.
+1. **Thin sitemap** — single URL; multi-page crawl only helps when sitemap lists more paths.
+2. **Local radius** — Step 11 uses schema `areaServed` + location URLs; **address + 20 mi radius** (Phase 2+) not wired yet.
+3. **Full-site link crawl** — bounded by sitemap sample + homepage links, not entire domain.
+
+**Shipped (SUL):** fusion provenance, keyword/SERP enrichment (when providers on), GSC overlay, content coverage matcher, action recommendations.
 
 ---
 

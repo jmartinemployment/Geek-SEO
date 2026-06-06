@@ -1,6 +1,6 @@
 # Search Understanding Layer — Product & Architecture Draft
 
-**Status:** Draft (June 2026)  
+**Status:** Implemented in Niche Analyzer (`sul-1.3`) — unit-validated 2026-06-06; production re-analyze pending  
 **Owner intent:** Capture north-star direction before implementation; component-scoped rollout.  
 **Related:** [`SITE-NICHE-ANALYZER.md`](SITE-NICHE-ANALYZER.md) (first consumer), [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md) (SERP/keyword APIs), [`ARCHITECTURE.md`](ARCHITECTURE.md)
 
@@ -187,11 +187,26 @@ Today (`SITE-NICHE-ANALYZER.md` merge section):
 
 ---
 
+## Validation (2026-06-06)
+
+| Check | Result |
+|-------|--------|
+| `NicheExtractionTests` (fusion, extractors, coverage, local gaps) | **45 passed** (`dotnet test --filter NicheExtractionTests\|LocalServiceArea`) |
+| Fusion version in snapshots | `sul-1.3` (`TopicFusionEngine.FusionVersion`) |
+| Fixture baseline | geekatyourspot JSON-LD → 12 schema topics + page verticals (see [`docs/reference/geekatyourspot-niche-baseline.md`](../docs/reference/geekatyourspot-niche-baseline.md)) |
+| Production re-analyze | **Next** — run Niche Analyzer on live project after deploy; compare step log to baseline |
+
+PayPal / billing work **deferred** — not a SUL dependency.
+
+---
+
 ## Phased implementation
 
 Each phase is a **shippable component**. Later phases do not block earlier ones.
 
-### Phase A — Public composite merge (Niche Analyzer)
+**Ship status (June 2026):** Phases **A–E** implemented in `NicheAnalyzerService` (14 steps). `PillarMerger` retained for tests; production path uses `TopicFusionEngine`.
+
+### Phase A — Public composite merge (Niche Analyzer) ✅
 
 **Goal:** Page + schema + sitemap + nav as **peers**, not schema-first with heading fallback.
 
@@ -204,9 +219,9 @@ Each phase is a **shippable component**. Later phases do not block earlier ones.
 | A5 | Step log + UI: all candidates, selected, excluded + reasons |
 | A6 | Revisit `MaxPillars`: soft cap with transparency (show all ≥ threshold; highlight top 7) |
 
-**Exit criteria:** geekatyourspot re-analyze shows 12 candidates, provenance per topic, explicit exclusion if cap applies.
+**Exit criteria:** geekatyourspot re-analyze shows 12+ candidates, provenance per topic, explicit exclusion if cap applies. Unit tests ✅; live re-analyze pending.
 
-### Phase B — Structure signals
+### Phase B — Structure signals ✅
 
 | # | Deliverable |
 |---|-------------|
@@ -214,7 +229,7 @@ Each phase is a **shippable component**. Later phases do not block earlier ones.
 | B2 | `UrlPatternExtractor` — `/services/ai-chatbots` → topic boost |
 | B3 | Confidence model unit tests with fixture HTML |
 
-### Phase C — Demand validation (Tier 2)
+### Phase C — Demand validation (Tier 2) ✅
 
 Wire existing plan steps 5–6 from `SITE-NICHE-ANALYZER.md`:
 
@@ -224,7 +239,7 @@ Wire existing plan steps 5–6 from `SITE-NICHE-ANALYZER.md`:
 | C2 | `ISerpProvider` validation — demote topics with no SERP footprint |
 | C3 | Competitor domains from SERP → `NicheCompetitor` |
 
-### Phase D — Owner augmentation (Tier 3)
+### Phase D — Owner augmentation (Tier 3) ✅
 
 | # | Deliverable |
 |---|-------------|
@@ -232,7 +247,7 @@ Wire existing plan steps 5–6 from `SITE-NICHE-ANALYZER.md`:
 | D2 | Boost / confirm pillars matching GSC; flag “page says X, GSC silent” |
 | D3 | Banner when GSC not connected (existing plan) — analysis still complete on Tier 1 |
 
-### Phase E — Autonomous actions
+### Phase E — Autonomous actions ✅
 
 **Prerequisite:** Phases A–B stable; provenance trustworthy.
 
