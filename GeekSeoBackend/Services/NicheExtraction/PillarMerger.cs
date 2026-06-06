@@ -4,7 +4,9 @@ namespace GeekSeoBackend.Services.NicheExtraction;
 
 public sealed class PillarMerger
 {
-    private const int MaxPillars = 7;
+    /// <summary>Strategy default; see plan-documents/SEARCH-UNDERSTANDING-LAYER.md (soft cap + transparency).</summary>
+    public const int DefaultPillarCap = 12;
+
     private const int MinPillars = 3;
 
     // Priority: schema > sitemap > nav > heading
@@ -13,12 +15,13 @@ public sealed class PillarMerger
         ["schema"] = 0, ["sitemap"] = 1, ["nav"] = 2, ["heading"] = 3,
     };
 
-    public IReadOnlyList<DiscoveredPillar> Merge(
+    public PillarMergeResult Merge(
         IReadOnlyList<DiscoveredPillar> schema,
         IReadOnlyList<DiscoveredPillar> sitemap,
         IReadOnlyList<DiscoveredPillar> nav,
         IReadOnlyList<DiscoveredPillar> headings,
-        IReadOnlyList<string> locationFallbacks)
+        IReadOnlyList<string> locationFallbacks,
+        int maxPillars = DefaultPillarCap)
     {
         var merged = new Dictionary<string, DiscoveredPillar>(StringComparer.OrdinalIgnoreCase);
 
@@ -69,13 +72,16 @@ public sealed class PillarMerger
         }
 
         // Sort: schema first, then by ChildPageCount desc
-        candidates = candidates
+        var ranked = candidates
             .OrderBy(c => SourcePriority.GetValueOrDefault(c.Source, 99))
             .ThenByDescending(c => c.ChildPageCount)
-            .Take(MaxPillars)
             .ToList();
 
-        return candidates;
+        var cap = Math.Max(MinPillars, maxPillars);
+        var selected = ranked.Take(cap).ToList();
+        var excluded = ranked.Skip(cap).ToList();
+
+        return new PillarMergeResult(selected, excluded, cap);
     }
 
     private static void AddRange(

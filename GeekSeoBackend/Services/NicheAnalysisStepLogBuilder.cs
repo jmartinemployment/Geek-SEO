@@ -37,10 +37,13 @@ internal static class NicheAnalysisStepLogBuilder
     internal static NicheAnalysisStepLogEntry Schema(int step, SchemaOrgData data, string summary) =>
         Entry(step, "schema", summary, new Dictionary<string, object?>
         {
-            ["serviceNames"] = data.ServiceNames.Take(SampleLimit).ToArray(),
+            ["knowsAboutTopics"] = data.KnowsAboutTopics.Take(SampleLimit).ToArray(),
+            ["offerCatalogTopics"] = data.OfferCatalogTopics.Take(SampleLimit).ToArray(),
+            ["allSchemaTopics"] = data.ServiceNames.Take(SampleLimit).ToArray(),
             ["areaServed"] = data.AreaServed.Take(SampleLimit).ToArray(),
             ["description"] = data.Description ?? string.Empty,
             ["brandName"] = data.BrandName ?? string.Empty,
+            ["becomesPillars"] = true,
         });
 
     internal static NicheAnalysisStepLogEntry SiteUrls(int step, SitemapData data, string summary) =>
@@ -71,13 +74,43 @@ internal static class NicheAnalysisStepLogBuilder
         });
 
     internal static NicheAnalysisStepLogEntry Merging(
-        int step, int candidateCount, int mergedCount, IReadOnlyList<DiscoveredPillar> merged, string summary) =>
+        int step,
+        int candidateCount,
+        int mergedCount,
+        IReadOnlyList<DiscoveredPillar> merged,
+        int fromSchema,
+        int fromSitemap,
+        int fromNav,
+        int fromHeadings,
+        IReadOnlyList<DiscoveredPillar> excludedByCap,
+        int pillarCap,
+        string summary) =>
         Entry(step, "merging", summary, new Dictionary<string, object?>
         {
             ["candidateCount"] = candidateCount,
             ["mergedCount"] = mergedCount,
+            ["fromSchema"] = fromSchema,
+            ["fromSitemap"] = fromSitemap,
+            ["fromNav"] = fromNav,
+            ["fromHeadings"] = fromHeadings,
+            ["pillarCap"] = pillarCap,
+            ["excludedByCapCount"] = excludedByCap.Count,
+            ["excludedSampleNames"] = excludedByCap.Select(p => p.Name).Take(SampleLimit).ToArray(),
+            ["primarySource"] = DescribePrimarySource(merged),
             ["samplePillarNames"] = merged.Select(p => p.Name).Take(SampleLimit).ToArray(),
+            ["pillarSources"] = merged
+                .Take(SampleLimit)
+                .Select(p => $"{p.Name} ({p.Source})")
+                .ToArray(),
         });
+
+    private static string DescribePrimarySource(IReadOnlyList<DiscoveredPillar> merged)
+    {
+        if (merged.Count == 0) return "none";
+        var sources = merged.GroupBy(p => p.Source).OrderByDescending(g => g.Count()).ToList();
+        if (sources.Count == 1) return sources[0].Key;
+        return $"mixed ({string.Join(", ", sources.Select(g => $"{g.Key}:{g.Count()}"))})";
+    }
 
     internal static NicheAnalysisStepLogEntry Profile(
         int step, string primaryNiche, string audienceType, IEnumerable<string> nicheTags, string summary) =>

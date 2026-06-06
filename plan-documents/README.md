@@ -14,6 +14,7 @@
 
 | File | Purpose |
 |------|---------|
+| [`SEARCH-UNDERSTANDING-LAYER.md`](SEARCH-UNDERSTANDING-LAYER.md) | **North star** — public-signal composite approximating shared search-engine understanding; fusion architecture + phased rollout |
 | [`TopicalMapUpgrade.md`](TopicalMapUpgrade.md) | Topical map UX gaps — data deps per [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md) |
 
 ## Deep dives (reference only)

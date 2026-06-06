@@ -45,6 +45,8 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
             }
 
             var serviceNames = new List<string>();
+            var knowsAboutTopics = new List<string>();
+            var offerCatalogTopics = new List<string>();
             string? description = null;
             string? brand = null;
             var areas = new List<string>();
@@ -54,7 +56,14 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
                 try
                 {
                     using var doc = JsonDocument.Parse(block);
-                    ProcessJsonLdNode(doc.RootElement, serviceNames, areas, ref description, ref brand);
+                    ProcessJsonLdNode(
+                        doc.RootElement,
+                        serviceNames,
+                        knowsAboutTopics,
+                        offerCatalogTopics,
+                        areas,
+                        ref description,
+                        ref brand);
                 }
                 catch (JsonException)
                 {
@@ -64,6 +73,8 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
 
             var data = new SchemaOrgData(
                 serviceNames.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                knowsAboutTopics.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                offerCatalogTopics.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
                 description,
                 brand,
                 areas.Distinct(StringComparer.OrdinalIgnoreCase).ToList());
@@ -173,6 +184,8 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
     private static void ProcessJsonLdNode(
         JsonElement node,
         List<string> serviceNames,
+        List<string> knowsAboutTopics,
+        List<string> offerCatalogTopics,
         List<string> areas,
         ref string? description,
         ref string? brand)
@@ -180,7 +193,8 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
         if (node.ValueKind == JsonValueKind.Array)
         {
             foreach (var item in node.EnumerateArray())
-                ProcessJsonLdNode(item, serviceNames, areas, ref description, ref brand);
+                ProcessJsonLdNode(
+                    item, serviceNames, knowsAboutTopics, offerCatalogTopics, areas, ref description, ref brand);
             return;
         }
 
@@ -190,7 +204,8 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
         if (node.TryGetProperty("@graph", out var graph) && graph.ValueKind == JsonValueKind.Array)
         {
             foreach (var item in graph.EnumerateArray())
-                ProcessJsonLdNode(item, serviceNames, areas, ref description, ref brand);
+                ProcessJsonLdNode(
+                    item, serviceNames, knowsAboutTopics, offerCatalogTopics, areas, ref description, ref brand);
         }
 
         if (IsSchemaPillarSource(node) || HasServiceSignals(node))
@@ -198,8 +213,8 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
             description ??= TryGetString(node, "description");
             brand ??= CleanBrandName(TryGetString(node, "name"));
             ExtractAreaServed(node, areas);
-            ExtractServiceNames(node, serviceNames);
-            ExtractKnowsAbout(node, serviceNames);
+            ExtractServiceNames(node, offerCatalogTopics, serviceNames);
+            ExtractKnowsAbout(node, knowsAboutTopics, serviceNames);
         }
     }
 
@@ -233,14 +248,14 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
         return false;
     }
 
-    private static void ExtractKnowsAbout(JsonElement root, List<string> names)
+    private static void ExtractKnowsAbout(JsonElement root, List<string> knowsAboutTopics, List<string> serviceNames)
     {
         if (!root.TryGetProperty("knowsAbout", out var knowsAbout))
             return;
 
         if (knowsAbout.ValueKind == JsonValueKind.String)
         {
-            AddName(knowsAbout.GetString(), names);
+            AddName(knowsAbout.GetString(), knowsAboutTopics, serviceNames);
             return;
         }
 
@@ -250,16 +265,20 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
         foreach (var item in knowsAbout.EnumerateArray())
         {
             if (item.ValueKind == JsonValueKind.String)
-                AddName(item.GetString(), names);
+                AddName(item.GetString(), knowsAboutTopics, serviceNames);
             else
-                AddStringValue(item, "name", names);
+                AddStringValue(item, "name", knowsAboutTopics, serviceNames);
         }
     }
 
-    private static void AddName(string? value, List<string> names)
+    private static void AddName(string? value, List<string> primary, List<string> serviceNames)
     {
-        if (!string.IsNullOrWhiteSpace(value))
-            names.Add(value.Trim());
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+
+        var trimmed = value.Trim();
+        primary.Add(trimmed);
+        serviceNames.Add(trimmed);
     }
 
     private static bool IsBusinessType(JsonElement root)
@@ -281,7 +300,10 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
         return false;
     }
 
-    private static void ExtractServiceNames(JsonElement root, List<string> names)
+    private static void ExtractServiceNames(
+        JsonElement root,
+        List<string> offerCatalogTopics,
+        List<string> serviceNames)
     {
         // hasOfferCatalog.itemListElement[].itemOffered.name
         if (root.TryGetProperty("hasOfferCatalog", out var catalog))
@@ -292,9 +314,9 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
                 foreach (var item in items.EnumerateArray())
                 {
                     if (item.TryGetProperty("itemOffered", out var offered))
-                        AddStringValue(offered, "name", names);
+                        AddStringValue(offered, "name", offerCatalogTopics, serviceNames);
                     else
-                        AddStringValue(item, "name", names);
+                        AddStringValue(item, "name", offerCatalogTopics, serviceNames);
                 }
             }
         }
@@ -306,7 +328,7 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
             foreach (var offer in offers.EnumerateArray())
             {
                 if (offer.TryGetProperty("itemOffered", out var offered))
-                    AddStringValue(offered, "name", names);
+                    AddStringValue(offered, "name", offerCatalogTopics, serviceNames);
             }
         }
 
@@ -314,13 +336,13 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
         if (root.TryGetProperty("serviceType", out var serviceType))
         {
             if (serviceType.ValueKind == JsonValueKind.String)
-                names.Add(serviceType.GetString()!);
+                AddName(serviceType.GetString(), offerCatalogTopics, serviceNames);
             else if (serviceType.ValueKind == JsonValueKind.Array)
             {
                 foreach (var s in serviceType.EnumerateArray())
                 {
                     if (s.ValueKind == JsonValueKind.String)
-                        names.Add(s.GetString()!);
+                        AddName(s.GetString(), offerCatalogTopics, serviceNames);
                 }
             }
         }
@@ -342,23 +364,36 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
                 if (a.ValueKind == JsonValueKind.String)
                     areas.Add(a.GetString()!);
                 else
-                    AddStringValue(a, "name", areas);
+                    AddAreaName(a, "name", areas);
             }
         }
         else
         {
-            AddStringValue(area, "name", areas);
+            AddAreaName(area, "name", areas);
         }
     }
 
-    private static void AddStringValue(JsonElement element, string property, List<string> target)
+    private static void AddAreaName(JsonElement element, string property, List<string> areas)
     {
         if (element.TryGetProperty(property, out var prop) &&
             prop.ValueKind == JsonValueKind.String)
         {
             var val = prop.GetString();
             if (!string.IsNullOrWhiteSpace(val))
-                target.Add(val);
+                areas.Add(val.Trim());
+        }
+    }
+
+    private static void AddStringValue(
+        JsonElement element,
+        string property,
+        List<string> primary,
+        List<string> serviceNames)
+    {
+        if (element.TryGetProperty(property, out var prop) &&
+            prop.ValueKind == JsonValueKind.String)
+        {
+            AddName(prop.GetString(), primary, serviceNames);
         }
     }
 
@@ -385,7 +420,7 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
         return name;
     }
 
-    private static SchemaOrgData Empty() => new([], null, null, []);
+    private static SchemaOrgData Empty() => new([], [], [], null, null, []);
 
     [GeneratedRegex(
         "<script[^>]*type\\s*=\\s*[\"']application/ld\\+json[\"'][^>]*>(?<body>[\\s\\S]*?)</script>",

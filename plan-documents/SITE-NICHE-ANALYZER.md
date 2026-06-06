@@ -1,5 +1,7 @@
 # SiteNicheAnalyzer — Implementation Plan
 
+> **North star & fusion architecture:** [`SEARCH-UNDERSTANDING-LAYER.md`](SEARCH-UNDERSTANDING-LAYER.md) — public-signal composite (schema, page, sitemap, nav, links, optional GSC/SERP). This doc is the **first consumer** implementation; merge rules here will migrate into `TopicFusionEngine`.
+
 ## Purpose
 
 Given a site URL, automatically identify the core niche, extract validated content

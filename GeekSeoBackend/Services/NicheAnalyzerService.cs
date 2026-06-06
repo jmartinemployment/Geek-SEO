@@ -69,7 +69,7 @@ public sealed class NicheAnalyzerService(
             // Step 1 — Schema.org
             var schemaData = await schemaExtractor.ExtractAsync(domain, browser, ct);
             var schemaMessage = schemaData.ServiceNames.Count > 0
-                ? $"Found {schemaData.ServiceNames.Count} topics from schema.org."
+                ? $"Found {schemaData.ServiceNames.Count} schema topic(s) in homepage JSON-LD ({schemaData.KnowsAboutTopics.Count} knowsAbout, {schemaData.OfferCatalogTopics.Count} offer catalog / serviceType)."
                 : "Schema.org step complete — no service topics on homepage.";
             await PushProgress(
                 userId, profileId, 1,
@@ -120,16 +120,31 @@ public sealed class NicheAnalyzerService(
                 + sitemapData.Pillars.Count
                 + navData.Pillars.Count
                 + headingPillars.Count;
-            var merged = pillarMerger.Merge(
+            var mergeResult = pillarMerger.Merge(
                 schemaPillars,
                 sitemapData.Pillars,
                 navData.Pillars,
                 headingPillars,
                 schemaData.AreaServed.ToList());
-            var mergeMessage = $"Topic pillars: {merged.Count} candidates after merge.";
+            var merged = mergeResult.Selected;
+            var mergeMessage =
+                mergeResult.ExcludedByCap.Count > 0
+                    ? $"Topic pillars: {merged.Count} selected, {mergeResult.ExcludedByCap.Count} held back (cap {mergeResult.PillarCap}). Schema {schemaPillars.Count}, sitemap {sitemapData.Pillars.Count}, nav {navData.Pillars.Count}, headings {headingPillars.Count}."
+                    : $"Topic pillars: {merged.Count} after merge (schema {schemaPillars.Count}, sitemap {sitemapData.Pillars.Count}, nav {navData.Pillars.Count}, headings {headingPillars.Count}).";
             await PushProgress(
                 userId, profileId, 5,
-                NicheAnalysisStepLogBuilder.Merging(5, candidateCount, merged.Count, merged, mergeMessage),
+                NicheAnalysisStepLogBuilder.Merging(
+                    5,
+                    candidateCount,
+                    merged.Count,
+                    merged,
+                    schemaPillars.Count,
+                    sitemapData.Pillars.Count,
+                    navData.Pillars.Count,
+                    headingPillars.Count,
+                    mergeResult.ExcludedByCap,
+                    mergeResult.PillarCap,
+                    mergeMessage),
                 ct);
 
             // Step 6 — Niche identity

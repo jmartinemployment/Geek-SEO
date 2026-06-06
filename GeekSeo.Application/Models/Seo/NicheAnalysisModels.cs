@@ -167,9 +167,16 @@ public record DiscoveredPillar
 
 public record SchemaOrgData(
     IReadOnlyList<string> ServiceNames,
+    IReadOnlyList<string> KnowsAboutTopics,
+    IReadOnlyList<string> OfferCatalogTopics,
     string? Description,
     string? BrandName,
     IReadOnlyList<string> AreaServed);
+
+public sealed record PillarMergeResult(
+    IReadOnlyList<DiscoveredPillar> Selected,
+    IReadOnlyList<DiscoveredPillar> ExcludedByCap,
+    int PillarCap);
 
 public record SitemapData(
     IReadOnlyList<DiscoveredPillar> Pillars,

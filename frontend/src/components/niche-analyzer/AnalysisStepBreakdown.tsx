@@ -6,6 +6,7 @@ import {
   type NicheAnalysisDetails,
   type NicheAnalysisStepLogEntry,
 } from '@/lib/seo-api';
+import { OUTPUT_LABELS } from '@/components/niche-analyzer/pillar-provenance';
 
 type Props = {
   profileId: string;
@@ -35,7 +36,9 @@ function StepOutputs({ outputs }: { outputs: Record<string, unknown> }) {
     <dl className="mt-2 grid gap-1.5 text-xs sm:grid-cols-2">
       {entries.map(([key, value]) => (
         <div key={key} className="min-w-0">
-          <dt className="font-medium text-[var(--color-text-muted)]">{key}</dt>
+          <dt className="font-medium text-[var(--color-text-muted)]">
+            {OUTPUT_LABELS[key] ?? key}
+          </dt>
           <dd className="break-words text-[var(--color-text-secondary)]">
             {formatOutputValue(value)}
           </dd>
@@ -80,12 +83,15 @@ export function AnalysisStepBreakdown({
 
     async function load(showSpinner: boolean) {
       if (showSpinner) setLoading(true);
-      setError(null);
+      if (showSpinner) setError(null);
       try {
         const data = await getNicheAnalysisDetails(profileId, accessToken);
-        if (!cancelled) setDetails(data);
-      } catch (e: unknown) {
         if (!cancelled) {
+          setDetails(data);
+          setError(null);
+        }
+      } catch (e: unknown) {
+        if (!cancelled && showSpinner) {
           setError(e instanceof Error ? e.message : 'Could not load scan breakdown');
         }
       } finally {
@@ -135,14 +141,13 @@ export function AnalysisStepBreakdown({
           {loading ? (
             <p className="text-sm text-[var(--color-text-muted)]">Loading step log…</p>
           ) : null}
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
-          {!loading && !error && details && details.steps.length === 0 ? (
+          {error ? <p className="text-sm text-amber-700">{error}</p> : null}
+          {!loading && details && details.steps.length === 0 ? (
             <p className="text-sm text-[var(--color-text-secondary)]">
-              No step log for this run. Re-analyze after the server update to capture discovery
-              detail.
+              No step log for this run. Re-analyze once to capture discovery detail.
             </p>
           ) : null}
-          {!loading && !error && details && details.steps.length > 0 ? (
+          {details && details.steps.length > 0 ? (
             <ol className="space-y-3">
               {details.steps.map((step) => (
                 <StepRow key={`${step.stepNumber}-${step.slug}`} step={step} />

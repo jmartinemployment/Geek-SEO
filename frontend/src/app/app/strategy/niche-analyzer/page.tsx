@@ -19,6 +19,7 @@ import {
   type AuthorityProgressPoint,
 } from '@/lib/seo-api';
 import { AnalysisStepBreakdown } from '@/components/niche-analyzer/AnalysisStepBreakdown';
+import { PillarProvenanceCallout } from '@/components/niche-analyzer/PillarProvenanceCallout';
 import { NicheHeader } from '@/components/niche-analyzer/NicheHeader';
 import { CoverageMatrixTable } from '@/components/niche-analyzer/CoverageMatrixTable';
 import { TopicalGapsPanel } from '@/components/niche-analyzer/TopicalGapsPanel';
@@ -175,16 +176,16 @@ export default function NicheAnalyzerPage() {
         const p = await getNicheProfile(completedProfileId, accessToken);
         setProfile(p);
         await loadAnalytics(p.id);
-        if (p.pillars.length === 0) {
-          if (p.totalPillarsIdentified > 0) {
-            setError(
-              'Analysis saved pillar counts but the pillar list did not persist. Run Re-analyze once; if the table stays empty, we need to fix storage on the server.',
-            );
-          } else {
-            setError(
-              'No pillars were detected. For sites like geekatyourspot.com, pillars usually come from schema.org JSON-LD on the homepage (knowsAbout). Ensure the homepage exposes JSON-LD and re-run analysis.',
-            );
-          }
+        if (p.pillars.length > 0) {
+          setError(null);
+        } else if (p.totalPillarsIdentified > 0) {
+          setError(
+            'Analysis saved pillar counts but the pillar list did not persist. Run Re-analyze once; if the table stays empty, we need to fix storage on the server.',
+          );
+        } else {
+          setError(
+            'No pillars were detected. For sites like geekatyourspot.com, pillars usually come from schema.org JSON-LD on the homepage (knowsAbout). Ensure the homepage exposes JSON-LD and re-run analysis.',
+          );
         }
       } catch {
         setError('Analysis complete but failed to load results.');
@@ -301,11 +302,18 @@ export default function NicheAnalyzerPage() {
           </div>
 
           {tab === 'pillars' && (
-            <CoverageMatrixTable
-              pillars={profile.pillars}
-              coverageFallback={coverage}
-              totalPillarsIdentified={profile.totalPillarsIdentified}
-            />
+            <div className="space-y-4">
+              <PillarProvenanceCallout
+                profileId={profile.id}
+                accessToken={accessToken}
+                pillarCount={profile.pillars.length || profile.totalPillarsIdentified}
+              />
+              <CoverageMatrixTable
+                pillars={profile.pillars}
+                coverageFallback={coverage}
+                totalPillarsIdentified={profile.totalPillarsIdentified}
+              />
+            </div>
           )}
 
           {tab === 'gaps' && (
