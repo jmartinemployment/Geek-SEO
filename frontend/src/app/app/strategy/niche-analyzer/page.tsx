@@ -264,6 +264,7 @@ export default function NicheAnalyzerPage() {
           />
           <AnalysisStepBreakdown
             profileId={analyzeProfileId}
+            projectId={projectId}
             accessToken={accessToken}
             defaultOpen={false}
             pollIntervalMs={4000}
@@ -283,7 +284,11 @@ export default function NicheAnalyzerPage() {
       {profile && !analyzing && (
         <div className="mt-6 space-y-6">
           <NicheHeader profile={profile} />
-          <AnalysisStepBreakdown profileId={profile.id} accessToken={accessToken} />
+          <AnalysisStepBreakdown
+            profileId={profile.id}
+            projectId={projectId}
+            accessToken={accessToken}
+          />
 
           {/* Tabs */}
           <div className="flex gap-1 border-b border-[var(--color-border)]">
@@ -323,7 +328,12 @@ export default function NicheAnalyzerPage() {
           )}
 
           {tab === 'gaps' && (
-            <TopicalGapsPanel gaps={gaps} onQuickWinsToggle={handleQuickWinsToggle} />
+            <TopicalGapsPanel
+              gaps={gaps}
+              projectId={projectId}
+              accessToken={accessToken}
+              onQuickWinsToggle={handleQuickWinsToggle}
+            />
           )}
 
           {tab === 'progress' && (

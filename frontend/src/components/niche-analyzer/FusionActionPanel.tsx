@@ -154,8 +154,8 @@ function ActionRow({
             {schemaSync.snippet}
           </pre>
           <p className="mt-1 text-[10px] text-violet-700">
-            Merges {schemaSync.knowsAbout.length} topics — add this to your LocalBusiness / ProfessionalService
-            block in WordPress or theme JSON-LD.
+            Merges {schemaSync.knowsAbout.length} topics — paste into your homepage LocalBusiness /
+            ProfessionalService JSON-LD wherever you manage site schema.
           </p>
         </div>
       ) : null}

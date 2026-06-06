@@ -2,10 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getNicheAnalysisDetails, type FusedSiteUnderstanding } from '@/lib/seo-api';
-import { TopicCandidateMatrix } from '@/components/niche-analyzer/TopicCandidateMatrix';
-import { EntityCoveragePanel } from '@/components/niche-analyzer/EntityCoveragePanel';
-import { InternalLinkGraphPanel } from '@/components/niche-analyzer/InternalLinkGraphPanel';
-import { FusionActionPanel } from '@/components/niche-analyzer/FusionActionPanel';
+import { FusionInsightsStack } from '@/components/niche-analyzer/FusionInsightsStack';
 
 type Props = {
   profileId: string;
@@ -75,11 +72,10 @@ export function FusionSnapshotSection({
   }
 
   return (
-    <div className="space-y-4">
-      <FusionActionPanel fusion={fusion} projectId={projectId} accessToken={accessToken} />
-      <EntityCoveragePanel fusion={fusion} />
-      <InternalLinkGraphPanel fusion={fusion} />
-      <TopicCandidateMatrix fusion={fusion} />
-    </div>
+    <FusionInsightsStack
+      fusion={fusion}
+      projectId={projectId}
+      accessToken={accessToken}
+    />
   );
 }

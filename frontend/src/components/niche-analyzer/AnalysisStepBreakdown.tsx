@@ -7,10 +7,11 @@ import {
   type NicheAnalysisStepLogEntry,
 } from '@/lib/seo-api';
 import { OUTPUT_LABELS } from '@/components/niche-analyzer/pillar-provenance';
-import { TopicCandidateMatrix } from '@/components/niche-analyzer/TopicCandidateMatrix';
+import { FusionInsightsStack } from '@/components/niche-analyzer/FusionInsightsStack';
 
 type Props = {
   profileId: string;
+  projectId?: string;
   accessToken?: string | null;
   defaultOpen?: boolean;
   /** When set, refetch on this interval (e.g. while analysis is in progress). */
@@ -70,6 +71,7 @@ function StepRow({ step }: { step: NicheAnalysisStepLogEntry }) {
 
 export function AnalysisStepBreakdown({
   profileId,
+  projectId,
   accessToken,
   defaultOpen = true,
   pollIntervalMs,
@@ -158,7 +160,16 @@ export function AnalysisStepBreakdown({
             </ol>
           ) : null}
           {details?.fusionSnapshot ? (
-            <TopicCandidateMatrix fusion={details.fusionSnapshot} />
+            <div className="mt-6 space-y-2">
+              <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                Fusion snapshot
+              </h3>
+              <FusionInsightsStack
+                fusion={details.fusionSnapshot}
+                projectId={projectId}
+                accessToken={accessToken}
+              />
+            </div>
           ) : null}
         </div>
       ) : null}
