@@ -211,6 +211,9 @@ public sealed record FusedSiteUnderstanding
     public required string FusionVersion { get; init; }
     public required IReadOnlyList<string> SignalSourcesPresent { get; init; }
     public int PillarCap { get; init; }
+    /// <summary>Share of crawled site word-weight attributed to each selected pillar slug (0–1).</summary>
+    public IReadOnlyDictionary<string, decimal> NormalizedTopicalityBySlug { get; init; }
+        = new Dictionary<string, decimal>();
 }
 
 public sealed record PageContentData(

@@ -19,6 +19,7 @@ import {
   type AuthorityProgressPoint,
 } from '@/lib/seo-api';
 import { AnalysisStepBreakdown } from '@/components/niche-analyzer/AnalysisStepBreakdown';
+import { FusionSnapshotSection } from '@/components/niche-analyzer/FusionSnapshotSection';
 import { PillarProvenanceCallout } from '@/components/niche-analyzer/PillarProvenanceCallout';
 import { NicheHeader } from '@/components/niche-analyzer/NicheHeader';
 import { CoverageMatrixTable } from '@/components/niche-analyzer/CoverageMatrixTable';
@@ -308,6 +309,7 @@ export default function NicheAnalyzerPage() {
                 accessToken={accessToken}
                 pillarCount={profile.pillars.length || profile.totalPillarsIdentified}
               />
+              <FusionSnapshotSection profileId={profile.id} accessToken={accessToken} />
               <CoverageMatrixTable
                 pillars={profile.pillars}
                 coverageFallback={coverage}

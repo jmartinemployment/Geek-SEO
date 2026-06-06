@@ -144,6 +144,7 @@ internal static class NicheAnalysisStepLogBuilder
         int gscQueryRowCount,
         int gscMatchedPillars,
         IReadOnlyList<string> gscSilentPillarSlugs,
+        IReadOnlyDictionary<string, decimal> normalizedTopicalityBySlug,
         string summary) =>
         Entry(step, "merging", summary, new Dictionary<string, object?>
         {
@@ -176,6 +177,11 @@ internal static class NicheAnalysisStepLogBuilder
             ["pillarSources"] = merged
                 .Take(SampleLimit)
                 .Select(p => $"{p.Name} ({p.Source})")
+                .ToArray(),
+            ["normalizedTopicalitySample"] = normalizedTopicalityBySlug
+                .OrderByDescending(kv => kv.Value)
+                .Take(SampleLimit)
+                .Select(kv => $"{kv.Key}: {kv.Value:P0}")
                 .ToArray(),
         });
 

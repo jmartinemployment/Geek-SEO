@@ -271,6 +271,7 @@ export const OUTPUT_LABELS: Record<string, string> = {
   excludedSampleNames: 'Held-back topic names (sample)',
   samplePillarNames: 'Final pillar names',
   pillarSources: 'Pillar → source',
+  normalizedTopicalitySample: 'Normalized topicality (selected pillars)',
   fromGsc: 'Candidates with GSC query confirmation',
   gscConnected: 'GSC connected for this project',
   gscSkipped: 'GSC overlay skipped',

@@ -293,6 +293,65 @@ public sealed class NicheExtractionTests
     }
 
     [Fact]
+    public void NormalizedTopicalityCalculator_AttributesDedicatedPageWeight()
+    {
+        var fused = new FusedSiteUnderstanding
+        {
+            AllCandidates = [],
+            SelectedPillars =
+            [
+                new TopicCandidate
+                {
+                    Name = "Accounting",
+                    Slug = "accounting",
+                    Confidence = 0.8m,
+                    DedicatedPageUrl = "https://example.com/services/accounting",
+                    Evidence = [new TopicEvidence { Source = "schema", Weight = 0.35m }],
+                },
+                new TopicCandidate
+                {
+                    Name = "IT Support",
+                    Slug = "it-support",
+                    Confidence = 0.7m,
+                    Evidence = [new TopicEvidence { Source = "schema", Weight = 0.35m }],
+                },
+            ],
+            ExcludedCandidates = [],
+            ExclusionReasons = new Dictionary<string, string>(),
+            FusionVersion = TopicFusionEngine.FusionVersion,
+            SignalSourcesPresent = ["schema"],
+            PillarCap = 15,
+        };
+
+        const string accountingHtml = """
+            <html><body>
+            <h1>Accounting Services</h1>
+            <p>We provide full accounting and bookkeeping for small businesses across many paragraphs of content.</p>
+            </body></html>
+            """;
+
+        const string homeHtml = """
+            <html><body><p>Welcome to our company homepage with general marketing copy.</p></body></html>
+            """;
+
+        var crawl = new SiteCrawlData(
+        [
+            new CrawledPage("https://example.com/", homeHtml),
+            new CrawledPage("https://example.com/services/accounting", accountingHtml),
+        ], 2, 2);
+
+        var patterns = new UrlPatternData(
+        [
+            new UrlPatternTopic("Accounting", "accounting", "https://example.com/services/accounting", "accounting"),
+        ], 2);
+
+        var result = NormalizedTopicalityCalculator.Apply(fused, crawl, patterns);
+
+        Assert.True(result.NormalizedTopicalityBySlug["accounting"] > result.NormalizedTopicalityBySlug["it-support"]);
+        Assert.True(result.NormalizedTopicalityBySlug["accounting"] > 0.3m);
+    }
+
+    [Fact]
     public void FusedSiteUnderstandingJson_RoundTripsSnapshot()
     {
         var fused = new FusedSiteUnderstanding
@@ -321,6 +380,7 @@ public sealed class NicheExtractionTests
             FusionVersion = "sul-1.2",
             SignalSourcesPresent = ["page_vertical"],
             PillarCap = 15,
+            NormalizedTopicalityBySlug = new Dictionary<string, decimal> { ["accounting"] = 0.34m },
         };
 
         var json = FusedSiteUnderstandingJson.Serialize(fused);
@@ -330,6 +390,7 @@ public sealed class NicheExtractionTests
         Assert.Equal("sul-1.2", parsed.FusionVersion);
         Assert.Single(parsed.AllCandidates);
         Assert.Equal("Accounting", parsed.AllCandidates[0].Name);
+        Assert.Equal(0.34m, parsed.NormalizedTopicalityBySlug["accounting"]);
     }
 
     [Fact]

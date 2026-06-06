@@ -1483,6 +1483,7 @@ export type FusedSiteUnderstanding = {
   fusionVersion: string;
   signalSourcesPresent: string[];
   pillarCap: number;
+  normalizedTopicalityBySlug?: Record<string, number>;
 };
 
 export type NicheAnalysisDetails = {

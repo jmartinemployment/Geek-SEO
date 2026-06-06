@@ -164,6 +164,7 @@ public sealed class NicheAnalyzerService(
             var fused = topicFusionEngine.Fuse(
                 candidatePool,
                 schemaData.AreaServed.ToList());
+            fused = NormalizedTopicalityCalculator.Apply(fused, crawlData, urlPatternData);
             var mergeResult = topicFusionEngine.ToPillarMergeResult(fused);
             var merged = mergeResult.Selected;
             var silentGscSlugs = GscQueryExtractor.FindSilentPillarSlugs(merged, gscOverlay);
@@ -197,6 +198,7 @@ public sealed class NicheAnalyzerService(
                     gscOverlay.QueryRowCount,
                     gscMatchedCount,
                     silentGscSlugs,
+                    fused.NormalizedTopicalityBySlug,
                     mergeMessage),
                 ct);
 
