@@ -172,6 +172,9 @@ public partial class SeoDbContext
             e.HasIndex(x => x.ProjectId);
             e.HasIndex(x => x.Status);
             e.HasIndex(x => x.Domain);
+            e.Property(x => x.AnalysisStepLog)
+                .HasColumnType("jsonb")
+                .HasDefaultValueSql("'[]'::jsonb");
         });
 
         modelBuilder.Entity<NichePillar>(e =>

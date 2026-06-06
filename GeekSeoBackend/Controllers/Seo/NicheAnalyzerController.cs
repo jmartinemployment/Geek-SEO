@@ -36,6 +36,29 @@ public sealed class NicheAnalyzerController(
         }
     }
 
+    [HttpGet("{profileId:guid}/analysis-details")]
+    public async Task<IActionResult> GetAnalysisDetails(Guid profileId, CancellationToken ct)
+    {
+        try
+        {
+            user.RequireUserId();
+            var result = await profileRepo.GetByIdAsync(profileId, ct);
+            if (!result.IsSuccess || result.Value is null)
+                return NotFound();
+
+            var profile = result.Value;
+            if (profile.Status is not ("complete" or "failed" or "processing"))
+                return NotFound();
+
+            var steps = NicheAnalysisStepLogJson.Parse(profile.AnalysisStepLog);
+            return Ok(new NicheAnalysisDetails(profile.AnalysisStepLogVersion, steps));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpGet("{profileId:guid}/status")]
     public async Task<IActionResult> GetStatus(Guid profileId, CancellationToken ct)
     {

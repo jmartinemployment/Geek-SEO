@@ -18,6 +18,7 @@ import {
   type TopicalGapSummary,
   type AuthorityProgressPoint,
 } from '@/lib/seo-api';
+import { AnalysisStepBreakdown } from '@/components/niche-analyzer/AnalysisStepBreakdown';
 import { NicheHeader } from '@/components/niche-analyzer/NicheHeader';
 import { CoverageMatrixTable } from '@/components/niche-analyzer/CoverageMatrixTable';
 import { TopicalGapsPanel } from '@/components/niche-analyzer/TopicalGapsPanel';
@@ -259,6 +260,12 @@ export default function NicheAnalyzerPage() {
             onComplete={handleAnalysisComplete}
             onError={handleAnalysisError}
           />
+          <AnalysisStepBreakdown
+            profileId={analyzeProfileId}
+            accessToken={accessToken}
+            defaultOpen={false}
+            pollIntervalMs={4000}
+          />
         </div>
       )}
 
@@ -274,6 +281,7 @@ export default function NicheAnalyzerPage() {
       {profile && !analyzing && (
         <div className="mt-6 space-y-6">
           <NicheHeader profile={profile} />
+          <AnalysisStepBreakdown profileId={profile.id} accessToken={accessToken} />
 
           {/* Tabs */}
           <div className="flex gap-1 border-b border-[var(--color-border)]">

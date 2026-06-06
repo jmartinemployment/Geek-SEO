@@ -38,6 +38,8 @@ public sealed class NicheAnalyzerService(
             Domain = siteUrl,
             Status = "queued",
             AnalysisVersion = "1.0",
+            AnalysisStepLog = "[]",
+            AnalysisStepLogVersion = 1,
         };
 
         var result = await profileRepo.CreateAsync(profile, ct);
@@ -69,14 +71,20 @@ public sealed class NicheAnalyzerService(
             var schemaMessage = schemaData.ServiceNames.Count > 0
                 ? $"Found {schemaData.ServiceNames.Count} topics from schema.org."
                 : "Schema.org step complete — no service topics on homepage.";
-            await PushProgress(userId, profileId, "schema", 1, schemaMessage, ct);
+            await PushProgress(
+                userId, profileId, 1,
+                NicheAnalysisStepLogBuilder.Schema(1, schemaData, schemaMessage),
+                ct);
 
             // Step 2 — Site URLs (sitemap until crawl service exists)
             var sitemapData = await sitemapExtractor.ExtractAsync(domain, ct);
             var siteUrlsMessage = sitemapData.TotalUrlsScanned > 0
                 ? $"Site URLs: {sitemapData.TotalUrlsScanned} from sitemap."
                 : "Site URLs: none found in sitemap.";
-            await PushProgress(userId, profileId, "site_urls", 2, siteUrlsMessage, ct);
+            await PushProgress(
+                userId, profileId, 2,
+                NicheAnalysisStepLogBuilder.SiteUrls(2, sitemapData, siteUrlsMessage),
+                ct);
 
             // Step 3 — Navigation
             NavMenuData navData = new([], "skipped");
@@ -88,7 +96,10 @@ public sealed class NicheAnalyzerService(
                 "skipped" => "Navigation step skipped — browser unavailable.",
                 _ => $"Navigation: {navData.Pillars.Count} link groups ({navData.ExtractMethod}).",
             };
-            await PushProgress(userId, profileId, "nav", 3, navMessage, ct);
+            await PushProgress(
+                userId, profileId, 3,
+                NicheAnalysisStepLogBuilder.Nav(3, navData, navMessage),
+                ct);
 
             // Step 4 — Homepage headings (extractor output only — no schema substitution)
             var headings = await headingsExtractor.ExtractAsync(domain, browser, ct);
@@ -97,20 +108,28 @@ public sealed class NicheAnalyzerService(
                 headings.Headings.Count > 0 || !string.IsNullOrWhiteSpace(headings.Title)
                     ? $"Headings: {headings.Headings.Count} elements from homepage."
                     : "Headings: none found on homepage.";
-            await PushProgress(userId, profileId, "headings", 4, headingsMessage, ct);
+            await PushProgress(
+                userId, profileId, 4,
+                NicheAnalysisStepLogBuilder.Headings(4, headings, headingsMessage),
+                ct);
 
             // Step 5 — Merge all sources
             var schemaPillars = BuildSchemaDiscoveredPillars(schemaData);
+            var candidateCount =
+                schemaPillars.Count
+                + sitemapData.Pillars.Count
+                + navData.Pillars.Count
+                + headingPillars.Count;
             var merged = pillarMerger.Merge(
                 schemaPillars,
                 sitemapData.Pillars,
                 navData.Pillars,
                 headingPillars,
                 schemaData.AreaServed.ToList());
-
+            var mergeMessage = $"Topic pillars: {merged.Count} candidates after merge.";
             await PushProgress(
-                userId, profileId, "merging", 5,
-                $"Topic pillars: {merged.Count} candidates after merge.",
+                userId, profileId, 5,
+                NicheAnalysisStepLogBuilder.Merging(5, candidateCount, merged.Count, merged, mergeMessage),
                 ct);
 
             // Step 6 — Niche identity
@@ -118,21 +137,25 @@ public sealed class NicheAnalyzerService(
             scorer.ScorePillars(nicheEntities);
             var rootEntity = rootBuilder.Build(schemaData, headings, nicheEntities);
             var audienceType = DetermineAudienceType(nicheEntities, schemaData);
+            var nicheTags = BuildNicheTags(schemaData, nicheEntities).ToArray();
+            var profileMessage = $"Niche profile: {rootEntity}.";
             await PushProgress(
-                userId, profileId, "profile", 6,
-                $"Niche profile: {rootEntity}.",
+                userId, profileId, 6,
+                NicheAnalysisStepLogBuilder.Profile(6, rootEntity, audienceType, nicheTags, profileMessage),
                 ct);
 
             // Step 7 — Local geography (progress only until LocalGapGenerator ships)
+            const string localMessage = "Local geography: not enabled in this release.";
             await PushProgress(
-                userId, profileId, "local", 7,
-                "Local geography: not enabled in this release.",
+                userId, profileId, 7,
+                NicheAnalysisStepLogBuilder.LocalDisabled(7, localMessage),
                 ct);
 
             // Step 8 — Content coverage (progress only until coverage matcher ships)
+            const string coverageMessage = "Content coverage: not enabled in this release.";
             await PushProgress(
-                userId, profileId, "coverage", 8,
-                "Content coverage: not enabled in this release.",
+                userId, profileId, 8,
+                NicheAnalysisStepLogBuilder.CoverageDisabled(8, coverageMessage),
                 ct);
 
             // Step 9 — Authority score + persist
@@ -161,10 +184,11 @@ public sealed class NicheAnalyzerService(
             }
 
             var analyzedAt = DateTimeOffset.UtcNow;
+            var nextDue = analyzedAt.AddDays(30);
             var saveResult = await profileRepo.SaveAnalysisResultsAsync(profileId, new NicheAnalysisSaveRequest(
                 rootEntity,
                 schemaData.Description ?? string.Empty,
-                BuildNicheTags(schemaData, nicheEntities).ToArray(),
+                nicheTags,
                 audienceType,
                 string.Empty,
                 authorityScore,
@@ -173,16 +197,22 @@ public sealed class NicheAnalyzerService(
                 partial,
                 gap,
                 analyzedAt,
-                analyzedAt.AddDays(30)), ct);
+                nextDue), ct);
             if (!saveResult.IsSuccess)
                 throw new InvalidOperationException($"Failed to save analysis results: {saveResult.Error}");
 
+            var scoringMessage = $"Authority score: {authorityScore:F0}/100 — results saved.";
             await PushProgress(
-                userId, profileId, "scoring", 9,
-                $"Authority score: {authorityScore:F0}/100 — results saved.",
+                userId, profileId, 9,
+                NicheAnalysisStepLogBuilder.Scoring(
+                    9, authorityScore, covered, partial, gap, nicheEntities.Count, scoringMessage),
                 ct);
 
-            await PushProgress(userId, profileId, "complete", TotalSteps, "Analysis complete!", ct);
+            const string completeMessage = "Analysis complete!";
+            await PushProgress(
+                userId, profileId, TotalSteps,
+                NicheAnalysisStepLogBuilder.Complete(TotalSteps, analyzedAt, nextDue, completeMessage),
+                ct);
             await profileRepo.UpdateStatusAsync(profileId, "complete", "complete", TotalSteps, TotalSteps, ct: ct);
 
             logger.LogInformation(
@@ -223,20 +253,19 @@ public sealed class NicheAnalyzerService(
     private async Task PushProgress(
         Guid userId,
         Guid profileId,
-        string step,
         int stepNumber,
-        string message,
+        NicheAnalysisStepLogEntry stepEntry,
         CancellationToken ct = default)
     {
         var status = stepNumber >= TotalSteps ? "complete" : "processing";
         try
         {
             await profileRepo.UpdateStatusAsync(
-                profileId, status, step, stepNumber, TotalSteps, ct: ct);
+                profileId, status, stepEntry.Slug, stepNumber, TotalSteps, stepLogEntry: stepEntry, ct: ct);
         }
         catch (Exception ex)
         {
-            logger.LogDebug(ex, "Failed to persist niche step {Step} for {ProfileId}", step, profileId);
+            logger.LogDebug(ex, "Failed to persist niche step {Step} for {ProfileId}", stepEntry.Slug, profileId);
         }
 
         try
@@ -244,16 +273,16 @@ public sealed class NicheAnalyzerService(
             await hub.Clients.User(userId.ToString()).SendAsync("AnalysisProgress", new
             {
                 ProfileId = profileId,
-                Step = step,
+                Step = stepEntry.Slug,
                 StepNumber = stepNumber,
                 TotalSteps,
-                Message = message,
+                Message = stepEntry.Summary,
                 Status = stepNumber >= TotalSteps ? "complete" : "processing",
             });
         }
         catch (Exception ex)
         {
-            logger.LogDebug(ex, "SignalR push failed for {ProfileId} step {Step}", profileId, step);
+            logger.LogDebug(ex, "SignalR push failed for {ProfileId} step {Step}", profileId, stepEntry.Slug);
         }
     }
 

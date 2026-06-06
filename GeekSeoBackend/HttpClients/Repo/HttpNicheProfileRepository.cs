@@ -73,9 +73,10 @@ public sealed class HttpNicheProfileRepository(
     public async Task<Result> UpdateStatusAsync(
         Guid profileId, string status, string? step = null,
         int stepNumber = 0, int totalSteps = 0, string? errorMessage = null,
+        NicheAnalysisStepLogEntry? stepLogEntry = null,
         CancellationToken ct = default)
     {
-        var body = new { status, step, stepNumber, totalSteps, errorMessage };
+        var body = new { status, step, stepNumber, totalSteps, errorMessage, stepLogEntry };
         var res = await _http.PatchAsJsonAsync(
             $"api/seo/internal/niche-profiles/{profileId}/status?userId={user.UserId}", body, ct);
         return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await res.Content.ReadAsStringAsync(ct));

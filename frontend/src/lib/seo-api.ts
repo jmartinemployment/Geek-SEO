@@ -1450,6 +1450,20 @@ export type NicheAnalysisStatus = {
   progressAt?: string;
 };
 
+export type NicheAnalysisStepLogEntry = {
+  stepNumber: number;
+  slug: string;
+  title: string;
+  status: string;
+  summary: string;
+  outputs: Record<string, unknown>;
+};
+
+export type NicheAnalysisDetails = {
+  stepLogVersion: number;
+  steps: NicheAnalysisStepLogEntry[];
+};
+
 export type NicheSubtopicResult = {
   id: string;
   subtopicTitle: string;
@@ -1593,6 +1607,17 @@ export async function getNicheAnalysisStatus(
   accessToken?: string | null,
 ): Promise<NicheAnalysisStatus> {
   const res = await fetch(`${API_URL}/api/seo/niche-analyzer/${profileId}/status`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson(res);
+}
+
+export async function getNicheAnalysisDetails(
+  profileId: string,
+  accessToken?: string | null,
+): Promise<NicheAnalysisDetails> {
+  const res = await fetch(`${API_URL}/api/seo/niche-analyzer/${profileId}/analysis-details`, {
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });

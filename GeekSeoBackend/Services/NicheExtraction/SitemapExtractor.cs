@@ -30,12 +30,12 @@ public sealed class SitemapExtractor(IHttpClientFactory factory, ILogger<Sitemap
                     siteUrl, urls.Count);
             }
 
-            return new SitemapData(pillars, urls.Count);
+            return new SitemapData(pillars, urls.Count, urls.Take(20).ToList());
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Sitemap extraction failed for {Url}", siteUrl);
-            return new SitemapData([], 0);
+            return new SitemapData([], 0, []);
         }
     }
 

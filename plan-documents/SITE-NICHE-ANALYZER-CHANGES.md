@@ -1,120 +1,125 @@
 # Site Niche Analyzer — change plan (v1.5)
 
-**Scope:** Changes to the **Site Niche Analyzer orchestrator** only — how a scan runs, step order, SignalR/progress, and what gets persisted on the profile from the pipeline.
+**Scope:** Orchestrator + what gets persisted and shown for each scan.
 
-**Reference (v1 shipped spec, do not duplicate here):** [`SITE-NICHE-ANALYZER.md`](./SITE-NICHE-ANALYZER.md)
-
+**Reference (v1 shipped spec):** [`SITE-NICHE-ANALYZER.md`](./SITE-NICHE-ANALYZER.md)  
 **Dogfood:** [`docs/reference/geekatyourspot-niche-baseline.md`](../docs/reference/geekatyourspot-niche-baseline.md)
 
-**Ship this plan as Phase 1 only** (three build steps). Do not start step abstraction or step-log wiring in the same session.
+---
+
+## Phase status
+
+| Phase | Status | One-line goal |
+|-------|--------|----------------|
+| **1** | Shipped (`a649e16`, `fac20ea`) | Canonical 10 step slugs; no `discoveryMethod` on read API/UI |
+| **1.5** | Implemented (local) | Persist + show what each step found (no re-analyze to audit) |
+| **2** | Later | `INicheScanStep` refactor only — no new behavior |
+| **Other** | Separate plans | PillarMerger, crawl, coverage matcher, local/GBP, keywords |
 
 ---
 
-## In scope (this plan — Phase 1)
+## Phase 1.5 — step log (implemented locally)
 
-| Area | Files |
-|------|--------|
-| Orchestrator | `GeekSeoBackend/Services/NicheAnalyzerService.cs` |
-| Background job | `GeekSeoBackend/Services/NicheAnalysisBackgroundJob.cs` (only if step slugs touch it) |
-| Profile save from pipeline | Remove `discoveryMethod`; align step slugs with UI/SignalR |
-| Progress | `TotalSteps = 10`, canonical slugs below, no unused step 9 |
+**Shipped in workspace:** migration `20260606120000_AddNicheProfileAnalysisStepLog`, GeekRepository SQL `0008`, `GET …/analysis-details`, `AnalysisStepBreakdown.tsx` on results + live poll during analyze.
 
-**Not in this plan** — each gets its **own** plan when you build it:
+**Deploy:** Run SQL `0008` on production if EF auto-migrate does not apply; redeploy GeekRepository + GeekSeoBackend + frontend.
 
-- `INicheScanStep` refactor → **separate plan** (Phase 2; do not start here)
-- Step log persistence / `INicheStepLogWriter` → **NicheStepLog plan**
-- `PillarMerger` / `PillarValidator`
-- `SchemaOrgExtractor`, `SitemapExtractor`, `NavMenuExtractor`, `HomepageHeadingsExtractor`
-- `NicheAuthorityScorer` (formula changes)
-- Site URL crawl (`SiteUrlDiscoveryService`)
-- Coverage matcher, local gap generator, analysis-details API
-- `NicheAnalyzerController` (unless a one-line enqueue change falls out of orchestrator work)
-- Frontend components (update listener labels only if step slugs change in Phase 1)
-- SERP, keywords, GBP, entity gap, sitemap publish
+**Problem:** Step messages go out on SignalR only. After complete (or refresh), the UI shows generic labels or pillars — not what each step found. Users must **Re-analyze** to see discovery detail again.
 
----
+**Rule:** One write path, one read path. **Do not** build a throwaway SignalR-only step list in the frontend.
 
-## Problem (v1 orchestrator)
-
-| Issue | Why it's wrong |
-|-------|----------------|
-| `BuildHeadingsFromSchema` when headings are empty | The headings step must reflect what the extractor actually found; schema substitution corrupts the per-source audit trail and hides a failed/empty homepage parse. |
-| `DetermineDiscovery` + `discoveryMethod` on profile | v1 used one label to mean “which path won”; v1.5 runs every path and unifies at merge — a single discovery method misstates how the scan worked. |
-| Step slugs `validating`, `saving` | UI and SignalR should match the canonical 10-step model (`profile`, `local`, `coverage`, `scoring`, `complete`) so progress is honest per phase. |
-| Unused step 9; no `local` / `coverage` in pipeline | Step numbers and slugs should match the target model; gaps can no-op until sibling components exist — but slots must exist in order and progress. |
-| Progress copy implying fallback | e.g. “using sitemap and headings” when schema is empty — reads as substitution; copy should describe what **ran**, not what replaced what. |
-
----
-
-## Target — 10 scan steps (orchestrator owns order + progress only)
-
-| # | Slug | Orchestrator responsibility (Phase 1) |
-|---|------|-------------------------------------|
-| 1 | `schema` | Call `SchemaOrgExtractor`; push progress |
-| 2 | `site_urls` | Call existing sitemap path (crawl service is a later plan) — **not** profile `discoveryMethod` |
-| 3 | `nav` | Call `NavMenuExtractor` if browser available |
-| 4 | `headings` | Call `HomepageHeadingsExtractor`; **never** overwrite with schema |
-| 5 | `merging` | Call `PillarMerger.Merge` with all four lists (merger behavior = PillarMerger plan) |
-| 6 | `profile` | Root entity, niche string, audience type (today’s post-merge block) |
-| 7 | `local` | Push progress; **no business logic** until LocalGapGenerator plan |
-| 8 | `coverage` | Push progress; **no business logic** until NicheCoverageMatcher plan |
-| 9 | `scoring` | Call `NicheAuthorityScorer`; persist counts/score |
-| 10 | `complete` | Final status + `next_analysis_due` |
-
-Phase 1 does **not** implement steps 2/7/8 beyond slug + progress — no new services, no stubs with TODO behavior.
-
----
-
-## Phase 1 — build order (one Claude Code prompt)
+### Build order (3 steps)
 
 | Step | Work | Verify |
 |------|------|--------|
-| 1 | Replace step slugs + `PushProgress` / `UpdateStatusAsync` to canonical 10; fix `TotalSteps`; update frontend listener labels if slugs changed | SignalR shows 1–10 with new names |
-| 2 | Delete `BuildHeadingsFromSchema`, `DetermineDiscovery`; stop exposing `discoveryMethod` on profile API/UI; **still send empty `discoveryMethod` on save** until GeekRepository drops the column | Grep clean; analysis completes in prod |
-| 3 | Reorder pipeline: after merge → `profile` → `local` (progress only) → `coverage` (progress only) → `scoring` → persist → `complete` | Step numbers monotonic; no `validating`/`saving` slugs |
+| 1 | Migration: `analysis_step_log JSONB` on `niche_profiles` (GeekSeo.Persistence + GeekRepository). Orchestrator appends one entry per step when that step finishes. | Row exists after run; failed runs retain partial log |
+| 2 | `GET /api/seo/niche-analyzer/{profileId}/analysis-details` — returns `{ stepLogVersion, steps[] }` | 200 for complete/failed; owner-only |
+| 3 | UI: collapsible **“How this scan worked”** on niche analyzer results (reads analysis-details). Live progress may still use SignalR; **after** complete, panel is the source of truth | geekatyourspot.com run shows all 10 without re-analyze |
 
-**Do not in Phase 1:** introduce `INicheScanStep`, new step classes, step-log interfaces, migrations, or placeholder services for local/coverage/crawl.
+### Step log entry shape
+
+```json
+{
+  "stepNumber": 1,
+  "slug": "schema",
+  "title": "Schema.org",
+  "status": "complete",
+  "summary": "Found 7 topics from schema.org.",
+  "outputs": { }
+}
+```
+
+- **`summary`** — same text as today’s `PushProgress` message (single source; generate once, persist + SignalR).
+- **`outputs`** — structured payload per step (table below). Cap list lengths in v1 (e.g. 20 items) to keep JSONB small.
+
+### What each step persists (`outputs`)
+
+| # | Slug | `outputs` (minimum) |
+|---|------|---------------------|
+| 1 | `schema` | `serviceNames[]`, `areaServed[]`, `description`, `extractMethod` |
+| 2 | `site_urls` | `totalUrls`, `sampleUrls[]`, `pillarCount` |
+| 3 | `nav` | `extractMethod`, `pillarCount`, `sampleLabels[]` |
+| 4 | `headings` | `title`, `headingCount`, `sampleHeadings[]` |
+| 5 | `merging` | `candidateCount`, `mergedCount`, `samplePillarNames[]` |
+| 6 | `profile` | `primaryNiche`, `audienceType`, `nicheTags[]` |
+| 7 | `local` | `enabled: false`, `message` (until LocalGapGenerator plan) |
+| 8 | `coverage` | `enabled: false`, `message` (until NicheCoverageMatcher plan) |
+| 9 | `scoring` | `authorityScore`, `covered`, `partial`, `gap`, `pillarCount` |
+| 10 | `complete` | `analyzedAt`, `nextAnalysisDue` |
+
+Dogfood expectations: [`geekatyourspot-niche-baseline.md`](../docs/reference/geekatyourspot-niche-baseline.md) § Expected output.
+
+### Files (Phase 1.5 only)
+
+| Layer | Files |
+|-------|--------|
+| Persistence | `GeekSeo.Persistence` entity + migration; GeekRepository repo + internal PATCH if needed |
+| Orchestrator | `NicheAnalyzerService.cs` — write log entry in `PushProgress` (or helper called from there) |
+| API | `NicheAnalyzerController.cs` — `analysis-details` |
+| Frontend | New `AnalysisStepBreakdown.tsx`; wire on `niche-analyzer/page.tsx` when `profile.status === 'complete' \|\| 'failed'` |
+
+**Not in Phase 1.5:** `INicheScanStep`, `INicheStepLogWriter` abstraction, crawl, merger changes, local/coverage logic.
+
+**Before deploy:** Complete one analyze on production; open results without Re-analyze; confirm 10 rows match baseline.
 
 ---
 
-## Phase 2 — separate plan (not this document)
+## Phase 1 — shipped
 
-When ready, write **`SITE-NICHE-ANALYZER-SCAN-STEPS.md`** (or equivalent) for:
+Canonical 10 steps, slugs aligned with UI/SignalR, `discoveryMethod` off read API/UI, empty string on save for GeekRepository.
 
-- `INicheScanStep` + DI registration
-- One thin class per step wrapping existing calls
-- No new business logic inside step classes
-
-That refactor has its own blast radius — keep it out of the cleanup PR.
+**Cross-repo:** `PATCH …/analysis-results` still requires `discoveryMethod` in JSON until GeekRepository drops it.
 
 ---
 
-## Delete from orchestrator (grep checklist)
+## Phase 2 — scan step refactor (later, separate PR)
 
-- `BuildHeadingsFromSchema`
-- `DetermineDiscovery`
-- `discoveryMethod` on **profile API/UI** (and `DetermineDiscovery` logic)
-- User-facing progress text that frames sitemap/headings as **fallback** when schema is empty
+`INicheScanStep` + thin wrappers around existing extractors. **No** new behavior; step log writes stay in orchestrator or move with steps only after 1.5 is stable.
 
----
-
-## Out of scope — do not add to Phase 1 PR
-
-- `INicheScanStep` / step class extraction
-- `INicheStepLogWriter` / `analysis_step_log`
-- Merger algorithm, gates, synonym map → **PillarMerger plan**
-- Crawl BFS, 150-page index → **SiteUrlDiscovery plan**
-- URL ↔ pillar matching → **NicheCoverageMatcher plan**
-- Counties/cities matrix → **LocalGapGenerator plan**
-- UI step breakdown panel → **frontend plan**
+Do **not** write `SITE-NICHE-ANALYZER-SCAN-STEPS.md` until Phase 1.5 ships.
 
 ---
 
-## Cross-repo dependency (Phase 1)
+## Target — 10 scan steps (orchestrator order)
 
-`PATCH repo/seo/niche-profiles/{id}/analysis-results` in **GeekRepository** still requires `discoveryMethod` in the JSON body (`SaveNicheAnalysisResultsRequest`). Phase 1 removes it from the **read** API and UI only; the orchestrator sends `""` on save until GeekRepository makes the field optional or the column is dropped.
+| # | Slug | Runs today |
+|---|------|------------|
+| 1 | `schema` | `SchemaOrgExtractor` |
+| 2 | `site_urls` | `SitemapExtractor` (crawl = later plan) |
+| 3 | `nav` | `NavMenuExtractor` if browser |
+| 4 | `headings` | `HomepageHeadingsExtractor` — no schema substitution |
+| 5 | `merging` | `PillarMerger.Merge` (all four lists) |
+| 6 | `profile` | Root entity, audience, tags |
+| 7 | `local` | Progress only until LocalGapGenerator |
+| 8 | `coverage` | Progress only until NicheCoverageMatcher |
+| 9 | `scoring` | `NicheAuthorityScorer` + persist pillars/scores |
+| 10 | `complete` | Final status + `next_analysis_due` |
 
-**Before deploy:** run one niche analysis against staging/production and confirm status reaches `complete` (not failed at step 9 save).
+---
+
+## Out of scope (own plans when needed)
+
+PillarMerger algorithm, SiteUrlDiscovery crawl, NicheCoverageMatcher, LocalGapGenerator, GBP OAuth, keywords/SERP, step-class extraction before Phase 2.
 
 ---
 

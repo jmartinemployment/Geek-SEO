@@ -12,6 +12,19 @@ public record NicheAnalysisStatus(
     DateTimeOffset? CreatedAt = null,
     DateTimeOffset? ProgressAt = null);
 
+/// <summary>One persisted row in <c>niche_profiles.AnalysisStepLog</c> JSON array.</summary>
+public sealed record NicheAnalysisStepLogEntry(
+    int StepNumber,
+    string Slug,
+    string Title,
+    string Status,
+    string Summary,
+    IReadOnlyDictionary<string, object?> Outputs);
+
+public sealed record NicheAnalysisDetails(
+    int StepLogVersion,
+    IReadOnlyList<NicheAnalysisStepLogEntry> Steps);
+
 /// <summary>Persisted when a niche analysis run completes (metadata + scores).</summary>
 public sealed record NicheAnalysisSaveRequest(
     string PrimaryNiche,
@@ -160,7 +173,8 @@ public record SchemaOrgData(
 
 public record SitemapData(
     IReadOnlyList<DiscoveredPillar> Pillars,
-    int TotalUrlsScanned);
+    int TotalUrlsScanned,
+    IReadOnlyList<string> SampleUrls);
 
 public record NavMenuData(
     IReadOnlyList<DiscoveredPillar> Pillars,

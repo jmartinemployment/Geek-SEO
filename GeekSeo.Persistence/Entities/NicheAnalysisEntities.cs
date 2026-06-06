@@ -29,6 +29,9 @@ public sealed class NicheProfile
     public string? ErrorMessage { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? AnalysisProgressAt { get; set; }
+    public int AnalysisStepLogVersion { get; set; } = 1;
+    /// <summary>JSON array of per-step discovery entries (see NicheAnalysisStepLogEntry).</summary>
+    public string AnalysisStepLog { get; set; } = "[]";
 
     [ValidateNever]
     public ICollection<NichePillar> Pillars { get; set; } = [];
