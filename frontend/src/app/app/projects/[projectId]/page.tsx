@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { GoogleSettings } from '@/components/google/google-settings';
+import { LocalServiceAreaSettings } from '@/components/projects/local-service-area-settings';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import { createContent, getProject, listContent, type SeoContentDocument, type SeoProject } from '@/lib/seo-api';
 
@@ -107,6 +108,15 @@ function ProjectDocumentsPageInner() {
           projectSiteUrl={project?.url}
         />
       </div>
+
+      {project ? (
+        <LocalServiceAreaSettings
+          projectId={projectId}
+          project={project}
+          accessToken={accessToken}
+          onSaved={setProject}
+        />
+      ) : null}
 
       {error ? <div className="mt-4"><SeoErrorBanner error={error} /></div> : null}
 

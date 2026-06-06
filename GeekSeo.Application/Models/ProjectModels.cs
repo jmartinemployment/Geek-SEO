@@ -6,6 +6,9 @@ public sealed record CreateProjectRequest
     public required string Url { get; init; }
     public string DefaultLocation { get; init; } = "United States";
     public string DefaultLanguage { get; init; } = "en";
+    public string? BusinessAddress { get; init; }
+    public int ServiceRadiusMiles { get; init; } = LocalServiceAreaDefaults.DefaultRadiusMiles;
+    public bool LocalSeoEnabled { get; init; } = true;
 }
 
 public sealed record UpdateProjectRequest
@@ -14,6 +17,9 @@ public sealed record UpdateProjectRequest
     public string? Url { get; init; }
     public string? DefaultLocation { get; init; }
     public string? DefaultLanguage { get; init; }
+    public string? BusinessAddress { get; init; }
+    public int? ServiceRadiusMiles { get; init; }
+    public bool? LocalSeoEnabled { get; init; }
 }
 
 public sealed record CreateContentDocumentRequest

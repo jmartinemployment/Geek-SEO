@@ -1,6 +1,7 @@
 # Local SEO — business address + service radius
 
 **Status:** Planned — not started (implementation skipped for now)  
+**Implementation plan:** [`LOCAL-SERVICE-AREA-IMPLEMENTATION.md`](./LOCAL-SERVICE-AREA-IMPLEMENTATION.md) (Phase 1 in progress)  
 **Decision (2026-06-06):** Prefer **global local via address + adjustable radius** (default **20 miles**). Use **Google Maps Platform** (Geocoding / Places) server-side for address → coordinates and places-within-radius — **not** Google My Business Profile OAuth. See [`LOCAL-GBP-INTEGRATION.md`](./LOCAL-GBP-INTEGRATION.md) (My Business on hold).  
 **Builds on:** Step 11 `LocalGapGenerator` (shipped) — today uses schema `areaServed` + on-site location URLs only  
 **Dogfood site:** `https://www.geekatyourspot.com`

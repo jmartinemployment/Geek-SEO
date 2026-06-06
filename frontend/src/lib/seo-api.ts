@@ -28,6 +28,9 @@ export type SeoProject = {
   url: string;
   defaultLocation: string;
   gscConnected: boolean;
+  businessAddress?: string | null;
+  serviceRadiusMiles?: number;
+  localSeoEnabled?: boolean;
 };
 
 export type SeoContentDocument = {
@@ -60,6 +63,28 @@ export async function getProject(
   const res = await fetch(`${API_URL}/api/seo/projects/${projectId}`, {
     headers: apiHeaders(accessToken),
     cache: 'no-store',
+  });
+  return seoJson<SeoProject>(res);
+}
+
+export type UpdateProjectBody = {
+  name?: string;
+  url?: string;
+  defaultLocation?: string;
+  businessAddress?: string | null;
+  serviceRadiusMiles?: number;
+  localSeoEnabled?: boolean;
+};
+
+export async function updateProject(
+  projectId: string,
+  body: UpdateProjectBody,
+  accessToken?: string | null,
+): Promise<SeoProject> {
+  const res = await fetch(`${API_URL}/api/seo/projects/${projectId}`, {
+    method: 'PUT',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
   });
   return seoJson<SeoProject>(res);
 }

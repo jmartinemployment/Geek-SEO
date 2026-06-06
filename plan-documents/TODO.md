@@ -81,11 +81,11 @@ Competitors win on **SERP term checklist + score that moves when you add specifi
 
 **Direction (2026-06-06):** Global local via **business address** + **adjustable service radius** (default **20 miles**). **Google Maps Platform** (Geocoding/Places, server API key) for geocode — **not** Google My Business OAuth.
 
-Full spec: [`LOCAL-SERVICE-AREA.md`](LOCAL-SERVICE-AREA.md). My Business deferred: [`LOCAL-GBP-INTEGRATION.md`](LOCAL-GBP-INTEGRATION.md).
+Full spec: [`LOCAL-SERVICE-AREA.md`](LOCAL-SERVICE-AREA.md). Implementation: [`LOCAL-SERVICE-AREA-IMPLEMENTATION.md`](LOCAL-SERVICE-AREA-IMPLEMENTATION.md). My Business deferred: [`LOCAL-GBP-INTEGRATION.md`](LOCAL-GBP-INTEGRATION.md).
 
 | Phase | Scope | Status |
 |-------|--------|--------|
-| **1** | Project settings — address + radius (default 20 mi) | Not started |
+| **1** | Project settings — address + radius (default 20 mi) | In progress — Geek-SEO repo; GeekRepository deploy pending |
 | **2** | Geocode + places within radius | Not started |
 | **3** | Step 11 uses radius places + location URL gaps | Not started |
 | **4** | Topical map, copilot, Content Guard share same service area | Not started |

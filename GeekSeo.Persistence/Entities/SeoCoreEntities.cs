@@ -12,6 +12,11 @@ public sealed class SeoProject
     public bool GscConnected { get; set; }
     public string DefaultLocation { get; set; } = "United States";
     public string DefaultLanguage { get; set; } = "en";
+    /// <summary>Street address for local service area (Phase 1 local SEO).</summary>
+    public string? BusinessAddress { get; set; }
+    /// <summary>How far the business serves from <see cref="BusinessAddress"/>; default 20 miles.</summary>
+    public int ServiceRadiusMiles { get; set; } = 20;
+    public bool LocalSeoEnabled { get; set; } = true;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 
