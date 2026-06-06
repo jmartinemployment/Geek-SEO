@@ -86,7 +86,7 @@ export function CoverageMatrixTable({
         <p className="mt-2">
           {savedCountsOnly
             ? `The summary shows ${totalPillarsIdentified} pillar(s), but rows were not saved. Run Re-analyze once.`
-            : 'A sitemap with only the homepage is normal. Pillars are inferred from schema.org on that page (knowsAbout, services, area served). Visible navigation is not required.'}
+            : 'If the sitemap lists only the homepage, pillars are inferred from schema.org on that page (knowsAbout, services). v1 does not crawl every internal link yet.'}
         </p>
       </div>
     );

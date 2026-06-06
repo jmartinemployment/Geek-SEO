@@ -1495,7 +1495,6 @@ export type NicheProfileResult = {
   nicheTags: string[];
   audienceType: string;
   competitionLevel: string;
-  discoveryMethod: string;
   topicalAuthorityScore: number;
   totalPillarsIdentified: number;
   pillarsCovered: number;

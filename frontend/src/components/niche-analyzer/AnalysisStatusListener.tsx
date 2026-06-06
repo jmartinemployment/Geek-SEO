@@ -8,15 +8,21 @@ const DEV_USER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID;
 
 const STEP_LABELS: Record<string, string> = {
   schema: 'Extracting schema.org data…',
-  sitemap: 'Parsing sitemap…',
+  site_urls: 'Collecting site URLs…',
   nav: 'Crawling navigation menu…',
   headings: 'Reading homepage headings…',
   merging: 'Merging pillar signals…',
-  validating: 'Validating pillars…',
+  profile: 'Building niche profile…',
+  local: 'Local geography…',
+  coverage: 'Content coverage…',
   scoring: 'Computing authority score…',
-  saving: 'Saving analysis…',
   complete: 'Analysis complete',
   failed: 'Analysis failed',
+  // Legacy slugs from in-flight or older runs
+  sitemap: 'Collecting site URLs…',
+  discovery: 'Collecting site URLs…',
+  validating: 'Building niche profile…',
+  saving: 'Saving analysis…',
 };
 
 type Props = {

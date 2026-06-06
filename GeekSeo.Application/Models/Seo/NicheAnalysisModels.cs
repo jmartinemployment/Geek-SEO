@@ -18,7 +18,6 @@ public sealed record NicheAnalysisSaveRequest(
     string NicheDescription,
     string[] NicheTags,
     string AudienceType,
-    string DiscoveryMethod,
     decimal AuthorityScore,
     int TotalPillarsIdentified,
     int Covered,
@@ -46,7 +45,6 @@ public record NicheProfileResult
     public string[] NicheTags { get; init; } = [];
     public string AudienceType { get; init; } = "local_service";
     public string CompetitionLevel { get; init; } = "medium";
-    public string DiscoveryMethod { get; init; } = "fallback";
     public decimal TopicalAuthorityScore { get; init; }
     public int TotalPillarsIdentified { get; init; }
     public int PillarsCovered { get; init; }

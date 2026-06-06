@@ -12,6 +12,7 @@ public sealed class NicheProfile
     public string[] NicheTags { get; set; } = [];
     public string AudienceType { get; set; } = "local_service";
     public string CompetitionLevel { get; set; } = "medium";
+    /// <summary>Deprecated — no longer written or exposed via API. Column retained until migration.</summary>
     public string DiscoveryMethod { get; set; } = "fallback";
     public decimal TopicalAuthorityScore { get; set; }
     public int TotalPillarsIdentified { get; set; }

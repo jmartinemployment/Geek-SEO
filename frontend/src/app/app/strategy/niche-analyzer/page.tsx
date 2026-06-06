@@ -181,7 +181,7 @@ export default function NicheAnalyzerPage() {
             );
           } else {
             setError(
-              'No pillars were detected. A homepage-only sitemap is fine — Geek SEO reads schema.org JSON-LD (knowsAbout, services, area served). Hidden or off-canvas navigation is also fine.',
+              'No pillars were detected. For sites like geekatyourspot.com, pillars usually come from schema.org JSON-LD on the homepage (knowsAbout). Ensure the homepage exposes JSON-LD and re-run analysis.',
             );
           }
         }

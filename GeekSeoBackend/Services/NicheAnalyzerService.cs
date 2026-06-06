@@ -51,7 +51,6 @@ public sealed class NicheAnalyzerService(
     {
         try
         {
-            // Load project to get domain + location
             var profileResult = await profileRepo.GetByIdAsync(profileId, ct);
             if (!profileResult.IsSuccess || profileResult.Value is null)
             {
@@ -65,33 +64,40 @@ public sealed class NicheAnalyzerService(
             await profileRepo.UpdateStatusAsync(profileId, "processing",
                 step: "schema", stepNumber: 1, totalSteps: TotalSteps, ct: ct);
 
-            // Step 1 — Schema.org (HTTP + optional Playwright for JS-rendered JSON-LD)
+            // Step 1 — Schema.org
             var schemaData = await schemaExtractor.ExtractAsync(domain, browser, ct);
             var schemaMessage = schemaData.ServiceNames.Count > 0
-                ? $"Found {schemaData.ServiceNames.Count} topics from schema.org (knowsAbout, services)…"
-                : "No schema.org service topics found on homepage — using sitemap and headings…";
+                ? $"Found {schemaData.ServiceNames.Count} topics from schema.org."
+                : "Schema.org step complete — no service topics on homepage.";
             await PushProgress(userId, profileId, "schema", 1, schemaMessage, ct);
-            await PushProgress(userId, profileId, "sitemap", 2, "Parsing sitemap…", ct);
 
-            // Step 2 — Sitemap
+            // Step 2 — Site URLs (sitemap until crawl service exists)
             var sitemapData = await sitemapExtractor.ExtractAsync(domain, ct);
-            await PushProgress(userId, profileId, "nav", 3, "Crawling navigation menu…", ct);
+            var siteUrlsMessage = sitemapData.TotalUrlsScanned > 0
+                ? $"Site URLs: {sitemapData.TotalUrlsScanned} from sitemap."
+                : "Site URLs: none found in sitemap.";
+            await PushProgress(userId, profileId, "site_urls", 2, siteUrlsMessage, ct);
 
-            // Step 3 — Nav menu (Playwright)
+            // Step 3 — Navigation
             NavMenuData navData = new([], "skipped");
             if (browser is not null)
-            {
                 navData = await navMenuExtractor.ExtractAsync(domain, browser, ct);
-            }
-            await PushProgress(userId, profileId, "headings", 4, "Extracting homepage headings (H1–H6)…", ct);
 
-            // Step 4 — Title, meta, and H1–H6 from homepage HTML
+            var navMessage = navData.ExtractMethod switch
+            {
+                "skipped" => "Navigation step skipped — browser unavailable.",
+                _ => $"Navigation: {navData.Pillars.Count} link groups ({navData.ExtractMethod}).",
+            };
+            await PushProgress(userId, profileId, "nav", 3, navMessage, ct);
+
+            // Step 4 — Homepage headings (extractor output only — no schema substitution)
             var headings = await headingsExtractor.ExtractAsync(domain, browser, ct);
-            if (headings.Headings.Count == 0 && string.IsNullOrWhiteSpace(headings.Title))
-                headings = BuildHeadingsFromSchema(schemaData);
-
             var headingPillars = HeadingPillarBuilder.Build(headings);
-            await PushProgress(userId, profileId, "merging", 5, "Merging pillar signals…", ct);
+            var headingsMessage =
+                headings.Headings.Count > 0 || !string.IsNullOrWhiteSpace(headings.Title)
+                    ? $"Headings: {headings.Headings.Count} elements from homepage."
+                    : "Headings: none found on homepage.";
+            await PushProgress(userId, profileId, "headings", 4, headingsMessage, ct);
 
             // Step 5 — Merge all sources
             var schemaPillars = BuildSchemaDiscoveredPillars(schemaData);
@@ -102,28 +108,39 @@ public sealed class NicheAnalyzerService(
                 headingPillars,
                 schemaData.AreaServed.ToList());
 
-            await PushProgress(userId, profileId, "validating", 6, "Validating pillars…", ct);
+            await PushProgress(
+                userId, profileId, "merging", 5,
+                $"Topic pillars: {merged.Count} candidates after merge.",
+                ct);
 
-            // Step 6 — Root entity + niche string
+            // Step 6 — Niche identity
             var nicheEntities = BuildNichePillars(merged, profileId);
             scorer.ScorePillars(nicheEntities);
-
             var rootEntity = rootBuilder.Build(schemaData, headings, nicheEntities);
-            var discoveryMethod = DetermineDiscovery(merged);
-
-            // Step 7 — Determine audience type
             var audienceType = DetermineAudienceType(nicheEntities, schemaData);
-            await PushProgress(userId, profileId, "scoring", 7, "Computing topical authority score…", ct);
+            await PushProgress(
+                userId, profileId, "profile", 6,
+                $"Niche profile: {rootEntity}.",
+                ct);
 
-            // Step 8 — Score
+            // Step 7 — Local geography (progress only until LocalGapGenerator ships)
+            await PushProgress(
+                userId, profileId, "local", 7,
+                "Local geography: not enabled in this release.",
+                ct);
+
+            // Step 8 — Content coverage (progress only until coverage matcher ships)
+            await PushProgress(
+                userId, profileId, "coverage", 8,
+                "Content coverage: not enabled in this release.",
+                ct);
+
+            // Step 9 — Authority score + persist
             var authorityScore = scorer.ComputeTopicalAuthorityScore(nicheEntities);
             var covered = nicheEntities.Count(p => p.CoverageStatus == "covered");
             var partial = nicheEntities.Count(p => p.CoverageStatus == "partial");
             var gap = nicheEntities.Count(p => p.CoverageStatus == "gap");
 
-            await PushProgress(userId, profileId, "saving", 8, "Saving analysis results…", ct);
-
-            // Step 9 — Persist (assign IDs before subtopics reference pillars)
             foreach (var pillar in nicheEntities)
             {
                 if (pillar.Id == Guid.Empty)
@@ -149,7 +166,6 @@ public sealed class NicheAnalyzerService(
                 schemaData.Description ?? string.Empty,
                 BuildNicheTags(schemaData, nicheEntities).ToArray(),
                 audienceType,
-                discoveryMethod,
                 authorityScore,
                 nicheEntities.Count,
                 covered,
@@ -159,6 +175,11 @@ public sealed class NicheAnalyzerService(
                 analyzedAt.AddDays(30)), ct);
             if (!saveResult.IsSuccess)
                 throw new InvalidOperationException($"Failed to save analysis results: {saveResult.Error}");
+
+            await PushProgress(
+                userId, profileId, "scoring", 9,
+                $"Authority score: {authorityScore:F0}/100 — results saved.",
+                ct);
 
             await PushProgress(userId, profileId, "complete", TotalSteps, "Analysis complete!", ct);
             await profileRepo.UpdateStatusAsync(profileId, "complete", "complete", TotalSteps, TotalSteps, ct: ct);
@@ -292,7 +313,6 @@ public sealed class NicheAnalyzerService(
                 });
             }
 
-            // Always add at least 5 generic subtopics for pillars with no children
             if (childSlugs.Count < 3)
             {
                 var generic = new[]
@@ -331,24 +351,6 @@ public sealed class NicheAnalyzerService(
         if (slug.Contains("vs") || slug.Contains("compare")) return "comparison";
         if (slug.Contains("faq") || slug.Contains("question")) return "faq";
         return "how_to";
-    }
-
-    private static HomepageHeadings BuildHeadingsFromSchema(SchemaOrgData schema) =>
-        new()
-        {
-            Title = schema.BrandName,
-            MetaDescription = schema.Description,
-            Headings = [],
-            H2Texts = [],
-        };
-
-    private static string DetermineDiscovery(IReadOnlyList<DiscoveredPillar> merged)
-    {
-        if (merged.Any(p => p.Source == "schema")) return "schema";
-        if (merged.Any(p => p.Source == "sitemap")) return "sitemap";
-        if (merged.Any(p => p.Source == "nav")) return "nav";
-        if (merged.Any(p => p.Source == "heading")) return "heading";
-        return "fallback";
     }
 
     private static string DetermineAudienceType(

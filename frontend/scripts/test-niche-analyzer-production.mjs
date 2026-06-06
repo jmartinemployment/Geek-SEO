@@ -66,7 +66,7 @@ try {
   assert(latest.status === 200, `latest ${latest.status} ${JSON.stringify(latest.json)}`);
   const p = latest.json;
   console.log(
-    `  latest profile: status=${p.status} pillars=${p.pillars?.length ?? 0} total=${p.totalPillarsIdentified} discovery=${p.discoveryMethod}`,
+    `  latest profile: status=${p.status} pillars=${p.pillars?.length ?? 0} total=${p.totalPillarsIdentified}`,
   );
 
   if (p.status === 'complete') {

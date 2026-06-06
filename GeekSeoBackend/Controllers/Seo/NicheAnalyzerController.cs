@@ -213,7 +213,6 @@ public sealed class NicheAnalyzerController(
         NicheTags = p.NicheTags,
         AudienceType = p.AudienceType,
         CompetitionLevel = p.CompetitionLevel,
-        DiscoveryMethod = p.DiscoveryMethod,
         TopicalAuthorityScore = p.TopicalAuthorityScore,
         TotalPillarsIdentified = p.TotalPillarsIdentified,
         PillarsCovered = p.PillarsCovered,

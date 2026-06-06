@@ -57,7 +57,6 @@ export function NicheHeader({ profile }: Props) {
       </div>
 
       <div className="mt-3 flex gap-4 text-xs text-[var(--color-text-muted)]">
-        <span>Discovery: <strong>{profile.discoveryMethod}</strong></span>
         <span>Competition: <strong>{profile.competitionLevel}</strong></span>
         {profile.analyzedAt && (
           <span>Analyzed: <strong>{new Date(profile.analyzedAt).toLocaleDateString()}</strong></span>
