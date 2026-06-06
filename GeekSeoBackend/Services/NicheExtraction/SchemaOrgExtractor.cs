@@ -47,6 +47,7 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
             var serviceNames = new List<string>();
             var knowsAboutTopics = new List<string>();
             var offerCatalogTopics = new List<string>();
+            var sameAsUrls = new List<string>();
             string? description = null;
             string? brand = null;
             var areas = new List<string>();
@@ -61,6 +62,7 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
                         serviceNames,
                         knowsAboutTopics,
                         offerCatalogTopics,
+                        sameAsUrls,
                         areas,
                         ref description,
                         ref brand);
@@ -71,21 +73,28 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
                 }
             }
 
+            var resolvedPlatforms = SameAsClassifier.ResolvePlatforms(sameAsUrls);
+            var entityResolved = SameAsClassifier.IsEntityResolved(resolvedPlatforms);
+
             var data = new SchemaOrgData(
                 serviceNames.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
                 knowsAboutTopics.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
                 offerCatalogTopics.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
                 description,
                 brand,
-                areas.Distinct(StringComparer.OrdinalIgnoreCase).ToList());
+                areas.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                sameAsUrls.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                resolvedPlatforms,
+                entityResolved);
 
             logger.LogInformation(
-                "Schema.org for {Url}: {TopicCount} topics, brand={HasBrand}, areas={AreaCount}, blocks={BlockCount}",
+                "Schema.org for {Url}: {TopicCount} topics, brand={HasBrand}, areas={AreaCount}, blocks={BlockCount}, entityResolved={EntityResolved}",
                 siteUrl,
                 data.ServiceNames.Count,
                 !string.IsNullOrWhiteSpace(data.BrandName),
                 data.AreaServed.Count,
-                blocks.Count);
+                blocks.Count,
+                data.EntityResolved);
 
             return data;
         }
@@ -186,6 +195,7 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
         List<string> serviceNames,
         List<string> knowsAboutTopics,
         List<string> offerCatalogTopics,
+        List<string> sameAsUrls,
         List<string> areas,
         ref string? description,
         ref string? brand)
@@ -194,7 +204,7 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
         {
             foreach (var item in node.EnumerateArray())
                 ProcessJsonLdNode(
-                    item, serviceNames, knowsAboutTopics, offerCatalogTopics, areas, ref description, ref brand);
+                    item, serviceNames, knowsAboutTopics, offerCatalogTopics, sameAsUrls, areas, ref description, ref brand);
             return;
         }
 
@@ -205,7 +215,7 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
         {
             foreach (var item in graph.EnumerateArray())
                 ProcessJsonLdNode(
-                    item, serviceNames, knowsAboutTopics, offerCatalogTopics, areas, ref description, ref brand);
+                    item, serviceNames, knowsAboutTopics, offerCatalogTopics, sameAsUrls, areas, ref description, ref brand);
         }
 
         if (IsSchemaPillarSource(node) || HasServiceSignals(node))
@@ -213,9 +223,39 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
             description ??= TryGetString(node, "description");
             brand ??= CleanBrandName(TryGetString(node, "name"));
             ExtractAreaServed(node, areas);
+            ExtractSameAs(node, sameAsUrls);
             ExtractServiceNames(node, offerCatalogTopics, serviceNames);
             ExtractKnowsAbout(node, knowsAboutTopics, serviceNames);
         }
+    }
+
+    private static void ExtractSameAs(JsonElement root, List<string> sameAsUrls)
+    {
+        if (!root.TryGetProperty("sameAs", out var sameAs))
+            return;
+
+        if (sameAs.ValueKind == JsonValueKind.String)
+        {
+            AddSameAsUrl(sameAs.GetString(), sameAsUrls);
+            return;
+        }
+
+        if (sameAs.ValueKind != JsonValueKind.Array)
+            return;
+
+        foreach (var item in sameAs.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.String)
+                AddSameAsUrl(item.GetString(), sameAsUrls);
+        }
+    }
+
+    private static void AddSameAsUrl(string? url, List<string> sameAsUrls)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return;
+
+        sameAsUrls.Add(url.Trim());
     }
 
     private static bool HasServiceSignals(JsonElement root) =>
@@ -420,7 +460,7 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
         return name;
     }
 
-    private static SchemaOrgData Empty() => new([], [], [], null, null, []);
+    private static SchemaOrgData Empty() => new([], [], [], null, null, [], [], [], false);
 
     [GeneratedRegex(
         "<script[^>]*type\\s*=\\s*[\"']application/ld\\+json[\"'][^>]*>(?<body>[\\s\\S]*?)</script>",

@@ -171,7 +171,10 @@ public record SchemaOrgData(
     IReadOnlyList<string> OfferCatalogTopics,
     string? Description,
     string? BrandName,
-    IReadOnlyList<string> AreaServed);
+    IReadOnlyList<string> AreaServed,
+    IReadOnlyList<string> SameAsUrls,
+    IReadOnlyList<string> ResolvedEntityPlatforms,
+    bool EntityResolved);
 
 public sealed record PillarMergeResult(
     IReadOnlyList<DiscoveredPillar> Selected,

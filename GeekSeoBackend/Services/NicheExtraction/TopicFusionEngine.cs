@@ -7,7 +7,7 @@ namespace GeekSeoBackend.Services.NicheExtraction;
 /// </summary>
 public sealed class TopicFusionEngine(PillarValidator validator)
 {
-    public const string FusionVersion = "sul-1.1";
+    public const string FusionVersion = "sul-1.2";
     private const int MinPillars = 3;
 
     public FusedSiteUnderstanding Fuse(
@@ -89,6 +89,7 @@ public sealed class TopicFusionEngine(PillarValidator validator)
         }
 
         var cap = ComputePillarCap(maxPillars, afterGate1, workingPool);
+        var candidateBySlug = workingPool.ToDictionary(c => c.Slug, StringComparer.OrdinalIgnoreCase);
         var schemaSlugs = workingPool
             .Where(c => c.Evidence.Any(e => e.Source == "schema"))
             .Select(c => c.Slug)
@@ -102,6 +103,17 @@ public sealed class TopicFusionEngine(PillarValidator validator)
         var rankedSlugs = afterGate1
             .Select(p => p.Slug)
             .Where(slug => !schemaSlugs.Contains(slug))
+            .Where(slug =>
+            {
+                if (!candidateBySlug.TryGetValue(slug, out var candidate))
+                    return false;
+
+                if (TopicCorroboration.PassesCorroboration(candidate.Evidence))
+                    return true;
+
+                exclusionReasons.TryAdd(slug, "Insufficient signal corroboration (single weak source)");
+                return false;
+            })
             .OrderByDescending(slug => confidenceBySlug.GetValueOrDefault(slug))
             .ThenBy(slug => slug, StringComparer.OrdinalIgnoreCase)
             .ToList();

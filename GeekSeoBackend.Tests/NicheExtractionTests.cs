@@ -301,7 +301,7 @@ public sealed class NicheExtractionTests
             1);
 
         var pool = TopicCandidatePoolBuilder.Build(
-            new SchemaOrgData([], [], [], null, null, []),
+            new SchemaOrgData([], [], [], null, null, [], [], [], false),
             new SitemapData([], 0, []),
             new NavMenuData([], "skipped"),
             new HomepageHeadings(),
@@ -334,7 +334,10 @@ public sealed class NicheExtractionTests
             [],
             null,
             null,
-            []);
+            [],
+            [],
+            [],
+            false);
         var headings = new HomepageHeadings
         {
             Headings =
@@ -353,6 +356,127 @@ public sealed class NicheExtractionTests
         Assert.Single(pool);
         Assert.Equal(0.45m, pool[0].Confidence);
         Assert.Equal(2, pool[0].Evidence.Count);
+    }
+
+    [Fact]
+    public void SameAsClassifier_RecognizesWikipediaAndLinkedIn()
+    {
+        var platforms = SameAsClassifier.ResolvePlatforms(
+        [
+            "https://en.wikipedia.org/wiki/Geek_At_Your_Spot",
+            "https://www.linkedin.com/company/geek-at-your-spot",
+            "https://example.com/not-an-entity-hub",
+        ]);
+
+        Assert.Contains("wikipedia", platforms);
+        Assert.Contains("linkedin", platforms);
+        Assert.Equal(2, platforms.Count);
+        Assert.True(SameAsClassifier.IsEntityResolved(platforms));
+    }
+
+    [Fact]
+    public async Task SchemaOrgExtractor_ParsesSameAsUrls()
+    {
+        const string html = """
+            <html><head>
+            <script type="application/ld+json">{
+              "@context":"https://schema.org",
+              "@type":"LocalBusiness",
+              "name":"Geek at Your Spot",
+              "sameAs":[
+                "https://en.wikipedia.org/wiki/Geek_At_Your_Spot",
+                "https://www.linkedin.com/company/geek-at-your-spot"
+              ],
+              "knowsAbout":["Managed IT"]
+            }</script>
+            </head><body></body></html>
+            """;
+
+        var handler = new StubHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(html, Encoding.UTF8, "text/html"),
+        });
+        var extractor = new SchemaOrgExtractor(new StubHttpClientFactory(handler), NullLogger<SchemaOrgExtractor>.Instance);
+
+        var data = await extractor.ExtractAsync("https://www.geekatyourspot.com", browser: null, CancellationToken.None);
+
+        Assert.True(data.EntityResolved);
+        Assert.Equal(2, data.SameAsUrls.Count);
+        Assert.Contains("wikipedia", data.ResolvedEntityPlatforms);
+    }
+
+    [Fact]
+    public void TopicCandidatePoolBuilder_AddsSameAsEvidenceToSchemaTopics()
+    {
+        var schema = new SchemaOrgData(
+            ["Managed IT"],
+            ["Managed IT"],
+            [],
+            null,
+            "Geek at Your Spot",
+            [],
+            ["https://en.wikipedia.org/wiki/Geek_At_Your_Spot"],
+            ["wikipedia"],
+            true);
+
+        var pool = TopicCandidatePoolBuilder.Build(
+            schema,
+            new SitemapData([], 0, []),
+            new NavMenuData([], "skipped"),
+            new HomepageHeadings(),
+            new PageContentData([], [], 0));
+
+        Assert.Single(pool);
+        Assert.Equal(0.65m, pool[0].Confidence);
+        Assert.Contains(pool[0].Evidence, e => e.Source == "same_as");
+    }
+
+    [Fact]
+    public void TopicFusionEngine_ExcludesSingleSourcePagePhraseWithoutCorroboration()
+    {
+        var pool = new List<TopicCandidate>
+        {
+            new()
+            {
+                Name = "Random Body Phrase",
+                Slug = NicheAnalyzerService.NameToSlug("Random Body Phrase"),
+                Confidence = TopicEvidenceWeights.Page,
+                Evidence =
+                [
+                    new TopicEvidence
+                    {
+                        Source = "page",
+                        Snippet = "homepage body",
+                        Weight = TopicEvidenceWeights.Page,
+                    },
+                ],
+            },
+            new()
+            {
+                Name = "Accounting",
+                Slug = NicheAnalyzerService.NameToSlug("Accounting"),
+                Confidence = TopicEvidenceWeights.PageVertical,
+                Evidence =
+                [
+                    new TopicEvidence
+                    {
+                        Source = "page_vertical",
+                        Snippet = "homepage H3 section",
+                        Weight = TopicEvidenceWeights.PageVertical,
+                    },
+                ],
+            },
+        };
+
+        var engine = new TopicFusionEngine(new PillarValidator());
+        var fused = engine.Fuse(pool, [], maxPillars: 15);
+        var selectedSlugs = fused.SelectedPillars.Select(p => p.Slug).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains(NicheAnalyzerService.NameToSlug("Accounting"), selectedSlugs);
+        Assert.DoesNotContain(NicheAnalyzerService.NameToSlug("Random Body Phrase"), selectedSlugs);
+        var randomSlug = NicheAnalyzerService.NameToSlug("Random Body Phrase");
+        Assert.True(fused.ExclusionReasons.TryGetValue(randomSlug, out var reason));
+        Assert.Contains("corroboration", reason, StringComparison.OrdinalIgnoreCase);
     }
 
     private static class FixtureTopics

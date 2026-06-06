@@ -61,6 +61,22 @@ internal static class TopicCandidatePoolBuilder
         foreach (var vertical in pageContent.VerticalTopics)
             AddEvidence(bySlug, vertical, "page_vertical", TopicEvidenceWeights.PageVertical, "homepage H3 section");
 
+        if (schema.EntityResolved)
+        {
+            var platformSnippet = string.Join(", ", schema.ResolvedEntityPlatforms);
+            foreach (var builder in bySlug.Values.ToList())
+            {
+                if (!builder.HasSource("schema"))
+                    continue;
+
+                builder.AddEvidence(
+                    "same_as",
+                    TopicEvidenceWeights.SameAs,
+                    platformSnippet,
+                    schema.SameAsUrls.FirstOrDefault());
+            }
+        }
+
         if (internalLinks is not null)
         {
             foreach (var edge in internalLinks.Links)
@@ -159,6 +175,9 @@ internal static class TopicCandidatePoolBuilder
                 Url = url,
             });
         }
+
+        internal bool HasSource(string source) =>
+            _evidence.Any(e => e.Source.Equals(source, StringComparison.OrdinalIgnoreCase));
 
         internal void ApplyInboundCounts(IReadOnlyDictionary<string, int> inboundByTarget)
         {

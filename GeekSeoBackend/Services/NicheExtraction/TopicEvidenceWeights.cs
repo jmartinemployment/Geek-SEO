@@ -3,6 +3,7 @@ namespace GeekSeoBackend.Services.NicheExtraction;
 internal static class TopicEvidenceWeights
 {
     internal const decimal Schema = 0.35m;
+    internal const decimal SameAs = 0.30m;
     internal const decimal Sitemap = 0.25m;
     internal const decimal InternalLink = 0.18m;
     internal const decimal Nav = 0.15m;

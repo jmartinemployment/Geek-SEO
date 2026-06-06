@@ -45,6 +45,9 @@ internal static class NicheAnalysisStepLogBuilder
             ["areaServed"] = data.AreaServed.Take(SampleLimit).ToArray(),
             ["description"] = data.Description ?? string.Empty,
             ["brandName"] = data.BrandName ?? string.Empty,
+            ["sameAsUrls"] = data.SameAsUrls.Take(SampleLimit).ToArray(),
+            ["resolvedEntityPlatforms"] = data.ResolvedEntityPlatforms.ToArray(),
+            ["entityResolved"] = data.EntityResolved,
             ["becomesPillars"] = true,
         });
 
@@ -127,6 +130,7 @@ internal static class NicheAnalysisStepLogBuilder
         int fromPageVertical,
         int fromInternalLink,
         int fromUrlPattern,
+        int fromSameAs,
         string fusionVersion,
         IReadOnlyList<string> signalSourcesPresent,
         IReadOnlyList<string> exclusionReasonsSample,
@@ -143,6 +147,7 @@ internal static class NicheAnalysisStepLogBuilder
             ["fromPageVertical"] = fromPageVertical,
             ["fromInternalLink"] = fromInternalLink,
             ["fromUrlPattern"] = fromUrlPattern,
+            ["fromSameAs"] = fromSameAs,
             ["fusionVersion"] = fusionVersion,
             ["signalSourcesPresent"] = signalSourcesPresent.ToArray(),
             ["pillarCap"] = pillarCap,

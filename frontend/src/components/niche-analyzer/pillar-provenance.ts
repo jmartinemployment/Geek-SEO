@@ -18,6 +18,7 @@ export function buildPillarProvenanceSummary(
 ): string | null {
   const schema = steps.find((s) => s.slug === 'schema');
   const siteUrls = steps.find((s) => s.slug === 'site_urls');
+  const siteStructure = steps.find((s) => s.slug === 'site_structure');
   const merging = steps.find((s) => s.slug === 'merging');
 
   if (!merging || pillarCount === 0) return null;
@@ -42,10 +43,13 @@ export function buildPillarProvenanceSummary(
   const fusionVersion = merging.outputs.fusionVersion;
   const peerCandidates = outputNumber(merging, 'candidateCount');
   const signalSources = outputStringArray(merging, 'signalSourcesPresent');
+  const entityResolved = schema?.outputs.entityResolved === true;
+  const resolvedPlatforms = outputStringArray(schema, 'resolvedEntityPlatforms');
   const fromPage = outputNumber(merging, 'fromPageContent');
   const fromPageVertical = outputNumber(merging, 'fromPageVertical');
   const fromInternalLink = outputNumber(merging, 'fromInternalLink');
   const fromUrlPattern = outputNumber(merging, 'fromUrlPattern');
+  const fromSameAs = outputNumber(merging, 'fromSameAs');
   const totalUrls = outputNumber(siteUrls, 'totalUrls');
   const sitemapPillars = outputNumber(siteUrls, 'pillarCount');
 
@@ -88,6 +92,12 @@ export function buildPillarProvenanceSummary(
     parts.push('Navigation and homepage headings did not add extra pillar candidates this run.');
   }
 
+  if (entityResolved && resolvedPlatforms.length > 0) {
+    parts.push(
+      `Brand entity resolved via schema.org sameAs (${resolvedPlatforms.join(', ')}), boosting confidence on schema-declared topics.`,
+    );
+  }
+
   if (typeof fusionVersion === 'string' && fusionVersion.length > 0 && peerCandidates !== null) {
     const sources =
       signalSources.length > 0
@@ -117,6 +127,20 @@ export function buildPillarProvenanceSummary(
   if (fromUrlPattern !== null && fromUrlPattern > 0) {
     parts.push(
       `${fromUrlPattern} candidate(s) were inferred from URL path patterns (e.g. /services/… slugs).`,
+    );
+  }
+
+  if (fromSameAs !== null && fromSameAs > 0) {
+    parts.push(
+      `${fromSameAs} schema topic(s) received a sameAs entity-resolution boost (brand linked to Wikipedia, LinkedIn, or similar).`,
+    );
+  }
+
+  const pagesCrawled = outputNumber(siteStructure, 'pagesCrawled');
+  const internalLinkCount = outputNumber(siteStructure, 'internalLinkCount');
+  if (pagesCrawled !== null && pagesCrawled > 1 && internalLinkCount !== null && internalLinkCount > 0) {
+    parts.push(
+      `Site structure scan crawled ${pagesCrawled} pages and parsed ${internalLinkCount} internal link(s) for topic confirmation.`,
     );
   }
 
@@ -156,6 +180,10 @@ export const OUTPUT_LABELS: Record<string, string> = {
   fromHeadings: 'Candidates from headings',
   fromPageContent: 'Candidates from page body',
   fromPageVertical: 'Candidates from H3 vertical sections',
+  entityResolved: 'Brand entity resolved via sameAs',
+  sameAsUrls: 'sameAs URLs in schema',
+  resolvedEntityPlatforms: 'Entity authority platforms matched',
+  fromSameAs: 'Schema topics with sameAs boost',
   pagesCrawled: 'Pages crawled for structure signals',
   internalLinkCount: 'Internal links parsed',
   urlPatternTopicCount: 'Topics from URL path patterns',

@@ -183,6 +183,7 @@ public sealed class NicheAnalyzerService(
                     CountBySource(fused.AllCandidates, "page_vertical"),
                     CountBySource(fused.AllCandidates, "internal_link"),
                     CountBySource(fused.AllCandidates, "url_pattern"),
+                    CountBySource(fused.AllCandidates, "same_as"),
                     fused.FusionVersion,
                     fused.SignalSourcesPresent,
                     SampleExclusionReasons(fused),
