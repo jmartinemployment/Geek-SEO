@@ -12,6 +12,10 @@ const STEP_LABELS: Record<string, string> = {
   nav: 'Crawling navigation menu…',
   headings: 'Reading homepage headings…',
   merging: 'Merging pillar signals…',
+  page_content: 'Reading homepage content…',
+  site_structure: 'Scanning site structure…',
+  keywords: 'Enriching keyword demand…',
+  serp_validation: 'Validating SERP footprint…',
   profile: 'Building niche profile…',
   local: 'Local geography…',
   coverage: 'Content coverage…',
@@ -190,7 +194,7 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
   }, [profileId, accessToken]);
 
   const stepNumber = progress?.stepNumber ?? 0;
-  const totalSteps = progress?.totalSteps ?? 10;
+  const totalSteps = progress?.totalSteps ?? 14;
   const pct = totalSteps > 0 ? Math.round((stepNumber / totalSteps) * 100) : 0;
   const label =
     liveMessage ??

@@ -22,13 +22,14 @@ public sealed class NicheAnalyzerService(
     InternalLinkExtractor internalLinkExtractor,
     UrlPatternExtractor urlPatternExtractor,
     TopicFusionEngine topicFusionEngine,
+    PillarDemandEnricher pillarDemandEnricher,
     NicheAuthorityScorer scorer,
     NicheRootEntityBuilder rootBuilder,
     IHubContext<SeoContentScoringHub> hub,
     ICurrentUserContext userContext,
     ILogger<NicheAnalyzerService> logger)
 {
-    private const int TotalSteps = 12;
+    private const int TotalSteps = 14;
 
     public async Task<Guid> EnqueueAsync(
         Guid userId, Guid projectId, string domain,
@@ -190,33 +191,62 @@ public sealed class NicheAnalyzerService(
                     mergeMessage),
                 ct);
 
-            // Step 8 — Niche identity
-            var nicheEntities = BuildNichePillars(merged, profileId);
+            var projectResult = await projectRepo.GetByIdAsync(profile.ProjectId, ct);
+            var keywordLocation = projectResult.IsSuccess
+                && !string.IsNullOrWhiteSpace(projectResult.Value?.DefaultLocation)
+                ? projectResult.Value.DefaultLocation
+                : "United States";
+
+            // Step 8 — Keyword demand (Tier 2, optional)
+            var demand = await pillarDemandEnricher.EnrichAsync(
+                merged, profileId, domain, keywordLocation, ct);
+            merged = demand.PillarsAfterDemotion.ToList();
+            var keywordsMessage = demand.KeywordsSkipped
+                ? $"Keyword demand skipped — {demand.KeywordSkipReason ?? "provider unavailable"}."
+                : $"Keyword demand: enriched {demand.Keywords.Count(k => k.Enriched)} of {demand.Keywords.Count} pillar(s) via {demand.KeywordProvider}.";
+            await PushProgress(
+                userId, profileId, 8,
+                NicheAnalysisStepLogBuilder.Keywords(8, demand, keywordsMessage),
+                ct);
+
+            // Step 9 — SERP validation + competitors (Tier 2, optional)
+            var serpMessage = demand.SerpSkipped
+                ? $"SERP validation skipped — {demand.SerpSkipReason ?? "provider unavailable"}."
+                : demand.DemotedSlugs.Count > 0
+                    ? $"SERP validation ({demand.SerpProvider}): {demand.SerpValidations.Count(v => v.HasSerpFootprint)} pillar(s) with footprint, {demand.DemotedSlugs.Count} demoted, {demand.Competitors.Count} competitor(s) found."
+                    : $"SERP validation ({demand.SerpProvider}): {demand.SerpValidations.Count(v => v.HasSerpFootprint)} pillar(s) with organic footprint, {demand.Competitors.Count} competitor(s) found.";
+            await PushProgress(
+                userId, profileId, 9,
+                NicheAnalysisStepLogBuilder.SerpValidation(9, demand, serpMessage),
+                ct);
+
+            // Step 10 — Niche identity
+            var nicheEntities = BuildNichePillars(merged, profileId, demand.Keywords);
             scorer.ScorePillars(nicheEntities);
             var rootEntity = rootBuilder.Build(schemaData, headings, nicheEntities);
             var audienceType = DetermineAudienceType(nicheEntities, schemaData);
             var nicheTags = BuildNicheTags(schemaData, nicheEntities).ToArray();
             var profileMessage = $"Niche profile: {rootEntity}.";
             await PushProgress(
-                userId, profileId, 8,
-                NicheAnalysisStepLogBuilder.Profile(8, rootEntity, audienceType, nicheTags, profileMessage),
+                userId, profileId, 10,
+                NicheAnalysisStepLogBuilder.Profile(10, rootEntity, audienceType, nicheTags, profileMessage),
                 ct);
 
-            // Step 9 — Local geography (progress only until LocalGapGenerator ships)
+            // Step 11 — Local geography (progress only until LocalGapGenerator ships)
             const string localMessage = "Local geography: not enabled in this release.";
             await PushProgress(
-                userId, profileId, 9,
-                NicheAnalysisStepLogBuilder.LocalDisabled(9, localMessage),
+                userId, profileId, 11,
+                NicheAnalysisStepLogBuilder.LocalDisabled(11, localMessage),
                 ct);
 
-            // Step 10 — Content coverage (progress only until coverage matcher ships)
+            // Step 12 — Content coverage (progress only until coverage matcher ships)
             const string coverageMessage = "Content coverage: not enabled in this release.";
             await PushProgress(
-                userId, profileId, 10,
-                NicheAnalysisStepLogBuilder.CoverageDisabled(10, coverageMessage),
+                userId, profileId, 12,
+                NicheAnalysisStepLogBuilder.CoverageDisabled(12, coverageMessage),
                 ct);
 
-            // Step 11 — Authority score + persist
+            // Step 13 — Authority score + persist
             var authorityScore = scorer.ComputeTopicalAuthorityScore(nicheEntities);
             var covered = nicheEntities.Count(p => p.CoverageStatus == "covered");
             var partial = nicheEntities.Count(p => p.CoverageStatus == "partial");
@@ -241,6 +271,17 @@ public sealed class NicheAnalyzerService(
                     profileId, subtopicsResult.Error);
             }
 
+            if (demand.Competitors.Count > 0)
+            {
+                var competitorsResult = await profileRepo.BulkInsertCompetitorsAsync(demand.Competitors, ct);
+                if (!competitorsResult.IsSuccess)
+                {
+                    logger.LogWarning(
+                        "Competitors not saved for {ProfileId}: {Error}",
+                        profileId, competitorsResult.Error);
+                }
+            }
+
             var analyzedAt = DateTimeOffset.UtcNow;
             var nextDue = analyzedAt.AddDays(30);
             var saveResult = await profileRepo.SaveAnalysisResultsAsync(profileId, new NicheAnalysisSaveRequest(
@@ -261,9 +302,9 @@ public sealed class NicheAnalyzerService(
 
             var scoringMessage = $"Authority score: {authorityScore:F0}/100 — results saved.";
             await PushProgress(
-                userId, profileId, 11,
+                userId, profileId, 13,
                 NicheAnalysisStepLogBuilder.Scoring(
-                    11, authorityScore, covered, partial, gap, nicheEntities.Count, scoringMessage),
+                    13, authorityScore, covered, partial, gap, nicheEntities.Count, scoringMessage),
                 ct);
 
             const string completeMessage = "Analysis complete!";
@@ -358,20 +399,32 @@ public sealed class NicheAnalyzerService(
             .ToList();
 
     private static List<NichePillar> BuildNichePillars(
-        IReadOnlyList<DiscoveredPillar> merged, Guid profileId)
+        IReadOnlyList<DiscoveredPillar> merged,
+        Guid profileId,
+        IReadOnlyList<PillarKeywordEnrichment> keywordMetrics)
     {
-        return merged.Select((p, idx) => new NichePillar
+        var metricsBySlug = keywordMetrics
+            .Where(k => k.Enriched)
+            .ToDictionary(k => k.Slug, StringComparer.OrdinalIgnoreCase);
+
+        return merged.Select((p, idx) =>
         {
-            NicheProfileId = profileId,
-            PillarTopic = p.Name,
-            PillarSlug = p.Slug,
-            PrimaryKeyword = p.Name.ToLowerInvariant(),
-            PageUrl = p.PageUrl,
-            SearchIntent = p.Intent,
-            Source = p.Source,
-            DisplayOrder = idx,
-            CoverageStatus = "gap",
-            RequiredSubtopicCount = Math.Max(p.ChildPageCount, 5),
+            metricsBySlug.TryGetValue(p.Slug, out var metrics);
+            return new NichePillar
+            {
+                NicheProfileId = profileId,
+                PillarTopic = p.Name,
+                PillarSlug = p.Slug,
+                PrimaryKeyword = metrics?.Keyword ?? p.Name.ToLowerInvariant(),
+                PageUrl = p.PageUrl,
+                SearchIntent = p.Intent,
+                Source = p.Source,
+                DisplayOrder = idx,
+                CoverageStatus = "gap",
+                RequiredSubtopicCount = Math.Max(p.ChildPageCount, 5),
+                SearchVolume = metrics?.SearchVolume ?? 0,
+                KeywordDifficulty = metrics?.KeywordDifficulty ?? 0m,
+            };
         }).ToList();
     }
 

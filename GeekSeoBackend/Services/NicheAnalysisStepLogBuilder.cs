@@ -1,4 +1,5 @@
 using GeekSeo.Application.Models.Seo;
+using GeekSeoBackend.Services.NicheExtraction;
 
 namespace GeekSeoBackend.Services;
 
@@ -16,6 +17,8 @@ internal static class NicheAnalysisStepLogBuilder
             ["page_content"] = "Page content",
             ["site_structure"] = "Site structure",
             ["merging"] = "Pillar merge",
+            ["keywords"] = "Keyword demand",
+            ["serp_validation"] = "SERP validation",
             ["profile"] = "Niche profile",
             ["local"] = "Local geography",
             ["coverage"] = "Content coverage",
@@ -169,6 +172,45 @@ internal static class NicheAnalysisStepLogBuilder
         if (sources.Count == 1) return sources[0].Key;
         return $"mixed ({string.Join(", ", sources.Select(g => $"{g.Key}:{g.Count()}"))})";
     }
+
+    internal static NicheAnalysisStepLogEntry Keywords(
+        int step,
+        PillarDemandEnrichment demand,
+        string summary) =>
+        Entry(step, "keywords", summary, new Dictionary<string, object?>
+        {
+            ["skipped"] = demand.KeywordsSkipped,
+            ["skipReason"] = demand.KeywordSkipReason ?? string.Empty,
+            ["provider"] = demand.KeywordProvider,
+            ["pillarsEnriched"] = demand.Keywords.Count(k => k.Enriched),
+            ["pillarsAttempted"] = demand.Keywords.Count,
+            ["sampleMetrics"] = demand.Keywords
+                .Where(k => k.Enriched)
+                .Take(SampleLimit)
+                .Select(k => $"{k.Keyword}: vol {k.SearchVolume}, KD {k.KeywordDifficulty:F0}")
+                .ToArray(),
+        });
+
+    internal static NicheAnalysisStepLogEntry SerpValidation(
+        int step,
+        PillarDemandEnrichment demand,
+        string summary) =>
+        Entry(step, "serp_validation", summary, new Dictionary<string, object?>
+        {
+            ["skipped"] = demand.SerpSkipped,
+            ["skipReason"] = demand.SerpSkipReason ?? string.Empty,
+            ["provider"] = demand.SerpProvider,
+            ["pillarsValidated"] = demand.SerpValidations.Count(v => string.IsNullOrEmpty(v.Error)),
+            ["pillarsWithFootprint"] = demand.SerpValidations.Count(v => v.HasSerpFootprint),
+            ["pillarsDemoted"] = demand.DemotedSlugs.Count,
+            ["demotedSample"] = demand.DemotedSlugs.Take(SampleLimit).ToArray(),
+            ["competitorCount"] = demand.Competitors.Count,
+            ["sampleCompetitors"] = demand.Competitors
+                .Take(SampleLimit)
+                .Select(c => $"{c.Domain} ({c.SerpPresence} SERPs)")
+                .ToArray(),
+            ["siteRanksCount"] = demand.SerpValidations.Count(v => v.SiteRanks),
+        });
 
     internal static NicheAnalysisStepLogEntry Profile(
         int step, string primaryNiche, string audienceType, IEnumerable<string> nicheTags, string summary) =>

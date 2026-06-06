@@ -136,6 +136,38 @@ export function buildPillarProvenanceSummary(
     );
   }
 
+  const keywords = steps.find((s) => s.slug === 'keywords');
+  const serpValidation = steps.find((s) => s.slug === 'serp_validation');
+  const pillarsEnriched = outputNumber(keywords, 'pillarsEnriched');
+  const keywordsSkipped = keywords?.outputs.skipped === true;
+  if (keywordsSkipped) {
+    const reason = keywords?.outputs.skipReason;
+    if (typeof reason === 'string' && reason.length > 0) {
+      parts.push(`Keyword volume/difficulty enrichment was skipped (${reason}).`);
+    }
+  } else if (pillarsEnriched !== null && pillarsEnriched > 0) {
+    parts.push(`${pillarsEnriched} pillar(s) were enriched with search volume and keyword difficulty.`);
+  }
+
+  const serpSkipped = serpValidation?.outputs.skipped === true;
+  const pillarsDemoted = outputNumber(serpValidation, 'pillarsDemoted');
+  const competitorCount = outputNumber(serpValidation, 'competitorCount');
+  if (serpSkipped) {
+    const reason = serpValidation?.outputs.skipReason;
+    if (typeof reason === 'string' && reason.length > 0) {
+      parts.push(`SERP validation was skipped (${reason}).`);
+    }
+  } else {
+    if (pillarsDemoted !== null && pillarsDemoted > 0) {
+      parts.push(
+        `${pillarsDemoted} non-schema pillar(s) were demoted — no organic SERP footprint for those topics.`,
+      );
+    }
+    if (competitorCount !== null && competitorCount > 0) {
+      parts.push(`${competitorCount} competitor domain(s) were identified from SERP overlap.`);
+    }
+  }
+
   const pagesCrawled = outputNumber(siteStructure, 'pagesCrawled');
   const internalLinkCount = outputNumber(siteStructure, 'internalLinkCount');
   if (pagesCrawled !== null && pagesCrawled > 1 && internalLinkCount !== null && internalLinkCount > 0) {
@@ -184,6 +216,14 @@ export const OUTPUT_LABELS: Record<string, string> = {
   sameAsUrls: 'sameAs URLs in schema',
   resolvedEntityPlatforms: 'Entity authority platforms matched',
   fromSameAs: 'Schema topics with sameAs boost',
+  pillarsEnriched: 'Pillars with keyword metrics',
+  pillarsAttempted: 'Pillars checked for keyword metrics',
+  pillarsValidated: 'Pillars checked in SERP',
+  pillarsWithFootprint: 'Pillars with organic SERP results',
+  pillarsDemoted: 'Pillars demoted (no SERP footprint)',
+  competitorCount: 'Competitor domains from SERP',
+  sampleCompetitors: 'Sample competitors',
+  siteRanksCount: 'Pillars where your site ranks',
   pagesCrawled: 'Pages crawled for structure signals',
   internalLinkCount: 'Internal links parsed',
   urlPatternTopicCount: 'Topics from URL path patterns',

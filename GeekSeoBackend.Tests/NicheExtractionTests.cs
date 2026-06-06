@@ -479,6 +479,79 @@ public sealed class NicheExtractionTests
         Assert.Contains("corroboration", reason, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void PillarDemandEnricher_ApplySerpDemotions_KeepsSchemaWithoutFootprint()
+    {
+        var pillars = new List<DiscoveredPillar>
+        {
+            new() { Name = "Managed IT", Slug = "managed-it", Source = "schema" },
+            new() { Name = "Random Topic", Slug = "random-topic", Source = "page" },
+        };
+        var serp = new List<PillarSerpEnrichment>
+        {
+            new("managed-it", false, 0, false, null, [], "test"),
+            new("random-topic", false, 0, false, null, [], "test"),
+        };
+
+        var kept = PillarDemandEnricher.ApplySerpDemotions(pillars, serp, out var demoted);
+
+        Assert.Single(kept);
+        Assert.Equal("managed-it", kept[0].Slug);
+        Assert.Single(demoted);
+        Assert.Equal("random-topic", demoted[0]);
+    }
+
+    [Fact]
+    public void PillarDemandEnricher_BuildCompetitors_ExcludesOwnDomain()
+    {
+        var profileId = Guid.NewGuid();
+        var serp = new List<PillarSerpEnrichment>
+        {
+            new(
+                "managed-it",
+                true,
+                10,
+                false,
+                null,
+                ["competitor.com", "geekatyourspot.com", "www.geekatyourspot.com"],
+                "test"),
+        };
+
+        var competitors = PillarDemandEnricher.BuildCompetitors(profileId, "geekatyourspot.com", serp);
+
+        Assert.Single(competitors);
+        Assert.Equal("competitor.com", competitors[0].Domain);
+    }
+
+    [Fact]
+    public void PillarDemandEnricher_PickBestKeywordMatch_PrefersExactThenVolume()
+    {
+        var suggestions = new List<KeywordResult>
+        {
+            new()
+            {
+                Keyword = "ai consulting services",
+                SearchVolume = 900,
+                KeywordDifficulty = 40,
+                CpcUsd = 1,
+                Competition = "medium",
+            },
+            new()
+            {
+                Keyword = "ai consulting",
+                SearchVolume = 1200,
+                KeywordDifficulty = 35,
+                CpcUsd = 1,
+                Competition = "medium",
+            },
+        };
+
+        var match = PillarDemandEnricher.PickBestKeywordMatch("ai consulting", suggestions);
+
+        Assert.NotNull(match);
+        Assert.Equal("ai consulting", match!.Keyword);
+    }
+
     private static class FixtureTopics
     {
         internal static IEnumerable<string> TwelveDistinct =>
