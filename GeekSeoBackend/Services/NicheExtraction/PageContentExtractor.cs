@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.RegularExpressions;
 using GeekSeo.Application.Models.Seo;
 using Microsoft.Playwright;
@@ -6,25 +7,29 @@ namespace GeekSeoBackend.Services.NicheExtraction;
 
 /// <summary>
 /// Extracts service-like phrases from visible homepage content (lists, section headings).
+/// H3 section titles are tracked separately as page verticals (e.g. Accounting).
 /// </summary>
 public sealed partial class PageContentExtractor(
     IHttpClientFactory factory,
     ILogger<PageContentExtractor> logger)
 {
     private const int MaxPhrases = 40;
+    private const int MaxVerticalTopics = 12;
 
     public async Task<PageContentData> ExtractAsync(
         string siteUrl, IBrowser? browser, CancellationToken ct)
     {
         IReadOnlyList<string> phrases;
+        IReadOnlyList<string> verticalTopics;
         int listItemsScanned;
 
         if (browser is not null)
         {
             try
             {
-                (phrases, listItemsScanned) = await ExtractWithPlaywrightAsync(siteUrl, browser, ct);
-                return new PageContentData(phrases, listItemsScanned);
+                (phrases, verticalTopics, listItemsScanned) =
+                    await ExtractWithPlaywrightAsync(siteUrl, browser, ct);
+                return new PageContentData(phrases, verticalTopics, listItemsScanned);
             }
             catch (Exception ex)
             {
@@ -32,11 +37,11 @@ public sealed partial class PageContentExtractor(
             }
         }
 
-        (phrases, listItemsScanned) = await ExtractFromHttpAsync(siteUrl, ct);
-        return new PageContentData(phrases, listItemsScanned);
+        (phrases, verticalTopics, listItemsScanned) = await ExtractFromHttpAsync(siteUrl, ct);
+        return new PageContentData(phrases, verticalTopics, listItemsScanned);
     }
 
-    private async Task<(IReadOnlyList<string> Phrases, int ListItemsScanned)> ExtractWithPlaywrightAsync(
+    private async Task<(IReadOnlyList<string> Phrases, IReadOnlyList<string> VerticalTopics, int ListItemsScanned)> ExtractWithPlaywrightAsync(
         string siteUrl, IBrowser browser, CancellationToken ct)
     {
         await using var context = await browser.NewContextAsync(new BrowserNewContextOptions
@@ -52,34 +57,42 @@ public sealed partial class PageContentExtractor(
 
         var payload = await page.EvaluateAsync<string>(@"() => {
             const phrases = [];
+            const verticalTopics = [];
             const seen = new Set();
+            const seenVertical = new Set();
 
-            const add = (text) => {
+            const add = (text, target) => {
                 const t = (text || '').replace(/\s+/g, ' ').trim();
                 if (t.length < 4 || t.length > 80) return;
                 const key = t.toLowerCase();
-                if (seen.has(key)) return;
-                seen.add(key);
-                phrases.push(t);
+                const bucket = target === 'vertical' ? seenVertical : seen;
+                if (bucket.has(key)) return;
+                bucket.add(key);
+                if (target === 'vertical') verticalTopics.push(t);
+                else phrases.push(t);
             };
 
             let listCount = 0;
             for (const li of document.querySelectorAll('main li, section li, article li, ul li, ol li')) {
                 listCount++;
-                add(li.textContent);
+                add(li.textContent, 'phrase');
             }
 
-            for (const h of document.querySelectorAll('h2,h3,h4')) {
-                add(h.textContent);
+            for (const h3 of document.querySelectorAll('h3')) {
+                add(h3.textContent, 'vertical');
             }
 
-            return JSON.stringify({ phrases, listCount });
+            for (const h of document.querySelectorAll('h2,h4')) {
+                add(h.textContent, 'phrase');
+            }
+
+            return JSON.stringify({ phrases, verticalTopics, listCount });
         }");
 
         return ParsePayload(payload);
     }
 
-    private async Task<(IReadOnlyList<string> Phrases, int ListItemsScanned)> ExtractFromHttpAsync(
+    private async Task<(IReadOnlyList<string> Phrases, IReadOnlyList<string> VerticalTopics, int ListItemsScanned)> ExtractFromHttpAsync(
         string siteUrl, CancellationToken ct)
     {
         var client = factory.CreateClient();
@@ -91,10 +104,12 @@ public sealed partial class PageContentExtractor(
         return ExtractFromHtml(html);
     }
 
-    internal static (IReadOnlyList<string> Phrases, int ListItemsScanned) ExtractFromHtml(string html)
+    internal static (IReadOnlyList<string> Phrases, IReadOnlyList<string> VerticalTopics, int ListItemsScanned) ExtractFromHtml(string html)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var verticalSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var phrases = new List<string>();
+        var verticalTopics = new List<string>();
         var listItemsScanned = 0;
 
         foreach (Match match in ListItemRegex().Matches(html))
@@ -108,13 +123,20 @@ public sealed partial class PageContentExtractor(
             if (!int.TryParse(match.Groups[1].Value, out var level) || level is < 2 or > 4)
                 continue;
 
-            TryAddPhrase(seen, phrases, StripTags(match.Groups[2].Value));
+            var text = StripTags(match.Groups[2].Value);
+            if (level == 3)
+                TryAddPhrase(verticalSeen, verticalTopics, text);
+            else
+                TryAddPhrase(seen, phrases, text);
         }
 
-        return (phrases.Take(MaxPhrases).ToList(), listItemsScanned);
+        return (
+            phrases.Take(MaxPhrases).ToList(),
+            verticalTopics.Take(MaxVerticalTopics).ToList(),
+            listItemsScanned);
     }
 
-    private static (IReadOnlyList<string> Phrases, int ListItemsScanned) ParsePayload(string json)
+    private static (IReadOnlyList<string> Phrases, IReadOnlyList<string> VerticalTopics, int ListItemsScanned) ParsePayload(string json)
     {
         using var doc = System.Text.Json.JsonDocument.Parse(json);
         var root = doc.RootElement;
@@ -122,6 +144,20 @@ public sealed partial class PageContentExtractor(
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var phrases = new List<string>();
+        var verticalSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var verticalTopics = new List<string>();
+
+        if (root.TryGetProperty("verticalTopics", out var verticalArr)
+            && verticalArr.ValueKind == System.Text.Json.JsonValueKind.Array)
+        {
+            foreach (var item in verticalArr.EnumerateArray())
+            {
+                if (item.ValueKind != System.Text.Json.JsonValueKind.String)
+                    continue;
+
+                TryAddPhrase(verticalSeen, verticalTopics, item.GetString() ?? string.Empty);
+            }
+        }
 
         if (root.TryGetProperty("phrases", out var arr) && arr.ValueKind == System.Text.Json.JsonValueKind.Array)
         {
@@ -134,7 +170,10 @@ public sealed partial class PageContentExtractor(
             }
         }
 
-        return (phrases.Take(MaxPhrases).ToList(), listCount);
+        return (
+            phrases.Take(MaxPhrases).ToList(),
+            verticalTopics.Take(MaxVerticalTopics).ToList(),
+            listCount);
     }
 
     private static void TryAddPhrase(HashSet<string> seen, List<string> phrases, string text)
@@ -156,8 +195,13 @@ public sealed partial class PageContentExtractor(
         phrases.Add(trimmed);
     }
 
-    private static string StripTags(string value) =>
-        TagRegex().Replace(value, " ").Replace("&nbsp;", " ", StringComparison.OrdinalIgnoreCase).Trim();
+    private static string StripTags(string value)
+    {
+        var stripped = TagRegex().Replace(value, " ")
+            .Replace("&nbsp;", " ", StringComparison.OrdinalIgnoreCase)
+            .Trim();
+        return WebUtility.HtmlDecode(stripped).Trim();
+    }
 
     [GeneratedRegex("<li[^>]*>([\\s\\S]*?)</li>", RegexOptions.IgnoreCase)]
     private static partial Regex ListItemRegex();

@@ -5,7 +5,8 @@ namespace GeekSeoBackend.Services.NicheExtraction;
 public sealed class PillarMerger
 {
     /// <summary>Strategy default; see plan-documents/SEARCH-UNDERSTANDING-LAYER.md (soft cap + transparency).</summary>
-    public const int DefaultPillarCap = 12;
+    /// <summary>Soft cap; fusion may raise when schema + page verticals exceed this.</summary>
+    public const int DefaultPillarCap = 15;
 
     private const int MinPillars = 3;
 

@@ -101,7 +101,7 @@ public sealed class NicheExtractionTests
     }
 
     [Fact]
-    public void TopicFusionEngine_SelectsElevenGeekAtYourSpotTopics_AfterSimilarityMerge()
+    public void TopicFusionEngine_SelectsTwelveGeekAtYourSpotSchemaTopics()
     {
         var pool = FixtureTopics.GeekAtYourSpotSchema.Select(name => new TopicCandidate
         {
@@ -123,10 +123,78 @@ public sealed class NicheExtractionTests
         var fused = engine.Fuse(pool, []);
         var result = engine.ToPillarMergeResult(fused);
 
-        Assert.Equal(11, result.Selected.Count);
+        Assert.Equal(12, result.Selected.Count);
         Assert.Equal(TopicFusionEngine.FusionVersion, fused.FusionVersion);
-        Assert.True(fused.ExclusionReasons.ContainsKey(
-            NicheAnalyzerService.NameToSlug("AI Consulting")));
+        Assert.Contains(
+            result.Selected,
+            p => p.Slug.Equals(NicheAnalyzerService.NameToSlug("AI Consulting"), StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            result.Selected,
+            p => p.Slug.Equals(NicheAnalyzerService.NameToSlug("AI Strategy Consulting"), StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void TopicFusionEngine_IncludesAccounting_WithAllSchemaTopics()
+    {
+        var pool = FixtureTopics.GeekAtYourSpotSchema.Select(name => new TopicCandidate
+        {
+            Name = name,
+            Slug = NicheAnalyzerService.NameToSlug(name),
+            Confidence = TopicEvidenceWeights.Schema,
+            Evidence =
+            [
+                new TopicEvidence
+                {
+                    Source = "schema",
+                    Snippet = "schema",
+                    Weight = TopicEvidenceWeights.Schema,
+                },
+            ],
+        }).ToList();
+
+        pool.Add(new TopicCandidate
+        {
+            Name = "Accounting",
+            Slug = NicheAnalyzerService.NameToSlug("Accounting"),
+            Confidence = TopicEvidenceWeights.PageVertical,
+            Evidence =
+            [
+                new TopicEvidence
+                {
+                    Source = "page_vertical",
+                    Snippet = "homepage H3 section",
+                    Weight = TopicEvidenceWeights.PageVertical,
+                },
+            ],
+        });
+
+        var engine = new TopicFusionEngine(new PillarValidator());
+        var result = engine.ToPillarMergeResult(engine.Fuse(pool, []));
+
+        Assert.Equal(13, result.Selected.Count);
+        Assert.Contains(
+            result.Selected,
+            p => p.Slug.Equals(NicheAnalyzerService.NameToSlug("Accounting"), StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PageContentExtractor_ParsesH3VerticalTopics()
+    {
+        const string html = """
+            <html><body>
+            <h2>Our Services</h2>
+            <h3>Accounting</h3>
+            <h4>Automated Bookkeeping</h4>
+            <h3>Customer Service</h3>
+            </body></html>
+            """;
+
+        var (phrases, verticalTopics, _) = PageContentExtractor.ExtractFromHtml(html);
+
+        Assert.Contains("Accounting", verticalTopics);
+        Assert.Contains("Customer Service", verticalTopics);
+        Assert.Contains("Our Services", phrases);
+        Assert.DoesNotContain("Accounting", phrases);
     }
 
     [Fact]
@@ -142,7 +210,7 @@ public sealed class NicheExtractionTests
             </body></html>
             """;
 
-        var (phrases, listItems) = PageContentExtractor.ExtractFromHtml(html);
+        var (phrases, _, listItems) = PageContentExtractor.ExtractFromHtml(html);
 
         Assert.Equal(2, listItems);
         Assert.Contains("Managed IT Support", phrases);
@@ -172,7 +240,7 @@ public sealed class NicheExtractionTests
             new SitemapData([], 0, []),
             new NavMenuData([], "skipped"),
             headings,
-            new PageContentData([], 0));
+            new PageContentData([], [], 0));
 
         Assert.Single(pool);
         Assert.Equal(0.45m, pool[0].Confidence);

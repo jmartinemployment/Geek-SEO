@@ -210,6 +210,7 @@ public sealed record FusedSiteUnderstanding
 
 public sealed record PageContentData(
     IReadOnlyList<string> ServicePhrases,
+    IReadOnlyList<string> VerticalTopics,
     int ListItemsScanned);
 
 public record SitemapData(

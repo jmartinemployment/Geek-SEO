@@ -96,7 +96,9 @@ export function buildPillarProvenanceSummary(
   }
 
   if (fromPage !== null && fromPage > 0) {
-    parts.push(`${fromPage} candidate(s) also came from visible homepage copy (lists and section headings).`);
+    parts.push(
+      `${fromPage} candidate(s) also came from visible homepage copy (H3 vertical sections, lists, and headings).`,
+    );
   }
 
   const mergedAway = exclusionReasons.filter((line) => line.includes('Merged with similar topic'));

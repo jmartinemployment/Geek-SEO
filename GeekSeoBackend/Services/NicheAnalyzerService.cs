@@ -114,8 +114,13 @@ public sealed class NicheAnalyzerService(
 
             // Page content (peer signal — lists + section headings on homepage)
             var pageContent = await pageContentExtractor.ExtractAsync(domain, browser, ct);
-            var pageMessage = pageContent.ServicePhrases.Count > 0
-                ? $"Page content: {pageContent.ServicePhrases.Count} service-like phrase(s) from homepage."
+            var pageParts = new List<string>();
+            if (pageContent.VerticalTopics.Count > 0)
+                pageParts.Add($"{pageContent.VerticalTopics.Count} H3 vertical section(s)");
+            if (pageContent.ServicePhrases.Count > 0)
+                pageParts.Add($"{pageContent.ServicePhrases.Count} body phrase(s)");
+            var pageMessage = pageParts.Count > 0
+                ? $"Page content: {string.Join(", ", pageParts)} from homepage."
                 : "Page content: no additional service phrases on homepage.";
 
             // Step 5 — Fuse all Tier-1 signals

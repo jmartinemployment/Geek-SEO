@@ -88,7 +88,7 @@ public sealed class TopicFusionEngine(PillarValidator validator)
             }
         }
 
-        var cap = Math.Max(MinPillars, maxPillars);
+        var cap = ComputePillarCap(maxPillars, afterGate1, workingPool);
         var rankedSlugs = afterGate1
             .Select(p => p.Slug)
             .OrderByDescending(slug => confidenceBySlug.GetValueOrDefault(slug))
@@ -146,10 +146,36 @@ public sealed class TopicFusionEngine(PillarValidator validator)
             Name = candidate.Name,
             Slug = candidate.Slug,
             PageUrl = candidate.DedicatedPageUrl,
-            Intent = primarySource == "heading" ? "informational" : "commercial",
+            Intent = primarySource is "heading" or "page" or "page_vertical"
+                ? "informational"
+                : "commercial",
             Source = primarySource,
             ChildPageCount = Math.Max(candidate.InternalLinkCount, 3),
             ChildSlugs = [],
         };
+    }
+
+    private static int ComputePillarCap(
+        int maxPillars,
+        IReadOnlyList<DiscoveredPillar> afterGate1,
+        IReadOnlyList<TopicCandidate> pool)
+    {
+        var schemaSlugs = pool
+            .Where(c => c.Evidence.Any(e => e.Source == "schema"))
+            .Select(c => c.Slug)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var schemaSelected = afterGate1.Count(p => schemaSlugs.Contains(p.Slug));
+
+        var pageVerticalSlugs = pool
+            .Where(c => c.Evidence.Any(e => e.Source == "page_vertical")
+                        && !c.Evidence.Any(e => e.Source == "schema"))
+            .Select(c => c.Slug)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var pageVerticalSelected = afterGate1.Count(p => pageVerticalSlugs.Contains(p.Slug));
+
+        var floor = schemaSelected + pageVerticalSelected;
+        return Math.Max(MinPillars, Math.Max(maxPillars, floor));
     }
 }

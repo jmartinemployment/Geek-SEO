@@ -56,6 +56,9 @@ internal static class TopicCandidatePoolBuilder
         foreach (var phrase in pageContent.ServicePhrases)
             AddEvidence(bySlug, phrase, "page", TopicEvidenceWeights.Page, "homepage body");
 
+        foreach (var vertical in pageContent.VerticalTopics)
+            AddEvidence(bySlug, vertical, "page_vertical", TopicEvidenceWeights.PageVertical, "homepage H3 section");
+
         return bySlug.Values
             .Select(b => b.ToCandidate())
             .OrderByDescending(c => c.Confidence)
