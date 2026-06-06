@@ -89,14 +89,32 @@ public sealed class TopicFusionEngine(PillarValidator validator)
         }
 
         var cap = ComputePillarCap(maxPillars, afterGate1, workingPool);
+        var schemaSlugs = workingPool
+            .Where(c => c.Evidence.Any(e => e.Source == "schema"))
+            .Select(c => c.Slug)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var guaranteedSchema = afterGate1
+            .Where(p => schemaSlugs.Contains(p.Slug))
+            .Select(p => p.Slug)
+            .ToList();
+
         var rankedSlugs = afterGate1
             .Select(p => p.Slug)
+            .Where(slug => !schemaSlugs.Contains(slug))
             .OrderByDescending(slug => confidenceBySlug.GetValueOrDefault(slug))
             .ThenBy(slug => slug, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var selectedSlugs = rankedSlugs.Take(cap).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var slug in rankedSlugs.Skip(cap))
+        var selectedSlugs = guaranteedSchema.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var slug in rankedSlugs)
+        {
+            if (selectedSlugs.Count >= cap)
+                break;
+            selectedSlugs.Add(slug);
+        }
+
+        foreach (var slug in afterGate1.Select(p => p.Slug).Where(slug => !selectedSlugs.Contains(slug)))
             exclusionReasons.TryAdd(slug, $"Below pillar cap ({cap})");
 
         var selected = workingPool

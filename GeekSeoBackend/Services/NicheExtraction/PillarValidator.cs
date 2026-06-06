@@ -29,7 +29,7 @@ public sealed class PillarValidator
             {
                 // Distinct schema-declared topics stay separate (e.g. AI Strategy Consulting vs AI Consulting).
                 if (string.Equals(pillars[i].Source, "schema", StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(pillars[j].Source, "schema", StringComparison.OrdinalIgnoreCase))
+                    || string.Equals(pillars[j].Source, "schema", StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 var sim = PillarSynonymMap.Similarity(pillars[i].Slug, pillars[j].Slug);
