@@ -77,6 +77,21 @@ Competitors win on **SERP term checklist + score that moves when you add specifi
 
 ---
 
+## Local SEO — Google Business Profile (planned)
+
+Jeff confirmed interest; full spec: [`LOCAL-GBP-INTEGRATION.md`](LOCAL-GBP-INTEGRATION.md).
+
+| Phase | Scope |
+|-------|--------|
+| **A** | GBP OAuth + location picker (mirror GSC connect) |
+| **B** | Listing snapshot + NAP/service-area compare vs schema + Step 11 location pages |
+| **C** | Performance metrics, worker refresh, Content Guard + action recommendations |
+| **D** | Posts, reviews, map-grid rank, multi-directory (later) |
+
+Step 11 `LocalGapGenerator` (shipped) remains on-site only — no Google account required.
+
+---
+
 ## Integrations (parity #28–31 — not built)
 
 Build order when picked up: **#31 public API** → **#28 WP plugin** → **#29 Chrome** → **#30 Google Docs**.

@@ -14,7 +14,7 @@
 | **1** | Shipped (`a649e16`, `fac20ea`) | Canonical 10 step slugs; no `discoveryMethod` on read API/UI |
 | **1.5** | Shipped (`2ef7bf9`, GeekRepository `d7cd9df`) | Persist + show what each step found (no re-analyze to audit) |
 | **2** | Later | `INicheScanStep` refactor only — no new behavior |
-| **Other** | Separate plans | PillarMerger, crawl, coverage matcher, local/GBP, keywords |
+| **Other** | Separate plans | PillarMerger, crawl, coverage matcher, **[local/GBP → LOCAL-GBP-INTEGRATION.md](./LOCAL-GBP-INTEGRATION.md)**, keywords |
 
 ---
 
@@ -119,7 +119,7 @@ Do **not** write `SITE-NICHE-ANALYZER-SCAN-STEPS.md` until Phase 1.5 ships.
 
 ## Out of scope (own plans when needed)
 
-PillarMerger algorithm, SiteUrlDiscovery crawl, NicheCoverageMatcher, LocalGapGenerator, GBP OAuth, keywords/SERP, step-class extraction before Phase 2.
+PillarMerger algorithm, SiteUrlDiscovery crawl, NicheCoverageMatcher, LocalGapGenerator (shipped — on-site only), **[GBP/Maps → LOCAL-GBP-INTEGRATION.md](./LOCAL-GBP-INTEGRATION.md)**, keywords/SERP, step-class extraction before Phase 2.
 
 ---
 
