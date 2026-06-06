@@ -175,6 +175,7 @@ public partial class SeoDbContext
             e.Property(x => x.AnalysisStepLog)
                 .HasColumnType("jsonb")
                 .HasDefaultValueSql("'[]'::jsonb");
+            e.Property(x => x.FusionSnapshot).HasColumnType("jsonb");
         });
 
         modelBuilder.Entity<NichePillar>(e =>

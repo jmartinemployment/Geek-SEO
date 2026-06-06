@@ -1459,9 +1459,36 @@ export type NicheAnalysisStepLogEntry = {
   outputs: Record<string, unknown>;
 };
 
+export type TopicEvidence = {
+  source: string;
+  snippet?: string;
+  url?: string;
+  weight: number;
+};
+
+export type TopicCandidate = {
+  name: string;
+  slug: string;
+  evidence: TopicEvidence[];
+  confidence: number;
+  dedicatedPageUrl?: string;
+  internalLinkCount: number;
+};
+
+export type FusedSiteUnderstanding = {
+  allCandidates: TopicCandidate[];
+  selectedPillars: TopicCandidate[];
+  excludedCandidates: TopicCandidate[];
+  exclusionReasons: Record<string, string>;
+  fusionVersion: string;
+  signalSourcesPresent: string[];
+  pillarCap: number;
+};
+
 export type NicheAnalysisDetails = {
   stepLogVersion: number;
   steps: NicheAnalysisStepLogEntry[];
+  fusionSnapshot?: FusedSiteUnderstanding | null;
 };
 
 export type NicheSubtopicResult = {
@@ -1622,7 +1649,7 @@ export async function getNicheAnalysisDetails(
     cache: 'no-store',
   });
   if (res.status === 404) {
-    return { stepLogVersion: 1, steps: [] };
+    return { stepLogVersion: 1, steps: [], fusionSnapshot: null };
   }
   return seoJson(res);
 }

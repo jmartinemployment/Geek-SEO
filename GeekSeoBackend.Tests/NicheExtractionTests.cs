@@ -293,6 +293,46 @@ public sealed class NicheExtractionTests
     }
 
     [Fact]
+    public void FusedSiteUnderstandingJson_RoundTripsSnapshot()
+    {
+        var fused = new FusedSiteUnderstanding
+        {
+            AllCandidates =
+            [
+                new TopicCandidate
+                {
+                    Name = "Accounting",
+                    Slug = "accounting",
+                    Confidence = 0.55m,
+                    Evidence =
+                    [
+                        new TopicEvidence
+                        {
+                            Source = "page_vertical",
+                            Snippet = "homepage H2/H3 vertical section",
+                            Weight = TopicEvidenceWeights.PageVertical,
+                        },
+                    ],
+                },
+            ],
+            SelectedPillars = [],
+            ExcludedCandidates = [],
+            ExclusionReasons = new Dictionary<string, string>(),
+            FusionVersion = "sul-1.2",
+            SignalSourcesPresent = ["page_vertical"],
+            PillarCap = 15,
+        };
+
+        var json = FusedSiteUnderstandingJson.Serialize(fused);
+        var parsed = FusedSiteUnderstandingJson.Parse(json);
+
+        Assert.NotNull(parsed);
+        Assert.Equal("sul-1.2", parsed.FusionVersion);
+        Assert.Single(parsed.AllCandidates);
+        Assert.Equal("Accounting", parsed.AllCandidates[0].Name);
+    }
+
+    [Fact]
     public void PageContentExtractor_ParsesListItemsFromHtml()
     {
         const string html = """

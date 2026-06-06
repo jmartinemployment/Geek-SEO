@@ -305,7 +305,8 @@ public sealed class NicheAnalyzerService(
                 partial,
                 gap,
                 analyzedAt,
-                nextDue), ct);
+                nextDue,
+                FusedSiteUnderstandingJson.Serialize(fused)), ct);
             if (!saveResult.IsSuccess)
                 throw new InvalidOperationException($"Failed to save analysis results: {saveResult.Error}");
 

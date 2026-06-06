@@ -32,6 +32,8 @@ public sealed class NicheProfile
     public int AnalysisStepLogVersion { get; set; } = 1;
     /// <summary>JSON array of per-step discovery entries (see NicheAnalysisStepLogEntry).</summary>
     public string AnalysisStepLog { get; set; } = "[]";
+    /// <summary>Serialized <see cref="GeekSeo.Application.Models.Seo.FusedSiteUnderstanding"/> at analysis completion.</summary>
+    public string? FusionSnapshot { get; set; }
 
     [ValidateNever]
     public ICollection<NichePillar> Pillars { get; set; } = [];

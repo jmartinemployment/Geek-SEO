@@ -7,6 +7,7 @@ import {
   type NicheAnalysisStepLogEntry,
 } from '@/lib/seo-api';
 import { OUTPUT_LABELS } from '@/components/niche-analyzer/pillar-provenance';
+import { TopicCandidateMatrix } from '@/components/niche-analyzer/TopicCandidateMatrix';
 
 type Props = {
   profileId: string;
@@ -155,6 +156,9 @@ export function AnalysisStepBreakdown({
                 <StepRow key={`${step.stepNumber}-${step.slug}`} step={step} />
               ))}
             </ol>
+          ) : null}
+          {details?.fusionSnapshot ? (
+            <TopicCandidateMatrix fusion={details.fusionSnapshot} />
           ) : null}
         </div>
       ) : null}

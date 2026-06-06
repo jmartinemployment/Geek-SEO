@@ -23,7 +23,8 @@ public sealed record NicheAnalysisStepLogEntry(
 
 public sealed record NicheAnalysisDetails(
     int StepLogVersion,
-    IReadOnlyList<NicheAnalysisStepLogEntry> Steps);
+    IReadOnlyList<NicheAnalysisStepLogEntry> Steps,
+    FusedSiteUnderstanding? FusionSnapshot = null);
 
 /// <summary>Persisted when a niche analysis run completes (metadata + scores).</summary>
 public sealed record NicheAnalysisSaveRequest(
@@ -39,7 +40,8 @@ public sealed record NicheAnalysisSaveRequest(
     int Partial,
     int Gap,
     DateTimeOffset AnalyzedAt,
-    DateTimeOffset NextAnalysisDue);
+    DateTimeOffset NextAnalysisDue,
+    string? FusionSnapshot = null);
 
 /// <summary>Queued niche analysis job with owning user (from seo_projects).</summary>
 public record NicheQueuedJob(
