@@ -17,8 +17,8 @@ public sealed class NicheAnalyzerService(
     SitemapExtractor sitemapExtractor,
     NavMenuExtractor navMenuExtractor,
     HomepageHeadingsExtractor headingsExtractor,
-    PillarMerger pillarMerger,
-    PillarValidator pillarValidator,
+    PageContentExtractor pageContentExtractor,
+    TopicFusionEngine topicFusionEngine,
     NicheAuthorityScorer scorer,
     NicheRootEntityBuilder rootBuilder,
     IHubContext<SeoContentScoringHub> hub,
@@ -103,7 +103,6 @@ public sealed class NicheAnalyzerService(
 
             // Step 4 — Homepage headings (extractor output only — no schema substitution)
             var headings = await headingsExtractor.ExtractAsync(domain, browser, ct);
-            var headingPillars = HeadingPillarBuilder.Build(headings);
             var headingsMessage =
                 headings.Headings.Count > 0 || !string.IsNullOrWhiteSpace(headings.Title)
                     ? $"Headings: {headings.Headings.Count} elements from homepage."
@@ -113,37 +112,40 @@ public sealed class NicheAnalyzerService(
                 NicheAnalysisStepLogBuilder.Headings(4, headings, headingsMessage),
                 ct);
 
-            // Step 5 — Merge all sources
-            var schemaPillars = BuildSchemaDiscoveredPillars(schemaData);
-            var candidateCount =
-                schemaPillars.Count
-                + sitemapData.Pillars.Count
-                + navData.Pillars.Count
-                + headingPillars.Count;
-            var mergeResult = pillarMerger.Merge(
-                schemaPillars,
-                sitemapData.Pillars,
-                navData.Pillars,
-                headingPillars,
+            // Page content (peer signal — lists + section headings on homepage)
+            var pageContent = await pageContentExtractor.ExtractAsync(domain, browser, ct);
+            var pageMessage = pageContent.ServicePhrases.Count > 0
+                ? $"Page content: {pageContent.ServicePhrases.Count} service-like phrase(s) from homepage."
+                : "Page content: no additional service phrases on homepage.";
+
+            // Step 5 — Fuse all Tier-1 signals
+            var candidatePool = TopicCandidatePoolBuilder.Build(
+                schemaData, sitemapData, navData, headings, pageContent);
+            var fused = topicFusionEngine.Fuse(
+                candidatePool,
                 schemaData.AreaServed.ToList());
+            var mergeResult = topicFusionEngine.ToPillarMergeResult(fused);
             var merged = mergeResult.Selected;
             var mergeMessage =
                 mergeResult.ExcludedByCap.Count > 0
-                    ? $"Topic pillars: {merged.Count} selected, {mergeResult.ExcludedByCap.Count} held back (cap {mergeResult.PillarCap}). Schema {schemaPillars.Count}, sitemap {sitemapData.Pillars.Count}, nav {navData.Pillars.Count}, headings {headingPillars.Count}."
-                    : $"Topic pillars: {merged.Count} after merge (schema {schemaPillars.Count}, sitemap {sitemapData.Pillars.Count}, nav {navData.Pillars.Count}, headings {headingPillars.Count}).";
+                    ? $"Topic pillars: {merged.Count} selected, {mergeResult.ExcludedByCap.Count} held back (cap {mergeResult.PillarCap}). Fused {fused.AllCandidates.Count} peer candidate(s) ({string.Join(", ", fused.SignalSourcesPresent)})."
+                    : $"Topic pillars: {merged.Count} after fusion of {fused.AllCandidates.Count} peer candidate(s) ({string.Join(", ", fused.SignalSourcesPresent)}).";
             await PushProgress(
                 userId, profileId, 5,
                 NicheAnalysisStepLogBuilder.Merging(
                     5,
-                    candidateCount,
+                    fused.AllCandidates.Count,
                     merged.Count,
                     merged,
-                    schemaPillars.Count,
-                    sitemapData.Pillars.Count,
-                    navData.Pillars.Count,
-                    headingPillars.Count,
+                    CountBySource(fused.AllCandidates, "schema"),
+                    CountBySource(fused.AllCandidates, "sitemap"),
+                    CountBySource(fused.AllCandidates, "nav"),
+                    CountBySource(fused.AllCandidates, "heading"),
                     mergeResult.ExcludedByCap,
                     mergeResult.PillarCap,
+                    pageContent.ServicePhrases.Count,
+                    fused.FusionVersion,
+                    SampleExclusionReasons(fused),
                     mergeMessage),
                 ct);
 
@@ -426,6 +428,15 @@ public sealed class NicheAnalyzerService(
     internal static string NameToSlug(string name) =>
         System.Text.RegularExpressions.Regex.Replace(
             name.Trim().ToLowerInvariant(), @"[^a-z0-9]+", "-").Trim('-');
+
+    private static int CountBySource(IReadOnlyList<TopicCandidate> pool, string source) =>
+        pool.Count(c => c.Evidence.Any(e => e.Source.Equals(source, StringComparison.OrdinalIgnoreCase)));
+
+    private static string[] SampleExclusionReasons(FusedSiteUnderstanding fused) =>
+        fused.ExclusionReasons
+            .Take(20)
+            .Select(kvp => $"{kvp.Key}: {kvp.Value}")
+            .ToArray();
 
     private async Task<string> ResolveSiteUrlAsync(
         Guid projectId, string domainFromRequest, CancellationToken ct)

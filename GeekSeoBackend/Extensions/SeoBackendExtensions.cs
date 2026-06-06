@@ -109,8 +109,10 @@ public static class SeoBackendExtensions
         services.AddScoped<SitemapExtractor>();
         services.AddScoped<NavMenuExtractor>();
         services.AddScoped<HomepageHeadingsExtractor>();
+        services.AddScoped<PageContentExtractor>();
         services.AddScoped<PillarValidator>();
         services.AddScoped<PillarMerger>();
+        services.AddScoped<TopicFusionEngine>();
         services.AddScoped<NicheAuthorityScorer>();
         services.AddScoped<NicheRootEntityBuilder>();
         services.AddScoped<NicheAnalyzerService>();

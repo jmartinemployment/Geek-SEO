@@ -101,22 +101,82 @@ public sealed class NicheExtractionTests
     }
 
     [Fact]
-    public void PillarMerger_MergesSimilarSchemaTopics_BeforeApplyingCap()
+    public void TopicFusionEngine_SelectsElevenGeekAtYourSpotTopics_AfterSimilarityMerge()
     {
-        var merger = new PillarMerger();
-        var schema = FixtureTopics.GeekAtYourSpotSchema.Select(name => new DiscoveredPillar
+        var pool = FixtureTopics.GeekAtYourSpotSchema.Select(name => new TopicCandidate
         {
             Name = name,
             Slug = NicheAnalyzerService.NameToSlug(name),
-            Intent = "commercial",
-            Source = "schema",
-            ChildPageCount = 3,
+            Confidence = TopicEvidenceWeights.Schema,
+            Evidence =
+            [
+                new TopicEvidence
+                {
+                    Source = "schema",
+                    Snippet = "schema",
+                    Weight = TopicEvidenceWeights.Schema,
+                },
+            ],
         }).ToList();
 
-        var result = merger.Merge(schema, [], [], [], []);
+        var engine = new TopicFusionEngine(new PillarValidator());
+        var fused = engine.Fuse(pool, []);
+        var result = engine.ToPillarMergeResult(fused);
 
-        // "AI Strategy Consulting" and "AI Consulting" collapse via Gate 2 similarity
         Assert.Equal(11, result.Selected.Count);
+        Assert.Equal(TopicFusionEngine.FusionVersion, fused.FusionVersion);
+        Assert.True(fused.ExclusionReasons.ContainsKey(
+            NicheAnalyzerService.NameToSlug("AI Consulting")));
+    }
+
+    [Fact]
+    public void PageContentExtractor_ParsesListItemsFromHtml()
+    {
+        const string html = """
+            <html><body>
+            <h2>Our Services</h2>
+            <ul>
+              <li>Managed IT Support</li>
+              <li>Cloud Migration Planning</li>
+            </ul>
+            </body></html>
+            """;
+
+        var (phrases, listItems) = PageContentExtractor.ExtractFromHtml(html);
+
+        Assert.Equal(2, listItems);
+        Assert.Contains("Managed IT Support", phrases);
+        Assert.Contains("Cloud Migration Planning", phrases);
+    }
+
+    [Fact]
+    public void TopicCandidatePoolBuilder_StacksEvidenceForSameSlug()
+    {
+        var schema = new SchemaOrgData(
+            ["Artificial Intelligence"],
+            ["Artificial Intelligence"],
+            [],
+            null,
+            null,
+            []);
+        var headings = new HomepageHeadings
+        {
+            Headings =
+            [
+                new PageHeading { Level = 2, Text = "Artificial Intelligence" },
+            ],
+        };
+
+        var pool = TopicCandidatePoolBuilder.Build(
+            schema,
+            new SitemapData([], 0, []),
+            new NavMenuData([], "skipped"),
+            headings,
+            new PageContentData([], 0));
+
+        Assert.Single(pool);
+        Assert.Equal(0.45m, pool[0].Confidence);
+        Assert.Equal(2, pool[0].Evidence.Count);
     }
 
     private static class FixtureTopics

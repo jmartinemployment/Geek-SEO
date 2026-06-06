@@ -178,6 +178,40 @@ public sealed record PillarMergeResult(
     IReadOnlyList<DiscoveredPillar> ExcludedByCap,
     int PillarCap);
 
+/// <summary>One normalized topic phrase before pillar selection (Search Understanding Layer).</summary>
+public sealed record TopicCandidate
+{
+    public required string Name { get; init; }
+    public required string Slug { get; init; }
+    public required IReadOnlyList<TopicEvidence> Evidence { get; init; }
+    public decimal Confidence { get; init; }
+    public string? DedicatedPageUrl { get; init; }
+    public int InternalLinkCount { get; init; }
+}
+
+public sealed record TopicEvidence
+{
+    public required string Source { get; init; }
+    public string? Snippet { get; init; }
+    public string? Url { get; init; }
+    public decimal Weight { get; init; }
+}
+
+public sealed record FusedSiteUnderstanding
+{
+    public required IReadOnlyList<TopicCandidate> AllCandidates { get; init; }
+    public required IReadOnlyList<TopicCandidate> SelectedPillars { get; init; }
+    public required IReadOnlyList<TopicCandidate> ExcludedCandidates { get; init; }
+    public required IReadOnlyDictionary<string, string> ExclusionReasons { get; init; }
+    public required string FusionVersion { get; init; }
+    public required IReadOnlyList<string> SignalSourcesPresent { get; init; }
+    public int PillarCap { get; init; }
+}
+
+public sealed record PageContentData(
+    IReadOnlyList<string> ServicePhrases,
+    int ListItemsScanned);
+
 public record SitemapData(
     IReadOnlyList<DiscoveredPillar> Pillars,
     int TotalUrlsScanned,
