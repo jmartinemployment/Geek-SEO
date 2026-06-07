@@ -92,6 +92,89 @@ public sealed class HttpNicheProfileRepository(
         return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await res.Content.ReadAsStringAsync(ct));
     }
 
+    public async Task<Result> UpdateProfileSummaryAsync(
+        Guid profileId, NicheProfileSummaryPatch summary, CancellationToken ct = default)
+    {
+        var res = await _http.PatchAsJsonAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/profile-summary?userId={user.UserId}",
+            summary,
+            Json,
+            ct);
+        return res.IsSuccessStatusCode
+            ? Result.Success()
+            : Result.Failure(await ReadFailureAsync(res, ct));
+    }
+
+    public async Task<Result> SaveFusionSnapshotAsync(
+        Guid profileId, string fusionSnapshotJson, CancellationToken ct = default)
+    {
+        var body = new { fusionSnapshot = fusionSnapshotJson };
+        var res = await _http.PatchAsJsonAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/fusion-snapshot?userId={user.UserId}",
+            body,
+            Json,
+            ct);
+        return res.IsSuccessStatusCode
+            ? Result.Success()
+            : Result.Failure(await ReadFailureAsync(res, ct));
+    }
+
+    public async Task<Result> UpdatePhaseStatusAsync(
+        Guid profileId, NichePhaseStatusPatch patch, CancellationToken ct = default)
+    {
+        var res = await _http.PatchAsJsonAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/phase-status?userId={user.UserId}",
+            patch,
+            Json,
+            ct);
+        return res.IsSuccessStatusCode
+            ? Result.Success()
+            : Result.Failure(await ReadFailureAsync(res, ct));
+    }
+
+    public async Task<Result> BulkUpsertTopicCandidatesAsync(
+        Guid profileId,
+        IReadOnlyList<NicheTopicCandidateBulkUpsert> candidates,
+        string idempotencyKey,
+        CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"api/seo/internal/niche-profiles/{profileId}/topic-candidates/bulk?userId={user.UserId}");
+        request.Headers.TryAddWithoutValidation("Idempotency-Key", idempotencyKey);
+        request.Content = JsonContent.Create(candidates, options: Json);
+        var res = await _http.SendAsync(request, ct);
+        return res.IsSuccessStatusCode
+            ? Result.Success()
+            : Result.Failure(await ReadFailureAsync(res, ct));
+    }
+
+    public async Task<Result<NicheTopicCandidateListResult>> GetTopicCandidatesAsync(
+        Guid profileId,
+        int page,
+        int pageSize,
+        bool? selectedOnly,
+        CancellationToken ct = default)
+    {
+        var selected = selectedOnly switch
+        {
+            true => "&selectedOnly=true",
+            false => "&selectedOnly=false",
+            _ => string.Empty,
+        };
+        var res = await _http.GetAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/topic-candidates?page={page}&pageSize={pageSize}{selected}&userId={user.UserId}",
+            ct);
+        if (res.StatusCode is HttpStatusCode.NotFound)
+            return Result<NicheTopicCandidateListResult>.Failure("HTTP 404: topic-candidates route not found");
+        if (!res.IsSuccessStatusCode)
+            return Result<NicheTopicCandidateListResult>.Failure(await ReadFailureAsync(res, ct));
+        var value = await res.Content.ReadFromJsonAsync<NicheTopicCandidateListResult>(Json, ct);
+        return value is null
+            ? Result<NicheTopicCandidateListResult>.Failure("Empty response")
+            : Result<NicheTopicCandidateListResult>.Success(value);
+    }
+
     public async Task<Result> SaveAnalysisResultsAsync(
         Guid profileId, NicheAnalysisSaveRequest results, CancellationToken ct = default)
     {

@@ -1474,6 +1474,9 @@ export type NicheAnalysisStatus = {
   errorMessage?: string;
   createdAt?: string;
   progressAt?: string;
+  structureStatus?: string;
+  enrichmentStatus?: string;
+  persistStage?: string;
 };
 
 export type NicheAnalysisStepLogEntry = {
@@ -1632,6 +1635,8 @@ export type NicheProfileResult = {
   nextAnalysisDue?: string;
   createdAt?: string;
   status: string;
+  structureStatus?: string;
+  enrichmentStatus?: string;
   pillars: NichePillarResult[];
   competitors: NicheCompetitorResult[];
   entities: NicheEntityResult[];

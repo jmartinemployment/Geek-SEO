@@ -91,7 +91,8 @@ public sealed class NicheAnalyzerController(
                 : p.Status switch { "complete" => 14, _ => 0 };
             var totalSteps = p.AnalysisTotalSteps > 0 ? p.AnalysisTotalSteps : 14;
             return Ok(new NicheAnalysisStatus(
-                p.Id, p.Status, step, stepNumber, totalSteps, p.ErrorMessage, p.CreatedAt, p.AnalysisProgressAt));
+                p.Id, p.Status, step, stepNumber, totalSteps, p.ErrorMessage, p.CreatedAt, p.AnalysisProgressAt,
+                p.StructureStatus, p.EnrichmentStatus, p.PersistStage));
         }
         catch (InvalidOperationException ex)
         {
@@ -124,6 +125,68 @@ public sealed class NicheAnalyzerController(
         {
             logger.LogWarning(ex, "Transient error fetching niche profile {ProfileId}", profileId);
             return StatusCode(503, new { error = "Profile temporarily unavailable" });
+        }
+    }
+
+    [HttpGet("{profileId:guid}/topic-candidates")]
+    public async Task<IActionResult> GetTopicCandidates(
+        Guid profileId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        [FromQuery] bool? selectedOnly = null,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            user.RequireUserId();
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 200);
+
+            var result = await profileRepo.GetTopicCandidatesAsync(profileId, page, pageSize, selectedOnly, ct);
+            if (result.IsSuccess)
+                return Ok(result.Value);
+
+            var profile = await profileRepo.GetByIdAsync(profileId, ct);
+            if (!profile.IsSuccess || profile.Value is null)
+                return NotFound();
+
+            var fusion = SiteTopicProfileJson.Parse(profile.Value.FusionSnapshot);
+            if (fusion is null)
+                return Ok(new NicheTopicCandidateListResult([], 0, page, pageSize));
+
+            var items = fusion.AllCandidates
+                .Select((c, i) => new NicheTopicCandidatePage(
+                    Guid.Empty,
+                    profileId,
+                    c.Slug,
+                    c.Name,
+                    c.Confidence,
+                    fusion.SelectedPillars.Any(s => s.Slug.Equals(c.Slug, StringComparison.OrdinalIgnoreCase)),
+                    fusion.ExclusionReasons.GetValueOrDefault(c.Slug),
+                    c.DedicatedPageUrl,
+                    c.InternalLinkCount,
+                    c.ContentDepthScore,
+                    i,
+                    c.Evidence.ToList()))
+                .ToList();
+
+            if (selectedOnly == true)
+                items = items.Where(i => i.IsSelected).ToList();
+            else if (selectedOnly == false)
+                items = items.Where(i => !i.IsSelected).ToList();
+
+            var total = items.Count;
+            var paged = items.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            return Ok(new NicheTopicCandidateListResult(paged, total, page, pageSize));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex) when (GeekDataGatewayExceptions.IsTransientGatewayFailure(ex, ct))
+        {
+            logger.LogWarning(ex, "Transient error fetching topic candidates for profile {ProfileId}", profileId);
+            return StatusCode(503, new { error = "Topic candidates temporarily unavailable" });
         }
     }
 
@@ -309,6 +372,8 @@ public sealed class NicheAnalyzerController(
         NextAnalysisDue = p.NextAnalysisDue,
         CreatedAt = p.CreatedAt,
         Status = p.Status,
+        StructureStatus = p.StructureStatus,
+        EnrichmentStatus = p.EnrichmentStatus,
         Pillars = p.Pillars.OrderBy(x => x.DisplayOrder).Select(pi => new NichePillarResult
         {
             Id = pi.Id,

@@ -14,6 +14,7 @@ import {
   getNicheHistory,
   type SeoProject,
   type NicheProfileResult,
+  type NicheAnalysisStatus,
   type PillarCoverageMatrix,
   type TopicalGapSummary,
   type AuthorityProgressPoint,
@@ -111,7 +112,7 @@ export default function NicheAnalyzerPage() {
         if (lastComplete) {
           const full = await getNicheProfile(lastComplete.id, accessToken);
           setProfile(await resolveProfileWithPillars(full));
-          await loadAnalytics(full.id);
+          await loadAnalytics(full.id, isStructureComplete(full));
         }
         return;
       }
@@ -125,7 +126,7 @@ export default function NicheAnalyzerPage() {
           if (lastComplete) {
             const full = await getNicheProfile(lastComplete.id, accessToken);
             setProfile(await resolveProfileWithPillars(full));
-            await loadAnalytics(full.id);
+            await loadAnalytics(full.id, isStructureComplete(full));
           }
           return;
         }
@@ -141,14 +142,14 @@ export default function NicheAnalyzerPage() {
 
       const full = await resolveProfileWithPillars(p);
       setProfile(full);
-      await loadAnalytics(full.id);
+      await loadAnalytics(full.id, isStructureComplete(full));
     } catch {
       // no existing profile — show form
     }
   }
 
-  async function loadAnalytics(profileId: string) {
-    if (!accessToken) return;
+  async function loadAnalytics(profileId: string, structureReady = true) {
+    if (!accessToken || !structureReady) return;
     const [cov, g, prog] = await Promise.allSettled([
       getNicheCoverageMatrix(profileId, accessToken),
       getNicheGaps(profileId, quickWinsOnly, accessToken),
@@ -157,6 +158,12 @@ export default function NicheAnalyzerPage() {
     if (cov.status === 'fulfilled') setCoverage(cov.value);
     if (g.status === 'fulfilled') setGaps(g.value);
     if (prog.status === 'fulfilled') setProgress(prog.value);
+  }
+
+  function isStructureComplete(status: NicheAnalysisStatus | NicheProfileResult): boolean {
+    if ('structureStatus' in status && status.structureStatus)
+      return status.structureStatus === 'complete';
+    return status.status === 'complete';
   }
 
   async function handleAnalyze() {
@@ -183,7 +190,7 @@ export default function NicheAnalyzerPage() {
       try {
         const p = await getNicheProfile(completedProfileId, accessToken);
         setProfile(p);
-        await loadAnalytics(p.id);
+        await loadAnalytics(p.id, isStructureComplete(p));
         if (p.pillars.length > 0) {
           setError(null);
         } else if (p.totalPillarsIdentified > 0) {
@@ -210,7 +217,7 @@ export default function NicheAnalyzerPage() {
 
   async function handleQuickWinsToggle(qw: boolean) {
     setQuickWinsOnly(qw);
-    if (profile) {
+    if (profile && isStructureComplete(profile)) {
       const g = await getNicheGaps(profile.id, qw, accessToken);
       setGaps(g);
     }

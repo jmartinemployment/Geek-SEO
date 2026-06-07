@@ -34,9 +34,19 @@ public sealed class NicheProfile
     public string AnalysisStepLog { get; set; } = "[]";
     /// <summary>Serialized <see cref="GeekSeo.Application.Models.Seo.SiteTopicProfile"/> at analysis completion.</summary>
     public string? FusionSnapshot { get; set; }
+    /// <summary>pending | complete | failed</summary>
+    public string StructureStatus { get; set; } = "pending";
+    /// <summary>pending | enriching | complete | failed | skipped</summary>
+    public string EnrichmentStatus { get; set; } = "pending";
+    public string? ScanFingerprint { get; set; }
+    public decimal? ScanChangeScore { get; set; }
+    /// <summary>Resume hint only — DB row counts are source of truth.</summary>
+    public string? PersistStage { get; set; }
 
     [ValidateNever]
     public ICollection<NichePillar> Pillars { get; set; } = [];
+    [ValidateNever]
+    public ICollection<NicheTopicCandidate> TopicCandidates { get; set; } = [];
     [ValidateNever]
     public ICollection<NicheCompetitor> Competitors { get; set; } = [];
     [ValidateNever]
@@ -66,6 +76,10 @@ public sealed class NichePillar
     public string Source { get; set; } = "sitemap";
     public int DisplayOrder { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public Guid? CandidateId { get; set; }
+    /// <summary>pending | done | skipped | failed</summary>
+    public string EnrichmentStatus { get; set; } = "pending";
+    public DateTimeOffset? EnrichedAt { get; set; }
 
     [ValidateNever]
     public NicheProfile? NicheProfile { get; set; }
@@ -138,4 +152,25 @@ public sealed class NichePillarPage
 
     [ValidateNever]
     public NichePillar? Pillar { get; set; }
+}
+
+public sealed class NicheTopicCandidate
+{
+    public Guid Id { get; set; }
+    public Guid NicheProfileId { get; set; }
+    public string Slug { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public decimal Confidence { get; set; }
+    public bool IsSelected { get; set; }
+    public string? ExclusionReason { get; set; }
+    public string? DedicatedPageUrl { get; set; }
+    public int InternalLinkCount { get; set; }
+    public decimal ContentDepthScore { get; set; }
+    public int DisplayOrder { get; set; }
+    /// <summary>Capped JSON array of provenance snippets (max 5 × 120 chars).</summary>
+    public string? EvidenceJson { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    [ValidateNever]
+    public NicheProfile? NicheProfile { get; set; }
 }

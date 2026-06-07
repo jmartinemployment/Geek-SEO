@@ -121,6 +121,7 @@ public static class SeoBackendExtensions
         services.AddScoped<GscQueryExtractor>();
         services.AddScoped<NicheAuthorityScorer>();
         services.AddScoped<NicheRootEntityBuilder>();
+        services.AddScoped<NicheAnalysisPersistenceService>();
         services.AddScoped<NicheAnalyzerService>();
         services.AddScoped<NicheAnalysisBackgroundJob>();
 

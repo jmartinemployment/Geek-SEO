@@ -1,6 +1,7 @@
 using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
+using GeekSeo.Application.Services;
 using GeekSeo.Persistence.Entities;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Hubs;
@@ -13,6 +14,7 @@ namespace GeekSeoBackend.Services;
 public sealed class NicheAnalyzerService(
     INicheProfileRepository profileRepo,
     IProjectRepository projectRepo,
+    NicheAnalysisPersistenceService persistence,
     SchemaOrgExtractor schemaExtractor,
     SitemapExtractor sitemapExtractor,
     NavMenuExtractor navMenuExtractor,
@@ -31,6 +33,11 @@ public sealed class NicheAnalyzerService(
     ILogger<NicheAnalyzerService> logger)
 {
     private const int TotalSteps = 14;
+    private static bool FusionArchiveEnabled =>
+        string.Equals(
+            Environment.GetEnvironmentVariable("NICHE_FUSION_ARCHIVE_ENABLED"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
     private string _lastProgressStepSlug = "schema";
     private int _lastProgressStepNumber;
 
@@ -206,6 +213,25 @@ public sealed class NicheAnalyzerService(
                     mergeMessage),
                 ct);
 
+            var priorUrls = await LoadPriorSitemapUrlsAsync(profile.ProjectId, profileId, ct);
+            var scan = NicheScanFingerprint.Compute(
+                domain, fused.SulVersion, schemaData, sitemapData, navData, priorUrls);
+            var candidatePersist = await persistence.PersistCandidatesAsync(profileId, fused, includeEvidence: false, ct);
+            if (!candidatePersist.IsSuccess)
+            {
+                logger.LogWarning(
+                    "Topic candidates not persisted for {ProfileId}: {Error}",
+                    profileId, candidatePersist.Error);
+            }
+
+            await profileRepo.UpdatePhaseStatusAsync(
+                profileId,
+                new NichePhaseStatusPatch(
+                    StructureStatus: "pending",
+                    EnrichmentStatus: "pending",
+                    PersistStage: "candidates"),
+                ct);
+
             var projectResult = await projectRepo.GetByIdAsync(profile.ProjectId, ct);
             var keywordLocation = projectResult.IsSuccess
                 && !string.IsNullOrWhiteSpace(projectResult.Value?.DefaultLocation)
@@ -262,6 +288,11 @@ public sealed class NicheAnalyzerService(
             await PushProgress(
                 userId, profileId, 9,
                 NicheAnalysisStepLogBuilder.SerpValidation(9, demand, serpMessage),
+                ct);
+
+            await profileRepo.UpdatePhaseStatusAsync(
+                profileId,
+                new NichePhaseStatusPatch(EnrichmentStatus: demand.KeywordsSkipped && demand.SerpSkipped ? "skipped" : "complete"),
                 ct);
 
             // Step 10 — Niche identity
@@ -390,20 +421,28 @@ public sealed class NicheAnalyzerService(
                     $"Pillars saved — writing authority score and topic profile…"),
                 ct);
 
-            var saveResult = await profileRepo.SaveAnalysisResultsAsync(profileId, new NicheAnalysisSaveRequest(
-                rootEntity,
-                schemaData.Description ?? string.Empty,
-                nicheTags,
-                audienceType,
-                string.Empty,
+            var saveResult = await persistence.SaveCompletionAsync(
+                profileId,
+                new NicheProfileSummaryPatch(
+                    rootEntity,
+                    schemaData.Description ?? string.Empty,
+                    nicheTags,
+                    audienceType,
+                    nicheEntities.Count,
+                    analyzedAt,
+                    nextDue,
+                    scan.Fingerprint,
+                    scan.ChangeScore,
+                    PersistStage: "scores",
+                    StructureStatus: "complete",
+                    EnrichmentStatus: null),
                 authorityScore,
-                nicheEntities.Count,
                 covered,
                 partial,
                 gap,
-                analyzedAt,
-                nextDue,
-                SiteTopicProfileJson.SerializeForPersistence(fused)), ct);
+                fused,
+                FusionArchiveEnabled,
+                ct);
             if (!saveResult.IsSuccess)
                 throw new InvalidOperationException($"Failed to save analysis results: {saveResult.Error}");
 
@@ -431,6 +470,14 @@ public sealed class NicheAnalyzerService(
             await PushProgress(
                 userId, profileId, TotalSteps,
                 NicheAnalysisStepLogBuilder.Complete(TotalSteps, analyzedAt, nextDue, completeMessage),
+                ct);
+            await profileRepo.UpdatePhaseStatusAsync(
+                profileId,
+                new NichePhaseStatusPatch(
+                    StructureStatus: "complete",
+                    EnrichmentStatus: "complete",
+                    PersistStage: "done",
+                    Status: "complete"),
                 ct);
             await profileRepo.UpdateStatusAsync(profileId, "complete", "complete", TotalSteps, TotalSteps, ct: ct);
 
@@ -706,6 +753,10 @@ public sealed class NicheAnalyzerService(
             .Take(20)
             .Select(kvp => $"{kvp.Key}: {kvp.Value}")
             .ToArray();
+
+    private static Task<IReadOnlyList<string>?> LoadPriorSitemapUrlsAsync(
+        Guid projectId, Guid currentProfileId, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<string>?>(null);
 
     private async Task<string> ResolveSiteUrlAsync(
         Guid projectId, string domainFromRequest, CancellationToken ct)

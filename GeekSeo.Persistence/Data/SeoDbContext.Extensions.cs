@@ -183,6 +183,19 @@ public partial class SeoDbContext
                 .HasColumnType("jsonb")
                 .HasDefaultValueSql("'[]'::jsonb");
             e.Property(x => x.FusionSnapshot).HasColumnType("jsonb");
+            e.Property(x => x.ScanChangeScore).HasPrecision(5, 4);
+        });
+
+        modelBuilder.Entity<NicheTopicCandidate>(e =>
+        {
+            e.ToTable("niche_topic_candidates");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.EvidenceJson).HasColumnType("jsonb");
+            e.HasOne(x => x.NicheProfile).WithMany(p => p.TopicCandidates).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.NicheProfileId, x.Slug }).IsUnique();
+            e.HasIndex(x => x.NicheProfileId);
+            e.HasIndex(x => new { x.NicheProfileId, x.IsSelected });
         });
 
         modelBuilder.Entity<NichePillar>(e =>

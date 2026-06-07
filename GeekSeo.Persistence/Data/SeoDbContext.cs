@@ -52,6 +52,7 @@ public partial class SeoDbContext : DbContext
     public DbSet<NicheCompetitor> NicheCompetitors => Set<NicheCompetitor>();
     public DbSet<NicheEntity> NicheEntities => Set<NicheEntity>();
     public DbSet<NichePillarPage> NichePillarPages => Set<NichePillarPage>();
+    public DbSet<NicheTopicCandidate> NicheTopicCandidates => Set<NicheTopicCandidate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -10,7 +10,10 @@ public record NicheAnalysisStatus(
     int TotalSteps,
     string? ErrorMessage,
     DateTimeOffset? CreatedAt = null,
-    DateTimeOffset? ProgressAt = null);
+    DateTimeOffset? ProgressAt = null,
+    string? StructureStatus = null,
+    string? EnrichmentStatus = null,
+    string? PersistStage = null);
 
 /// <summary>One persisted row in <c>niche_profiles.AnalysisStepLog</c> JSON array.</summary>
 public sealed record NicheAnalysisStepLogEntry(
@@ -71,6 +74,8 @@ public record NicheProfileResult
     public DateTimeOffset? NextAnalysisDue { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
     public string Status { get; init; } = "complete";
+    public string? StructureStatus { get; init; }
+    public string? EnrichmentStatus { get; init; }
     public IReadOnlyList<NichePillarResult> Pillars { get; init; } = [];
     public IReadOnlyList<NicheCompetitorResult> Competitors { get; init; } = [];
     public IReadOnlyList<NicheEntityResult> Entities { get; init; } = [];

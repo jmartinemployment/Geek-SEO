@@ -16,6 +16,21 @@ public interface INicheProfileRepository
         NicheAnalysisStepLogEntry? stepLogEntry = null,
         CancellationToken ct = default);
     Task<Result> UpdateScoresAsync(Guid profileId, decimal authorityScore, int covered, int partial, int gap, CancellationToken ct = default);
+    Task<Result> UpdateProfileSummaryAsync(Guid profileId, NicheProfileSummaryPatch summary, CancellationToken ct = default);
+    Task<Result> SaveFusionSnapshotAsync(Guid profileId, string fusionSnapshotJson, CancellationToken ct = default);
+    Task<Result> UpdatePhaseStatusAsync(Guid profileId, NichePhaseStatusPatch patch, CancellationToken ct = default);
+    Task<Result> BulkUpsertTopicCandidatesAsync(
+        Guid profileId,
+        IReadOnlyList<NicheTopicCandidateBulkUpsert> candidates,
+        string idempotencyKey,
+        CancellationToken ct = default);
+    Task<Result<NicheTopicCandidateListResult>> GetTopicCandidatesAsync(
+        Guid profileId,
+        int page,
+        int pageSize,
+        bool? selectedOnly,
+        CancellationToken ct = default);
+    [Obsolete("Use split PATCH methods via NicheAnalysisPersistenceService. Retained for GeekRepository fallback.")]
     Task<Result> SaveAnalysisResultsAsync(Guid profileId, NicheAnalysisSaveRequest results, CancellationToken ct = default);
     Task<Result> BulkInsertPillarsAsync(IEnumerable<NichePillar> pillars, CancellationToken ct = default);
     Task<Result> BulkInsertSubtopicsAsync(IEnumerable<NicheSubtopic> subtopics, CancellationToken ct = default);
