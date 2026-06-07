@@ -68,11 +68,12 @@ try {
   assert(typeof p?.credentials?.dataforseo === 'boolean', 'missing credentials.dataforseo');
   assert(typeof p?.credentials?.serpapi === 'boolean', 'missing credentials.serpapi');
   assert(p?.vendorPersistence === 'database-first', 'missing vendorPersistence');
-  assert(typeof p?.vendorRetentionDays === 'number', 'missing vendorRetentionDays');
+  assert(typeof p?.vendorRetentionDays?.serp === 'number', 'missing vendorRetentionDays.serp');
+  assert(typeof p?.vendorRetentionDays?.keywords === 'number', 'missing vendorRetentionDays.keywords');
 
   console.log(
     `✓ provider config — serp=${p.serpProvider}, keyword=${p.keywordProvider}, ` +
-      `rank=${p.rankSnapshotProvider}, retentionDays=${p.vendorRetentionDays}, ` +
+      `rank=${p.rankSnapshotProvider}, retentionDays=${p.vendorRetentionDays.serp}/${p.vendorRetentionDays.keywords}, ` +
       `dataforseoCreds=${p.credentials.dataforseo}, serpapiKey=${p.credentials.serpapi}`,
   );
 

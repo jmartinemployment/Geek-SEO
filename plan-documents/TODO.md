@@ -72,7 +72,7 @@ Competitors win on **SERP term checklist + score that moves when you add specifi
 |------|--------|
 | Code (`PillarDemandEnricher`, steps 8–9) | ✅ Shipped |
 | Production split | ✅ `SERP_PROVIDER=serpapi` · `KEYWORD_PROVIDER=dataforseo` · rank `dataforseo` |
-| **Vendor persistence** | `SEO_VENDOR_RETENTION_DAYS` (or legacy per-type names) — persisted SerpApi/DataForSEO payloads; re-fetch after N days (default 30 SERP / 60 keywords).
+| **Vendor persistence** | `SEO_VENDOR_*_RETENTION_DAYS` / `SEO_VENDOR_*_CACHE_DAYS` — persisted SerpApi/DataForSEO payloads; re-fetch after N days (default 30 SERP / 60 keywords).
 | Verify | `npm run test:integration:sul-providers` (CI) · `SUL_LIVE=1 npm run test:integration:sul-providers` (1 live SERP when enabled) |
 
 ---
