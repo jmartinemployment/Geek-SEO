@@ -58,6 +58,11 @@ public sealed class NicheAnalyzerController(
         {
             return BadRequest(new { error = ex.Message });
         }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Transient error fetching analysis details for profile {ProfileId}", profileId);
+            return StatusCode(503, new { error = "Details temporarily unavailable" });
+        }
     }
 
     [HttpGet("{profileId:guid}/status")]
@@ -74,14 +79,19 @@ public sealed class NicheAnalyzerController(
             var step = p.AnalysisStep ?? p.Status;
             var stepNumber = p.AnalysisStepNumber > 0
                 ? p.AnalysisStepNumber
-                : p.Status switch { "complete" => 11, _ => 0 };
-            var totalSteps = p.AnalysisTotalSteps > 0 ? p.AnalysisTotalSteps : 12;
+                : p.Status switch { "complete" => 14, _ => 0 };
+            var totalSteps = p.AnalysisTotalSteps > 0 ? p.AnalysisTotalSteps : 14;
             return Ok(new NicheAnalysisStatus(
                 p.Id, p.Status, step, stepNumber, totalSteps, p.ErrorMessage, p.CreatedAt, p.AnalysisProgressAt));
         }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Transient error fetching niche status for profile {ProfileId}", profileId);
+            return StatusCode(503, new { error = "Status temporarily unavailable" });
         }
     }
 

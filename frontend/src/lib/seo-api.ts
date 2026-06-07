@@ -1735,10 +1735,11 @@ export async function getNicheAnalysisDetails(
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
-  if (res.status === 404) {
+  if (!res.ok) {
+    // 404 = not ready yet; 5xx = GeekRepository transient error during analysis
     return { stepLogVersion: 1, steps: [], fusionSnapshot: null };
   }
-  return seoJson(res);
+  return res.json() as Promise<NicheAnalysisDetails>;
 }
 
 export async function getNicheProfile(
