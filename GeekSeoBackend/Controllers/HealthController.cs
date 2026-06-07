@@ -71,11 +71,7 @@ public sealed class HealthController(
             keywordProvider = providerConfig.KeywordProvider,
             rankSnapshotProvider = providerConfig.RankSnapshotProvider,
             vendorPersistence = "database-first",
-            vendorRetentionDays = new
-            {
-                serp = providerConfig.SerpRetentionDays,
-                keywords = providerConfig.KeywordRetentionDays,
-            },
+            vendorRetentionDays = providerConfig.VendorRetentionDays,
             credentials = new
             {
                 dataforseo = providerConfig.DataForSeoCredentialsConfigured,

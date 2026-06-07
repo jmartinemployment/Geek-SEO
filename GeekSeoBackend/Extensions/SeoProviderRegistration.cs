@@ -171,6 +171,8 @@ public sealed class SeoProviderConfiguration
     public required string RankSnapshotProvider { get; init; }
     public bool DataForSeoCredentialsConfigured { get; init; }
     public bool SerpApiKeyConfigured { get; init; }
+    /// <summary>Single retention knob for ops (see SEO_VENDOR_RETENTION_DAYS).</summary>
+    public int VendorRetentionDays { get; init; }
     public int SerpRetentionDays { get; init; }
     public int KeywordRetentionDays { get; init; }
 
@@ -192,6 +194,7 @@ public sealed class SeoProviderConfiguration
             DataForSeoCredentialsConfigured = DataForSeoClient.TryGetCredentials(out _, out _),
             SerpApiKeyConfigured = !string.IsNullOrWhiteSpace(
                 Environment.GetEnvironmentVariable(SeoProviderRegistration.SerpApiKeyEnv)),
+            VendorRetentionDays = VendorPersistenceSettings.RetentionDays,
             SerpRetentionDays = VendorPersistenceSettings.SerpRetentionDays,
             KeywordRetentionDays = VendorPersistenceSettings.KeywordRetentionDays,
         };

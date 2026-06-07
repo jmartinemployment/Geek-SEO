@@ -116,6 +116,35 @@ public sealed class SeoProviderRegistrationTests
         Assert.True(config.SerpApiKeyConfigured);
         Assert.Equal(45, config.SerpRetentionDays);
         Assert.Equal(90, config.KeywordRetentionDays);
+        Assert.Equal(45, config.VendorRetentionDays);
+    }
+
+    [Fact]
+    public void SeoProviderConfiguration_unified_retention_applies_to_serp_and_keywords()
+    {
+        using var env = EnvScope.For(new Dictionary<string, string?>
+        {
+            ["SEO_VENDOR_RETENTION_DAYS"] = "90",
+        });
+
+        var config = SeoProviderConfiguration.FromEnvironment();
+        Assert.Equal(90, config.VendorRetentionDays);
+        Assert.Equal(90, config.SerpRetentionDays);
+        Assert.Equal(90, config.KeywordRetentionDays);
+    }
+
+    [Fact]
+    public void SeoProviderConfiguration_legacy_cache_day_names_still_resolve()
+    {
+        using var env = EnvScope.For(new Dictionary<string, string?>
+        {
+            ["SEO_VENDOR_SERP_CACHE_DAYS"] = "45",
+            ["SEO_VENDOR_KEYWORD_CACHE_DAYS"] = "90",
+        });
+
+        var config = SeoProviderConfiguration.FromEnvironment();
+        Assert.Equal(45, config.SerpRetentionDays);
+        Assert.Equal(90, config.KeywordRetentionDays);
     }
 
     private static ServiceCollection CreateServiceCollection()
