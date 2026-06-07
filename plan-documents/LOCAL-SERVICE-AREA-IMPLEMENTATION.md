@@ -50,7 +50,7 @@ Add columns on `geek_seo.seo_projects`:
 |---|------|-------|-----------|
 | 1.1 | EF migration + `SeoProject` entity fields | GeekSeo.Persistence | Migration in repo |
 | 1.2 | `CreateProjectRequest` / `UpdateProjectRequest` + JSON on API | GeekSeo.Application, GeekSeoBackend | PUT accepts radius 5–100 |
-| 1.3 | **GeekRepository** internal projects controller maps new columns | GeekBackend (separate deploy) | Production save works |
+| 1.3 | **GeekRepository** internal projects controller maps new columns | GeekBackend (separate deploy) | ✅ `ProjectRepository` maps address/radius/enabled |
 | 1.4 | `updateProject()` + extend `SeoProject` type | frontend | API client complete |
 | 1.5 | `LocalServiceAreaSettings` on project page | frontend | User can set address + radius |
 | 1.6 | Validation: radius clamp 5–100, empty address OK | Application | Invalid values rejected |

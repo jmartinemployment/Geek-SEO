@@ -96,7 +96,7 @@ Full spec: [`LOCAL-SERVICE-AREA.md`](LOCAL-SERVICE-AREA.md). Implementation: [`L
 
 | Phase | Scope | Status |
 |-------|--------|--------|
-| **1** | Project settings — address + radius (default 20 mi) | In progress — Geek-SEO repo; GeekRepository deploy pending |
+| **1** | Project settings — address + radius (default 20 mi) | ✅ Shipped — deploy GeekRepository for production save |
 | **2** | Geocode + places within radius | Not started |
 | **3** | Step 11 uses radius places + location URL gaps | Not started |
 | **4** | Topical map, copilot, Content Guard share same service area | Not started |
