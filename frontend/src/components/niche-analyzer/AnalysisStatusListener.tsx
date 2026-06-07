@@ -138,7 +138,7 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
             accessTokenFactory: () => accessToken ?? '',
             withCredentials: true,
           })
-          .configureLogging(LogLevel.Error)
+          .configureLogging(LogLevel.None)
           .withAutomaticReconnect([0, 2_000, 5_000, 10_000])
           .build();
 
