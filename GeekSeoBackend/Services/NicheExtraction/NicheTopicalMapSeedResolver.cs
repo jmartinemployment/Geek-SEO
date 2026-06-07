@@ -8,7 +8,7 @@ internal static class NicheTopicalMapSeedResolver
     internal const int DefaultMaxSeeds = 7;
     internal const int DefaultExpansionSeeds = 3;
 
-    internal static IReadOnlyList<string> ResolveSeeds(FusedSiteUnderstanding fusion, int maxSeeds = DefaultMaxSeeds)
+    internal static IReadOnlyList<string> ResolveSeeds(SiteTopicProfile fusion, int maxSeeds = DefaultMaxSeeds)
     {
         if (fusion.SelectedPillars.Count == 0)
             return [];

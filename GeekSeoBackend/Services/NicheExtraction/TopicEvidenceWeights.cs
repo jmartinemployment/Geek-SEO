@@ -15,12 +15,9 @@ internal static class TopicEvidenceWeights
     internal const decimal MaxConfidence = 1.0m;
 
     /// <summary>
-    /// Schema-declared topics auto-select only when confidence meets this floor,
-    /// ensuring at least one corroborating signal alongside the schema declaration.
-    /// Schema alone = 0.35 — any additional signal pushes confidence above this threshold.
+    /// Minimum confidence for topics to be selected as pillars (non-schema, non-GSC).
+    /// Nav-level signal (0.15) passes; heading-only (0.10) does not.
+    /// Mirrors SE behavior: any topic with a substantive structural or content signal is accepted.
     /// </summary>
-    internal const decimal SchemaConfidenceFloor = 0.40m;
-
-    /// <summary>Minimum ContentDepthScore for Gate 1 (non-schema, non-structural topics).</summary>
-    internal const decimal ContentDepthGateMin = 0.15m;
+    internal const decimal MinPillarConfidence = 0.15m;
 }

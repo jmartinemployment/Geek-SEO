@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import type { FusedSiteUnderstanding } from '@/lib/seo-api';
+import type { SiteTopicProfile } from '@/lib/seo-api';
 
 type Props = {
-  fusion: FusedSiteUnderstanding;
+  fusion: SiteTopicProfile;
   projectId?: string;
 };
 
@@ -21,7 +21,7 @@ function topicalMapHref(
   return query ? `/app/strategy/topical-map?${query}` : '/app/strategy/topical-map';
 }
 
-function pickMapSeed(fusion: FusedSiteUnderstanding): string | null {
+function pickMapSeed(fusion: SiteTopicProfile): string | null {
   const action = (fusion.recommendedActions ?? []).find(
     (a) => a.actionType === 'suggest_pillar_page',
   );
@@ -35,7 +35,7 @@ function pickMapSeed(fusion: FusedSiteUnderstanding): string | null {
   return fusion.selectedPillars[0]?.name ?? null;
 }
 
-export function FusionPillarMapLauncher({ fusion, projectId }: Readonly<Props>) {
+export function PillarMapLauncher({ fusion, projectId }: Readonly<Props>) {
   if (!projectId || fusion.selectedPillars.length === 0) return null;
 
   const seed = pickMapSeed(fusion);

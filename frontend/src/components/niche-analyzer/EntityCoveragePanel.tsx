@@ -1,9 +1,9 @@
 'use client';
 
-import type { FusedSiteUnderstanding } from '@/lib/seo-api';
+import type { SiteTopicProfile } from '@/lib/seo-api';
 
 type Props = {
-  fusion: FusedSiteUnderstanding;
+  fusion: SiteTopicProfile;
 };
 
 export function EntityCoveragePanel({ fusion }: Readonly<Props>) {

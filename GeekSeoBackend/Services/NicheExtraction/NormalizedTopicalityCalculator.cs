@@ -13,8 +13,8 @@ public static partial class NormalizedTopicalityCalculator
     private const decimal MinMatchScore = 0.25m;
     private const int MinPageWords = 50;
 
-    internal static FusedSiteUnderstanding Apply(
-        FusedSiteUnderstanding fused,
+    internal static SiteTopicProfile Apply(
+        SiteTopicProfile fused,
         SiteCrawlData crawl,
         UrlPatternData urlPatterns)
     {

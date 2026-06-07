@@ -3,14 +3,16 @@ using GeekSeo.Application.Models.Seo;
 namespace GeekSeoBackend.Services.NicheExtraction;
 
 /// <summary>
-/// Fuses peer-level topic candidates by confidence, then applies pillar validator gates.
+/// Selects pillars from the topic candidate pool using documented search engine behavior:
+/// schema/GSC-confirmed topics are unconditionally accepted; all others require a minimum
+/// confidence score. Deduplication (Gate 2) and noise filtering (Gate 3) are applied first.
 /// </summary>
-public sealed class TopicFusionEngine(PillarValidator validator)
+public sealed class PillarSelector(PillarValidator validator)
 {
-    public const string FusionVersion = "sul-1.5";
+    public const string SulVersion = "sul-2.0";
     private const int MinPillars = 3;
 
-    public FusedSiteUnderstanding Fuse(
+    public SiteTopicProfile Select(
         IReadOnlyList<TopicCandidate> pool,
         IReadOnlyList<string> locationFallbacks)
     {
@@ -34,7 +36,7 @@ public sealed class TopicFusionEngine(PillarValidator validator)
         foreach (var dropped in pillars.Except(afterGate3))
             exclusionReasons[dropped.Slug] = "Failed relevance gate (noise or generic heading)";
 
-        // Gate 2 — merge similar topics (keep higher-confidence slug)
+        // Gate 2 — dedup: merge near-synonyms, keep higher-confidence slug
         var toRemove = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (keep, merge) in validator.FindMergePairs(afterGate3))
         {
@@ -52,21 +54,13 @@ public sealed class TopicFusionEngine(PillarValidator validator)
 
         var afterGate2 = afterGate3.Where(p => !toRemove.Contains(p.Slug)).ToList();
 
-        // Gate 1 — scope check
-        var afterGate1 = afterGate2.Where(validator.PassesGate1).ToList();
-        foreach (var dropped in afterGate2.Except(afterGate1))
-            exclusionReasons.TryAdd(dropped.Slug, "Insufficient subtopic capacity (Gate 1)");
-
-        // Location fallbacks: inject as last resort only when gates left fewer than MinPillars.
-        // areaServed topics entered the pool earlier (TopicCandidatePoolBuilder) and may have
-        // already been selected via normal corroboration. These fallbacks cover sites with no
-        // location URL structure at all.
-        if (afterGate1.Count < MinPillars)
+        // Location fallbacks: inject when too few pillars survive (sites with no location URL structure)
+        if (afterGate2.Count < MinPillars)
         {
-            foreach (var loc in locationFallbacks.Take(MinPillars - afterGate1.Count))
+            foreach (var loc in locationFallbacks.Take(MinPillars - afterGate2.Count))
             {
                 var slug = NicheAnalyzerService.NameToSlug(loc);
-                if (afterGate1.Any(p => p.Slug.Equals(slug, StringComparison.OrdinalIgnoreCase)))
+                if (afterGate2.Any(p => p.Slug.Equals(slug, StringComparison.OrdinalIgnoreCase)))
                     continue;
 
                 var fallback = new TopicCandidate
@@ -86,53 +80,35 @@ public sealed class TopicFusionEngine(PillarValidator validator)
                 };
                 workingPool.Add(fallback);
                 confidenceBySlug[slug] = fallback.Confidence;
-                afterGate1.Add(ToDiscoveredPillar(fallback));
+                afterGate2.Add(ToDiscoveredPillar(fallback));
             }
         }
 
         var candidateBySlug = workingPool.ToDictionary(c => c.Slug, StringComparer.OrdinalIgnoreCase);
-        var schemaSlugs = workingPool
-            .Where(c => c.Evidence.Any(e => e.Source == "schema"))
-            .Select(c => c.Slug)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        // Schema-declared topics auto-select only when confidence meets the floor, ensuring
-        // at least one corroborating signal backs the schema declaration (mirrors SE behavior:
-        // structured data is a trust accelerator, not an unconditional bypass).
-        var selectedSlugs = afterGate1
-            .Where(p => schemaSlugs.Contains(p.Slug))
-            .Where(p =>
-            {
-                if (!candidateBySlug.TryGetValue(p.Slug, out var candidate))
-                    return true;
-
-                if (candidate.Confidence >= TopicEvidenceWeights.SchemaConfidenceFloor)
-                    return true;
-
-                exclusionReasons.TryAdd(p.Slug, "Schema-declared but no corroborating site signal (schema alone is not sufficient)");
-                return false;
-            })
-            .Select(p => p.Slug)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var slug in afterGate1
-                     .Select(p => p.Slug)
-                     .Where(slug => !schemaSlugs.Contains(slug))
-                     .Where(slug =>
-                     {
-                         if (!candidateBySlug.TryGetValue(slug, out var candidate))
-                             return false;
-
-                         if (TopicCorroboration.PassesCorroboration(candidate.Evidence, candidate.Confidence))
-                             return true;
-
-                         exclusionReasons.TryAdd(slug, "Insufficient signal corroboration (single weak source)");
-                         return false;
-                     })
-                     .OrderByDescending(slug => confidenceBySlug.GetValueOrDefault(slug))
-                     .ThenBy(slug => slug, StringComparer.OrdinalIgnoreCase))
+        // Selection rules (mirrors documented SE behavior):
+        //   Schema-declared → unconditional (site owner assertion; Google/Bing treat as authoritative)
+        //   GSC-confirmed   → unconditional (SE already associates this topic with the site)
+        //   All others      → confidence >= MinPillarConfidence (nav-level signal or stronger)
+        var selectedSlugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var pillar in afterGate2)
         {
-            selectedSlugs.Add(slug);
+            if (!candidateBySlug.TryGetValue(pillar.Slug, out var candidate))
+            {
+                selectedSlugs.Add(pillar.Slug);
+                continue;
+            }
+
+            var hasSchema = candidate.Evidence.Any(e => e.Source is "schema" or "same_as");
+            var hasGsc = candidate.Evidence.Any(e => e.Source == "gsc");
+
+            if (hasSchema || hasGsc)
+                selectedSlugs.Add(pillar.Slug);
+            else if (candidate.Confidence >= TopicEvidenceWeights.MinPillarConfidence)
+                selectedSlugs.Add(pillar.Slug);
+            else
+                exclusionReasons.TryAdd(pillar.Slug,
+                    $"Insufficient signal strength (confidence {candidate.Confidence:F2} < {TopicEvidenceWeights.MinPillarConfidence:F2})");
         }
 
         var selected = workingPool
@@ -144,21 +120,21 @@ public sealed class TopicFusionEngine(PillarValidator validator)
             .Where(c => !selectedSlugs.Contains(c.Slug))
             .ToList();
 
-        return new FusedSiteUnderstanding
+        return new SiteTopicProfile
         {
             AllCandidates = workingPool,
             SelectedPillars = selected,
             ExcludedCandidates = excluded,
             ExclusionReasons = exclusionReasons,
-            FusionVersion = FusionVersion,
+            SulVersion = SulVersion,
             SignalSourcesPresent = signalSources,
         };
     }
 
-    public PillarMergeResult ToPillarMergeResult(FusedSiteUnderstanding fused)
+    public PillarMergeResult ToPillarMergeResult(SiteTopicProfile profile)
     {
-        var selected = fused.SelectedPillars.Select(ToDiscoveredPillar).ToList();
-        var excluded = fused.ExcludedCandidates.Select(ToDiscoveredPillar).ToList();
+        var selected = profile.SelectedPillars.Select(ToDiscoveredPillar).ToList();
+        var excluded = profile.ExcludedCandidates.Select(ToDiscoveredPillar).ToList();
         return new PillarMergeResult(selected, excluded);
     }
 

@@ -23,7 +23,7 @@ internal static class NicheContentCoverageMatcher
     internal static ContentCoverageResult Apply(
         IReadOnlyList<NichePillar> pillars,
         IReadOnlyList<NicheSubtopic> subtopics,
-        FusedSiteUnderstanding fused,
+        SiteTopicProfile fused,
         IReadOnlyList<DiscoveredPillar> discovered,
         SiteCrawlData crawl,
         SitemapData sitemap,

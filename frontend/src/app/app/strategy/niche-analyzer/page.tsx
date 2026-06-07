@@ -20,7 +20,7 @@ import {
 } from '@/lib/seo-api';
 import { ContentGuardContextBanner } from '@/components/niche-analyzer/ContentGuardContextBanner';
 import { AnalysisStepBreakdown } from '@/components/niche-analyzer/AnalysisStepBreakdown';
-import { FusionSnapshotSection } from '@/components/niche-analyzer/FusionSnapshotSection';
+import { TopicProfileSection } from '@/components/niche-analyzer/TopicProfileSection';
 import { PillarProvenanceCallout } from '@/components/niche-analyzer/PillarProvenanceCallout';
 import { NicheHeader } from '@/components/niche-analyzer/NicheHeader';
 import { CoverageMatrixTable } from '@/components/niche-analyzer/CoverageMatrixTable';
@@ -337,7 +337,7 @@ export default function NicheAnalyzerPage() {
                     only).
                   </p>
                 </div>
-                <FusionSnapshotSection
+                <TopicProfileSection
                   profileId={profile.id}
                   projectId={projectId}
                   accessToken={accessToken}

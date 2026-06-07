@@ -5,8 +5,8 @@ import Link from 'next/link';
 import {
   generateBrief,
   type ContentBrief,
-  type FusedSiteUnderstanding,
-  type FusionRecommendedAction,
+  type SiteTopicProfile,
+  type PillarRecommendedAction,
 } from '@/lib/seo-api';
 import { ContentBriefInline } from '@/components/niche-analyzer/ContentBriefInline';
 import {
@@ -15,7 +15,7 @@ import {
 } from '@/components/niche-analyzer/fusion-action-helpers';
 
 type Props = {
-  fusion: FusedSiteUnderstanding;
+  fusion: SiteTopicProfile;
   projectId?: string;
   accessToken?: string | null;
 };
@@ -57,8 +57,8 @@ function ActionRow({
   projectId,
   accessToken,
 }: {
-  action: FusionRecommendedAction;
-  fusion: FusedSiteUnderstanding;
+  action: PillarRecommendedAction;
+  fusion: SiteTopicProfile;
   projectId?: string;
   accessToken?: string | null;
 }) {
@@ -174,7 +174,7 @@ function ActionRow({
   );
 }
 
-export function FusionActionPanel({ fusion, projectId, accessToken }: Readonly<Props>) {
+export function PillarActionPanel({ fusion, projectId, accessToken }: Readonly<Props>) {
   const actions = fusion.recommendedActions ?? [];
   if (actions.length === 0) return null;
 

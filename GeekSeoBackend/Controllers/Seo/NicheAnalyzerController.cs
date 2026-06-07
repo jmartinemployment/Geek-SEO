@@ -51,7 +51,7 @@ public sealed class NicheAnalyzerController(
                 return NotFound();
 
             var steps = NicheAnalysisStepLogJson.Parse(profile.AnalysisStepLog);
-            var fusion = FusedSiteUnderstandingJson.Parse(profile.FusionSnapshot);
+            var fusion = SiteTopicProfileJson.Parse(profile.FusionSnapshot);
             return Ok(new NicheAnalysisDetails(profile.AnalysisStepLogVersion, steps, fusion));
         }
         catch (InvalidOperationException ex)

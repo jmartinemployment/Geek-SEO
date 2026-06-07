@@ -1,12 +1,12 @@
 'use client';
 
-import type { FusedSiteUnderstanding } from '@/lib/seo-api';
+import type { SiteTopicProfile } from '@/lib/seo-api';
 
 type Props = {
-  fusion: FusedSiteUnderstanding;
+  fusion: SiteTopicProfile;
 };
 
-function slugToLabel(slug: string, fusion: FusedSiteUnderstanding): string {
+function slugToLabel(slug: string, fusion: SiteTopicProfile): string {
   const match =
     fusion.selectedPillars.find((p) => p.slug === slug) ??
     fusion.allCandidates.find((p) => p.slug === slug);

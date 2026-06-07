@@ -323,7 +323,7 @@ public sealed class TopicalMapService(
                 "Niche analysis is still in progress. Wait for it to complete before building a topical map.");
         }
 
-        var fused = FusedSiteUnderstandingJson.Parse(profile.FusionSnapshot);
+        var fused = SiteTopicProfileJson.Parse(profile.FusionSnapshot);
         if (fused is null || fused.SelectedPillars.Count == 0)
         {
             throw new InvalidOperationException(

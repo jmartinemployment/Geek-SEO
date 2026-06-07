@@ -44,9 +44,6 @@ public sealed class PillarMerger
             toRemove.Add(merge.Slug);
         candidates = candidates.Where(c => !toRemove.Contains(c.Slug)).ToList();
 
-        // Gate 1 — scope check
-        candidates = candidates.Where(validator.PassesGate1).ToList();
-
         // If still < MinPillars, add location pillars
         if (candidates.Count < MinPillars)
         {

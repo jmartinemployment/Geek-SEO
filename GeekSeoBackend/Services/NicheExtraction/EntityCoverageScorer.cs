@@ -11,7 +11,7 @@ internal static class EntityCoverageScorer
     internal const decimal EntityThinThreshold = 0.60m;
 
     internal static IReadOnlyDictionary<string, PillarEntityCoverage> Compute(
-        FusedSiteUnderstanding fused,
+        SiteTopicProfile fused,
         IReadOnlyList<PillarSerpEnrichment> serpValidations)
     {
         if (fused.SelectedPillars.Count == 0 || serpValidations.Count == 0)

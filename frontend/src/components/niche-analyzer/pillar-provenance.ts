@@ -39,7 +39,7 @@ export function buildPillarProvenanceSummary(
   const excludedCount = outputNumber(merging, 'excludedCount');
   const excludedSample = outputStringArray(merging, 'excludedSampleNames');
   const exclusionReasons = outputStringArray(merging, 'exclusionReasonsSample');
-  const fusionVersion = merging.outputs.fusionVersion;
+  const sulVersion = merging.outputs.sulVersion;
   const peerCandidates = outputNumber(merging, 'candidateCount');
   const signalSources = outputStringArray(merging, 'signalSourcesPresent');
   const entityResolved = schema?.outputs.entityResolved === true;
@@ -97,13 +97,13 @@ export function buildPillarProvenanceSummary(
     );
   }
 
-  if (typeof fusionVersion === 'string' && fusionVersion.length > 0 && peerCandidates !== null) {
+  if (typeof sulVersion === 'string' && sulVersion.length > 0 && peerCandidates !== null) {
     const sources =
       signalSources.length > 0
         ? signalSources.join(', ')
         : 'schema, page, sitemap, nav, and headings';
     parts.push(
-      `Topic fusion (${fusionVersion}) evaluated ${peerCandidates} peer candidate(s) from ${sources}.`,
+      `SUL (${sulVersion}) evaluated ${peerCandidates} peer candidate(s) from ${sources}.`,
     );
   }
 
@@ -278,7 +278,7 @@ export const OUTPUT_LABELS: Record<string, string> = {
   servicePhraseCount: 'Body phrase count',
   sampleVerticalTopics: 'H2/H3 vertical topics (sample)',
   sampleServicePhrases: 'Body phrases (sample)',
-  fusionVersion: 'Fusion engine version',
+  sulVersion: 'SUL version',
   signalSourcesPresent: 'Signals present in fusion pool',
   exclusionReasonsSample: 'Excluded topics (sample reasons)',
   primarySource: 'Winning source after merge',

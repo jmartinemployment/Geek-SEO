@@ -24,7 +24,7 @@ public sealed record NicheAnalysisStepLogEntry(
 public sealed record NicheAnalysisDetails(
     int StepLogVersion,
     IReadOnlyList<NicheAnalysisStepLogEntry> Steps,
-    FusedSiteUnderstanding? FusionSnapshot = null);
+    SiteTopicProfile? FusionSnapshot = null);
 
 /// <summary>Persisted when a niche analysis run completes (metadata + scores).</summary>
 public sealed record NicheAnalysisSaveRequest(
@@ -205,13 +205,13 @@ public sealed record TopicEvidence
     public decimal Weight { get; init; }
 }
 
-public sealed record FusedSiteUnderstanding
+public sealed record SiteTopicProfile
 {
     public required IReadOnlyList<TopicCandidate> AllCandidates { get; init; }
     public required IReadOnlyList<TopicCandidate> SelectedPillars { get; init; }
     public required IReadOnlyList<TopicCandidate> ExcludedCandidates { get; init; }
     public required IReadOnlyDictionary<string, string> ExclusionReasons { get; init; }
-    public required string FusionVersion { get; init; }
+    public required string SulVersion { get; init; }
     public required IReadOnlyList<string> SignalSourcesPresent { get; init; }
     /// <summary>Share of crawled site word-weight attributed to each selected pillar slug (0–1).</summary>
     public IReadOnlyDictionary<string, decimal> NormalizedTopicalityBySlug { get; init; }
@@ -222,7 +222,7 @@ public sealed record FusedSiteUnderstanding
     /// <summary>Pillar-to-pillar internal link graph from crawled anchors (Gap 5).</summary>
     public InternalLinkGraph? InternalLinkGraph { get; init; }
     /// <summary>Phase E draft actions derived from the same snapshot (no auto-execution).</summary>
-    public IReadOnlyList<FusionRecommendedAction> RecommendedActions { get; init; } = [];
+    public IReadOnlyList<PillarRecommendedAction> RecommendedActions { get; init; } = [];
     /// <summary>Step 11 — schema areaServed vs location pages on site.</summary>
     public LocalGeographyAnalysis? LocalGeography { get; init; }
 }
@@ -267,7 +267,7 @@ public sealed record InternalLinkGraph(
     IReadOnlyList<string> OrphanSlugs);
 
 /// <summary>User-approvable action suggested from fusion snapshot analysis (Phase E).</summary>
-public sealed record FusionRecommendedAction(
+public sealed record PillarRecommendedAction(
     string ActionType,
     string TopicSlug,
     string TopicName,

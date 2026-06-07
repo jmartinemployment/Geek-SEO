@@ -1501,17 +1501,17 @@ export type TopicCandidate = {
   internalLinkCount: number;
 };
 
-export type FusedSiteUnderstanding = {
+export type SiteTopicProfile = {
   allCandidates: TopicCandidate[];
   selectedPillars: TopicCandidate[];
   excludedCandidates: TopicCandidate[];
   exclusionReasons: Record<string, string>;
-  fusionVersion: string;
+  sulVersion: string;
   signalSourcesPresent: string[];
   normalizedTopicalityBySlug?: Record<string, number>;
   entityCoverageBySlug?: Record<string, PillarEntityCoverage>;
   internalLinkGraph?: InternalLinkGraph | null;
-  recommendedActions?: FusionRecommendedAction[];
+  recommendedActions?: PillarRecommendedAction[];
   localGeography?: LocalGeographyAnalysis | null;
 };
 
@@ -1536,7 +1536,7 @@ export type LocalGeographyGap = {
   reason: string;
 };
 
-export type FusionRecommendedAction = {
+export type PillarRecommendedAction = {
   actionType:
     | 'suggest_pillar_page'
     | 'suggest_local_page'
@@ -1575,7 +1575,7 @@ export type InternalLinkGraph = {
 export type NicheAnalysisDetails = {
   stepLogVersion: number;
   steps: NicheAnalysisStepLogEntry[];
-  fusionSnapshot?: FusedSiteUnderstanding | null;
+  fusionSnapshot?: SiteTopicProfile | null;
 };
 
 export type NicheSubtopicResult = {

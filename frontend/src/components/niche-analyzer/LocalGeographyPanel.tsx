@@ -1,9 +1,9 @@
 'use client';
 
-import type { FusedSiteUnderstanding, LocalGeographyAnalysis } from '@/lib/seo-api';
+import type { SiteTopicProfile, LocalGeographyAnalysis } from '@/lib/seo-api';
 
 type Props = {
-  fusion: FusedSiteUnderstanding;
+  fusion: SiteTopicProfile;
 };
 
 function LocalGeographyContent({ local }: { local: LocalGeographyAnalysis }) {

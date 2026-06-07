@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getNicheAnalysisDetails, type FusedSiteUnderstanding } from '@/lib/seo-api';
-import { FusionInsightsStack } from '@/components/niche-analyzer/FusionInsightsStack';
+import { getNicheAnalysisDetails, type SiteTopicProfile } from '@/lib/seo-api';
+import { TopicInsightsStack } from '@/components/niche-analyzer/TopicInsightsStack';
 
 type Props = {
   profileId: string;
@@ -13,14 +13,14 @@ type Props = {
   showMatrix?: boolean;
 };
 
-export function FusionSnapshotSection({
+export function TopicProfileSection({
   profileId,
   projectId,
   accessToken,
   pollIntervalMs,
   showMatrix = false,
 }: Readonly<Props>) {
-  const [fusion, setFusion] = useState<FusedSiteUnderstanding | null>(null);
+  const [fusion, setFusion] = useState<SiteTopicProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -75,7 +75,7 @@ export function FusionSnapshotSection({
   }
 
   return (
-    <FusionInsightsStack
+    <TopicInsightsStack
       fusion={fusion}
       projectId={projectId}
       profileId={profileId}

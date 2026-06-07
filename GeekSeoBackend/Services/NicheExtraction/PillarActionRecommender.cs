@@ -2,23 +2,23 @@ using GeekSeo.Application.Models.Seo;
 
 namespace GeekSeoBackend.Services.NicheExtraction;
 
-/// <summary>Derives Phase E draft actions from the fusion snapshot (no side effects).</summary>
-internal static class FusionActionRecommender
+/// <summary>Derives Phase E draft actions from the topic profile snapshot (no side effects).</summary>
+internal static class PillarActionRecommender
 {
     internal const decimal MinConfidenceForPageSuggestion = 0.45m;
     internal const decimal MinConfidenceForSchemaSync = 0.40m;
 
-    internal static IReadOnlyList<FusionRecommendedAction> Recommend(FusedSiteUnderstanding fused)
+    internal static IReadOnlyList<PillarRecommendedAction> Recommend(SiteTopicProfile profile)
     {
-        var actions = new List<FusionRecommendedAction>();
+        var actions = new List<PillarRecommendedAction>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var pillar in fused.SelectedPillars)
+        foreach (var pillar in profile.SelectedPillars)
         {
             if (string.IsNullOrWhiteSpace(pillar.DedicatedPageUrl)
                 && pillar.Confidence >= MinConfidenceForPageSuggestion)
             {
-                TryAdd(actions, seen, new FusionRecommendedAction(
+                TryAdd(actions, seen, new PillarRecommendedAction(
                     "suggest_pillar_page",
                     pillar.Slug,
                     pillar.Name,
@@ -33,7 +33,7 @@ internal static class FusionActionRecommender
 
             if (!hasSchema && hasPublicStructure && pillar.Confidence >= MinConfidenceForSchemaSync)
             {
-                TryAdd(actions, seen, new FusionRecommendedAction(
+                TryAdd(actions, seen, new PillarRecommendedAction(
                     "schema_sync",
                     pillar.Slug,
                     pillar.Name,
@@ -42,9 +42,9 @@ internal static class FusionActionRecommender
             }
         }
 
-        foreach (var coverage in fused.EntityCoverageBySlug.Values.Where(c => c.IsEntityThin))
+        foreach (var coverage in profile.EntityCoverageBySlug.Values.Where(c => c.IsEntityThin))
         {
-            TryAdd(actions, seen, new FusionRecommendedAction(
+            TryAdd(actions, seen, new PillarRecommendedAction(
                 "entity_thin_content",
                 coverage.Slug,
                 coverage.Name,
@@ -52,14 +52,14 @@ internal static class FusionActionRecommender
                 0.9m));
         }
 
-        var orphans = fused.InternalLinkGraph?.OrphanSlugs ?? [];
+        var orphans = profile.InternalLinkGraph?.OrphanSlugs ?? [];
         foreach (var orphanSlug in orphans)
         {
-            var pillar = fused.SelectedPillars.FirstOrDefault(p =>
+            var pillar = profile.SelectedPillars.FirstOrDefault(p =>
                 p.Slug.Equals(orphanSlug, StringComparison.OrdinalIgnoreCase));
             var name = pillar?.Name ?? SitemapExtractor.SlugToTitle(orphanSlug);
 
-            TryAdd(actions, seen, new FusionRecommendedAction(
+            TryAdd(actions, seen, new PillarRecommendedAction(
                 "link_orphan_pillar",
                 orphanSlug,
                 name,
@@ -67,9 +67,9 @@ internal static class FusionActionRecommender
                 0.55m));
         }
 
-        foreach (var gap in fused.LocalGeography?.Gaps ?? [])
+        foreach (var gap in profile.LocalGeography?.Gaps ?? [])
         {
-            TryAdd(actions, seen, new FusionRecommendedAction(
+            TryAdd(actions, seen, new PillarRecommendedAction(
                 "suggest_local_page",
                 gap.SuggestedSlug,
                 gap.SuggestedTitle,
@@ -84,9 +84,9 @@ internal static class FusionActionRecommender
     }
 
     private static void TryAdd(
-        ICollection<FusionRecommendedAction> actions,
+        ICollection<PillarRecommendedAction> actions,
         ISet<string> seen,
-        FusionRecommendedAction action)
+        PillarRecommendedAction action)
     {
         var key = $"{action.ActionType}:{action.TopicSlug}";
         if (!seen.Add(key))

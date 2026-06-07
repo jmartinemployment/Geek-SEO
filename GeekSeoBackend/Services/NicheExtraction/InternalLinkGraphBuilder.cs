@@ -8,7 +8,7 @@ namespace GeekSeoBackend.Services.NicheExtraction;
 internal static class InternalLinkGraphBuilder
 {
     internal static InternalLinkGraph Build(
-        FusedSiteUnderstanding fused,
+        SiteTopicProfile fused,
         InternalLinkData internalLinks,
         UrlPatternData urlPatterns)
     {
@@ -73,7 +73,7 @@ internal static class InternalLinkGraphBuilder
     }
 
     private static Dictionary<string, string> BuildUrlSlugIndex(
-        FusedSiteUnderstanding fused,
+        SiteTopicProfile fused,
         UrlPatternData urlPatterns)
     {
         var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

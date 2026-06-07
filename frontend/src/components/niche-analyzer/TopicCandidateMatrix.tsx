@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useMemo, useState } from 'react';
-import type { FusedSiteUnderstanding, TopicCandidate } from '@/lib/seo-api';
+import type { SiteTopicProfile, TopicCandidate } from '@/lib/seo-api';
 import {
   candidateHasSource,
   evidenceTotalWeight,
@@ -12,18 +12,18 @@ import {
 } from '@/components/niche-analyzer/topic-candidate-matrix-utils';
 
 type Props = {
-  fusion: FusedSiteUnderstanding;
+  fusion: SiteTopicProfile;
 };
 
 type StatusFilter = 'all' | 'selected' | 'excluded' | 'multi';
 
-function isSelected(slug: string, fusion: FusedSiteUnderstanding): boolean {
+function isSelected(slug: string, fusion: SiteTopicProfile): boolean {
   return fusion.selectedPillars.some((p) => p.slug === slug);
 }
 
 function matchesStatusFilter(
   candidate: TopicCandidate,
-  fusion: FusedSiteUnderstanding,
+  fusion: SiteTopicProfile,
   filter: StatusFilter,
 ): boolean {
   if (filter === 'all') return true;
@@ -142,7 +142,7 @@ export function TopicCandidateMatrix({ fusion }: Readonly<Props>) {
               Topic candidate matrix
             </h3>
             <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-              Fusion {fusion.fusionVersion} — {stats.total} candidates considered, {stats.selected}{' '}
+              Fusion {fusion.sulVersion} — {stats.total} candidates considered, {stats.selected}{' '}
               selected
             </p>
           </div>

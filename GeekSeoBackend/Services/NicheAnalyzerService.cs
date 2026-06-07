@@ -21,7 +21,7 @@ public sealed class NicheAnalyzerService(
     SitePageCrawler sitePageCrawler,
     InternalLinkExtractor internalLinkExtractor,
     UrlPatternExtractor urlPatternExtractor,
-    TopicFusionEngine topicFusionEngine,
+    PillarSelector pillarSelector,
     PillarDemandEnricher pillarDemandEnricher,
     GscQueryExtractor gscQueryExtractor,
     NicheAuthorityScorer scorer,
@@ -161,11 +161,11 @@ public sealed class NicheAnalyzerService(
                 schemaData, sitemapData, navData, headings, pageContent,
                 internalLinkData, urlPatternData);
             candidatePool = GscQueryExtractor.ApplyToPool(candidatePool, gscOverlay);
-            var fused = topicFusionEngine.Fuse(
+            var fused = pillarSelector.Select(
                 candidatePool,
                 schemaData.AreaServed.ToList());
             fused = NormalizedTopicalityCalculator.Apply(fused, crawlData, urlPatternData);
-            var mergeResult = topicFusionEngine.ToPillarMergeResult(fused);
+            var mergeResult = pillarSelector.ToPillarMergeResult(fused);
             var merged = mergeResult.Selected;
             var silentGscSlugs = GscQueryExtractor.FindSilentPillarSlugs(merged, gscOverlay);
             var gscMatchedCount = CountBySource(fused.AllCandidates, "gsc");
@@ -188,7 +188,7 @@ public sealed class NicheAnalyzerService(
                     CountBySource(fused.AllCandidates, "url_pattern"),
                     CountBySource(fused.AllCandidates, "same_as"),
                     CountBySource(fused.AllCandidates, "gsc"),
-                    fused.FusionVersion,
+                    fused.SulVersion,
                     fused.SignalSourcesPresent,
                     SampleExclusionReasons(fused),
                     gscOverlay.Connected,
@@ -335,7 +335,7 @@ public sealed class NicheAnalyzerService(
                 }
             }
 
-            fused = FusionSnapshotEnricher.Apply(
+            fused = TopicSnapshotEnricher.Apply(
                 fused, internalLinkData, urlPatternData, demand.SerpValidations);
 
             var analyzedAt = DateTimeOffset.UtcNow;
@@ -353,7 +353,7 @@ public sealed class NicheAnalyzerService(
                 gap,
                 analyzedAt,
                 nextDue,
-                FusedSiteUnderstandingJson.Serialize(fused)), ct);
+                SiteTopicProfileJson.Serialize(fused)), ct);
             if (!saveResult.IsSuccess)
                 throw new InvalidOperationException($"Failed to save analysis results: {saveResult.Error}");
 
@@ -609,7 +609,7 @@ public sealed class NicheAnalyzerService(
 
     private static string BuildMergeMessage(
         PillarMergeResult mergeResult,
-        FusedSiteUnderstanding fused,
+        SiteTopicProfile fused,
         GscOwnerOverlay gscOverlay,
         int gscMatchedCount,
         IReadOnlyList<string> silentGscSlugs)
@@ -637,7 +637,7 @@ public sealed class NicheAnalyzerService(
     private static int CountBySource(IReadOnlyList<TopicCandidate> pool, string source) =>
         pool.Count(c => c.Evidence.Any(e => e.Source.Equals(source, StringComparison.OrdinalIgnoreCase)));
 
-    private static string[] SampleExclusionReasons(FusedSiteUnderstanding fused) =>
+    private static string[] SampleExclusionReasons(SiteTopicProfile fused) =>
         fused.ExclusionReasons
             .Take(20)
             .Select(kvp => $"{kvp.Key}: {kvp.Value}")

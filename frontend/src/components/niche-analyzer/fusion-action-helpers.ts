@@ -1,6 +1,6 @@
-import type { FusedSiteUnderstanding } from '@/lib/seo-api';
+import type { SiteTopicProfile } from '@/lib/seo-api';
 
-export function existingSchemaTopicNames(fusion: FusedSiteUnderstanding): string[] {
+export function existingSchemaTopicNames(fusion: SiteTopicProfile): string[] {
   const names = new Set<string>();
   for (const candidate of fusion.allCandidates) {
     if (!candidate.evidence.some((e) => e.source === 'schema')) continue;
@@ -10,7 +10,7 @@ export function existingSchemaTopicNames(fusion: FusedSiteUnderstanding): string
 }
 
 export function buildKnowsAboutSyncSnippet(
-  fusion: FusedSiteUnderstanding,
+  fusion: SiteTopicProfile,
   topicName: string,
 ): { knowsAbout: string[]; snippet: string } {
   const knowsAbout = existingSchemaTopicNames(fusion);
@@ -24,7 +24,7 @@ export function buildKnowsAboutSyncSnippet(
 }
 
 export function orphanLinkSuggestions(
-  fusion: FusedSiteUnderstanding,
+  fusion: SiteTopicProfile,
   orphanSlug: string,
 ): string[] {
   return fusion.selectedPillars

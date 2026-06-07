@@ -82,15 +82,14 @@ public sealed class NicheExtractionTests
     }
 
     [Fact]
-    public void TopicFusionEngine_SelectsTwelveGeekAtYourSpotSchemaTopics()
+    public void PillarSelector_SelectsTwelveGeekAtYourSpotSchemaTopics()
     {
-        // Each topic has schema + sitemap evidence — confidence 0.60, above SchemaConfidenceFloor (0.40).
-        // Reflects real-world behaviour: schema-declared services also appear in the sitemap.
+        // Schema-only topics should be auto-selected — schema is a first-class signal.
         var pool = FixtureTopics.GeekAtYourSpotSchema.Select(name => new TopicCandidate
         {
             Name = name,
             Slug = NicheAnalyzerService.NameToSlug(name),
-            Confidence = TopicEvidenceWeights.Schema + TopicEvidenceWeights.Sitemap,
+            Confidence = TopicEvidenceWeights.Schema,
             Evidence =
             [
                 new TopicEvidence
@@ -99,21 +98,15 @@ public sealed class NicheExtractionTests
                     Snippet = "knowsAbout",
                     Weight = TopicEvidenceWeights.Schema,
                 },
-                new TopicEvidence
-                {
-                    Source = "sitemap",
-                    Snippet = "/services/...",
-                    Weight = TopicEvidenceWeights.Sitemap,
-                },
             ],
         }).ToList();
 
-        var engine = new TopicFusionEngine(new PillarValidator());
-        var fused = engine.Fuse(pool, []);
+        var engine = new PillarSelector(new PillarValidator());
+        var fused = engine.Select(pool, []);
         var result = engine.ToPillarMergeResult(fused);
 
         Assert.Equal(12, result.Selected.Count);
-        Assert.Equal(TopicFusionEngine.FusionVersion, fused.FusionVersion);
+        Assert.Equal("sul-2.0", fused.SulVersion);
         Assert.Contains(
             result.Selected,
             p => p.Slug.Equals(NicheAnalyzerService.NameToSlug("AI Consulting"), StringComparison.OrdinalIgnoreCase));
@@ -123,14 +116,14 @@ public sealed class NicheExtractionTests
     }
 
     [Fact]
-    public void TopicFusionEngine_IncludesAccounting_WithAllSchemaTopics()
+    public void PillarSelector_IncludesAccounting_WithAllSchemaTopics()
     {
-        // Schema topics corroborated by sitemap — confidence 0.60, above SchemaConfidenceFloor.
+        // Schema-only topics selected; page_vertical topic also passes via confidence >= MinPillarConfidence.
         var pool = FixtureTopics.GeekAtYourSpotSchema.Select(name => new TopicCandidate
         {
             Name = name,
             Slug = NicheAnalyzerService.NameToSlug(name),
-            Confidence = TopicEvidenceWeights.Schema + TopicEvidenceWeights.Sitemap,
+            Confidence = TopicEvidenceWeights.Schema,
             Evidence =
             [
                 new TopicEvidence
@@ -138,12 +131,6 @@ public sealed class NicheExtractionTests
                     Source = "schema",
                     Snippet = "knowsAbout",
                     Weight = TopicEvidenceWeights.Schema,
-                },
-                new TopicEvidence
-                {
-                    Source = "sitemap",
-                    Snippet = "/services/...",
-                    Weight = TopicEvidenceWeights.Sitemap,
                 },
             ],
         }).ToList();
@@ -164,8 +151,8 @@ public sealed class NicheExtractionTests
             ],
         });
 
-        var engine = new TopicFusionEngine(new PillarValidator());
-        var result = engine.ToPillarMergeResult(engine.Fuse(pool, []));
+        var engine = new PillarSelector(new PillarValidator());
+        var result = engine.ToPillarMergeResult(engine.Select(pool, []));
 
         Assert.Equal(13, result.Selected.Count);
         Assert.Contains(
@@ -290,7 +277,7 @@ public sealed class NicheExtractionTests
     [Fact]
     public void NormalizedTopicalityCalculator_AttributesDedicatedPageWeight()
     {
-        var fused = new FusedSiteUnderstanding
+        var fused = new SiteTopicProfile
         {
             AllCandidates = [],
             SelectedPillars =
@@ -313,7 +300,7 @@ public sealed class NicheExtractionTests
             ],
             ExcludedCandidates = [],
             ExclusionReasons = new Dictionary<string, string>(),
-            FusionVersion = TopicFusionEngine.FusionVersion,
+            SulVersion = PillarSelector.SulVersion,
             SignalSourcesPresent = ["schema"],
         };
 
@@ -346,9 +333,9 @@ public sealed class NicheExtractionTests
     }
 
     [Fact]
-    public void FusedSiteUnderstandingJson_RoundTripsSnapshot()
+    public void SiteTopicProfileJson_RoundTripsSnapshot()
     {
-        var fused = new FusedSiteUnderstanding
+        var fused = new SiteTopicProfile
         {
             AllCandidates =
             [
@@ -371,7 +358,7 @@ public sealed class NicheExtractionTests
             SelectedPillars = [],
             ExcludedCandidates = [],
             ExclusionReasons = new Dictionary<string, string>(),
-            FusionVersion = "sul-1.2",
+            SulVersion = "sul-1.2",
             SignalSourcesPresent = ["page_vertical"],
             NormalizedTopicalityBySlug = new Dictionary<string, decimal> { ["accounting"] = 0.34m },
             EntityCoverageBySlug = new Dictionary<string, PillarEntityCoverage>
@@ -390,8 +377,8 @@ public sealed class NicheExtractionTests
                 ["cloud-services"]),
         };
 
-        var json = FusedSiteUnderstandingJson.Serialize(fused);
-        var parsed = FusedSiteUnderstandingJson.Parse(json);
+        var json = SiteTopicProfileJson.Serialize(fused);
+        var parsed = SiteTopicProfileJson.Parse(json);
 
         Assert.NotNull(parsed);
         Assert.Equal(0.34m, parsed!.NormalizedTopicalityBySlug["accounting"]);
@@ -437,7 +424,7 @@ public sealed class NicheExtractionTests
     [Fact]
     public void EntityCoverageScorer_FlagsEntityThinWhenBelowThreshold()
     {
-        var fused = new FusedSiteUnderstanding
+        var fused = new SiteTopicProfile
         {
             AllCandidates =
             [
@@ -461,7 +448,7 @@ public sealed class NicheExtractionTests
             ],
             ExcludedCandidates = [],
             ExclusionReasons = new Dictionary<string, string>(),
-            FusionVersion = TopicFusionEngine.FusionVersion,
+            SulVersion = PillarSelector.SulVersion,
             SignalSourcesPresent = ["schema"],
         };
 
@@ -489,7 +476,7 @@ public sealed class NicheExtractionTests
     [Fact]
     public void InternalLinkGraphBuilder_BuildsEdgesAndOrphans()
     {
-        var fused = new FusedSiteUnderstanding
+        var fused = new SiteTopicProfile
         {
             AllCandidates =
             [
@@ -547,7 +534,7 @@ public sealed class NicheExtractionTests
             ],
             ExcludedCandidates = [],
             ExclusionReasons = new Dictionary<string, string>(),
-            FusionVersion = TopicFusionEngine.FusionVersion,
+            SulVersion = PillarSelector.SulVersion,
             SignalSourcesPresent = ["schema"],
         };
 
@@ -578,9 +565,9 @@ public sealed class NicheExtractionTests
     }
 
     [Fact]
-    public void FusionSnapshotEnricher_AppliesCoverageAndLinkGraph()
+    public void TopicSnapshotEnricher_AppliesCoverageAndLinkGraph()
     {
-        var fused = new FusedSiteUnderstanding
+        var fused = new SiteTopicProfile
         {
             AllCandidates =
             [
@@ -606,7 +593,7 @@ public sealed class NicheExtractionTests
             ],
             ExcludedCandidates = [],
             ExclusionReasons = new Dictionary<string, string>(),
-            FusionVersion = TopicFusionEngine.FusionVersion,
+            SulVersion = PillarSelector.SulVersion,
             SignalSourcesPresent = ["schema"],
         };
 
@@ -615,7 +602,7 @@ public sealed class NicheExtractionTests
             new("accounting", true, 10, false, null, [], "test", null, ["bookkeeping"]),
         };
 
-        var enriched = FusionSnapshotEnricher.Apply(
+        var enriched = TopicSnapshotEnricher.Apply(
             fused,
             new InternalLinkData([], new Dictionary<string, int>(), 0),
             new UrlPatternData([], 0),
@@ -627,9 +614,9 @@ public sealed class NicheExtractionTests
     }
 
     [Fact]
-    public void FusionActionRecommender_SuggestsPageSchemaAndEntityActions()
+    public void PillarActionRecommender_SuggestsPageSchemaAndEntityActions()
     {
-        var fused = new FusedSiteUnderstanding
+        var fused = new SiteTopicProfile
         {
             AllCandidates =
             [
@@ -675,7 +662,7 @@ public sealed class NicheExtractionTests
             ],
             ExcludedCandidates = [],
             ExclusionReasons = new Dictionary<string, string>(),
-            FusionVersion = TopicFusionEngine.FusionVersion,
+            SulVersion = PillarSelector.SulVersion,
             SignalSourcesPresent = ["page_vertical", "schema"],
             EntityCoverageBySlug = new Dictionary<string, PillarEntityCoverage>
             {
@@ -684,7 +671,7 @@ public sealed class NicheExtractionTests
             InternalLinkGraph = new InternalLinkGraph([], ["accounting"]),
         };
 
-        var actions = FusionActionRecommender.Recommend(fused);
+        var actions = PillarActionRecommender.Recommend(fused);
 
         Assert.Contains(actions, a => a.ActionType == "suggest_pillar_page" && a.TopicSlug == "accounting");
         Assert.Contains(actions, a => a.ActionType == "schema_sync" && a.TopicSlug == "accounting");
@@ -693,9 +680,9 @@ public sealed class NicheExtractionTests
     }
 
     [Fact]
-    public void FusedSiteUnderstandingJson_RoundTripsSnapshot_LegacyFieldsOnly()
+    public void SiteTopicProfileJson_RoundTripsSnapshot_LegacyFieldsOnly()
     {
-        var fused = new FusedSiteUnderstanding
+        var fused = new SiteTopicProfile
         {
             AllCandidates =
             [
@@ -718,16 +705,16 @@ public sealed class NicheExtractionTests
             SelectedPillars = [],
             ExcludedCandidates = [],
             ExclusionReasons = new Dictionary<string, string>(),
-            FusionVersion = "sul-1.2",
+            SulVersion = "sul-1.2",
             SignalSourcesPresent = ["page_vertical"],
             NormalizedTopicalityBySlug = new Dictionary<string, decimal> { ["accounting"] = 0.34m },
         };
 
-        var json = FusedSiteUnderstandingJson.Serialize(fused);
-        var parsed = FusedSiteUnderstandingJson.Parse(json);
+        var json = SiteTopicProfileJson.Serialize(fused);
+        var parsed = SiteTopicProfileJson.Parse(json);
 
         Assert.NotNull(parsed);
-        Assert.Equal("sul-1.2", parsed.FusionVersion);
+        Assert.Equal("sul-1.2", parsed.SulVersion);
         Assert.Single(parsed.AllCandidates);
         Assert.Equal("Accounting", parsed.AllCandidates[0].Name);
         Assert.Equal(0.34m, parsed.NormalizedTopicalityBySlug["accounting"]);
@@ -967,7 +954,7 @@ public sealed class NicheExtractionTests
     }
 
     [Fact]
-    public void TopicFusionEngine_ExcludesSingleSourcePagePhraseWithoutCorroboration()
+    public void PillarSelector_ExcludesSingleSourcePagePhraseWithoutCorroboration()
     {
         var pool = new List<TopicCandidate>
         {
@@ -1003,8 +990,8 @@ public sealed class NicheExtractionTests
             },
         };
 
-        var engine = new TopicFusionEngine(new PillarValidator());
-        var fused = engine.Fuse(pool, []);
+        var engine = new PillarSelector(new PillarValidator());
+        var fused = engine.Select(pool, []);
         var selectedSlugs = fused.SelectedPillars.Select(p => p.Slug).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         Assert.Contains(NicheAnalyzerService.NameToSlug("Accounting"), selectedSlugs);
@@ -1165,7 +1152,7 @@ public sealed class NicheExtractionTests
             },
         };
 
-        var fused = new FusedSiteUnderstanding
+        var fused = new SiteTopicProfile
         {
             AllCandidates = [],
             SelectedPillars =
@@ -1181,7 +1168,7 @@ public sealed class NicheExtractionTests
             ],
             ExcludedCandidates = [],
             ExclusionReasons = new Dictionary<string, string>(),
-            FusionVersion = TopicFusionEngine.FusionVersion,
+            SulVersion = PillarSelector.SulVersion,
             SignalSourcesPresent = ["schema"],
             NormalizedTopicalityBySlug = new Dictionary<string, decimal>
             {
@@ -1235,7 +1222,7 @@ public sealed class NicheExtractionTests
             },
         };
 
-        var fused = new FusedSiteUnderstanding
+        var fused = new SiteTopicProfile
         {
             AllCandidates = [],
             SelectedPillars =
@@ -1249,7 +1236,7 @@ public sealed class NicheExtractionTests
             ],
             ExcludedCandidates = [],
             ExclusionReasons = new Dictionary<string, string>(),
-            FusionVersion = TopicFusionEngine.FusionVersion,
+            SulVersion = PillarSelector.SulVersion,
             SignalSourcesPresent = ["schema"],
             NormalizedTopicalityBySlug = new Dictionary<string, decimal>
             {
@@ -1273,7 +1260,7 @@ public sealed class NicheExtractionTests
     [Fact]
     public void NicheTopicalMapSeedResolver_PrefersActionAndGapPillars()
     {
-        var fused = new FusedSiteUnderstanding
+        var fused = new SiteTopicProfile
         {
             AllCandidates = [],
             SelectedPillars =
@@ -1296,11 +1283,11 @@ public sealed class NicheExtractionTests
             ],
             ExcludedCandidates = [],
             ExclusionReasons = new Dictionary<string, string>(),
-            FusionVersion = TopicFusionEngine.FusionVersion,
+            SulVersion = PillarSelector.SulVersion,
             SignalSourcesPresent = ["schema"],
             RecommendedActions =
             [
-                new FusionRecommendedAction(
+                new PillarRecommendedAction(
                     "entity_thin_content",
                     "cloud-migration",
                     "Cloud Migration",

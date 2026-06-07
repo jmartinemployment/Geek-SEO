@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getNicheAnalysisDetails, type FusedSiteUnderstanding } from '@/lib/seo-api';
+import { getNicheAnalysisDetails, type SiteTopicProfile } from '@/lib/seo-api';
 import { resolveGscSilentPillars } from '@/components/niche-analyzer/pillar-provenance';
 
 type Props = {
   profileId: string;
-  fusion?: FusedSiteUnderstanding | null;
+  fusion?: SiteTopicProfile | null;
   accessToken?: string | null;
 };
 
