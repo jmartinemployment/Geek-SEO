@@ -954,6 +954,78 @@ public sealed class NicheExtractionTests
     }
 
     [Fact]
+    public void PillarSelector_CapsGeekAtYourSpotPoolWithNoisyInternalLinks()
+    {
+        var pool = FixtureTopics.GeekAtYourSpotSchema.Select(name => new TopicCandidate
+        {
+            Name = name,
+            Slug = NicheAnalyzerService.NameToSlug(name),
+            Confidence = TopicEvidenceWeights.Schema,
+            Evidence =
+            [
+                new TopicEvidence
+                {
+                    Source = "schema",
+                    Snippet = "knowsAbout",
+                    Weight = TopicEvidenceWeights.Schema,
+                },
+            ],
+        }).ToList();
+
+        pool.Add(new TopicCandidate
+        {
+            Name = "Accounting",
+            Slug = NicheAnalyzerService.NameToSlug("Accounting"),
+            Confidence = TopicEvidenceWeights.PageVertical,
+            Evidence =
+            [
+                new TopicEvidence
+                {
+                    Source = "page_vertical",
+                    Snippet = "homepage H3 section",
+                    Weight = TopicEvidenceWeights.PageVertical,
+                },
+            ],
+        });
+
+        for (var i = 0; i < 60; i++)
+        {
+            var name = $"Noise Service Topic {i}";
+            pool.Add(new TopicCandidate
+            {
+                Name = name,
+                Slug = NicheAnalyzerService.NameToSlug(name),
+                Confidence = TopicEvidenceWeights.InternalLink,
+                InternalLinkCount = 1,
+                Evidence =
+                [
+                    new TopicEvidence
+                    {
+                        Source = "internal_link",
+                        Snippet = "single anchor",
+                        Weight = TopicEvidenceWeights.InternalLink,
+                    },
+                ],
+            });
+        }
+
+        var engine = new PillarSelector(new PillarValidator());
+        var fused = engine.Select(pool, []);
+
+        Assert.Equal(13, fused.SelectedPillars.Count);
+        Assert.Equal("sul-2.0", fused.SulVersion);
+        Assert.All(
+            FixtureTopics.GeekAtYourSpotSchema,
+            topic => Assert.Contains(
+                fused.SelectedPillars,
+                p => p.Slug.Equals(NicheAnalyzerService.NameToSlug(topic), StringComparison.OrdinalIgnoreCase)));
+        Assert.Contains(
+            fused.SelectedPillars,
+            p => p.Slug.Equals(NicheAnalyzerService.NameToSlug("Accounting"), StringComparison.OrdinalIgnoreCase));
+        Assert.True(fused.ExclusionReasons.Count >= 60);
+    }
+
+    [Fact]
     public void PillarSelector_ExcludesSingleSourceHeadingBelowMinConfidence()
     {
         var pool = new List<TopicCandidate>

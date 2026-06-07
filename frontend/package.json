@@ -22,6 +22,7 @@
     "test:integration:site-audit": "node scripts/test-site-audit-integration.mjs",
     "test:integration:content-guard": "node scripts/test-content-guard-integration.mjs",
     "test:integration:sul-providers": "node scripts/test-sul-providers-integration.mjs",
+    "test:integration:niche-reanalyze": "node scripts/reanalyze-geekatyourspot.mjs",
     "test:e2e:google": "bash scripts/run-e2e-google-integration.sh",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed"

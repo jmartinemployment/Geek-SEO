@@ -1,7 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getNicheAnalysisDetails, type SiteTopicProfile } from '@/lib/seo-api';
+import {
+  getNicheAnalysisDetails,
+  type NicheAnalysisStepLogEntry,
+  type SiteTopicProfile,
+} from '@/lib/seo-api';
 import { TopicInsightsStack } from '@/components/niche-analyzer/TopicInsightsStack';
 
 type Props = {
@@ -21,6 +25,7 @@ export function TopicProfileSection({
   showMatrix = false,
 }: Readonly<Props>) {
   const [fusion, setFusion] = useState<SiteTopicProfile | null>(null);
+  const [steps, setSteps] = useState<NicheAnalysisStepLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,7 +35,10 @@ export function TopicProfileSection({
       if (showSpinner) setLoading(true);
       try {
         const data = await getNicheAnalysisDetails(profileId, accessToken);
-        if (!cancelled) setFusion(data.fusionSnapshot ?? null);
+        if (!cancelled) {
+          setFusion(data.fusionSnapshot ?? null);
+          setSteps(data.steps ?? []);
+        }
       } catch {
         if (!cancelled && showSpinner) setFusion(null);
       } finally {
@@ -81,6 +89,7 @@ export function TopicProfileSection({
       profileId={profileId}
       accessToken={accessToken}
       showMatrix={showMatrix}
+      steps={steps}
     />
   );
 }

@@ -14,13 +14,17 @@ public sealed class GscQueryExtractor(
 {
     public const int DefaultRowLimit = 2500;
     public const int MinImpressionsForMatch = 5;
+    private const int GscTimeoutMs = 30_000;
 
     public async Task<GscOwnerOverlay> ExtractAsync(
         Guid userId,
         Guid projectId,
         CancellationToken ct = default)
     {
-        var connection = await integrations.GetGscConnectionAsync(projectId, userId, ct);
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(GscTimeoutMs);
+
+        var connection = await integrations.GetGscConnectionAsync(projectId, userId, timeoutCts.Token);
         if (!connection.IsSuccess)
         {
             return GscOwnerOverlay.Unavailable(
@@ -46,7 +50,11 @@ public sealed class GscQueryExtractor(
                 start,
                 end,
                 DefaultRowLimit,
-                ct);
+                timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
+        {
+            return GscOwnerOverlay.Unavailable(connected: true, reason: "GSC query timed out after 30s");
         }
         catch (GoogleIntegrationException ex)
         {

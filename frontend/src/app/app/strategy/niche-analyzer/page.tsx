@@ -225,10 +225,11 @@ export default function NicheAnalyzerPage() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">
-            Niche Analyzer
+            How search engines understand your site
           </h1>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-            Identify core pillars, score topical authority, and surface content gaps — no GSC required.
+            Composite view of public crawl and schema signals — what search systems would associate
+            with your domain, plus optional keyword and SERP validation. Not a Google-only clone.
           </p>
         </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   getNicheAnalysisDetails,
   type NicheAnalysisDetails,
@@ -17,6 +17,46 @@ type Props = {
   /** When set, refetch on this interval (e.g. while analysis is in progress). */
   pollIntervalMs?: number;
 };
+
+type Phase = {
+  id: string;
+  title: string;
+  subtitle: string;
+  slugs: string[];
+};
+
+const SE_PHASES: Phase[] = [
+  {
+    id: 'discover',
+    title: 'Discover',
+    subtitle: 'What URLs and structure are declared',
+    slugs: ['schema', 'site_urls', 'nav'],
+  },
+  {
+    id: 'fetch',
+    title: 'Fetch & parse',
+    subtitle: 'What the crawler read',
+    slugs: ['headings', 'page_content', 'site_structure'],
+  },
+  {
+    id: 'understand',
+    title: 'Understand',
+    subtitle: 'Which topics search systems would associate',
+    slugs: ['merging'],
+  },
+  {
+    id: 'validate',
+    title: 'Validate',
+    subtitle: 'External demand proxies (optional)',
+    slugs: ['keywords', 'serp_validation'],
+  },
+  {
+    id: 'synthesize',
+    title: 'Synthesize',
+    subtitle: 'Profile, geography, coverage, and scoring',
+    slugs: ['profile', 'local', 'coverage', 'scoring', 'complete'],
+  },
+];
 
 function formatOutputValue(value: unknown): string {
   if (value === null || value === undefined) return '—';
@@ -51,6 +91,9 @@ function StepOutputs({ outputs }: { outputs: Record<string, unknown> }) {
 }
 
 function StepRow({ step }: { step: NicheAnalysisStepLogEntry }) {
+  const statusLabel =
+    step.status === 'processing' ? 'in progress' : step.status;
+
   return (
     <li className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
       <div className="flex items-start justify-between gap-3">
@@ -61,11 +104,52 @@ function StepRow({ step }: { step: NicheAnalysisStepLogEntry }) {
           <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{step.summary}</p>
         </div>
         <span className="shrink-0 text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
-          {step.slug}
+          {statusLabel}
         </span>
       </div>
       <StepOutputs outputs={step.outputs} />
     </li>
+  );
+}
+
+function PhaseSection({
+  phase,
+  steps,
+  defaultExpanded,
+}: {
+  phase: Phase;
+  steps: NicheAnalysisStepLogEntry[];
+  defaultExpanded: boolean;
+}) {
+  const [open, setOpen] = useState(defaultExpanded);
+  const phaseSteps = steps.filter((s) => phase.slugs.includes(s.slug));
+
+  if (phaseSteps.length === 0) return null;
+
+  return (
+    <div className="rounded-lg border border-[var(--color-border)]">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left"
+        aria-expanded={open}
+      >
+        <div>
+          <p className="text-sm font-semibold text-[var(--color-text-primary)]">{phase.title}</p>
+          <p className="text-xs text-[var(--color-text-muted)]">{phase.subtitle}</p>
+        </div>
+        <span className="text-xs text-[var(--color-text-muted)]">
+          {phaseSteps.length} step{phaseSteps.length === 1 ? '' : 's'} · {open ? 'Hide' : 'Show'}
+        </span>
+      </button>
+      {open ? (
+        <ol className="space-y-3 border-t border-[var(--color-border)] px-4 py-3">
+          {phaseSteps.map((step) => (
+            <StepRow key={`${step.stepNumber}-${step.slug}`} step={step} />
+          ))}
+        </ol>
+      ) : null}
+    </div>
   );
 }
 
@@ -120,6 +204,12 @@ export function AnalysisStepBreakdown({
     };
   }, [profileId, accessToken, pollIntervalMs]);
 
+  const ungroupedSteps = useMemo(() => {
+    if (!details) return [];
+    const grouped = new Set(SE_PHASES.flatMap((p) => p.slugs));
+    return details.steps.filter((s) => !grouped.has(s.slug));
+  }, [details]);
+
   return (
     <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
       <button
@@ -130,10 +220,10 @@ export function AnalysisStepBreakdown({
       >
         <div>
           <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">
-            How this scan worked
+            How search engines read this site
           </h2>
           <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-            What each step found — saved with this run (no re-analyze needed).
+            Composite public signals — discover, crawl, understand, validate — saved with this run.
           </p>
         </div>
         <span className="text-sm text-[var(--color-text-muted)]">{open ? 'Hide' : 'Show'}</span>
@@ -153,11 +243,23 @@ export function AnalysisStepBreakdown({
             </p>
           ) : null}
           {details && details.steps.length > 0 ? (
-            <ol className="space-y-3">
-              {details.steps.map((step) => (
-                <StepRow key={`${step.stepNumber}-${step.slug}`} step={step} />
+            <div className="space-y-3">
+              {SE_PHASES.map((phase, index) => (
+                <PhaseSection
+                  key={phase.id}
+                  phase={phase}
+                  steps={details.steps}
+                  defaultExpanded={index < 2 || pollIntervalMs !== undefined}
+                />
               ))}
-            </ol>
+              {ungroupedSteps.length > 0 ? (
+                <ol className="space-y-3">
+                  {ungroupedSteps.map((step) => (
+                    <StepRow key={`${step.stepNumber}-${step.slug}`} step={step} />
+                  ))}
+                </ol>
+              ) : null}
+            </div>
           ) : null}
           {details?.fusionSnapshot ? (
             <div className="mt-6">

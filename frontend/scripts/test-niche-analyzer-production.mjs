@@ -101,6 +101,26 @@ try {
     assert(progress.status === 200, `progress ${progress.status}`);
     const points = Array.isArray(progress.json) ? progress.json : [];
     console.log(`✓ progress points=${points.length}`);
+
+    const details = await request('GET', `/api/seo/niche-analyzer/${p.id}/analysis-details`);
+    if (details.status === 200 && details.json?.fusionSnapshot) {
+      const sul = details.json.fusionSnapshot.sulVersion;
+      const candidates = details.json.fusionSnapshot.allCandidates?.length ?? 0;
+      const pillarCount = p.pillars?.length ?? p.totalPillarsIdentified ?? 0;
+      console.log(`✓ fusion snapshot sulVersion=${sul ?? 'n/a'} candidates=${candidates}`);
+      if (/geekatyourspot/i.test(geek.url ?? '')) {
+        if (sul) assert(sul === 'sul-2.0', `expected sul-2.0, got ${sul}`);
+        if (pillarCount > 0) {
+          assert(
+            pillarCount >= 10 && pillarCount <= 20,
+            `geekatyourspot pillar count ${pillarCount} outside 10–20`,
+          );
+        }
+        if (candidates > 0) assert(candidates >= 12, `expected 12+ candidates, got ${candidates}`);
+      }
+    } else {
+      console.log(`○ analysis-details ${details.status} — skipping fusion assertions`);
+    }
   } else {
     console.log(`○ latest status is ${p.status} — skipping pillar assertions`);
   }

@@ -103,7 +103,7 @@ export function buildPillarProvenanceSummary(
         ? signalSources.join(', ')
         : 'schema, page, sitemap, nav, and headings';
     parts.push(
-      `SUL (${sulVersion}) evaluated ${peerCandidates} peer candidate(s) from ${sources}.`,
+      `SUL (${sulVersion}) evaluated ${peerCandidates} peer candidate(s) from ${sources}. Schema and GSC topics are selected unconditionally; heading-only topics below the confidence floor are excluded; internal-link-only topics need corroboration or 2+ inbound links; display is soft-capped at 15 pillars.`,
     );
   }
 
@@ -211,7 +211,7 @@ export function buildPillarProvenanceSummary(
     const notSelected =
       excludedSample.length > 0 ? excludedSample.join(', ') : `${excludedCount} topic(s)`;
     parts.push(
-      `${excludedCount} topic(s) were not promoted to pillars after fusion gates (noise, merge, corroboration): ${notSelected}.`,
+      `${excludedCount} topic(s) were not promoted to pillars after selection rules (noise filter, dedup, confidence threshold, soft cap): ${notSelected}.`,
     );
   }
 
@@ -312,4 +312,8 @@ export const OUTPUT_LABELS: Record<string, string> = {
   sampleLocationPages: 'Location pages (sample)',
   localGapCount: 'Service areas missing location pages',
   sampleLocalGaps: 'Missing location areas (sample)',
+  crawlStopReason: 'Why crawl stopped',
+  sampleCrawledUrls: 'Pages crawled (sample)',
+  fetchMethod: 'Fetch method',
+  outboundLinkCount: 'Outbound links from page',
 };

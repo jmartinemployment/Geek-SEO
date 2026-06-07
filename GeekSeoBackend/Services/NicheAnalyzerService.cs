@@ -207,9 +207,40 @@ public sealed class NicheAnalyzerService(
                 ? projectResult.Value.DefaultLocation
                 : "United States";
 
-            // Step 8 — Keyword demand (Tier 2, optional)
+            // Step 8–9 — Tier-2 demand validation (keyword + SERP; bounded to top pillars)
+            var enrichSlugs = PillarDemandEnricher.SelectEnrichmentSlugs(fused);
+            await PushProgress(
+                userId, profileId, 8,
+                NicheAnalysisStepLogBuilder.Processing(
+                    8, "keywords", $"Keyword demand: 0/{merged.Count} pillars…"),
+                ct);
+
             var demand = await pillarDemandEnricher.EnrichAsync(
-                merged, profileId, domain, keywordLocation, ct);
+                merged,
+                profileId,
+                domain,
+                keywordLocation,
+                enrichSlugs,
+                async (done, total, phase) =>
+                {
+                    if (phase == "keywords")
+                    {
+                        await PushProgress(
+                            userId, profileId, 8,
+                            NicheAnalysisStepLogBuilder.Processing(
+                                8, "keywords", $"Keyword demand: {done}/{total} pillars…"),
+                            ct);
+                    }
+                    else
+                    {
+                        await PushProgress(
+                            userId, profileId, 9,
+                            NicheAnalysisStepLogBuilder.Processing(
+                                9, "serp_validation", $"SERP validation: {done}/{total} pillars…"),
+                            ct);
+                    }
+                },
+                ct);
             merged = demand.PillarsAfterDemotion.ToList();
             var keywordsMessage = demand.KeywordsSkipped
                 ? $"Keyword demand skipped — {demand.KeywordSkipReason ?? "provider unavailable"}."
@@ -434,7 +465,8 @@ public sealed class NicheAnalyzerService(
         }
         catch (Exception ex)
         {
-            logger.LogDebug(ex, "Failed to persist niche step {Step} for {ProfileId}", stepEntry.Slug, profileId);
+            logger.LogWarning(ex, "Failed to persist niche step {Step} (step {StepNumber}) for profile {ProfileId}",
+                stepEntry.Slug, stepNumber, profileId);
         }
 
         try

@@ -16,7 +16,7 @@ internal static class NicheAnalysisStepLogBuilder
             ["headings"] = "Homepage headings",
             ["page_content"] = "Page content",
             ["site_structure"] = "Site structure",
-            ["merging"] = "Pillar merge",
+            ["merging"] = "Topic selection",
             ["keywords"] = "Keyword demand",
             ["serp_validation"] = "SERP validation",
             ["profile"] = "Niche profile",
@@ -30,14 +30,22 @@ internal static class NicheAnalysisStepLogBuilder
         int stepNumber,
         string slug,
         string summary,
-        IReadOnlyDictionary<string, object?> outputs) =>
+        IReadOnlyDictionary<string, object?> outputs,
+        string status = "complete") =>
         new(
             stepNumber,
             slug,
             Titles.TryGetValue(slug, out var title) ? title : slug,
-            "complete",
+            status,
             summary,
             outputs);
+
+    internal static NicheAnalysisStepLogEntry Processing(
+        int step,
+        string slug,
+        string summary,
+        IReadOnlyDictionary<string, object?>? outputs = null) =>
+        Entry(step, slug, summary, outputs ?? new Dictionary<string, object?>(), "processing");
 
     internal static NicheAnalysisStepLogEntry Schema(int step, SchemaOrgData data, string summary) =>
         Entry(step, "schema", summary, new Dictionary<string, object?>
@@ -114,6 +122,23 @@ internal static class NicheAnalysisStepLogBuilder
             ["sampleUrlPatterns"] = urlPatterns.Topics
                 .Select(t => t.Name)
                 .Take(SampleLimit)
+                .ToArray(),
+            ["crawlStopReason"] = crawl.PagesFetched >= 20
+                ? "Reached max 20 pages"
+                : "Queue exhausted (no more same-origin links)",
+            ["sampleCrawledUrls"] = crawl.Pages
+                .Take(SampleLimit)
+                .Select(p =>
+                {
+                    var outbound = internalLinks.Links.Count(l =>
+                        l.SourceUrl.Equals(p.Url, StringComparison.OrdinalIgnoreCase));
+                    return new Dictionary<string, object?>
+                    {
+                        ["url"] = p.Url,
+                        ["fetchMethod"] = p.FetchMethod,
+                        ["outboundLinkCount"] = outbound,
+                    };
+                })
                 .ToArray(),
             ["becomesPillars"] = true,
         });

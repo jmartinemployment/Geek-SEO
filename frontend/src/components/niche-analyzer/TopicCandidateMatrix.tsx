@@ -15,21 +15,34 @@ type Props = {
   fusion: SiteTopicProfile;
 };
 
-type StatusFilter = 'all' | 'selected' | 'excluded' | 'multi';
+type PresetFilter = 'all' | 'schema' | 'crawler' | 'gsc' | 'excluded';
+
+const CRAWLER_SOURCES = new Set([
+  'internal_link',
+  'page',
+  'page_vertical',
+  'heading',
+  'url_pattern',
+  'nav',
+  'sitemap',
+]);
 
 function isSelected(slug: string, fusion: SiteTopicProfile): boolean {
   return fusion.selectedPillars.some((p) => p.slug === slug);
 }
 
-function matchesStatusFilter(
+function matchesPresetFilter(
   candidate: TopicCandidate,
   fusion: SiteTopicProfile,
-  filter: StatusFilter,
+  filter: PresetFilter,
 ): boolean {
   if (filter === 'all') return true;
-  if (filter === 'selected') return isSelected(candidate.slug, fusion);
   if (filter === 'excluded') return !isSelected(candidate.slug, fusion);
-  return uniqueSources(candidate).length >= 2;
+  if (filter === 'schema') {
+    return candidateHasSource(candidate, 'schema') || candidateHasSource(candidate, 'same_as');
+  }
+  if (filter === 'gsc') return candidateHasSource(candidate, 'gsc');
+  return [...CRAWLER_SOURCES].some((source) => candidateHasSource(candidate, source));
 }
 
 function ConfidenceBar({ confidence }: { confidence: number }) {
@@ -89,7 +102,7 @@ function EvidencePanel({ candidate }: { candidate: TopicCandidate }) {
 }
 
 export function TopicCandidateMatrix({ fusion }: Readonly<Props>) {
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [presetFilter, setPresetFilter] = useState<PresetFilter>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [expandedSlug, setExpandedSlug] = useState<string | null>(null);
 
@@ -126,10 +139,10 @@ export function TopicCandidateMatrix({ fusion }: Readonly<Props>) {
 
   const rows = useMemo(() => {
     return [...fusion.allCandidates]
-      .filter((c) => matchesStatusFilter(c, fusion, statusFilter))
+      .filter((c) => matchesPresetFilter(c, fusion, presetFilter))
       .filter((c) => sourceFilter === 'all' || candidateHasSource(c, sourceFilter))
       .sort((a, b) => b.confidence - a.confidence);
-  }, [fusion, statusFilter, sourceFilter]);
+  }, [fusion, presetFilter, sourceFilter]);
 
   if (fusion.allCandidates.length === 0) return null;
 
@@ -196,17 +209,18 @@ export function TopicCandidateMatrix({ fusion }: Readonly<Props>) {
           {(
             [
               ['all', 'All'],
-              ['selected', 'Selected'],
-              ['excluded', 'Held back'],
-              ['multi', 'Multi-source'],
+              ['schema', 'Schema-declared'],
+              ['crawler', 'Crawler-found'],
+              ['gsc', 'GSC-confirmed'],
+              ['excluded', 'Excluded'],
             ] as const
           ).map(([id, label]) => (
             <button
               key={id}
               type="button"
-              onClick={() => setStatusFilter(id)}
+              onClick={() => setPresetFilter(id)}
               className={`rounded-md px-2.5 py-1 text-xs transition-colors ${
-                statusFilter === id
+                presetFilter === id
                   ? 'bg-[var(--color-accent)] text-white'
                   : 'bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
               }`}

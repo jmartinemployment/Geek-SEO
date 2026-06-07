@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Persistence.Entities;
@@ -12,22 +13,28 @@ public sealed class PillarDemandEnricher(
     ISerpProvider serpProvider,
     ILogger<PillarDemandEnricher> logger)
 {
+    private const int MaxConcurrency = 4;
+    internal const int MaxEnrichmentPillars = PillarSelector.MaxDisplayPillars;
+
     public async Task<PillarDemandEnrichment> EnrichAsync(
         IReadOnlyList<DiscoveredPillar> pillars,
         Guid profileId,
         string siteDomain,
         string location,
-        CancellationToken ct)
+        IReadOnlySet<string>? enrichSlugs = null,
+        Func<int, int, string, Task>? onProgress = null,
+        CancellationToken ct = default)
     {
         var targets = pillars.ToList();
         var siteHost = NormalizeHost(siteDomain);
+        var slugsToEnrich = enrichSlugs ?? targets.Select(p => p.Slug).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var keywordTask = EnrichKeywordsAsync(targets, location, ct);
-        var serpTask = ValidateSerpAsync(targets, siteHost, location, ct);
-        await Task.WhenAll(keywordTask, serpTask);
+        var keyword = await EnrichKeywordsAsync(targets, slugsToEnrich, location, onProgress, ct);
 
-        var keyword = await keywordTask;
-        var serp = await serpTask;
+        if (onProgress is not null)
+            await onProgress(0, targets.Count, "serp");
+
+        var serp = await ValidateSerpAsync(targets, slugsToEnrich, siteHost, location, onProgress, ct);
         var competitors = BuildCompetitors(profileId, siteHost, serp.Validations);
         var demoted = ApplySerpDemotions(pillars, serp.Validations, out var demotedSlugs);
 
@@ -43,6 +50,30 @@ public sealed class PillarDemandEnricher(
             serp.SkipReason,
             keywordProvider.ProviderName,
             serpProvider.ProviderName);
+    }
+
+    internal static HashSet<string> SelectEnrichmentSlugs(
+        SiteTopicProfile fused,
+        int max = MaxEnrichmentPillars)
+    {
+        var slugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var candidate in fused.SelectedPillars)
+        {
+            if (candidate.Evidence.Any(e => e.Source is "schema" or "same_as" or "gsc"))
+                slugs.Add(candidate.Slug);
+        }
+
+        foreach (var candidate in fused.SelectedPillars
+                     .OrderByDescending(c => c.Confidence)
+                     .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            if (slugs.Count >= max)
+                break;
+            slugs.Add(candidate.Slug);
+        }
+
+        return slugs;
     }
 
     internal static IReadOnlyList<DiscoveredPillar> ApplySerpDemotions(
@@ -149,80 +180,110 @@ public sealed class PillarDemandEnricher(
     }
 
     private async Task<(IReadOnlyList<PillarKeywordEnrichment> Enrichments, bool Skipped, string? SkipReason)>
-        EnrichKeywordsAsync(IReadOnlyList<DiscoveredPillar> pillars, string location, CancellationToken ct)
+        EnrichKeywordsAsync(
+            IReadOnlyList<DiscoveredPillar> pillars,
+            IReadOnlySet<string> enrichSlugs,
+            string location,
+            Func<int, int, string, Task>? onProgress,
+            CancellationToken ct)
     {
-        var enrichments = new List<PillarKeywordEnrichment>();
+        var enrichments = new ConcurrentBag<PillarKeywordEnrichment>();
         var failures = 0;
+        var attempted = 0;
+        var completed = 0;
+        using var gate = new SemaphoreSlim(MaxConcurrency);
 
-        foreach (var pillar in pillars)
+        var tasks = pillars.Select(async pillar =>
         {
-            ct.ThrowIfCancellationRequested();
-            var seed = pillar.Name.Trim();
-            var result = await keywordProvider.GetKeywordSuggestionsAsync(seed, location, count: 10, ct);
-            if (!result.IsSuccess || result.Value is null || result.Value.Count == 0)
+            if (!enrichSlugs.Contains(pillar.Slug))
             {
-                failures++;
                 enrichments.Add(new PillarKeywordEnrichment(
-                    pillar.Slug, seed, 0, 0m, false, result.Error));
-                continue;
+                    pillar.Slug,
+                    pillar.Name.Trim(),
+                    0,
+                    0m,
+                    false,
+                    "Skipped — outside top enrichment cap"));
+                return;
             }
 
-            var match = PickBestKeywordMatch(seed.ToLowerInvariant(), result.Value);
-            if (match is null)
+            await gate.WaitAsync(ct);
+            try
             {
-                enrichments.Add(new PillarKeywordEnrichment(pillar.Slug, seed, 0, 0m, false, null));
-                continue;
+                Interlocked.Increment(ref attempted);
+                var seed = pillar.Name.Trim();
+                var result = await keywordProvider.GetKeywordSuggestionsAsync(seed, location, count: 10, ct);
+                if (!result.IsSuccess || result.Value is null || result.Value.Count == 0)
+                {
+                    Interlocked.Increment(ref failures);
+                    enrichments.Add(new PillarKeywordEnrichment(
+                        pillar.Slug, seed, 0, 0m, false, result.Error));
+                    return;
+                }
+
+                var match = PickBestKeywordMatch(seed.ToLowerInvariant(), result.Value);
+                if (match is null)
+                {
+                    enrichments.Add(new PillarKeywordEnrichment(pillar.Slug, seed, 0, 0m, false, null));
+                    return;
+                }
+
+                enrichments.Add(new PillarKeywordEnrichment(
+                    pillar.Slug,
+                    match.Keyword,
+                    match.SearchVolume,
+                    (decimal)match.KeywordDifficulty,
+                    true,
+                    null));
             }
+            finally
+            {
+                gate.Release();
+                var done = Interlocked.Increment(ref completed);
+                if (onProgress is not null && (done % 5 == 0 || done == pillars.Count))
+                    await onProgress(done, pillars.Count, "keywords");
+            }
+        });
 
-            enrichments.Add(new PillarKeywordEnrichment(
-                pillar.Slug,
-                match.Keyword,
-                match.SearchVolume,
-                (decimal)match.KeywordDifficulty,
-                true,
-                null));
-        }
+        await Task.WhenAll(tasks);
 
-        if (enrichments.Count == 0)
+        var ordered = enrichments
+            .OrderBy(e => pillars.ToList().FindIndex(p => p.Slug.Equals(e.Slug, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (ordered.Count == 0)
             return ([], true, "No pillars to enrich.");
 
-        if (failures == enrichments.Count)
+        if (attempted > 0 && failures == attempted)
         {
-            var reason = enrichments[0].Error ?? "Keyword provider unavailable.";
+            var reason = ordered.FirstOrDefault(e => e.Error is not null)?.Error ?? "Keyword provider unavailable.";
             logger.LogInformation("Keyword enrichment skipped: {Reason}", reason);
-            return (enrichments, true, reason);
+            return (ordered, true, reason);
         }
 
-        return (enrichments, false, null);
+        return (ordered, false, null);
     }
 
     private async Task<(IReadOnlyList<PillarSerpEnrichment> Validations, bool Skipped, string? SkipReason)>
         ValidateSerpAsync(
             IReadOnlyList<DiscoveredPillar> pillars,
+            IReadOnlySet<string> enrichSlugs,
             string siteHost,
             string location,
+            Func<int, int, string, Task>? onProgress,
             CancellationToken ct)
     {
-        var validations = new List<PillarSerpEnrichment>();
+        var validations = new ConcurrentBag<PillarSerpEnrichment>();
         var failures = 0;
+        var attempted = 0;
+        var completed = 0;
         string? firstError = null;
+        using var gate = new SemaphoreSlim(MaxConcurrency);
 
-        foreach (var pillar in pillars)
+        var tasks = pillars.Select(async pillar =>
         {
-            ct.ThrowIfCancellationRequested();
-            var keyword = pillar.Name.Trim();
-            var request = new SerpRequest
+            if (!enrichSlugs.Contains(pillar.Slug))
             {
-                Keyword = keyword,
-                Location = location,
-                ResultCount = 10,
-            };
-
-            var result = await serpProvider.GetSerpResultsAsync(request, ct);
-            if (!result.IsSuccess || result.Value is null)
-            {
-                failures++;
-                firstError ??= result.Error;
                 validations.Add(new PillarSerpEnrichment(
                     pillar.Slug,
                     HasSerpFootprint: true,
@@ -231,56 +292,100 @@ public sealed class PillarDemandEnricher(
                     SitePosition: null,
                     TopCompetitorDomains: [],
                     serpProvider.ProviderName,
-                    result.Error,
+                    "Skipped — outside top enrichment cap",
                     []));
-                continue;
+                return;
             }
 
-            var organic = result.Value.OrganicResults;
-            var expectedTopics = SerpEntityExtractor.ExtractTopicSlugs(result.Value);
-            var hasFootprint = organic.Count > 0;
-            int? sitePosition = null;
-            foreach (var row in organic)
+            await gate.WaitAsync(ct);
+            try
             {
-                var domain = DomainFromUrl(row.Url) ?? row.Domain;
-                if (domain is null || !IsSameSite(domain, siteHost))
-                    continue;
+                Interlocked.Increment(ref attempted);
+                var keyword = pillar.Name.Trim();
+                var request = new SerpRequest
+                {
+                    Keyword = keyword,
+                    Location = location,
+                    ResultCount = 10,
+                };
 
-                sitePosition = row.Position;
-                break;
+                var result = await serpProvider.GetSerpResultsAsync(request, ct);
+                if (!result.IsSuccess || result.Value is null)
+                {
+                    Interlocked.Increment(ref failures);
+                    firstError ??= result.Error;
+                    validations.Add(new PillarSerpEnrichment(
+                        pillar.Slug,
+                        HasSerpFootprint: true,
+                        OrganicResultCount: 0,
+                        SiteRanks: false,
+                        SitePosition: null,
+                        TopCompetitorDomains: [],
+                        serpProvider.ProviderName,
+                        result.Error,
+                        []));
+                    return;
+                }
+
+                var organic = result.Value.OrganicResults;
+                var expectedTopics = SerpEntityExtractor.ExtractTopicSlugs(result.Value);
+                var hasFootprint = organic.Count > 0;
+                int? sitePosition = null;
+                foreach (var row in organic)
+                {
+                    var domain = DomainFromUrl(row.Url) ?? row.Domain;
+                    if (domain is null || !IsSameSite(domain, siteHost))
+                        continue;
+
+                    sitePosition = row.Position;
+                    break;
+                }
+
+                var topDomains = organic
+                    .Select(r => DomainFromUrl(r.Url) ?? r.Domain)
+                    .Where(d => !string.IsNullOrWhiteSpace(d))
+                    .Select(d => d!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Take(5)
+                    .ToList();
+
+                validations.Add(new PillarSerpEnrichment(
+                    pillar.Slug,
+                    hasFootprint,
+                    organic.Count,
+                    sitePosition.HasValue,
+                    sitePosition,
+                    topDomains,
+                    serpProvider.ProviderName,
+                    null,
+                    expectedTopics));
             }
+            finally
+            {
+                gate.Release();
+                var done = Interlocked.Increment(ref completed);
+                if (onProgress is not null && (done % 5 == 0 || done == pillars.Count))
+                    await onProgress(done, pillars.Count, "serp");
+            }
+        });
 
-            var topDomains = organic
-                .Select(r => DomainFromUrl(r.Url) ?? r.Domain)
-                .Where(d => !string.IsNullOrWhiteSpace(d))
-                .Select(d => d!)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(5)
-                .ToList();
+        await Task.WhenAll(tasks);
 
-            validations.Add(new PillarSerpEnrichment(
-                pillar.Slug,
-                hasFootprint,
-                organic.Count,
-                sitePosition.HasValue,
-                sitePosition,
-                topDomains,
-                serpProvider.ProviderName,
-                null,
-                expectedTopics));
-        }
+        var ordered = validations
+            .OrderBy(v => pillars.ToList().FindIndex(p => p.Slug.Equals(v.Slug, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
 
-        if (validations.Count == 0)
+        if (ordered.Count == 0)
             return ([], true, "No pillars to validate.");
 
-        if (failures == validations.Count)
+        if (attempted > 0 && failures == attempted)
         {
             var reason = firstError ?? "SERP provider unavailable.";
             logger.LogInformation("SERP validation skipped: {Reason}", reason);
-            return (validations, true, reason);
+            return (ordered, true, reason);
         }
 
-        return (validations, false, null);
+        return (ordered, false, null);
     }
 
     private static string AssessStrength(int serpPresence) => serpPresence switch

@@ -279,7 +279,7 @@ public sealed record PageContentData(
     IReadOnlyList<string> VerticalTopics,
     int ListItemsScanned);
 
-public sealed record CrawledPage(string Url, string Html);
+public sealed record CrawledPage(string Url, string Html, string FetchMethod = "http");
 
 /// <summary>Bounded same-origin crawl for structure-signal extractors (Phase B).</summary>
 public sealed record SiteCrawlData(

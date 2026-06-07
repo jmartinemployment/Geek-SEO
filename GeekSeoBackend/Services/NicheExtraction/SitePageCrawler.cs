@@ -70,7 +70,7 @@ public sealed partial class SitePageCrawler(
                 if (string.IsNullOrWhiteSpace(html))
                     continue;
 
-                pages.Add(new CrawledPage(url, html));
+                pages.Add(new CrawledPage(url, html, playwrightContext is not null ? "playwright" : "http"));
 
                 foreach (var discovered in ExtractSameOriginLinks(html, url, origin))
                 {
