@@ -17,6 +17,7 @@ public static class SeoProviderRegistration
     public const string KeywordProviderEnv = "KEYWORD_PROVIDER";
     public const string RankSnapshotProviderEnv = "RANK_SNAPSHOT_PROVIDER";
     public const string SerpApiKeyEnv = "SERPAPI_API_KEY";
+    public const string VendorApisEnabledEnv = "SEO_VENDOR_APIS_ENABLED";
 
     public static IServiceCollection AddSeoDataProviders(this IServiceCollection services)
     {
@@ -33,6 +34,16 @@ public static class SeoProviderRegistration
 
         var config = SeoProviderConfiguration.FromEnvironment();
         services.AddSingleton(config);
+
+        if (!config.VendorApisEnabled)
+        {
+            services.AddScoped<ISerpProvider, DisabledSerpProvider>();
+            services.AddScoped<IKeywordProvider, DisabledKeywordProvider>();
+            services.AddScoped<IRankSnapshotProvider, DisabledRankSnapshotProvider>();
+            services.AddScoped<IKeywordDiscoveryProvider, InternalKeywordDiscoveryProvider>();
+            return services;
+        }
+
         EnsureSerpApiKeyWhenRequired(config);
 
         RegisterSerpProviderImplementations(services, config);
@@ -159,6 +170,7 @@ public sealed class SeoProviderConfiguration
     public required string RankSnapshotProvider { get; init; }
     public bool DataForSeoCredentialsConfigured { get; init; }
     public bool SerpApiKeyConfigured { get; init; }
+    public bool VendorApisEnabled { get; init; }
 
     public static SeoProviderConfiguration FromEnvironment()
     {
@@ -178,9 +190,25 @@ public sealed class SeoProviderConfiguration
             DataForSeoCredentialsConfigured = DataForSeoClient.TryGetCredentials(out _, out _),
             SerpApiKeyConfigured = !string.IsNullOrWhiteSpace(
                 Environment.GetEnvironmentVariable(SeoProviderRegistration.SerpApiKeyEnv)),
+            VendorApisEnabled = ParseEnabled(
+                Environment.GetEnvironmentVariable(SeoProviderRegistration.VendorApisEnabledEnv),
+                defaultEnabled: true),
         };
     }
 
     private static string Normalize(string? raw, string defaultValue) =>
         string.IsNullOrWhiteSpace(raw) ? defaultValue : raw.Trim().ToLowerInvariant();
+
+    internal static bool ParseEnabled(string? raw, bool defaultEnabled)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return defaultEnabled;
+
+        return raw.Trim().ToLowerInvariant() switch
+        {
+            "0" or "false" or "no" or "off" => false,
+            "1" or "true" or "yes" or "on" => true,
+            _ => defaultEnabled,
+        };
+    }
 }

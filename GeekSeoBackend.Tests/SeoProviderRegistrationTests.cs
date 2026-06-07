@@ -106,7 +106,39 @@ public sealed class SeoProviderRegistrationTests
         var config = SeoProviderConfiguration.FromEnvironment();
         Assert.True(config.DataForSeoCredentialsConfigured);
         Assert.True(config.SerpApiKeyConfigured);
+        Assert.True(config.VendorApisEnabled);
     }
+
+    [Fact]
+    public void AddSeoDataProviders_vendor_apis_disabled_registers_no_network_stubs()
+    {
+        using var env = EnvScope.For(new Dictionary<string, string?>
+        {
+            [SeoProviderRegistration.VendorApisEnabledEnv] = "false",
+            [SeoProviderRegistration.SerpProviderEnv] = "serpapi",
+            [SeoProviderRegistration.SerpApiKeyEnv] = null,
+        });
+
+        var services = CreateServiceCollection();
+        services.AddSeoDataProviders();
+        using var sp = services.BuildServiceProvider();
+
+        Assert.IsType<DisabledSerpProvider>(sp.GetRequiredService<ISerpProvider>());
+        Assert.IsType<DisabledKeywordProvider>(sp.GetRequiredService<IKeywordProvider>());
+        Assert.IsType<DisabledRankSnapshotProvider>(sp.GetRequiredService<IRankSnapshotProvider>());
+
+        var config = sp.GetRequiredService<SeoProviderConfiguration>();
+        Assert.False(config.VendorApisEnabled);
+    }
+
+    [Theory]
+    [InlineData("false", false)]
+    [InlineData("0", false)]
+    [InlineData("off", false)]
+    [InlineData("true", true)]
+    [InlineData(null, true)]
+    public void SeoProviderConfiguration_ParseEnabled(string? raw, bool expected) =>
+        Assert.Equal(expected, SeoProviderConfiguration.ParseEnabled(raw, defaultEnabled: true));
 
     private static ServiceCollection CreateServiceCollection()
     {

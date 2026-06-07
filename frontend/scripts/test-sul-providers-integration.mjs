@@ -67,13 +67,19 @@ try {
   assert(typeof p?.keywordProvider === 'string', 'missing keywordProvider');
   assert(typeof p?.credentials?.dataforseo === 'boolean', 'missing credentials.dataforseo');
   assert(typeof p?.credentials?.serpapi === 'boolean', 'missing credentials.serpapi');
+  assert(typeof p?.vendorApisEnabled === 'boolean', 'missing vendorApisEnabled');
 
   console.log(
     `✓ provider config — serp=${p.serpProvider}, keyword=${p.keywordProvider}, ` +
-      `rank=${p.rankSnapshotProvider}, dataforseoCreds=${p.credentials.dataforseo}, serpapiKey=${p.credentials.serpapi}`,
+      `rank=${p.rankSnapshotProvider}, vendorApis=${p.vendorApisEnabled}, ` +
+      `dataforseoCreds=${p.credentials.dataforseo}, serpapiKey=${p.credentials.serpapi}`,
   );
 
-  if (!p.credentials.dataforseo && !p.credentials.serpapi) {
+  if (!p.vendorApisEnabled) {
+    console.warn(
+      '⚠ SEO_VENDOR_APIS_ENABLED=false — no DataForSEO/SerpApi HTTP; Niche Analyzer steps 8–9 skip (Tier 1 fusion still runs).',
+    );
+  } else if (!p.credentials.dataforseo && !p.credentials.serpapi) {
     console.warn(
       '⚠ No DataForSEO or SerpApi credentials — Niche Analyzer steps 8–9 will skip (Tier 1 fusion still runs).',
     );
@@ -88,14 +94,20 @@ try {
     process.exit(0);
   }
 
+  if (p.vendorApisEnabled === false) {
+    console.warn('\nTier-2 live probe skipped — SEO_VENDOR_APIS_ENABLED=false on API (no vendor spend).');
+    process.exit(0);
+  }
+
   console.log('\nLive Tier-2 probe (1 SERP request via /api/seo/serp/deep)...');
   const serp = await request(
     'GET',
     '/api/seo/serp/deep?keyword=ai+consulting&location=United%20States&languageCode=en',
   );
 
-  if (serp.status === 200 && Array.isArray(serp.json?.organicResults)) {
-    console.log(`✓ SERP live — ${serp.json.organicResults.length} organic rows (${p.serpProvider})`);
+  const organic = serp.json?.organic ?? serp.json?.organicResults;
+  if (serp.status === 200 && Array.isArray(organic)) {
+    console.log(`✓ SERP live — ${organic.length} organic rows (${p.serpProvider})`);
     process.exit(0);
   }
 
