@@ -14,6 +14,9 @@ public static class SiteTopicProfileJson
     public static string Serialize(SiteTopicProfile profile) =>
         JsonSerializer.Serialize(profile, Json);
 
+    public static string SerializeForPersistence(SiteTopicProfile profile) =>
+        JsonSerializer.Serialize(SiteTopicProfilePersistence.Trim(profile), Json);
+
     public static SiteTopicProfile? Parse(string? json)
     {
         if (string.IsNullOrWhiteSpace(json) || json == "null")

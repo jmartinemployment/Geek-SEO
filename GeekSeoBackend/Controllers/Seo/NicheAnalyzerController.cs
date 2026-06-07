@@ -43,12 +43,21 @@ public sealed class NicheAnalyzerController(
         {
             user.RequireUserId();
             var result = await profileRepo.GetByIdAsync(profileId, ct);
-            if (!result.IsSuccess || result.Value is null)
-                return NotFound();
+            if (!result.IsSuccess)
+            {
+                logger.LogWarning(
+                    "Analysis details unavailable for profile {ProfileId}: {Error}",
+                    profileId,
+                    result.Error);
+                return StatusCode(503, new { error = "Details temporarily unavailable" });
+            }
+
+            if (result.Value is null)
+                return Ok(new NicheAnalysisDetails(1, [], null));
 
             var profile = result.Value;
             if (!NicheAnalysisDetailsPolicy.IsStepLogAvailable(profile.Status))
-                return NotFound();
+                return Ok(new NicheAnalysisDetails(profile.AnalysisStepLogVersion, [], null));
 
             var steps = NicheAnalysisStepLogJson.Parse(profile.AnalysisStepLog);
             var fusion = SiteTopicProfileJson.Parse(profile.FusionSnapshot);

@@ -100,7 +100,9 @@ public sealed class HttpNicheProfileRepository(
             results,
             Json,
             ct);
-        return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await res.Content.ReadAsStringAsync(ct));
+        return res.IsSuccessStatusCode
+            ? Result.Success()
+            : Result.Failure(await ReadFailureAsync(res, ct));
     }
 
     public async Task<Result> BulkInsertPillarsAsync(IEnumerable<NichePillar> pillars, CancellationToken ct = default)
@@ -179,4 +181,12 @@ public sealed class HttpNicheProfileRepository(
     }
 
     private sealed record FailStaleResponse(int FailedCount);
+
+    private static async Task<string> ReadFailureAsync(HttpResponseMessage res, CancellationToken ct)
+    {
+        var body = await res.Content.ReadAsStringAsync(ct);
+        if (string.IsNullOrWhiteSpace(body))
+            return $"HTTP {(int)res.StatusCode} {res.ReasonPhrase}";
+        return $"HTTP {(int)res.StatusCode}: {body}";
+    }
 }

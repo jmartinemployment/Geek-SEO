@@ -31,6 +31,8 @@ public sealed class NicheAnalyzerService(
     ILogger<NicheAnalyzerService> logger)
 {
     private const int TotalSteps = 14;
+    private string _lastProgressStepSlug = "schema";
+    private int _lastProgressStepNumber;
 
     public async Task<Guid> EnqueueAsync(
         Guid userId, Guid projectId, string domain,
@@ -56,6 +58,9 @@ public sealed class NicheAnalyzerService(
 
     public async Task RunAnalysisAsync(Guid profileId, Guid userId, IBrowser? browser, CancellationToken ct)
     {
+        _lastProgressStepSlug = "schema";
+        _lastProgressStepNumber = 0;
+
         try
         {
             var profileResult = await profileRepo.GetByIdAsync(profileId, ct);
@@ -341,6 +346,14 @@ public sealed class NicheAnalyzerService(
                     pillar.Id = Guid.NewGuid();
             }
 
+            await PushProgress(
+                userId, profileId, 13,
+                NicheAnalysisStepLogBuilder.Processing(
+                    13,
+                    "scoring",
+                    $"Saving {nicheEntities.Count} pillars and analysis results…"),
+                ct);
+
             var pillarsResult = await profileRepo.BulkInsertPillarsAsync(nicheEntities, ct);
             if (!pillarsResult.IsSuccess)
                 throw new InvalidOperationException($"Failed to save pillars: {pillarsResult.Error}");
@@ -369,6 +382,14 @@ public sealed class NicheAnalyzerService(
 
             var analyzedAt = DateTimeOffset.UtcNow;
             var nextDue = analyzedAt.AddDays(30);
+            await PushProgress(
+                userId, profileId, 13,
+                NicheAnalysisStepLogBuilder.Processing(
+                    13,
+                    "scoring",
+                    $"Pillars saved — writing authority score and topic profile…"),
+                ct);
+
             var saveResult = await profileRepo.SaveAnalysisResultsAsync(profileId, new NicheAnalysisSaveRequest(
                 rootEntity,
                 schemaData.Description ?? string.Empty,
@@ -382,7 +403,7 @@ public sealed class NicheAnalyzerService(
                 gap,
                 analyzedAt,
                 nextDue,
-                SiteTopicProfileJson.Serialize(fused)), ct);
+                SiteTopicProfileJson.SerializeForPersistence(fused)), ct);
             if (!saveResult.IsSuccess)
                 throw new InvalidOperationException($"Failed to save analysis results: {saveResult.Error}");
 
@@ -429,14 +450,24 @@ public sealed class NicheAnalyzerService(
 
     private async Task FailAsync(Guid userId, Guid profileId, string error, CancellationToken ct = default)
     {
-        await profileRepo.UpdateStatusAsync(profileId, "failed", errorMessage: error, ct: ct);
+        var failedStep = _lastProgressStepNumber > 0 ? _lastProgressStepSlug : "failed";
+        var failedStepNumber = _lastProgressStepNumber > 0 ? _lastProgressStepNumber : 0;
+
+        await profileRepo.UpdateStatusAsync(
+            profileId,
+            "failed",
+            step: failedStep,
+            stepNumber: failedStepNumber,
+            totalSteps: TotalSteps,
+            errorMessage: error,
+            ct: ct);
         try
         {
             await hub.Clients.User(userId.ToString()).SendAsync("AnalysisProgress", new
             {
                 ProfileId = profileId,
                 Step = "failed",
-                StepNumber = 0,
+                StepNumber = failedStepNumber,
                 TotalSteps,
                 Message = error,
                 Status = "failed",
@@ -455,6 +486,9 @@ public sealed class NicheAnalyzerService(
         NicheAnalysisStepLogEntry stepEntry,
         CancellationToken ct = default)
     {
+        _lastProgressStepSlug = stepEntry.Slug;
+        _lastProgressStepNumber = stepNumber;
+
         var status = stepNumber >= TotalSteps ? "complete" : "processing";
         try
         {
