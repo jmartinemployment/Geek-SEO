@@ -125,6 +125,7 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
   // SignalR live progress (optional; polling remains the source of truth)
   useEffect(() => {
     let disposed = false;
+    let started = false;
     let connection: import('@microsoft/signalr').HubConnection | null = null;
 
     async function connect() {
@@ -173,8 +174,9 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
 
         connection = conn;
         await conn.start();
+        started = true;
         if (disposed) {
-          await conn.stop();
+          void conn.stop().catch(() => {});
         }
       } catch {
         // Polling fallback continues
@@ -187,8 +189,9 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
       disposed = true;
       const conn = connection;
       connection = null;
-      if (conn) {
-        void conn.stop();
+      // Only stop after start() completed — calling stop() during connecting throws
+      if (conn && started) {
+        void conn.stop().catch(() => {});
       }
     };
   }, [profileId, accessToken]);
