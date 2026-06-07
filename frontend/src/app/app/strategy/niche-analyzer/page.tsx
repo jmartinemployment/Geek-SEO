@@ -28,7 +28,13 @@ import { TopicalGapsPanel } from '@/components/niche-analyzer/TopicalGapsPanel';
 import { AuthorityProgressChart } from '@/components/niche-analyzer/AuthorityProgressChart';
 import { AnalysisStatusListener } from '@/components/niche-analyzer/AnalysisStatusListener';
 
-type Tab = 'pillars' | 'gaps' | 'progress';
+type Tab = 'pillars' | 'contentIdeas' | 'progress';
+
+const TAB_LABELS: Record<Tab, string> = {
+  pillars: 'Pillars',
+  contentIdeas: 'Content ideas',
+  progress: 'Progress',
+};
 
 export default function NicheAnalyzerPage() {
   const { accessToken, authLoading, authReady } = useAuthReady();
@@ -286,50 +292,62 @@ export default function NicheAnalyzerPage() {
         <div className="mt-6 space-y-6">
           <NicheHeader profile={profile} />
           <ContentGuardContextBanner projectId={projectId} />
-          <AnalysisStepBreakdown
-            profileId={profile.id}
-            projectId={projectId}
-            accessToken={accessToken}
-          />
 
           {/* Tabs */}
           <div className="flex gap-1 border-b border-[var(--color-border)]">
-            {(['pillars', 'gaps', 'progress'] as Tab[]).map((t) => (
+            {(['pillars', 'contentIdeas', 'progress'] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`px-4 py-2.5 text-sm font-medium transition-colors capitalize ${
+                className={`px-4 py-2.5 text-sm font-medium transition-colors ${
                   tab === t
                     ? 'border-b-2 border-[var(--color-accent)] text-[var(--color-accent)]'
                     : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
-                {t}
+                {TAB_LABELS[t]}
               </button>
             ))}
           </div>
 
           {tab === 'pillars' && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <PillarProvenanceCallout
                 profileId={profile.id}
                 accessToken={accessToken}
                 pillarCount={profile.pillars.length || profile.totalPillarsIdentified}
               />
-              <FusionSnapshotSection
-                profileId={profile.id}
-                projectId={projectId}
-                accessToken={accessToken}
-              />
               <CoverageMatrixTable
                 pillars={profile.pillars}
                 coverageFallback={coverage}
                 totalPillarsIdentified={profile.totalPillarsIdentified}
+                pillarsCovered={profile.pillarsCovered}
+                pillarsPartial={profile.pillarsPartial}
+                pillarsGap={profile.pillarsGap}
               />
+              <div className="space-y-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                    Discovery signals
+                  </h3>
+                  <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
+                    How topics were found before the pillar cap. The coverage sections above list only
+                    your {profile.pillars.length || profile.totalPillarsIdentified} selected
+                    pillars. The topic candidate matrix is in the scan breakdown below (one place
+                    only).
+                  </p>
+                </div>
+                <FusionSnapshotSection
+                  profileId={profile.id}
+                  projectId={projectId}
+                  accessToken={accessToken}
+                  showMatrix={false}
+                />
+              </div>
             </div>
           )}
 
-          {tab === 'gaps' && (
+          {tab === 'contentIdeas' && (
             <TopicalGapsPanel
               gaps={gaps}
               projectId={projectId}
@@ -341,6 +359,13 @@ export default function NicheAnalyzerPage() {
           {tab === 'progress' && (
             <AuthorityProgressChart points={progress} />
           )}
+
+          <AnalysisStepBreakdown
+            profileId={profile.id}
+            projectId={projectId}
+            accessToken={accessToken}
+            defaultOpen={false}
+          />
         </div>
       )}
     </main>

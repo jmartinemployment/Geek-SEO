@@ -127,11 +127,14 @@ export function TopicalGapsPanel({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <span className="text-sm font-medium text-[var(--color-text-primary)]">
-            {displayed.length} gap{displayed.length !== 1 ? 's' : ''}
-          </span>
+          <p className="text-sm font-medium text-[var(--color-text-primary)]">
+            {displayed.length} content idea{displayed.length !== 1 ? 's' : ''}
+          </p>
+          <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+            Suggested articles under each pillar — not the same as pillar topic gaps in the table above.
+          </p>
           {quickWinsOnly ? (
             <span className="ml-2 text-xs text-[var(--color-text-muted)]">
               (KD &lt; 35, volume &gt; 100)
@@ -153,7 +156,7 @@ export function TopicalGapsPanel({
 
       {displayed.length === 0 ? (
         <div className="rounded-xl border border-[var(--color-border)] p-8 text-center text-sm text-[var(--color-text-muted)]">
-          No gaps found.
+          No content ideas yet — run analysis or widen filters.
         </div>
       ) : (
         <div className="space-y-2">

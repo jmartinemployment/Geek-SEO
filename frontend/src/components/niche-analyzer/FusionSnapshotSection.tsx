@@ -9,6 +9,8 @@ type Props = {
   projectId?: string;
   accessToken?: string | null;
   pollIntervalMs?: number;
+  /** Hide the full candidate matrix (shown in analysis steps instead). */
+  showMatrix?: boolean;
 };
 
 export function FusionSnapshotSection({
@@ -16,6 +18,7 @@ export function FusionSnapshotSection({
   projectId,
   accessToken,
   pollIntervalMs,
+  showMatrix = false,
 }: Readonly<Props>) {
   const [fusion, setFusion] = useState<FusedSiteUnderstanding | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,7 +58,7 @@ export function FusionSnapshotSection({
 
   if (loading) {
     return (
-      <p className="text-sm text-[var(--color-text-muted)]">Loading topic candidate matrix…</p>
+      <p className="text-sm text-[var(--color-text-muted)]">Loading discovery signals…</p>
     );
   }
 
@@ -77,6 +80,7 @@ export function FusionSnapshotSection({
       projectId={projectId}
       profileId={profileId}
       accessToken={accessToken}
+      showMatrix={showMatrix}
     />
   );
 }

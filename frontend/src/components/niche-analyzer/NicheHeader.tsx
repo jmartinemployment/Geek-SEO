@@ -1,14 +1,9 @@
 'use client';
 
 import type { NicheProfileResult } from '@/lib/seo-api';
+import { PILLAR_COVERAGE_SUMMARY } from '@/components/niche-analyzer/pillar-coverage-labels';
 
 type Props = { profile: NicheProfileResult };
-
-const COVERAGE_COLORS: Record<string, string> = {
-  covered: 'text-green-600',
-  partial: 'text-yellow-600',
-  gap: 'text-red-500',
-};
 
 export function NicheHeader({ profile }: Props) {
   const score = Math.round(profile.topicalAuthorityScore);
@@ -49,18 +44,35 @@ export function NicheHeader({ profile }: Props) {
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Pillars" value={profile.totalPillarsIdentified} />
-        <Stat label="Covered" value={profile.pillarsCovered} className="text-green-600" />
-        <Stat label="Partial" value={profile.pillarsPartial} className="text-yellow-500" />
-        <Stat label="Gaps" value={profile.pillarsGap} className="text-red-500" />
+      <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="Pillar topics" value={profile.totalPillarsIdentified} />
+        <Stat
+          label={PILLAR_COVERAGE_SUMMARY.gap}
+          value={profile.pillarsGap}
+          className="text-red-500"
+        />
+        <Stat
+          label={PILLAR_COVERAGE_SUMMARY.partial}
+          value={profile.pillarsPartial}
+          className="text-yellow-500"
+        />
+        <Stat
+          label={PILLAR_COVERAGE_SUMMARY.covered}
+          value={profile.pillarsCovered}
+          className="text-green-600"
+        />
       </div>
 
-      <div className="mt-3 flex gap-4 text-xs text-[var(--color-text-muted)]">
-        <span>Competition: <strong>{profile.competitionLevel}</strong></span>
-        {profile.analyzedAt && (
-          <span>Analyzed: <strong>{new Date(profile.analyzedAt).toLocaleDateString()}</strong></span>
-        )}
+      <div className="mt-3 flex flex-wrap gap-4 text-xs text-[var(--color-text-muted)]">
+        <span>
+          Competition: <strong>{profile.competitionLevel}</strong>
+        </span>
+        {profile.analyzedAt ? (
+          <span>
+            Analyzed: <strong>{new Date(profile.analyzedAt).toLocaleDateString()}</strong>
+          </span>
+        ) : null}
+        <span className="w-full sm:w-auto">Gaps + partially covered + covered = pillar topics</span>
       </div>
     </div>
   );
