@@ -954,7 +954,7 @@ public sealed class NicheExtractionTests
     }
 
     [Fact]
-    public void PillarSelector_ExcludesSingleSourcePagePhraseWithoutCorroboration()
+    public void PillarSelector_ExcludesSingleSourceHeadingBelowMinConfidence()
     {
         var pool = new List<TopicCandidate>
         {
@@ -962,14 +962,14 @@ public sealed class NicheExtractionTests
             {
                 Name = "Random Body Phrase",
                 Slug = NicheAnalyzerService.NameToSlug("Random Body Phrase"),
-                Confidence = TopicEvidenceWeights.Page,
+                Confidence = TopicEvidenceWeights.Heading,
                 Evidence =
                 [
                     new TopicEvidence
                     {
-                        Source = "page",
-                        Snippet = "homepage body",
-                        Weight = TopicEvidenceWeights.Page,
+                        Source = "heading",
+                        Snippet = "homepage H4",
+                        Weight = TopicEvidenceWeights.Heading,
                     },
                 ],
             },
@@ -996,8 +996,7 @@ public sealed class NicheExtractionTests
 
         Assert.Contains(NicheAnalyzerService.NameToSlug("Accounting"), selectedSlugs);
         Assert.DoesNotContain(NicheAnalyzerService.NameToSlug("Random Body Phrase"), selectedSlugs);
-        // "Random Body Phrase" has a single page signal (ContentDepthScore = 0.15, borderline Gate 1)
-        // and no corroborating structural or schema signal — it is excluded at Gate 1 or corroboration.
+        // sul-2.0: heading-only (0.10) is below MinPillarConfidence (0.15); page_vertical passes.
         Assert.True(fused.ExclusionReasons.ContainsKey(NicheAnalyzerService.NameToSlug("Random Body Phrase")));
     }
 

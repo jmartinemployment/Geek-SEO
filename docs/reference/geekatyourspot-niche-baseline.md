@@ -73,7 +73,27 @@ For a **whole-site picture** outside the product, use `scripts/scrape` with `--l
 
 ---
 
-## Expected Niche Analyzer output (SUL `sul-1.3`)
+## Expected Niche Analyzer output (SUL `sul-2.0`)
+
+When analysis runs successfully against this domain:
+
+| Step | Expected finding |
+|------|------------------|
+| 1 Schema | 7 `knowsAbout` + 5 offer catalog / `serviceType` topics → **12 schema candidates** |
+| 2 Sitemap | `totalUrls = 1`, `pillars = []` |
+| 3 Nav | 0–2 weak pillars or empty |
+| 4 Headings | Title + H2s from homepage |
+| 5 Page content | H3 verticals incl. **Accounting** (page-only) |
+| 6 Structure | Limited crawl (thin sitemap); internal links from homepage |
+| 7 Select | **13 pillars** typical; `sulVersion = sul-2.0`; all 12 schema topics **unconditionally selected**; `page_vertical` topics ≥ 0.15 |
+| 8–9 | Keyword + SERP when providers configured |
+| 11 Local | 3 counties in `areaServed`; location-page gaps if no `/locations/*` |
+| 12 Coverage | Partial/gap from URL matching (single-URL site) |
+| 13–14 | Authority score + persist `SiteTopicProfile` snapshot |
+
+**Why 13 pillars:** All 12 distinct JSON-LD topics kept (schema = unconditional). **Accounting** from homepage H3 — not in schema — via `page_vertical` evidence (0.28 ≥ 0.15 threshold). Heading-only noise (0.10) excluded.
+
+## Expected Niche Analyzer output (SUL `sul-1.3`, deprecated)
 
 When analysis runs successfully against this domain:
 
