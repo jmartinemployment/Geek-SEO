@@ -11,8 +11,6 @@ public sealed class PillarSelector(PillarValidator validator)
 {
     public const string SulVersion = "sul-2.0";
     private const int MinPillars = 3;
-    internal const int MaxDisplayPillars = 15;
-    private const int MinInboundLinksForInternalLinkOnly = 2;
 
     public SiteTopicProfile Select(
         IReadOnlyList<TopicCandidate> pool,
@@ -105,28 +103,19 @@ public sealed class PillarSelector(PillarValidator validator)
             var hasGsc = candidate.Evidence.Any(e => e.Source == "gsc");
 
             if (hasSchema || hasGsc)
-            {
                 selectedSlugs.Add(pillar.Slug);
-                continue;
-            }
-
-            if (IsWeakInternalLinkOnly(candidate))
-            {
-                exclusionReasons.TryAdd(pillar.Slug,
-                    "Internal link signal only — needs corroboration or 2+ inbound links");
-                continue;
-            }
-
-            if (candidate.Confidence >= TopicEvidenceWeights.MinPillarConfidence)
+            else if (candidate.Confidence >= TopicEvidenceWeights.MinPillarConfidence)
                 selectedSlugs.Add(pillar.Slug);
             else
                 exclusionReasons.TryAdd(pillar.Slug,
                     $"Insufficient signal strength (confidence {candidate.Confidence:F2} < {TopicEvidenceWeights.MinPillarConfidence:F2})");
         }
 
-        var selected = ApplySoftCap(
-            workingPool.Where(c => selectedSlugs.Contains(c.Slug)).ToList(),
-            exclusionReasons);
+        var selected = workingPool
+            .Where(c => selectedSlugs.Contains(c.Slug))
+            .OrderByDescending(c => c.Confidence)
+            .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
         var excluded = workingPool
             .Where(c => !selectedSlugs.Contains(c.Slug))
             .ToList();
@@ -147,55 +136,6 @@ public sealed class PillarSelector(PillarValidator validator)
         var selected = profile.SelectedPillars.Select(ToDiscoveredPillar).ToList();
         var excluded = profile.ExcludedCandidates.Select(ToDiscoveredPillar).ToList();
         return new PillarMergeResult(selected, excluded);
-    }
-
-    private static bool IsWeakInternalLinkOnly(TopicCandidate candidate)
-    {
-        var sources = candidate.Evidence
-            .Select(e => e.Source)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        var internalLinkOnly = sources.Count == 1
-            && sources[0].Equals("internal_link", StringComparison.OrdinalIgnoreCase);
-
-        return internalLinkOnly && candidate.InternalLinkCount < MinInboundLinksForInternalLinkOnly;
-    }
-
-    private static List<TopicCandidate> ApplySoftCap(
-        IReadOnlyList<TopicCandidate> selected,
-        IDictionary<string, string> exclusionReasons)
-    {
-        if (selected.Count <= MaxDisplayPillars)
-            return selected
-                .OrderByDescending(c => c.Confidence)
-                .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-        static bool IsProtected(TopicCandidate c) =>
-            c.Evidence.Any(e => e.Source is "schema" or "same_as" or "gsc");
-
-        var protectedPillars = selected.Where(IsProtected).ToList();
-        var optional = selected
-            .Where(c => !IsProtected(c))
-            .OrderByDescending(c => c.Confidence)
-            .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        var slots = Math.Max(0, MaxDisplayPillars - protectedPillars.Count);
-        var keptOptional = optional.Take(slots).ToList();
-        foreach (var dropped in optional.Skip(slots))
-        {
-            exclusionReasons.TryAdd(
-                dropped.Slug,
-                $"Exceeded soft pillar cap ({MaxDisplayPillars}); lower confidence than selected topics");
-        }
-
-        return protectedPillars
-            .Concat(keptOptional)
-            .OrderByDescending(c => c.Confidence)
-            .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
     }
 
     internal static DiscoveredPillar ToDiscoveredPillar(TopicCandidate candidate)

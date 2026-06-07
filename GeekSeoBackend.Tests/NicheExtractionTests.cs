@@ -954,7 +954,7 @@ public sealed class NicheExtractionTests
     }
 
     [Fact]
-    public void PillarSelector_CapsGeekAtYourSpotPoolWithNoisyInternalLinks()
+    public void PillarSelector_KeepsInternalLinkTopicsAboveMinConfidence()
     {
         var pool = FixtureTopics.GeekAtYourSpotSchema.Select(name => new TopicCandidate
         {
@@ -972,25 +972,9 @@ public sealed class NicheExtractionTests
             ],
         }).ToList();
 
-        pool.Add(new TopicCandidate
+        for (var i = 0; i < 50; i++)
         {
-            Name = "Accounting",
-            Slug = NicheAnalyzerService.NameToSlug("Accounting"),
-            Confidence = TopicEvidenceWeights.PageVertical,
-            Evidence =
-            [
-                new TopicEvidence
-                {
-                    Source = "page_vertical",
-                    Snippet = "homepage H3 section",
-                    Weight = TopicEvidenceWeights.PageVertical,
-                },
-            ],
-        });
-
-        for (var i = 0; i < 60; i++)
-        {
-            var name = $"Noise Service Topic {i}";
+            var name = $"Internal Link Topic {i}";
             pool.Add(new TopicCandidate
             {
                 Name = name,
@@ -1002,7 +986,7 @@ public sealed class NicheExtractionTests
                     new TopicEvidence
                     {
                         Source = "internal_link",
-                        Snippet = "single anchor",
+                        Snippet = "anchor text",
                         Weight = TopicEvidenceWeights.InternalLink,
                     },
                 ],
@@ -1012,17 +996,8 @@ public sealed class NicheExtractionTests
         var engine = new PillarSelector(new PillarValidator());
         var fused = engine.Select(pool, []);
 
-        Assert.Equal(13, fused.SelectedPillars.Count);
+        Assert.Equal(62, fused.SelectedPillars.Count);
         Assert.Equal("sul-2.0", fused.SulVersion);
-        Assert.All(
-            FixtureTopics.GeekAtYourSpotSchema,
-            topic => Assert.Contains(
-                fused.SelectedPillars,
-                p => p.Slug.Equals(NicheAnalyzerService.NameToSlug(topic), StringComparison.OrdinalIgnoreCase)));
-        Assert.Contains(
-            fused.SelectedPillars,
-            p => p.Slug.Equals(NicheAnalyzerService.NameToSlug("Accounting"), StringComparison.OrdinalIgnoreCase));
-        Assert.True(fused.ExclusionReasons.Count >= 60);
     }
 
     [Fact]

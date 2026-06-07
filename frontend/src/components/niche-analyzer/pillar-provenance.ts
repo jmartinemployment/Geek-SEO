@@ -103,7 +103,7 @@ export function buildPillarProvenanceSummary(
         ? signalSources.join(', ')
         : 'schema, page, sitemap, nav, and headings';
     parts.push(
-      `SUL (${sulVersion}) evaluated ${peerCandidates} peer candidate(s) from ${sources}. Schema and GSC topics are selected unconditionally; heading-only topics below the confidence floor are excluded; internal-link-only topics need corroboration or 2+ inbound links; display is soft-capped at 15 pillars.`,
+      `SUL (${sulVersion}) evaluated ${peerCandidates} peer candidate(s) from ${sources}. Schema and GSC topics are selected unconditionally; other topics need confidence ≥ 0.15.`,
     );
   }
 
@@ -211,7 +211,7 @@ export function buildPillarProvenanceSummary(
     const notSelected =
       excludedSample.length > 0 ? excludedSample.join(', ') : `${excludedCount} topic(s)`;
     parts.push(
-      `${excludedCount} topic(s) were not promoted to pillars after selection rules (noise filter, dedup, confidence threshold, soft cap): ${notSelected}.`,
+      `${excludedCount} topic(s) were not promoted to pillars after selection rules (noise filter, dedup, confidence threshold): ${notSelected}.`,
     );
   }
 

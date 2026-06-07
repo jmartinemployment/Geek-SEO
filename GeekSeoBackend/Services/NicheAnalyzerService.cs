@@ -207,8 +207,7 @@ public sealed class NicheAnalyzerService(
                 ? projectResult.Value.DefaultLocation
                 : "United States";
 
-            // Step 8–9 — Tier-2 demand validation (keyword + SERP; bounded to top pillars)
-            var enrichSlugs = PillarDemandEnricher.SelectEnrichmentSlugs(fused);
+            // Step 8–9 — Tier-2 demand validation (keyword + SERP for all selected pillars)
             await PushProgress(
                 userId, profileId, 8,
                 NicheAnalysisStepLogBuilder.Processing(
@@ -220,7 +219,6 @@ public sealed class NicheAnalyzerService(
                 profileId,
                 domain,
                 keywordLocation,
-                enrichSlugs,
                 async (done, total, phase) =>
                 {
                     if (phase == "keywords")

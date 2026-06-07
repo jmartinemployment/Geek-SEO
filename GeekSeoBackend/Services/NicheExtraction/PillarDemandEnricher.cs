@@ -14,27 +14,24 @@ public sealed class PillarDemandEnricher(
     ILogger<PillarDemandEnricher> logger)
 {
     private const int MaxConcurrency = 4;
-    internal const int MaxEnrichmentPillars = PillarSelector.MaxDisplayPillars;
 
     public async Task<PillarDemandEnrichment> EnrichAsync(
         IReadOnlyList<DiscoveredPillar> pillars,
         Guid profileId,
         string siteDomain,
         string location,
-        IReadOnlySet<string>? enrichSlugs = null,
         Func<int, int, string, Task>? onProgress = null,
         CancellationToken ct = default)
     {
         var targets = pillars.ToList();
         var siteHost = NormalizeHost(siteDomain);
-        var slugsToEnrich = enrichSlugs ?? targets.Select(p => p.Slug).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var keyword = await EnrichKeywordsAsync(targets, slugsToEnrich, location, onProgress, ct);
+        var keyword = await EnrichKeywordsAsync(targets, location, onProgress, ct);
 
         if (onProgress is not null)
             await onProgress(0, targets.Count, "serp");
 
-        var serp = await ValidateSerpAsync(targets, slugsToEnrich, siteHost, location, onProgress, ct);
+        var serp = await ValidateSerpAsync(targets, siteHost, location, onProgress, ct);
         var competitors = BuildCompetitors(profileId, siteHost, serp.Validations);
         var demoted = ApplySerpDemotions(pillars, serp.Validations, out var demotedSlugs);
 
@@ -50,30 +47,6 @@ public sealed class PillarDemandEnricher(
             serp.SkipReason,
             keywordProvider.ProviderName,
             serpProvider.ProviderName);
-    }
-
-    internal static HashSet<string> SelectEnrichmentSlugs(
-        SiteTopicProfile fused,
-        int max = MaxEnrichmentPillars)
-    {
-        var slugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var candidate in fused.SelectedPillars)
-        {
-            if (candidate.Evidence.Any(e => e.Source is "schema" or "same_as" or "gsc"))
-                slugs.Add(candidate.Slug);
-        }
-
-        foreach (var candidate in fused.SelectedPillars
-                     .OrderByDescending(c => c.Confidence)
-                     .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
-        {
-            if (slugs.Count >= max)
-                break;
-            slugs.Add(candidate.Slug);
-        }
-
-        return slugs;
     }
 
     internal static IReadOnlyList<DiscoveredPillar> ApplySerpDemotions(
@@ -182,7 +155,6 @@ public sealed class PillarDemandEnricher(
     private async Task<(IReadOnlyList<PillarKeywordEnrichment> Enrichments, bool Skipped, string? SkipReason)>
         EnrichKeywordsAsync(
             IReadOnlyList<DiscoveredPillar> pillars,
-            IReadOnlySet<string> enrichSlugs,
             string location,
             Func<int, int, string, Task>? onProgress,
             CancellationToken ct)
@@ -195,18 +167,6 @@ public sealed class PillarDemandEnricher(
 
         var tasks = pillars.Select(async pillar =>
         {
-            if (!enrichSlugs.Contains(pillar.Slug))
-            {
-                enrichments.Add(new PillarKeywordEnrichment(
-                    pillar.Slug,
-                    pillar.Name.Trim(),
-                    0,
-                    0m,
-                    false,
-                    "Skipped — outside top enrichment cap"));
-                return;
-            }
-
             await gate.WaitAsync(ct);
             try
             {
@@ -267,7 +227,6 @@ public sealed class PillarDemandEnricher(
     private async Task<(IReadOnlyList<PillarSerpEnrichment> Validations, bool Skipped, string? SkipReason)>
         ValidateSerpAsync(
             IReadOnlyList<DiscoveredPillar> pillars,
-            IReadOnlySet<string> enrichSlugs,
             string siteHost,
             string location,
             Func<int, int, string, Task>? onProgress,
@@ -282,21 +241,6 @@ public sealed class PillarDemandEnricher(
 
         var tasks = pillars.Select(async pillar =>
         {
-            if (!enrichSlugs.Contains(pillar.Slug))
-            {
-                validations.Add(new PillarSerpEnrichment(
-                    pillar.Slug,
-                    HasSerpFootprint: true,
-                    OrganicResultCount: 0,
-                    SiteRanks: false,
-                    SitePosition: null,
-                    TopCompetitorDomains: [],
-                    serpProvider.ProviderName,
-                    "Skipped — outside top enrichment cap",
-                    []));
-                return;
-            }
-
             await gate.WaitAsync(ct);
             try
             {

@@ -111,10 +111,7 @@ try {
       if (/geekatyourspot/i.test(geek.url ?? '')) {
         if (sul) assert(sul === 'sul-2.0', `expected sul-2.0, got ${sul}`);
         if (pillarCount > 0) {
-          assert(
-            pillarCount >= 10 && pillarCount <= 20,
-            `geekatyourspot pillar count ${pillarCount} outside 10–20`,
-          );
+          assert(pillarCount >= 50, `geekatyourspot pillar count ${pillarCount} below 50`);
         }
         if (candidates > 0) assert(candidates >= 12, `expected 12+ candidates, got ${candidates}`);
       }

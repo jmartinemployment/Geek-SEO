@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Trigger a production re-analyze for geekatyourspot.com and poll until complete.
- * Asserts sul-2.0 pillar count (~10–20) when finished.
+ * Asserts sul-2.0 pillar count (50+) when finished.
  */
 const apiBase = (
   process.env.PLAYWRIGHT_API_URL ??
@@ -96,7 +96,7 @@ try {
         if (candidates > 0) assert(candidates >= 12, `expected 12+ candidates, got ${candidates}`);
       }
 
-      assert(pillarCount >= 10 && pillarCount <= 20, `pillar count ${pillarCount} outside 10–20`);
+      assert(pillarCount >= 50, `pillar count ${pillarCount} below 50`);
       console.log('\nRe-analyze geekatyourspot passed.');
       process.exit(0);
     }
