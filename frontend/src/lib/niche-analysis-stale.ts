@@ -4,7 +4,7 @@ import type { NicheAnalysisStatus } from '@/lib/seo-api';
 export const NICHE_STALE_MS = 5 * 60 * 1000;
 
 /** UI hint when step number stops advancing. */
-export const NICHE_STALL_MS = 2 * 60 * 1000;
+export const NICHE_STALL_MS = 5 * 60 * 1000;
 
 export function nicheStatusLastActivityIso(status: NicheAnalysisStatus): string | undefined {
   return status.progressAt ?? status.createdAt;

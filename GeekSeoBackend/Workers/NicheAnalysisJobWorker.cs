@@ -14,8 +14,8 @@ public sealed class NicheAnalysisJobWorker(
     WorkerUserContext workerUser,
     ILogger<NicheAnalysisJobWorker> logger) : BackgroundService
 {
-    private static readonly TimeSpan StaleProcessingAge = TimeSpan.FromMinutes(5);
-    private static readonly TimeSpan JobTimeout = TimeSpan.FromMinutes(8);
+    private static readonly TimeSpan StaleProcessingAge = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan JobTimeout = TimeSpan.FromMinutes(15);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -77,7 +77,7 @@ public sealed class NicheAnalysisJobWorker(
             {
                 workerUser.UserId = item.UserId;
                 var claim = await nicheRepo.UpdateStatusAsync(
-                    item.ProfileId, "processing", step: "schema", stepNumber: 1, totalSteps: 12, ct: ct);
+                    item.ProfileId, "processing", step: "schema", stepNumber: 1, totalSteps: 14, ct: ct);
                 if (!claim.IsSuccess)
                 {
                     logger.LogWarning(
