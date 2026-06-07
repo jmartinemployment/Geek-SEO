@@ -187,16 +187,19 @@ Today (`SITE-NICHE-ANALYZER.md` merge section):
 
 ---
 
-## Validation (2026-06-06)
+## Validation (2026-06-06, updated)
 
 | Check | Result |
 |-------|--------|
-| `NicheExtractionTests` (fusion, extractors, coverage, local gaps) | **45 passed** (`dotnet test --filter NicheExtractionTests\|LocalServiceArea`) |
-| Fusion version in snapshots | `sul-1.3` (`TopicFusionEngine.FusionVersion`) |
-| Fixture baseline | geekatyourspot JSON-LD → 12 schema topics + page verticals (see [`docs/reference/geekatyourspot-niche-baseline.md`](../docs/reference/geekatyourspot-niche-baseline.md)) |
-| Production re-analyze | **Next** — run Niche Analyzer on live project after deploy; compare step log to baseline |
+| **Tier 1** — `NicheExtractionTests` (fusion, extractors, coverage) | **45 passed** |
+| Fusion version | `sul-1.3` |
+| Fixture baseline | geekatyourspot JSON-LD → 12 schema topics + page verticals |
+| **Tier 2 ops** — `/health/providers` | Env wired: `serpProvider=dataforseo`, `keywordProvider=dataforseo`; credential flags **true** |
+| **Tier 2 live** — `SUL_LIVE=1 npm run test:integration:sul-providers` | **Blocked:** DataForSEO API returns **402 Payment Required** (account out of credits). Steps 8–9 skip in Niche Analyzer until fixed. |
+| **Tier 2 fix options** | (1) Fund DataForSEO account, or (2) `SERP_PROVIDER=serpapi` on GeekSeoBackend Railway (`SERPAPI_API_KEY` already present). Keywords still need DataForSEO or future `KEYWORD_PROVIDER` swap. |
+| Production re-analyze | Run after Tier-2 live probe passes; compare step log to [`geekatyourspot-niche-baseline.md`](../docs/reference/geekatyourspot-niche-baseline.md) |
 
-PayPal / billing work **deferred** — not a SUL dependency.
+PayPal / billing work **deferred**.
 
 ---
 
@@ -204,7 +207,17 @@ PayPal / billing work **deferred** — not a SUL dependency.
 
 Each phase is a **shippable component**. Later phases do not block earlier ones.
 
-**Ship status (June 2026):** Phases **A–E** implemented in `NicheAnalyzerService` (14 steps). `PillarMerger` retained for tests; production path uses `TopicFusionEngine`.
+**Ship status (June 2026):**
+
+| Phase | Code in repo | Production behavior today |
+|-------|----------------|---------------------------|
+| **A** Public fusion | ✅ | ✅ Tier 1 runs without vendors |
+| **B** Structure signals | ✅ | ✅ |
+| **C** Keyword + SERP demand | ✅ | ⏸ **Skipped** — DataForSEO 402; not “unwired,” vendor billing |
+| **D** GSC overlay | ✅ | ✅ when Google connected |
+| **E** Action recommendations | ✅ | ✅ from fusion snapshot |
+
+`PillarMerger` retained for tests; production path uses `TopicFusionEngine`.
 
 ### Phase A — Public composite merge (Niche Analyzer) ✅
 
@@ -229,7 +242,7 @@ Each phase is a **shippable component**. Later phases do not block earlier ones.
 | B2 | `UrlPatternExtractor` — `/services/ai-chatbots` → topic boost |
 | B3 | Confidence model unit tests with fixture HTML |
 
-### Phase C — Demand validation (Tier 2) ✅
+### Phase C — Demand validation (Tier 2) — code ✅, ops blocked
 
 Wire existing plan steps 5–6 from `SITE-NICHE-ANALYZER.md`:
 

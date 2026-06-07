@@ -66,6 +66,19 @@ Competitors win on **SERP term checklist + score that moves when you add specifi
 
 ---
 
+## SUL / Niche Analyzer — Tier 2 providers (ops blocker)
+
+| Item | Status |
+|------|--------|
+| Code (`PillarDemandEnricher`, steps 8–9) | ✅ Shipped |
+| Railway env (`DATAFORSEO_*`, default `SERP_PROVIDER=dataforseo`) | ✅ Credentials present per `/health/providers` |
+| **Live vendor** | ❌ DataForSEO returns **402 Payment Required** — niche keyword/SERP steps skip |
+| **Fix A** | Fund DataForSEO account |
+| **Fix B (SERP only)** | Railway: `SERP_PROVIDER=serpapi` ( `SERPAPI_API_KEY` already configured ) |
+| Verify | `npm run test:integration:sul-providers` (CI) · `SUL_LIVE=1 npm run test:integration:sul-providers` (live) |
+
+---
+
 ## Parity gaps (waived from v1 closure)
 
 | # | Item | Notes |
