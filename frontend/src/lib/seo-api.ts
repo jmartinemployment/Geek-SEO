@@ -1508,7 +1508,6 @@ export type FusedSiteUnderstanding = {
   exclusionReasons: Record<string, string>;
   fusionVersion: string;
   signalSourcesPresent: string[];
-  pillarCap: number;
   normalizedTopicalityBySlug?: Record<string, number>;
   entityCoverageBySlug?: Record<string, PillarEntityCoverage>;
   internalLinkGraph?: InternalLinkGraph | null;

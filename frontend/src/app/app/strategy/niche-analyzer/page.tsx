@@ -331,7 +331,7 @@ export default function NicheAnalyzerPage() {
                     Discovery signals
                   </h3>
                   <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
-                    How topics were found before the pillar cap. The coverage sections above list only
+                    How topics were discovered from your site signals. The coverage sections above list only
                     your {profile.pillars.length || profile.totalPillarsIdentified} selected
                     pillars. The topic candidate matrix is in the scan breakdown below (one place
                     only).

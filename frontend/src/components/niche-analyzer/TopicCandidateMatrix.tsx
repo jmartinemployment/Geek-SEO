@@ -143,7 +143,7 @@ export function TopicCandidateMatrix({ fusion }: Readonly<Props>) {
             </h3>
             <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
               Fusion {fusion.fusionVersion} — {stats.total} candidates considered, {stats.selected}{' '}
-              selected (cap {fusion.pillarCap})
+              selected
             </p>
           </div>
           <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">
@@ -151,7 +151,7 @@ export function TopicCandidateMatrix({ fusion }: Readonly<Props>) {
               {stats.selected} pillars
             </span>
             <span className="rounded-full bg-stone-100 px-2 py-0.5 text-stone-600">
-              {stats.excluded} held back
+              {stats.excluded} not selected
             </span>
             <span className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-800">
               {stats.multi} multi-source

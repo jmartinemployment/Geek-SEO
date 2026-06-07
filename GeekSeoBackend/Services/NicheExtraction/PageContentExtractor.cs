@@ -13,8 +13,6 @@ public sealed partial class PageContentExtractor(
     IHttpClientFactory httpClientFactory,
     ILogger<PageContentExtractor> logger)
 {
-    private const int MaxPhrases = 20;
-    private const int MaxVerticalTopics = 12;
     private const int MaxListItems = 30;
 
     public async Task<PageContentData> ExtractAsync(string domain, IBrowser? browser, CancellationToken ct)
@@ -112,8 +110,8 @@ public sealed partial class PageContentExtractor(
             phrases.Add(item);
 
         return (
-            phrases.Take(MaxPhrases).ToList(),
-            verticalTopics.Take(MaxVerticalTopics).ToList(),
+            phrases,
+            verticalTopics,
             listItems.Count);
     }
 
@@ -229,8 +227,8 @@ public sealed partial class PageContentExtractor(
         }
 
         return (
-            phrases.Take(MaxPhrases).ToList(),
-            verticalTopics.Take(MaxVerticalTopics).ToList(),
+            phrases,
+            verticalTopics,
             listItems.Count);
     }
 

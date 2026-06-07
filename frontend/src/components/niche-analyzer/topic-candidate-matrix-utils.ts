@@ -42,8 +42,7 @@ export function formatExclusionReason(reason: string | undefined): string | null
   if (!reason) return null;
   return reason
     .replace(/^Merged with similar topic:\s*/i, 'Merged: ')
-    .replace(/^Below pillar cap \(\d+\):\s*/i, 'Cap: ')
-    .replace(/^No corroboration:\s*/i, 'Single source: ');
+    .replace(/^Insufficient signal corroboration.*:\s*/i, 'Single source: ');
 }
 
 export function evidenceTotalWeight(evidence: TopicEvidence[]): number {

@@ -181,8 +181,7 @@ public sealed class NicheAnalyzerService(
                     CountBySource(fused.AllCandidates, "sitemap"),
                     CountBySource(fused.AllCandidates, "nav"),
                     CountBySource(fused.AllCandidates, "heading"),
-                    mergeResult.ExcludedByCap,
-                    mergeResult.PillarCap,
+                    mergeResult.Excluded,
                     CountBySource(fused.AllCandidates, "page"),
                     CountBySource(fused.AllCandidates, "page_vertical"),
                     CountBySource(fused.AllCandidates, "internal_link"),
@@ -615,8 +614,8 @@ public sealed class NicheAnalyzerService(
         int gscMatchedCount,
         IReadOnlyList<string> silentGscSlugs)
     {
-        var baseMessage = mergeResult.ExcludedByCap.Count > 0
-            ? $"Topic pillars: {mergeResult.Selected.Count} selected, {mergeResult.ExcludedByCap.Count} held back (cap {mergeResult.PillarCap}). Fused {fused.AllCandidates.Count} peer candidate(s) ({string.Join(", ", fused.SignalSourcesPresent)})."
+        var baseMessage = mergeResult.Excluded.Count > 0
+            ? $"Topic pillars: {mergeResult.Selected.Count} selected, {mergeResult.Excluded.Count} excluded by fusion gates. Fused {fused.AllCandidates.Count} peer candidate(s) ({string.Join(", ", fused.SignalSourcesPresent)})."
             : $"Topic pillars: {mergeResult.Selected.Count} after fusion of {fused.AllCandidates.Count} peer candidate(s) ({string.Join(", ", fused.SignalSourcesPresent)}).";
 
         if (!gscOverlay.Connected)

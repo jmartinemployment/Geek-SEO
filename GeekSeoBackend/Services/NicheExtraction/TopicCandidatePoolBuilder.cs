@@ -23,6 +23,13 @@ internal static class TopicCandidatePoolBuilder
         foreach (var name in schema.OfferCatalogTopics)
             AddEvidence(bySlug, name, "schema", TopicEvidenceWeights.Schema, "offerCatalog/serviceType");
 
+        // areaServed enters the pool as first-class candidates so they can accumulate evidence
+        // from URL patterns and internal links (e.g. /services/computer-repair/boca-raton).
+        // Schema alone (0.35) falls below SchemaConfidenceFloor; location topics only promote
+        // when corroborated by site structure — same standard as any other topic.
+        foreach (var area in schema.AreaServed)
+            AddEvidence(bySlug, area, "schema", TopicEvidenceWeights.Schema, "areaServed");
+
         foreach (var pillar in sitemap.Pillars)
         {
             AddEvidence(
@@ -201,15 +208,41 @@ internal static class TopicCandidatePoolBuilder
                 e.Source is "internal_link" or "nav" or "url_pattern");
             var internalLinkCount = Math.Max(_inboundLinkCount, linkSignals);
 
+            var contentDepthScore = ComputeContentDepthScore(internalLinkCount);
+
             return new TopicCandidate
             {
                 Name = name,
                 Slug = slug,
                 Evidence = _evidence,
                 Confidence = confidence,
+                ContentDepthScore = contentDepthScore,
                 DedicatedPageUrl = _pageUrl,
                 InternalLinkCount = internalLinkCount,
             };
+        }
+
+        private decimal ComputeContentDepthScore(int internalLinkCount)
+        {
+            var score = 0m;
+
+            // Dedicated URL = strongest depth indicator (site has a real page for this topic)
+            if (_pageUrl is not null)
+                score += 0.30m;
+
+            // Internal link density: each link adds 0.05, capped at 0.30
+            score += Math.Min(0.30m, internalLinkCount * 0.05m);
+
+            // Content zone signals
+            if (_evidence.Any(e => e.Source == "page_vertical"))
+                score += 0.20m;
+            else if (_evidence.Any(e => e.Source == "page"))
+                score += 0.15m;
+
+            if (_evidence.Any(e => e.Source == "heading"))
+                score += 0.10m;
+
+            return Math.Min(1.0m, score);
         }
     }
 }

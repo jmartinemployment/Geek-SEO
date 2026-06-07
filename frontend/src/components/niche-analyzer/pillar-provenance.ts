@@ -36,8 +36,7 @@ export function buildPillarProvenanceSummary(
         ? outputStringArray(schema, 'allSchemaTopics')
         : outputStringArray(schema, 'serviceNames');
   const offerTopics = outputStringArray(schema, 'offerCatalogTopics');
-  const excludedCount = outputNumber(merging, 'excludedByCapCount');
-  const pillarCap = outputNumber(merging, 'pillarCap');
+  const excludedCount = outputNumber(merging, 'excludedCount');
   const excludedSample = outputStringArray(merging, 'excludedSampleNames');
   const exclusionReasons = outputStringArray(merging, 'exclusionReasonsSample');
   const fusionVersion = merging.outputs.fusionVersion;
@@ -104,7 +103,7 @@ export function buildPillarProvenanceSummary(
         ? signalSources.join(', ')
         : 'schema, page, sitemap, nav, and headings';
     parts.push(
-      `Topic fusion (${fusionVersion}) ranked ${peerCandidates} peer candidate(s) from ${sources} before applying the pillar cap.`,
+      `Topic fusion (${fusionVersion}) evaluated ${peerCandidates} peer candidate(s) from ${sources}.`,
     );
   }
 
@@ -208,11 +207,11 @@ export function buildPillarProvenanceSummary(
     );
   }
 
-  if (excludedCount !== null && excludedCount > 0 && pillarCap !== null) {
-    const heldBack =
+  if (excludedCount !== null && excludedCount > 0) {
+    const notSelected =
       excludedSample.length > 0 ? excludedSample.join(', ') : `${excludedCount} topic(s)`;
     parts.push(
-      `${excludedCount} topic(s) were not promoted to pillars because of the ${pillarCap}-pillar strategy cap: ${heldBack}.`,
+      `${excludedCount} topic(s) were not promoted to pillars after fusion gates (noise, merge, corroboration): ${notSelected}.`,
     );
   }
 
@@ -285,9 +284,8 @@ export const OUTPUT_LABELS: Record<string, string> = {
   primarySource: 'Winning source after merge',
   mergedCount: 'Final pillar count',
   candidateCount: 'Total candidates before merge',
-  pillarCap: 'Pillar strategy cap',
-  excludedByCapCount: 'Topics held back by cap',
-  excludedSampleNames: 'Held-back topic names (sample)',
+  excludedCount: 'Topics not selected after fusion gates',
+  excludedSampleNames: 'Not-selected topic names (sample)',
   samplePillarNames: 'Final pillar names',
   pillarSources: 'Pillar → source',
   normalizedTopicalitySample: 'Normalized topicality (selected pillars)',

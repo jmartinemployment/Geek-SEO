@@ -67,8 +67,8 @@ export function FusionSnapshotSection({
       <div className="rounded-lg border border-dashed border-[var(--color-border)] px-4 py-6 text-center text-sm text-[var(--color-text-secondary)]">
         <p className="font-medium text-[var(--color-text-primary)]">No fusion snapshot yet</p>
         <p className="mt-1">
-          Re-analyze once to save the full candidate pool — every topic the engine considered before
-          applying the pillar cap.
+          Re-analyze once to save the full candidate pool — every topic the engine considered during
+          fusion.
         </p>
       </div>
     );

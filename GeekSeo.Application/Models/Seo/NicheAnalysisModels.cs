@@ -164,6 +164,8 @@ public record DiscoveredPillar
     public string Intent { get; init; } = "commercial";
     public string Source { get; init; } = "sitemap";
     public int ChildPageCount { get; init; }
+    /// <summary>Mirrors <see cref="TopicCandidate.ContentDepthScore"/>; 0 when created outside fusion path.</summary>
+    public decimal ContentDepthScore { get; init; }
     public IReadOnlyList<string> ChildSlugs { get; init; } = [];
 }
 
@@ -180,8 +182,7 @@ public record SchemaOrgData(
 
 public sealed record PillarMergeResult(
     IReadOnlyList<DiscoveredPillar> Selected,
-    IReadOnlyList<DiscoveredPillar> ExcludedByCap,
-    int PillarCap);
+    IReadOnlyList<DiscoveredPillar> Excluded);
 
 /// <summary>One normalized topic phrase before pillar selection (Search Understanding Layer).</summary>
 public sealed record TopicCandidate
@@ -190,6 +191,8 @@ public sealed record TopicCandidate
     public required string Slug { get; init; }
     public required IReadOnlyList<TopicEvidence> Evidence { get; init; }
     public decimal Confidence { get; init; }
+    /// <summary>Composite signal: dedicated URL, internal links, and content-zone evidence (0–1).</summary>
+    public decimal ContentDepthScore { get; init; }
     public string? DedicatedPageUrl { get; init; }
     public int InternalLinkCount { get; init; }
 }
@@ -210,7 +213,6 @@ public sealed record FusedSiteUnderstanding
     public required IReadOnlyDictionary<string, string> ExclusionReasons { get; init; }
     public required string FusionVersion { get; init; }
     public required IReadOnlyList<string> SignalSourcesPresent { get; init; }
-    public int PillarCap { get; init; }
     /// <summary>Share of crawled site word-weight attributed to each selected pillar slug (0–1).</summary>
     public IReadOnlyDictionary<string, decimal> NormalizedTopicalityBySlug { get; init; }
         = new Dictionary<string, decimal>();

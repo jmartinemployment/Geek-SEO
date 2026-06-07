@@ -12,8 +12,6 @@ public sealed class PillarDemandEnricher(
     ISerpProvider serpProvider,
     ILogger<PillarDemandEnricher> logger)
 {
-    public const int MaxPillarsToEnrich = 15;
-
     public async Task<PillarDemandEnrichment> EnrichAsync(
         IReadOnlyList<DiscoveredPillar> pillars,
         Guid profileId,
@@ -21,7 +19,7 @@ public sealed class PillarDemandEnricher(
         string location,
         CancellationToken ct)
     {
-        var targets = pillars.Take(MaxPillarsToEnrich).ToList();
+        var targets = pillars.ToList();
         var siteHost = NormalizeHost(siteDomain);
 
         var keywordTask = EnrichKeywordsAsync(targets, location, ct);

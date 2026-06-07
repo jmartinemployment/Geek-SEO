@@ -7,13 +7,12 @@ namespace GeekSeoBackend.Services.NicheExtraction;
 /// </summary>
 public sealed class TopicFusionEngine(PillarValidator validator)
 {
-    public const string FusionVersion = "sul-1.3";
+    public const string FusionVersion = "sul-1.5";
     private const int MinPillars = 3;
 
     public FusedSiteUnderstanding Fuse(
         IReadOnlyList<TopicCandidate> pool,
-        IReadOnlyList<string> locationFallbacks,
-        int maxPillars = PillarMerger.DefaultPillarCap)
+        IReadOnlyList<string> locationFallbacks)
     {
         var exclusionReasons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var workingPool = pool.ToList();
@@ -58,7 +57,10 @@ public sealed class TopicFusionEngine(PillarValidator validator)
         foreach (var dropped in afterGate2.Except(afterGate1))
             exclusionReasons.TryAdd(dropped.Slug, "Insufficient subtopic capacity (Gate 1)");
 
-        // Location fallbacks if still thin
+        // Location fallbacks: inject as last resort only when gates left fewer than MinPillars.
+        // areaServed topics entered the pool earlier (TopicCandidatePoolBuilder) and may have
+        // already been selected via normal corroboration. These fallbacks cover sites with no
+        // location URL structure at all.
         if (afterGate1.Count < MinPillars)
         {
             foreach (var loc in locationFallbacks.Take(MinPillars - afterGate1.Count))
@@ -88,46 +90,50 @@ public sealed class TopicFusionEngine(PillarValidator validator)
             }
         }
 
-        var cap = ComputePillarCap(maxPillars, afterGate1, workingPool);
         var candidateBySlug = workingPool.ToDictionary(c => c.Slug, StringComparer.OrdinalIgnoreCase);
         var schemaSlugs = workingPool
             .Where(c => c.Evidence.Any(e => e.Source == "schema"))
             .Select(c => c.Slug)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var guaranteedSchema = afterGate1
+        // Schema-declared topics auto-select only when confidence meets the floor, ensuring
+        // at least one corroborating signal backs the schema declaration (mirrors SE behavior:
+        // structured data is a trust accelerator, not an unconditional bypass).
+        var selectedSlugs = afterGate1
             .Where(p => schemaSlugs.Contains(p.Slug))
-            .Select(p => p.Slug)
-            .ToList();
-
-        var rankedSlugs = afterGate1
-            .Select(p => p.Slug)
-            .Where(slug => !schemaSlugs.Contains(slug))
-            .Where(slug =>
+            .Where(p =>
             {
-                if (!candidateBySlug.TryGetValue(slug, out var candidate))
-                    return false;
-
-                if (TopicCorroboration.PassesCorroboration(candidate.Evidence))
+                if (!candidateBySlug.TryGetValue(p.Slug, out var candidate))
                     return true;
 
-                exclusionReasons.TryAdd(slug, "Insufficient signal corroboration (single weak source)");
+                if (candidate.Confidence >= TopicEvidenceWeights.SchemaConfidenceFloor)
+                    return true;
+
+                exclusionReasons.TryAdd(p.Slug, "Schema-declared but no corroborating site signal (schema alone is not sufficient)");
                 return false;
             })
-            .OrderByDescending(slug => confidenceBySlug.GetValueOrDefault(slug))
-            .ThenBy(slug => slug, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+            .Select(p => p.Slug)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var selectedSlugs = guaranteedSchema.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var slug in rankedSlugs)
+        foreach (var slug in afterGate1
+                     .Select(p => p.Slug)
+                     .Where(slug => !schemaSlugs.Contains(slug))
+                     .Where(slug =>
+                     {
+                         if (!candidateBySlug.TryGetValue(slug, out var candidate))
+                             return false;
+
+                         if (TopicCorroboration.PassesCorroboration(candidate.Evidence, candidate.Confidence))
+                             return true;
+
+                         exclusionReasons.TryAdd(slug, "Insufficient signal corroboration (single weak source)");
+                         return false;
+                     })
+                     .OrderByDescending(slug => confidenceBySlug.GetValueOrDefault(slug))
+                     .ThenBy(slug => slug, StringComparer.OrdinalIgnoreCase))
         {
-            if (selectedSlugs.Count >= cap)
-                break;
             selectedSlugs.Add(slug);
         }
-
-        foreach (var slug in afterGate1.Select(p => p.Slug).Where(slug => !selectedSlugs.Contains(slug)))
-            exclusionReasons.TryAdd(slug, $"Below pillar cap ({cap})");
 
         var selected = workingPool
             .Where(c => selectedSlugs.Contains(c.Slug))
@@ -146,21 +152,14 @@ public sealed class TopicFusionEngine(PillarValidator validator)
             ExclusionReasons = exclusionReasons,
             FusionVersion = FusionVersion,
             SignalSourcesPresent = signalSources,
-            PillarCap = cap,
         };
     }
 
     public PillarMergeResult ToPillarMergeResult(FusedSiteUnderstanding fused)
     {
         var selected = fused.SelectedPillars.Select(ToDiscoveredPillar).ToList();
-        var excludedByCap = fused.ExcludedCandidates
-            .Where(c =>
-                fused.ExclusionReasons.TryGetValue(c.Slug, out var reason)
-                && reason.StartsWith("Below pillar cap", StringComparison.Ordinal))
-            .Select(ToDiscoveredPillar)
-            .ToList();
-
-        return new PillarMergeResult(selected, excludedByCap, fused.PillarCap);
+        var excluded = fused.ExcludedCandidates.Select(ToDiscoveredPillar).ToList();
+        return new PillarMergeResult(selected, excluded);
     }
 
     internal static DiscoveredPillar ToDiscoveredPillar(TopicCandidate candidate)
@@ -180,25 +179,9 @@ public sealed class TopicFusionEngine(PillarValidator validator)
                 ? "informational"
                 : "commercial",
             Source = primarySource,
-            ChildPageCount = Math.Max(candidate.InternalLinkCount, 3),
+            ChildPageCount = candidate.InternalLinkCount,
+            ContentDepthScore = candidate.ContentDepthScore,
             ChildSlugs = [],
         };
-    }
-
-    private static int ComputePillarCap(
-        int maxPillars,
-        IReadOnlyList<DiscoveredPillar> afterGate1,
-        IReadOnlyList<TopicCandidate> pool)
-    {
-        var schemaSlugs = pool
-            .Where(c => c.Evidence.Any(e => e.Source == "schema"))
-            .Select(c => c.Slug)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        var schemaSelected = afterGate1.Count(p => schemaSlugs.Contains(p.Slug));
-
-        // Reserve room for all schema topics; page verticals (e.g. Accounting) compete within maxPillars.
-        var floor = schemaSelected;
-        return Math.Max(MinPillars, Math.Max(maxPillars, floor));
     }
 }

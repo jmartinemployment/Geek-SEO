@@ -7,13 +7,24 @@ public sealed class PillarValidator
     private const double MergeSimilarityThreshold = 0.6;
     private const int MinSubtopicCapacity = 3;
 
-    // Gate 1 — Semantic Scope: pillar must support ≥ MinSubtopicCapacity sub-topics
+    // Gate 1 — Semantic Scope: pillar must demonstrate content depth or be a declared service.
+    // Search engines evaluate whether a topic has enough supporting content to be authoritative.
     public bool PassesGate1(DiscoveredPillar pillar) =>
+        // Strong content depth signal (dedicated URL + links/content)
+        pillar.ContentDepthScore >= TopicEvidenceWeights.ContentDepthGateMin ||
+        // Schema-declared = business-attested service; trusted for scope, validated by SERP in Tier 2
+        string.Equals(pillar.Source, "schema", StringComparison.OrdinalIgnoreCase) ||
+        // page_vertical = dedicated content section on the homepage; verified content depth
+        string.Equals(pillar.Source, "page_vertical", StringComparison.OrdinalIgnoreCase) ||
+        // URL structure confirms supporting pages exist
         pillar.ChildPageCount >= MinSubtopicCapacity ||
         pillar.ChildSlugs.Count >= 2 ||
+        // Generic service terms are industry-assumed to support subtopics
         IsGenericServiceTerm(pillar.Slug);
 
-    // Gate 2 — Search Intent Alignment: returns pairs to merge (similarity > threshold)
+    // Gate 2 — Semantic Deduplication: merge near-synonyms, keep higher-authority slug.
+    // Only skip merging when BOTH topics are schema-declared distinct services.
+    // Allows schema-vs-weaker-signal merging (e.g. "IT Services" schema + "IT Support" heading → merge).
     public IReadOnlyList<(DiscoveredPillar Keep, DiscoveredPillar Merge)> FindMergePairs(
         IReadOnlyList<DiscoveredPillar> pillars)
     {
@@ -27,9 +38,10 @@ public sealed class PillarValidator
         {
             for (var j = i + 1; j < pillars.Count; j++)
             {
-                // Distinct schema-declared topics stay separate (e.g. AI Strategy Consulting vs AI Consulting).
+                // Protect schema-vs-schema pairs: two distinct declared services stay separate.
+                // (e.g. "AI Strategy Consulting" vs "AI Consulting" are different offerings)
                 if (string.Equals(pillars[i].Source, "schema", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(pillars[j].Source, "schema", StringComparison.OrdinalIgnoreCase))
+                    && string.Equals(pillars[j].Source, "schema", StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 var sim = PillarSynonymMap.Similarity(pillars[i].Slug, pillars[j].Slug);

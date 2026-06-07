@@ -63,7 +63,7 @@ public sealed class NicheExtractionTests
     }
 
     [Fact]
-    public void PillarMerger_KeepsTwelveSchemaTopics_WhenCapIsTwelve()
+    public void PillarMerger_KeepsAllSchemaTopics()
     {
         var merger = new PillarMerger();
         var schema = FixtureTopics.TwelveDistinct.Select(name => new DiscoveredPillar
@@ -78,44 +78,32 @@ public sealed class NicheExtractionTests
         var result = merger.Merge(schema, [], [], [], []);
 
         Assert.Equal(12, result.Selected.Count);
-        Assert.Empty(result.ExcludedByCap);
-        Assert.Equal(PillarMerger.DefaultPillarCap, result.PillarCap);
-    }
-
-    [Fact]
-    public void PillarMerger_ReportsExcludedTopics_WhenCapIsLower()
-    {
-        var merger = new PillarMerger();
-        var schema = FixtureTopics.TwelveDistinct.Select(name => new DiscoveredPillar
-        {
-            Name = name,
-            Slug = NicheAnalyzerService.NameToSlug(name),
-            Intent = "commercial",
-            Source = "schema",
-            ChildPageCount = 3,
-        }).ToList();
-
-        var result = merger.Merge(schema, [], [], [], [], maxPillars: 7);
-
-        Assert.Equal(7, result.Selected.Count);
-        Assert.Equal(5, result.ExcludedByCap.Count);
+        Assert.Empty(result.Excluded);
     }
 
     [Fact]
     public void TopicFusionEngine_SelectsTwelveGeekAtYourSpotSchemaTopics()
     {
+        // Each topic has schema + sitemap evidence — confidence 0.60, above SchemaConfidenceFloor (0.40).
+        // Reflects real-world behaviour: schema-declared services also appear in the sitemap.
         var pool = FixtureTopics.GeekAtYourSpotSchema.Select(name => new TopicCandidate
         {
             Name = name,
             Slug = NicheAnalyzerService.NameToSlug(name),
-            Confidence = TopicEvidenceWeights.Schema,
+            Confidence = TopicEvidenceWeights.Schema + TopicEvidenceWeights.Sitemap,
             Evidence =
             [
                 new TopicEvidence
                 {
                     Source = "schema",
-                    Snippet = "schema",
+                    Snippet = "knowsAbout",
                     Weight = TopicEvidenceWeights.Schema,
+                },
+                new TopicEvidence
+                {
+                    Source = "sitemap",
+                    Snippet = "/services/...",
+                    Weight = TopicEvidenceWeights.Sitemap,
                 },
             ],
         }).ToList();
@@ -137,18 +125,25 @@ public sealed class NicheExtractionTests
     [Fact]
     public void TopicFusionEngine_IncludesAccounting_WithAllSchemaTopics()
     {
+        // Schema topics corroborated by sitemap — confidence 0.60, above SchemaConfidenceFloor.
         var pool = FixtureTopics.GeekAtYourSpotSchema.Select(name => new TopicCandidate
         {
             Name = name,
             Slug = NicheAnalyzerService.NameToSlug(name),
-            Confidence = TopicEvidenceWeights.Schema,
+            Confidence = TopicEvidenceWeights.Schema + TopicEvidenceWeights.Sitemap,
             Evidence =
             [
                 new TopicEvidence
                 {
                     Source = "schema",
-                    Snippet = "schema",
+                    Snippet = "knowsAbout",
                     Weight = TopicEvidenceWeights.Schema,
+                },
+                new TopicEvidence
+                {
+                    Source = "sitemap",
+                    Snippet = "/services/...",
+                    Weight = TopicEvidenceWeights.Sitemap,
                 },
             ],
         }).ToList();
@@ -173,7 +168,6 @@ public sealed class NicheExtractionTests
         var result = engine.ToPillarMergeResult(engine.Fuse(pool, []));
 
         Assert.Equal(13, result.Selected.Count);
-        Assert.Equal(15, result.PillarCap);
         Assert.Contains(
             result.Selected,
             p => p.Slug.Equals(NicheAnalyzerService.NameToSlug("Accounting"), StringComparison.OrdinalIgnoreCase));
@@ -321,7 +315,6 @@ public sealed class NicheExtractionTests
             ExclusionReasons = new Dictionary<string, string>(),
             FusionVersion = TopicFusionEngine.FusionVersion,
             SignalSourcesPresent = ["schema"],
-            PillarCap = 15,
         };
 
         const string accountingHtml = """
@@ -380,7 +373,6 @@ public sealed class NicheExtractionTests
             ExclusionReasons = new Dictionary<string, string>(),
             FusionVersion = "sul-1.2",
             SignalSourcesPresent = ["page_vertical"],
-            PillarCap = 15,
             NormalizedTopicalityBySlug = new Dictionary<string, decimal> { ["accounting"] = 0.34m },
             EntityCoverageBySlug = new Dictionary<string, PillarEntityCoverage>
             {
@@ -471,7 +463,6 @@ public sealed class NicheExtractionTests
             ExclusionReasons = new Dictionary<string, string>(),
             FusionVersion = TopicFusionEngine.FusionVersion,
             SignalSourcesPresent = ["schema"],
-            PillarCap = 15,
         };
 
         var serp = new List<PillarSerpEnrichment>
@@ -558,7 +549,6 @@ public sealed class NicheExtractionTests
             ExclusionReasons = new Dictionary<string, string>(),
             FusionVersion = TopicFusionEngine.FusionVersion,
             SignalSourcesPresent = ["schema"],
-            PillarCap = 15,
         };
 
         var internalLinks = new InternalLinkData(
@@ -618,7 +608,6 @@ public sealed class NicheExtractionTests
             ExclusionReasons = new Dictionary<string, string>(),
             FusionVersion = TopicFusionEngine.FusionVersion,
             SignalSourcesPresent = ["schema"],
-            PillarCap = 15,
         };
 
         var serp = new List<PillarSerpEnrichment>
@@ -688,7 +677,6 @@ public sealed class NicheExtractionTests
             ExclusionReasons = new Dictionary<string, string>(),
             FusionVersion = TopicFusionEngine.FusionVersion,
             SignalSourcesPresent = ["page_vertical", "schema"],
-            PillarCap = 15,
             EntityCoverageBySlug = new Dictionary<string, PillarEntityCoverage>
             {
                 ["managed-it"] = new("managed-it", "Managed IT", 0.4m, 5, 2, ["SOC"], true),
@@ -732,7 +720,6 @@ public sealed class NicheExtractionTests
             ExclusionReasons = new Dictionary<string, string>(),
             FusionVersion = "sul-1.2",
             SignalSourcesPresent = ["page_vertical"],
-            PillarCap = 15,
             NormalizedTopicalityBySlug = new Dictionary<string, decimal> { ["accounting"] = 0.34m },
         };
 
@@ -1017,14 +1004,14 @@ public sealed class NicheExtractionTests
         };
 
         var engine = new TopicFusionEngine(new PillarValidator());
-        var fused = engine.Fuse(pool, [], maxPillars: 15);
+        var fused = engine.Fuse(pool, []);
         var selectedSlugs = fused.SelectedPillars.Select(p => p.Slug).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         Assert.Contains(NicheAnalyzerService.NameToSlug("Accounting"), selectedSlugs);
         Assert.DoesNotContain(NicheAnalyzerService.NameToSlug("Random Body Phrase"), selectedSlugs);
-        var randomSlug = NicheAnalyzerService.NameToSlug("Random Body Phrase");
-        Assert.True(fused.ExclusionReasons.TryGetValue(randomSlug, out var reason));
-        Assert.Contains("corroboration", reason, StringComparison.OrdinalIgnoreCase);
+        // "Random Body Phrase" has a single page signal (ContentDepthScore = 0.15, borderline Gate 1)
+        // and no corroborating structural or schema signal — it is excluded at Gate 1 or corroboration.
+        Assert.True(fused.ExclusionReasons.ContainsKey(NicheAnalyzerService.NameToSlug("Random Body Phrase")));
     }
 
     [Fact]
@@ -1196,7 +1183,6 @@ public sealed class NicheExtractionTests
             ExclusionReasons = new Dictionary<string, string>(),
             FusionVersion = TopicFusionEngine.FusionVersion,
             SignalSourcesPresent = ["schema"],
-            PillarCap = 15,
             NormalizedTopicalityBySlug = new Dictionary<string, decimal>
             {
                 ["managed-it"] = 0.12m,
@@ -1265,7 +1251,6 @@ public sealed class NicheExtractionTests
             ExclusionReasons = new Dictionary<string, string>(),
             FusionVersion = TopicFusionEngine.FusionVersion,
             SignalSourcesPresent = ["schema"],
-            PillarCap = 15,
             NormalizedTopicalityBySlug = new Dictionary<string, decimal>
             {
                 ["ai-chatbots"] = 0.02m,
@@ -1313,7 +1298,6 @@ public sealed class NicheExtractionTests
             ExclusionReasons = new Dictionary<string, string>(),
             FusionVersion = TopicFusionEngine.FusionVersion,
             SignalSourcesPresent = ["schema"],
-            PillarCap = 15,
             RecommendedActions =
             [
                 new FusionRecommendedAction(

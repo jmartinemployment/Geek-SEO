@@ -12,9 +12,9 @@ export function EntityCoveragePanel({ fusion }: Readonly<Props>) {
       const coverage = fusion.entityCoverageBySlug?.[pillar.slug];
       return coverage
         ? {
+            ...coverage,
             slug: pillar.slug,
             name: pillar.name,
-            ...coverage,
           }
         : null;
     })
