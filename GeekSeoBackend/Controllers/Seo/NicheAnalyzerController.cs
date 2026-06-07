@@ -58,7 +58,7 @@ public sealed class NicheAnalyzerController(
         {
             return BadRequest(new { error = ex.Message });
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (GeekDataGatewayExceptions.IsTransientGatewayFailure(ex, ct))
         {
             logger.LogWarning(ex, "Transient error fetching analysis details for profile {ProfileId}", profileId);
             return StatusCode(503, new { error = "Details temporarily unavailable" });
@@ -88,7 +88,7 @@ public sealed class NicheAnalyzerController(
         {
             return BadRequest(new { error = ex.Message });
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (GeekDataGatewayExceptions.IsTransientGatewayFailure(ex, ct))
         {
             logger.LogWarning(ex, "Transient error fetching niche status for profile {ProfileId}", profileId);
             return StatusCode(503, new { error = "Status temporarily unavailable" });
@@ -111,6 +111,11 @@ public sealed class NicheAnalyzerController(
         {
             return BadRequest(new { error = ex.Message });
         }
+        catch (Exception ex) when (GeekDataGatewayExceptions.IsTransientGatewayFailure(ex, ct))
+        {
+            logger.LogWarning(ex, "Transient error fetching niche profile {ProfileId}", profileId);
+            return StatusCode(503, new { error = "Profile temporarily unavailable" });
+        }
     }
 
     [HttpGet("{profileId:guid}/coverage-matrix")]
@@ -126,6 +131,11 @@ public sealed class NicheAnalyzerController(
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex) when (GeekDataGatewayExceptions.IsTransientGatewayFailure(ex, ct))
+        {
+            logger.LogWarning(ex, "Transient error fetching coverage matrix for profile {ProfileId}", profileId);
+            return StatusCode(503, new { error = "Coverage matrix temporarily unavailable" });
         }
     }
 
@@ -144,6 +154,11 @@ public sealed class NicheAnalyzerController(
         {
             return BadRequest(new { error = ex.Message });
         }
+        catch (Exception ex) when (GeekDataGatewayExceptions.IsTransientGatewayFailure(ex, ct))
+        {
+            logger.LogWarning(ex, "Transient error fetching topical gaps for profile {ProfileId}", profileId);
+            return StatusCode(503, new { error = "Gaps temporarily unavailable" });
+        }
     }
 
     [HttpGet("{profileId:guid}/competitors")]
@@ -159,6 +174,11 @@ public sealed class NicheAnalyzerController(
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex) when (GeekDataGatewayExceptions.IsTransientGatewayFailure(ex, ct))
+        {
+            logger.LogWarning(ex, "Transient error fetching competitors for profile {ProfileId}", profileId);
+            return StatusCode(503, new { error = "Competitors temporarily unavailable" });
         }
     }
 
@@ -176,6 +196,11 @@ public sealed class NicheAnalyzerController(
         {
             return BadRequest(new { error = ex.Message });
         }
+        catch (Exception ex) when (GeekDataGatewayExceptions.IsTransientGatewayFailure(ex, ct))
+        {
+            logger.LogWarning(ex, "Transient error fetching entities for profile {ProfileId}", profileId);
+            return StatusCode(503, new { error = "Entities temporarily unavailable" });
+        }
     }
 
     [HttpGet("project/{projectId:guid}/history")]
@@ -191,6 +216,11 @@ public sealed class NicheAnalyzerController(
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex) when (GeekDataGatewayExceptions.IsTransientGatewayFailure(ex, ct))
+        {
+            logger.LogWarning(ex, "Transient error fetching niche history for project {ProjectId}", projectId);
+            return StatusCode(503, new { error = "History temporarily unavailable" });
         }
     }
 
@@ -228,12 +258,26 @@ public sealed class NicheAnalyzerController(
         {
             user.RequireUserId();
             var result = await profileRepo.GetLatestByProjectAsync(projectId, ct);
-            if (!result.IsSuccess || result.Value is null) return NoContent();
+            if (!result.IsSuccess)
+            {
+                logger.LogWarning(
+                    "Failed to fetch latest niche profile for project {ProjectId}: {Error}",
+                    projectId,
+                    result.Error);
+                return StatusCode(503, new { error = "Latest profile temporarily unavailable" });
+            }
+
+            if (result.Value is null) return NoContent();
             return Ok(MapToResult(result.Value));
         }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex) when (GeekDataGatewayExceptions.IsTransientGatewayFailure(ex, ct))
+        {
+            logger.LogWarning(ex, "Transient error fetching latest niche profile for project {ProjectId}", projectId);
+            return StatusCode(503, new { error = "Latest profile temporarily unavailable" });
         }
     }
 

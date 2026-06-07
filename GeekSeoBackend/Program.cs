@@ -67,7 +67,8 @@ builder.Services.AddTransient<GeekDataGatewayHandler>();
 builder.Services.AddHttpClient(GeekDataGateway.HttpClientName, client =>
 {
     client.BaseAddress = new Uri(gatewayUrl.TrimEnd('/') + "/");
-    client.Timeout = TimeSpan.FromSeconds(60);
+    // Large niche profiles (60+ pillars, step log, fusion snapshot) can exceed 60s on read/write.
+    client.Timeout = TimeSpan.FromSeconds(180);
 }).AddHttpMessageHandler<GeekDataGatewayHandler>();
 
 var app = builder.Build();
