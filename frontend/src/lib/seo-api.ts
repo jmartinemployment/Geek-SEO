@@ -1581,6 +1581,28 @@ export type NicheAnalysisDetails = {
   fusionSnapshot?: SiteTopicProfile | null;
 };
 
+export type NicheTopicCandidateRow = {
+  id: string;
+  nicheProfileId: string;
+  slug: string;
+  name: string;
+  confidence: number;
+  isSelected: boolean;
+  exclusionReason?: string | null;
+  dedicatedPageUrl?: string | null;
+  internalLinkCount: number;
+  contentDepthScore: number;
+  displayOrder: number;
+  evidence?: TopicEvidence[] | null;
+};
+
+export type NicheTopicCandidateList = {
+  items: NicheTopicCandidateRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
 export type NicheSubtopicResult = {
   id: string;
   subtopicTitle: string;
@@ -1745,6 +1767,42 @@ export async function getNicheAnalysisDetails(
     return { stepLogVersion: 1, steps: [], fusionSnapshot: null };
   }
   return res.json() as Promise<NicheAnalysisDetails>;
+}
+
+export async function getNicheTopicCandidates(
+  profileId: string,
+  accessToken?: string | null,
+  options?: { page?: number; pageSize?: number; selectedOnly?: boolean },
+): Promise<NicheTopicCandidateList> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 200;
+  const selected =
+    options?.selectedOnly === true
+      ? '&selectedOnly=true'
+      : options?.selectedOnly === false
+        ? '&selectedOnly=false'
+        : '';
+  const res = await fetch(
+    `${API_URL}/api/seo/niche-analyzer/${profileId}/topic-candidates?page=${page}&pageSize=${pageSize}${selected}`,
+    { headers: apiHeaders(accessToken), cache: 'no-store' },
+  );
+  return seoJson(res);
+}
+
+/** Fetch full candidate inventory (paginated server-side). */
+export async function getAllNicheTopicCandidates(
+  profileId: string,
+  accessToken?: string | null,
+): Promise<NicheTopicCandidateRow[]> {
+  const pageSize = 200;
+  const first = await getNicheTopicCandidates(profileId, accessToken, { page: 1, pageSize });
+  const items = [...first.items];
+  const pages = Math.ceil(first.total / pageSize);
+  for (let page = 2; page <= pages; page++) {
+    const next = await getNicheTopicCandidates(profileId, accessToken, { page, pageSize });
+    items.push(...next.items);
+  }
+  return items;
 }
 
 export async function getNicheProfile(

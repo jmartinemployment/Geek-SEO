@@ -197,8 +197,22 @@ public sealed class NicheAnalyzerController(
         {
             user.RequireUserId();
             var result = await analyticsRepo.GetCoverageMatrixAsync(profileId, ct);
-            if (!result.IsSuccess) return StatusCode(500, new { error = result.Error });
-            return Ok(result.Value);
+            if (result.IsSuccess)
+                return Ok(result.Value);
+
+            logger.LogWarning(
+                "Coverage matrix Dapper path failed for {ProfileId}: {Error} — using relational fallback",
+                profileId,
+                result.Error);
+
+            var profile = await profileRepo.GetByIdAsync(profileId, ct);
+            if (!profile.IsSuccess || profile.Value is null)
+                return StatusCode(503, new { error = "Coverage matrix temporarily unavailable" });
+
+            if (profile.Value.Pillars.Count == 0)
+                return Ok(Array.Empty<PillarCoverageMatrix>());
+
+            return Ok(NicheRelationalAnalyticsBuilder.BuildCoverageMatrix(profile.Value));
         }
         catch (InvalidOperationException ex)
         {
@@ -219,8 +233,19 @@ public sealed class NicheAnalyzerController(
         {
             user.RequireUserId();
             var result = await analyticsRepo.GetTopicalGapsAsync(profileId, quickWinsOnly, ct);
-            if (!result.IsSuccess) return StatusCode(500, new { error = result.Error });
-            return Ok(result.Value);
+            if (result.IsSuccess)
+                return Ok(result.Value);
+
+            logger.LogWarning(
+                "Topical gaps Dapper path failed for {ProfileId}: {Error} — using relational fallback",
+                profileId,
+                result.Error);
+
+            var profile = await profileRepo.GetByIdAsync(profileId, ct);
+            if (!profile.IsSuccess || profile.Value is null)
+                return StatusCode(503, new { error = "Gaps temporarily unavailable" });
+
+            return Ok(NicheRelationalAnalyticsBuilder.BuildTopicalGaps(profile.Value, quickWinsOnly));
         }
         catch (InvalidOperationException ex)
         {

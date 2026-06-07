@@ -213,7 +213,7 @@ public sealed class NicheAnalyzerService(
                     mergeMessage),
                 ct);
 
-            var priorUrls = await LoadPriorSitemapUrlsAsync(profile.ProjectId, profileId, ct);
+            var priorUrls = await LoadPriorSitemapUrlsAsync(profile, ct);
             var scan = NicheScanFingerprint.Compute(
                 domain, fused.SulVersion, schemaData, sitemapData, navData, priorUrls);
             var candidatePersist = await persistence.PersistCandidatesAsync(profileId, fused, includeEvidence: false, ct);
@@ -754,9 +754,38 @@ public sealed class NicheAnalyzerService(
             .Select(kvp => $"{kvp.Key}: {kvp.Value}")
             .ToArray();
 
-    private static Task<IReadOnlyList<string>?> LoadPriorSitemapUrlsAsync(
-        Guid projectId, Guid currentProfileId, CancellationToken ct) =>
-        Task.FromResult<IReadOnlyList<string>?>(null);
+    private async Task<IReadOnlyList<string>?> LoadPriorSitemapUrlsAsync(
+        NicheProfile profile,
+        CancellationToken ct)
+    {
+        var history = await profileRepo.GetHistoryAsync(profile.ProjectId, ct);
+        if (!history.IsSuccess || history.Value is null)
+            return null;
+
+        var priorId = history.Value
+            .Where(h => h.Status == "complete" && h.Id != profile.Id)
+            .OrderByDescending(h => h.AnalyzedAt)
+            .Select(h => h.Id)
+            .FirstOrDefault();
+
+        if (priorId == Guid.Empty)
+            return null;
+
+        var prior = await profileRepo.GetByIdAsync(priorId, ct);
+        if (!prior.IsSuccess || prior.Value?.FusionSnapshot is null)
+            return null;
+
+        var fusion = SiteTopicProfileJson.Parse(prior.Value.FusionSnapshot);
+        if (fusion is null)
+            return null;
+
+        return fusion.AllCandidates
+            .Select(c => c.DedicatedPageUrl)
+            .Where(u => !string.IsNullOrWhiteSpace(u))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 
     private async Task<string> ResolveSiteUrlAsync(
         Guid projectId, string domainFromRequest, CancellationToken ct)
