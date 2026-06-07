@@ -32,6 +32,7 @@ public static class SeoBackendExtensions
         services.AddScoped<IContentDocumentRepository, HttpContentDocumentRepository>();
         services.AddScoped<IBackgroundJobRepository, HttpBackgroundJobRepository>();
         services.AddScoped<ISerpCacheRepository, HttpSerpCacheRepository>();
+        services.AddScoped<IKeywordVendorSnapshotRepository, HttpKeywordVendorSnapshotRepository>();
         services.AddScoped<ICompetitorPageRepository, HttpCompetitorPageRepository>();
         services.AddScoped<ISubscriptionRepository, HttpSubscriptionRepository>();
         services.AddScoped<IUsageMeteringRepository, HttpUsageMeteringRepository>();

@@ -135,6 +135,13 @@ public partial class SeoDbContext
             e.HasIndex(x => new { x.Keyword, x.Location, x.ResultCount }).IsUnique();
         });
 
+        modelBuilder.Entity<SeoKeywordVendorSnapshot>(e =>
+        {
+            e.ToTable("seo_keyword_vendor_snapshots");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.SeedKeyword, x.Location, x.LanguageCode }).IsUnique();
+        });
+
         modelBuilder.Entity<SeoContentGuardPolicy>(e =>
         {
             e.ToTable("seo_content_guard_policies");

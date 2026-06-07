@@ -1,8 +1,10 @@
+using GeekSeo.Application.Configuration;
 using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Providers.Seo;
 using GeekSeoBackend.Providers.Seo.Metering;
+using GeekSeoBackend.Providers.Seo.Persistence;
 using GeekSeoBackend.Providers.Seo.SerpApi;
 
 namespace GeekSeoBackend.Extensions;
@@ -17,7 +19,6 @@ public static class SeoProviderRegistration
     public const string KeywordProviderEnv = "KEYWORD_PROVIDER";
     public const string RankSnapshotProviderEnv = "RANK_SNAPSHOT_PROVIDER";
     public const string SerpApiKeyEnv = "SERPAPI_API_KEY";
-    public const string VendorApisEnabledEnv = "SEO_VENDOR_APIS_ENABLED";
 
     public static IServiceCollection AddSeoDataProviders(this IServiceCollection services)
     {
@@ -34,16 +35,6 @@ public static class SeoProviderRegistration
 
         var config = SeoProviderConfiguration.FromEnvironment();
         services.AddSingleton(config);
-
-        if (!config.VendorApisEnabled)
-        {
-            services.AddScoped<ISerpProvider, DisabledSerpProvider>();
-            services.AddScoped<IKeywordProvider, DisabledKeywordProvider>();
-            services.AddScoped<IRankSnapshotProvider, DisabledRankSnapshotProvider>();
-            services.AddScoped<IKeywordDiscoveryProvider, InternalKeywordDiscoveryProvider>();
-            return services;
-        }
-
         EnsureSerpApiKeyWhenRequired(config);
 
         RegisterSerpProviderImplementations(services, config);
@@ -71,25 +62,19 @@ public static class SeoProviderRegistration
                         $"{SerpProviderFallbackEnv} is only supported when {SerpProviderEnv}=serpapi.");
                 }
 
-                services.AddScoped<ISerpProvider, DataForSEOSerpProvider>();
+                services.AddScoped<DataForSEOSerpProvider>();
                 break;
             case "serpapi":
                 services.AddScoped<SerpApiSerpProvider>();
                 if (config.SerpProviderFallback == "dataforseo")
                 {
                     services.AddScoped<DataForSEOSerpProvider>();
-                    services.AddScoped<ISerpProvider>(sp => new FallbackSerpProvider(
-                        sp.GetRequiredService<SerpApiSerpProvider>(),
-                        sp.GetRequiredService<DataForSEOSerpProvider>()));
+                    services.AddScoped<FallbackSerpProvider>();
                 }
                 else if (!string.IsNullOrEmpty(config.SerpProviderFallback))
                 {
                     throw new InvalidOperationException(
                         $"Invalid {SerpProviderFallbackEnv}={config.SerpProviderFallback}. Allowed with serpapi: dataforseo.");
-                }
-                else
-                {
-                    services.AddScoped<ISerpProvider, SerpApiSerpProvider>();
                 }
 
                 break;
@@ -100,7 +85,20 @@ public static class SeoProviderRegistration
                 throw new InvalidOperationException(
                     $"Invalid {SerpProviderEnv}={config.SerpProvider}. Allowed: dataforseo, serpapi, geek.");
         }
+
+        services.AddScoped<ISerpProvider>(sp => new DatabaseBackedSerpProvider(
+            ResolveInnerSerpProvider(sp, config),
+            sp.GetRequiredService<ISerpCacheRepository>()));
     }
+
+    private static ISerpProvider ResolveInnerSerpProvider(IServiceProvider sp, SeoProviderConfiguration config) =>
+        config.SerpProvider switch
+        {
+            "dataforseo" => sp.GetRequiredService<DataForSEOSerpProvider>(),
+            "serpapi" when config.SerpProviderFallback == "dataforseo" => sp.GetRequiredService<FallbackSerpProvider>(),
+            "serpapi" => sp.GetRequiredService<SerpApiSerpProvider>(),
+            _ => throw new InvalidOperationException($"Unhandled {SerpProviderEnv}={config.SerpProvider}"),
+        };
 
     private static void EnsureSerpApiKeyWhenRequired(SeoProviderConfiguration config)
     {
@@ -119,7 +117,10 @@ public static class SeoProviderRegistration
         switch (config.KeywordProvider)
         {
             case "dataforseo":
-                services.AddScoped<IKeywordProvider, DataForSEOKeywordProvider>();
+                services.AddScoped<DataForSEOKeywordProvider>();
+                services.AddScoped<IKeywordProvider>(sp => new DatabaseBackedKeywordProvider(
+                    sp.GetRequiredService<DataForSEOKeywordProvider>(),
+                    sp.GetRequiredService<IKeywordVendorSnapshotRepository>()));
                 break;
             case "gsc_ads":
             case "geek":
@@ -170,7 +171,8 @@ public sealed class SeoProviderConfiguration
     public required string RankSnapshotProvider { get; init; }
     public bool DataForSeoCredentialsConfigured { get; init; }
     public bool SerpApiKeyConfigured { get; init; }
-    public bool VendorApisEnabled { get; init; }
+    public int SerpRetentionDays { get; init; }
+    public int KeywordRetentionDays { get; init; }
 
     public static SeoProviderConfiguration FromEnvironment()
     {
@@ -190,25 +192,11 @@ public sealed class SeoProviderConfiguration
             DataForSeoCredentialsConfigured = DataForSeoClient.TryGetCredentials(out _, out _),
             SerpApiKeyConfigured = !string.IsNullOrWhiteSpace(
                 Environment.GetEnvironmentVariable(SeoProviderRegistration.SerpApiKeyEnv)),
-            VendorApisEnabled = ParseEnabled(
-                Environment.GetEnvironmentVariable(SeoProviderRegistration.VendorApisEnabledEnv),
-                defaultEnabled: true),
+            SerpRetentionDays = VendorPersistenceSettings.SerpRetentionDays,
+            KeywordRetentionDays = VendorPersistenceSettings.KeywordRetentionDays,
         };
     }
 
     private static string Normalize(string? raw, string defaultValue) =>
         string.IsNullOrWhiteSpace(raw) ? defaultValue : raw.Trim().ToLowerInvariant();
-
-    internal static bool ParseEnabled(string? raw, bool defaultEnabled)
-    {
-        if (string.IsNullOrWhiteSpace(raw))
-            return defaultEnabled;
-
-        return raw.Trim().ToLowerInvariant() switch
-        {
-            "0" or "false" or "no" or "off" => false,
-            "1" or "true" or "yes" or "on" => true,
-            _ => defaultEnabled,
-        };
-    }
 }

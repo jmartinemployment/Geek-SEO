@@ -66,11 +66,16 @@ public sealed class HealthController(
     {
         return Ok(new
         {
-            serpProvider = providerConfig.VendorApisEnabled ? providerConfig.SerpProvider : "disabled",
-            serpProviderFallback = providerConfig.VendorApisEnabled ? providerConfig.SerpProviderFallback : null,
-            keywordProvider = providerConfig.VendorApisEnabled ? providerConfig.KeywordProvider : "disabled",
-            rankSnapshotProvider = providerConfig.VendorApisEnabled ? providerConfig.RankSnapshotProvider : "disabled",
-            vendorApisEnabled = providerConfig.VendorApisEnabled,
+            serpProvider = providerConfig.SerpProvider,
+            serpProviderFallback = providerConfig.SerpProviderFallback,
+            keywordProvider = providerConfig.KeywordProvider,
+            rankSnapshotProvider = providerConfig.RankSnapshotProvider,
+            vendorPersistence = "database-first",
+            vendorRetentionDays = new
+            {
+                serp = providerConfig.SerpRetentionDays,
+                keywords = providerConfig.KeywordRetentionDays,
+            },
             credentials = new
             {
                 dataforseo = providerConfig.DataForSeoCredentialsConfigured,

@@ -41,6 +41,7 @@ public partial class SeoDbContext : DbContext
     public DbSet<SeoCannibalizationIssue> CannibalizationIssues => Set<SeoCannibalizationIssue>();
     public DbSet<SeoApiKey> ApiKeys => Set<SeoApiKey>();
     public DbSet<SeoSerpDeepCache> SerpDeepCache => Set<SeoSerpDeepCache>();
+    public DbSet<SeoKeywordVendorSnapshot> KeywordVendorSnapshots => Set<SeoKeywordVendorSnapshot>();
     public DbSet<SeoContentGuardPolicy> ContentGuardPolicies => Set<SeoContentGuardPolicy>();
     public DbSet<SeoContentGuardRun> ContentGuardRuns => Set<SeoContentGuardRun>();
     public DbSet<SeoOrganization> Organizations => Set<SeoOrganization>();

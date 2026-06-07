@@ -1,11 +1,14 @@
 using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
-using GeekSeoBackend.Extensions;
-using GeekSeoBackend.Providers.Seo;
+using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
 using GeekSeoBackend.Auth;
+using GeekSeoBackend.Extensions;
+using GeekSeoBackend.Providers.Seo;
 using GeekSeoBackend.Providers.Seo.Metering;
+using GeekSeoBackend.Providers.Seo.Persistence;
 using GeekSeoBackend.Providers.Seo.SerpApi;
+using GeekSeo.Persistence.Entities;
 using SubscriptionTier = GeekSeo.Application.Constants.Seo.SubscriptionTier;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -15,7 +18,7 @@ namespace GeekSeoBackend.Tests;
 public sealed class SeoProviderRegistrationTests
 {
     [Fact]
-    public void AddSeoDataProviders_with_defaults_registers_dataforseo_implementations()
+    public void AddSeoDataProviders_with_defaults_registers_database_wrapped_providers()
     {
         using var env = EnvScope.For(new Dictionary<string, string?>
         {
@@ -29,8 +32,8 @@ public sealed class SeoProviderRegistrationTests
         services.AddSeoDataProviders();
         using var sp = services.BuildServiceProvider();
 
-        Assert.IsType<DataForSEOSerpProvider>(sp.GetRequiredService<ISerpProvider>());
-        Assert.IsType<DataForSEOKeywordProvider>(sp.GetRequiredService<IKeywordProvider>());
+        Assert.IsType<DatabaseBackedSerpProvider>(sp.GetRequiredService<ISerpProvider>());
+        Assert.IsType<DatabaseBackedKeywordProvider>(sp.GetRequiredService<IKeywordProvider>());
         Assert.IsType<MeteredRankSnapshotProvider>(sp.GetRequiredService<IRankSnapshotProvider>());
         Assert.IsType<DataForSeoRankSnapshotProvider>(sp.GetRequiredService<DataForSeoRankSnapshotProvider>());
 
@@ -38,6 +41,8 @@ public sealed class SeoProviderRegistrationTests
         Assert.Equal("dataforseo", config.SerpProvider);
         Assert.Equal("dataforseo", config.KeywordProvider);
         Assert.Equal("dataforseo", config.RankSnapshotProvider);
+        Assert.Equal(30, config.SerpRetentionDays);
+        Assert.Equal(60, config.KeywordRetentionDays);
     }
 
     [Fact]
@@ -69,7 +74,7 @@ public sealed class SeoProviderRegistrationTests
         services.AddSeoDataProviders();
         using var sp = services.BuildServiceProvider();
 
-        Assert.IsType<SerpApiSerpProvider>(sp.GetRequiredService<ISerpProvider>());
+        Assert.IsType<DatabaseBackedSerpProvider>(sp.GetRequiredService<ISerpProvider>());
         Assert.IsType<MeteredRankSnapshotProvider>(sp.GetRequiredService<IRankSnapshotProvider>());
         Assert.IsType<SerpApiRankSnapshotProvider>(sp.GetRequiredService<SerpApiRankSnapshotProvider>());
     }
@@ -90,63 +95,67 @@ public sealed class SeoProviderRegistrationTests
         services.AddSeoDataProviders();
         using var sp = services.BuildServiceProvider();
 
-        Assert.IsType<FallbackSerpProvider>(sp.GetRequiredService<ISerpProvider>());
+        var serp = sp.GetRequiredService<ISerpProvider>();
+        Assert.IsType<DatabaseBackedSerpProvider>(serp);
     }
 
     [Fact]
-    public void SeoProviderConfiguration_FromEnvironment_reflects_credential_flags()
+    public void SeoProviderConfiguration_FromEnvironment_reflects_credential_and_cache_flags()
     {
         using var env = EnvScope.For(new Dictionary<string, string?>
         {
             ["DATAFORSEO_LOGIN"] = "user",
             ["DATAFORSEO_PASSWORD"] = "pass",
             [SeoProviderRegistration.SerpApiKeyEnv] = "key",
+            ["SEO_VENDOR_SERP_RETENTION_DAYS"] = "45",
+            ["SEO_VENDOR_KEYWORD_RETENTION_DAYS"] = "90",
         });
 
         var config = SeoProviderConfiguration.FromEnvironment();
         Assert.True(config.DataForSeoCredentialsConfigured);
         Assert.True(config.SerpApiKeyConfigured);
-        Assert.True(config.VendorApisEnabled);
+        Assert.Equal(45, config.SerpRetentionDays);
+        Assert.Equal(90, config.KeywordRetentionDays);
     }
-
-    [Fact]
-    public void AddSeoDataProviders_vendor_apis_disabled_registers_no_network_stubs()
-    {
-        using var env = EnvScope.For(new Dictionary<string, string?>
-        {
-            [SeoProviderRegistration.VendorApisEnabledEnv] = "false",
-            [SeoProviderRegistration.SerpProviderEnv] = "serpapi",
-            [SeoProviderRegistration.SerpApiKeyEnv] = null,
-        });
-
-        var services = CreateServiceCollection();
-        services.AddSeoDataProviders();
-        using var sp = services.BuildServiceProvider();
-
-        Assert.IsType<DisabledSerpProvider>(sp.GetRequiredService<ISerpProvider>());
-        Assert.IsType<DisabledKeywordProvider>(sp.GetRequiredService<IKeywordProvider>());
-        Assert.IsType<DisabledRankSnapshotProvider>(sp.GetRequiredService<IRankSnapshotProvider>());
-
-        var config = sp.GetRequiredService<SeoProviderConfiguration>();
-        Assert.False(config.VendorApisEnabled);
-    }
-
-    [Theory]
-    [InlineData("false", false)]
-    [InlineData("0", false)]
-    [InlineData("off", false)]
-    [InlineData("true", true)]
-    [InlineData(null, true)]
-    public void SeoProviderConfiguration_ParseEnabled(string? raw, bool expected) =>
-        Assert.Equal(expected, SeoProviderConfiguration.ParseEnabled(raw, defaultEnabled: true));
 
     private static ServiceCollection CreateServiceCollection()
     {
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddHttpClient();
         services.AddSingleton<ICurrentUserContext, TestUserContext>();
         services.AddSingleton<IUsageMeteringService, TestUsageMetering>();
+        services.AddSingleton<ISerpCacheRepository, TestSerpCacheRepository>();
+        services.AddSingleton<IKeywordVendorSnapshotRepository, TestKeywordVendorSnapshotRepository>();
         return services;
+    }
+
+    private sealed class TestSerpCacheRepository : ISerpCacheRepository
+    {
+        public Task<Result<SeoSerpResult?>> GetAsync(
+            string keyword, string location, string languageCode, CancellationToken ct = default) =>
+            Task.FromResult(Result<SeoSerpResult?>.Success(null));
+
+        public Task<Result<SeoSerpResult>> UpsertAsync(
+            string keyword, string location, string languageCode,
+            SerpResult serp, SerpBenchmarksPayload benchmarks,
+            CancellationToken ct = default) =>
+            Task.FromResult(Result<SeoSerpResult>.Failure("test stub"));
+
+        public Task<Result> DeleteAsync(
+            string keyword, string location, string languageCode, CancellationToken ct = default) =>
+            Task.FromResult(Result.Success());
+    }
+
+    private sealed class TestKeywordVendorSnapshotRepository : IKeywordVendorSnapshotRepository
+    {
+        public Task<Result<SeoKeywordVendorSnapshot?>> GetAsync(
+            string seedKeyword, string location, string languageCode, CancellationToken ct = default) =>
+            Task.FromResult(Result<SeoKeywordVendorSnapshot?>.Success(null));
+
+        public Task<Result<SeoKeywordVendorSnapshot>> UpsertAsync(
+            SeoKeywordVendorSnapshot entry, CancellationToken ct = default) =>
+            Task.FromResult(Result<SeoKeywordVendorSnapshot>.Success(entry));
     }
 
     private sealed class TestUserContext : ICurrentUserContext

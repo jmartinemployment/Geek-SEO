@@ -159,6 +159,21 @@ public sealed class SeoSerpDeepCache
     public DateTimeOffset ExpiresAt { get; set; }
 }
 
+/// <summary>
+/// Persisted DataForSEO keyword suggestion payloads keyed by seed + location (not project-scoped).
+/// </summary>
+public sealed class SeoKeywordVendorSnapshot
+{
+    public Guid Id { get; set; }
+    public required string SeedKeyword { get; set; }
+    public required string Location { get; set; }
+    public string LanguageCode { get; set; } = "en";
+    public required string Provider { get; set; }
+    public string ResultsJson { get; set; } = "[]";
+    public DateTimeOffset FetchedAt { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+}
+
 public sealed class SeoContentGuardPolicy
 {
     public Guid Id { get; set; }
