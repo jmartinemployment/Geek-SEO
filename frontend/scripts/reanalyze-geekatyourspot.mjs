@@ -85,7 +85,17 @@ try {
       assert(profile.status === 200, `profile ${profile.status}`);
       const pillarCount =
         profile.json.pillars?.length ?? profile.json.totalPillarsIdentified ?? 0;
-      console.log(`✓ complete — ${pillarCount} pillars`);
+      console.log(
+        `✓ complete — ${pillarCount} pillars (structure=${profile.json.structureStatus ?? 'n/a'} enrichment=${profile.json.enrichmentStatus ?? 'n/a'})`,
+      );
+
+      const candidates = await request(
+        'GET',
+        `/api/seo/niche-analyzer/${profileId}/topic-candidates?page=1&pageSize=5`,
+      );
+      if (candidates.status === 200) {
+        console.log(`  topic-candidates total=${candidates.json?.total ?? 0}`);
+      }
 
       const details = await request('GET', `/api/seo/niche-analyzer/${profileId}/analysis-details`);
       if (details.status === 200) {
