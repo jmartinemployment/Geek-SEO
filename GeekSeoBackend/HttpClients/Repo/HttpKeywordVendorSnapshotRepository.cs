@@ -2,11 +2,12 @@ using System.Net.Http.Json;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Results;
 using GeekSeo.Persistence.Entities;
+using GeekSeoBackend.Auth;
 using GeekSeoBackend.Infrastructure;
 
 namespace GeekSeoBackend.HttpClients.Repo;
 
-public sealed class HttpKeywordVendorSnapshotRepository(IHttpClientFactory factory) : IKeywordVendorSnapshotRepository
+public sealed class HttpKeywordVendorSnapshotRepository(IHttpClientFactory factory, ICurrentUserContext user) : IKeywordVendorSnapshotRepository
 {
     private readonly HttpClient _http = factory.CreateClient(GeekDataGateway.HttpClientName);
 
@@ -17,7 +18,7 @@ public sealed class HttpKeywordVendorSnapshotRepository(IHttpClientFactory facto
         CancellationToken ct = default)
     {
         var url =
-            $"api/seo/internal/keyword-vendor-snapshots?seedKeyword={Uri.EscapeDataString(seedKeyword)}&location={Uri.EscapeDataString(location)}&languageCode={Uri.EscapeDataString(languageCode)}";
+            $"api/seo/internal/keyword-vendor-snapshots?seedKeyword={Uri.EscapeDataString(seedKeyword)}&location={Uri.EscapeDataString(location)}&languageCode={Uri.EscapeDataString(languageCode)}&userId={user.UserId}";
         var response = await _http.GetAsync(url, ct);
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             return Result<SeoKeywordVendorSnapshot?>.Success(null);
@@ -32,7 +33,7 @@ public sealed class HttpKeywordVendorSnapshotRepository(IHttpClientFactory facto
         SeoKeywordVendorSnapshot entry,
         CancellationToken ct = default)
     {
-        var response = await _http.PutAsJsonAsync("api/seo/internal/keyword-vendor-snapshots", entry, ct);
+        var response = await _http.PutAsJsonAsync($"api/seo/internal/keyword-vendor-snapshots?userId={user.UserId}", entry, ct);
         if (!response.IsSuccessStatusCode)
             return Result<SeoKeywordVendorSnapshot>.Failure(await response.Content.ReadAsStringAsync(ct));
 

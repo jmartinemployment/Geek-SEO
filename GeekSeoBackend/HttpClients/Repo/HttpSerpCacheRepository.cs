@@ -3,11 +3,12 @@ using GeekSeo.Persistence.Entities;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
+using GeekSeoBackend.Auth;
 using GeekSeoBackend.Infrastructure;
 
 namespace GeekSeoBackend.HttpClients.Repo;
 
-public sealed class HttpSerpCacheRepository(IHttpClientFactory factory) : ISerpCacheRepository
+public sealed class HttpSerpCacheRepository(IHttpClientFactory factory, ICurrentUserContext user) : ISerpCacheRepository
 {
     private readonly HttpClient _http = factory.CreateClient(GeekDataGateway.HttpClientName);
 
@@ -15,7 +16,7 @@ public sealed class HttpSerpCacheRepository(IHttpClientFactory factory) : ISerpC
         string keyword, string location, string languageCode, CancellationToken ct = default)
     {
         var url =
-            $"api/seo/internal/serp-cache?keyword={Uri.EscapeDataString(keyword)}&location={Uri.EscapeDataString(location)}&languageCode={languageCode}";
+            $"api/seo/internal/serp-cache?keyword={Uri.EscapeDataString(keyword)}&location={Uri.EscapeDataString(location)}&languageCode={languageCode}&userId={user.UserId}";
         var response = await _http.GetAsync(url, ct);
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             return Result<SeoSerpResult?>.Success(null);
@@ -31,7 +32,7 @@ public sealed class HttpSerpCacheRepository(IHttpClientFactory factory) : ISerpC
         CancellationToken ct = default)
     {
         var response = await _http.PostAsJsonAsync(
-            "api/seo/internal/serp-cache",
+            $"api/seo/internal/serp-cache?userId={user.UserId}",
             new { keyword, location, languageCode, serp, benchmarks },
             ct);
         if (!response.IsSuccessStatusCode)
@@ -46,7 +47,7 @@ public sealed class HttpSerpCacheRepository(IHttpClientFactory factory) : ISerpC
         string keyword, string location, string languageCode, CancellationToken ct = default)
     {
         var url =
-            $"api/seo/internal/serp-cache?keyword={Uri.EscapeDataString(keyword)}&location={Uri.EscapeDataString(location)}&languageCode={languageCode}";
+            $"api/seo/internal/serp-cache?keyword={Uri.EscapeDataString(keyword)}&location={Uri.EscapeDataString(location)}&languageCode={languageCode}&userId={user.UserId}";
         var response = await _http.DeleteAsync(url, ct);
         return response.IsSuccessStatusCode
             ? Result.Success()
