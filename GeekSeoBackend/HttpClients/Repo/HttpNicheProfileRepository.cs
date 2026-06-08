@@ -47,6 +47,20 @@ public sealed class HttpNicheProfileRepository(
         return Result<NicheProfile?>.Success(value);
     }
 
+    public async Task<Result<Guid?>> GetProjectIdAsync(Guid profileId, CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/project-id?userId={user.UserId}", ct);
+        if (res.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.NoContent)
+            return Result<Guid?>.Success(null);
+        if (!res.IsSuccessStatusCode)
+            return Result<Guid?>.Failure(await ReadFailureAsync(res, ct));
+        var payload = await res.Content.ReadFromJsonAsync<ProjectIdResponse>(Json, ct);
+        return Result<Guid?>.Success(payload?.ProjectId);
+    }
+
+    private sealed record ProjectIdResponse(Guid ProjectId);
+
     public async Task<Result<NicheProfileStatusRow?>> GetStatusRowAsync(
         Guid profileId, CancellationToken ct = default)
     {

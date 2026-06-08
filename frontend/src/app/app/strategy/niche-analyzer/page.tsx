@@ -12,6 +12,7 @@ import {
   getNicheGaps,
   getNicheProgress,
   getNicheHistory,
+  SeoApiError,
   type SeoProject,
   type NicheProfileResult,
   type NicheAnalysisStatus,
@@ -143,8 +144,15 @@ export default function NicheAnalyzerPage() {
       const full = await resolveProfileWithPillars(p);
       setProfile(full);
       await loadAnalytics(full.id, isStructureComplete(full));
-    } catch {
-      // no existing profile — show form
+    } catch (e) {
+      if (e instanceof SeoApiError && e.status !== 404) {
+        setError(
+          e.status === 503
+            ? 'Analysis service is temporarily unavailable. Try again in a moment.'
+            : `Failed to load existing analysis (${e.status}).`,
+        );
+      }
+      // 404 = no existing profile, show form
     }
   }
 
