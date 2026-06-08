@@ -8,6 +8,9 @@ public interface INicheProfileRepository
 {
     Task<Result<NicheProfile>> CreateAsync(NicheProfile profile, CancellationToken ct = default);
     Task<Result<NicheProfile?>> GetByIdAsync(Guid profileId, CancellationToken ct = default);
+    Task<Result<NicheProfileStatusRow?>> GetStatusRowAsync(Guid profileId, CancellationToken ct = default);
+    Task<Result<NicheAnalysisDetailsRow?>> GetAnalysisDetailsRowAsync(
+        Guid profileId, bool includeFusion, CancellationToken ct = default);
     Task<Result<NicheProfile?>> GetLatestByProjectAsync(Guid projectId, CancellationToken ct = default);
     Task<Result<IReadOnlyList<NicheProfileSummary>>> GetHistoryAsync(Guid projectId, CancellationToken ct = default);
     Task<Result> UpdateStatusAsync(

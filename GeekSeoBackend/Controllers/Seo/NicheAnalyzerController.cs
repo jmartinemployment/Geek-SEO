@@ -42,7 +42,10 @@ public sealed class NicheAnalyzerController(
         try
         {
             user.RequireUserId();
-            var result = await profileRepo.GetByIdAsync(profileId, ct);
+            var result = await profileRepo.GetAnalysisDetailsRowAsync(
+                profileId,
+                includeFusion: false,
+                ct);
             if (!result.IsSuccess)
             {
                 logger.LogWarning(
@@ -55,13 +58,20 @@ public sealed class NicheAnalyzerController(
             if (result.Value is null)
                 return Ok(new NicheAnalysisDetails(1, [], null));
 
-            var profile = result.Value;
-            if (!NicheAnalysisDetailsPolicy.IsStepLogAvailable(profile.Status))
-                return Ok(new NicheAnalysisDetails(profile.AnalysisStepLogVersion, [], null));
+            var row = result.Value;
+            if (!NicheAnalysisDetailsPolicy.IsStepLogAvailable(row.Status))
+                return Ok(new NicheAnalysisDetails(row.AnalysisStepLogVersion, [], null));
 
-            var steps = NicheAnalysisStepLogJson.Parse(profile.AnalysisStepLog);
-            var fusion = SiteTopicProfileJson.Parse(profile.FusionSnapshot);
-            return Ok(new NicheAnalysisDetails(profile.AnalysisStepLogVersion, steps, fusion));
+            var steps = NicheAnalysisStepLogJson.Parse(row.AnalysisStepLog);
+            SiteTopicProfile? fusion = null;
+            if (row.Status is "complete")
+            {
+                var fusionResult = await profileRepo.GetAnalysisDetailsRowAsync(profileId, includeFusion: true, ct);
+                if (fusionResult.IsSuccess && fusionResult.Value?.FusionSnapshot is not null)
+                    fusion = SiteTopicProfileJson.Parse(fusionResult.Value.FusionSnapshot);
+            }
+
+            return Ok(new NicheAnalysisDetails(row.AnalysisStepLogVersion, steps, fusion));
         }
         catch (InvalidOperationException ex)
         {
@@ -80,8 +90,17 @@ public sealed class NicheAnalyzerController(
         try
         {
             user.RequireUserId();
-            var result = await profileRepo.GetByIdAsync(profileId, ct);
-            if (!result.IsSuccess || result.Value is null)
+            var result = await profileRepo.GetStatusRowAsync(profileId, ct);
+            if (!result.IsSuccess)
+            {
+                logger.LogWarning(
+                    "Status unavailable for profile {ProfileId}: {Error}",
+                    profileId,
+                    result.Error);
+                return StatusCode(503, new { error = "Status temporarily unavailable" });
+            }
+
+            if (result.Value is null)
                 return NotFound();
 
             var p = result.Value;
@@ -91,8 +110,17 @@ public sealed class NicheAnalyzerController(
                 : p.Status switch { "complete" => 14, _ => 0 };
             var totalSteps = p.AnalysisTotalSteps > 0 ? p.AnalysisTotalSteps : 14;
             return Ok(new NicheAnalysisStatus(
-                p.Id, p.Status, step, stepNumber, totalSteps, p.ErrorMessage, p.CreatedAt, p.AnalysisProgressAt,
-                p.StructureStatus, p.EnrichmentStatus, p.PersistStage));
+                p.Id,
+                p.Status,
+                step,
+                stepNumber,
+                totalSteps,
+                p.ErrorMessage,
+                p.CreatedAt,
+                p.AnalysisProgressAt,
+                p.StructureStatus,
+                p.EnrichmentStatus,
+                p.PersistStage));
         }
         catch (InvalidOperationException ex)
         {

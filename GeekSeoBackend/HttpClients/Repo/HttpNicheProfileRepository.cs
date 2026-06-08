@@ -47,6 +47,34 @@ public sealed class HttpNicheProfileRepository(
         return Result<NicheProfile?>.Success(value);
     }
 
+    public async Task<Result<NicheProfileStatusRow?>> GetStatusRowAsync(
+        Guid profileId, CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/status-snapshot?userId={user.UserId}", ct);
+        if (res.StatusCode is HttpStatusCode.NotFound)
+            return Result<NicheProfileStatusRow?>.Success(null);
+        if (!res.IsSuccessStatusCode)
+            return Result<NicheProfileStatusRow?>.Failure(await ReadFailureAsync(res, ct));
+        var value = await res.Content.ReadFromJsonAsync<NicheProfileStatusRow>(Json, ct);
+        return Result<NicheProfileStatusRow?>.Success(value);
+    }
+
+    public async Task<Result<NicheAnalysisDetailsRow?>> GetAnalysisDetailsRowAsync(
+        Guid profileId, bool includeFusion, CancellationToken ct = default)
+    {
+        var fusion = includeFusion ? "true" : "false";
+        var res = await _http.GetAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/analysis-details-snapshot?includeFusion={fusion}&userId={user.UserId}",
+            ct);
+        if (res.StatusCode is HttpStatusCode.NotFound)
+            return Result<NicheAnalysisDetailsRow?>.Success(null);
+        if (!res.IsSuccessStatusCode)
+            return Result<NicheAnalysisDetailsRow?>.Failure(await ReadFailureAsync(res, ct));
+        var value = await res.Content.ReadFromJsonAsync<NicheAnalysisDetailsRow>(Json, ct);
+        return Result<NicheAnalysisDetailsRow?>.Success(value);
+    }
+
     public async Task<Result<NicheProfile?>> GetLatestByProjectAsync(Guid projectId, CancellationToken ct = default)
     {
         var res = await _http.GetAsync(
