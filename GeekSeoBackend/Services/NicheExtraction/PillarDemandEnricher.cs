@@ -13,7 +13,7 @@ public sealed class PillarDemandEnricher(
     ISerpProvider serpProvider,
     ILogger<PillarDemandEnricher> logger)
 {
-    private const int MaxConcurrency = 4;
+    private const int MaxConcurrency = 8;
 
     public async Task<PillarDemandEnrichment> EnrichAsync(
         IReadOnlyList<DiscoveredPillar> pillars,
@@ -26,12 +26,7 @@ public sealed class PillarDemandEnricher(
         var targets = pillars.ToList();
         var siteHost = NormalizeHost(siteDomain);
 
-        var keyword = await EnrichKeywordsAsync(targets, location, onProgress, ct);
-
-        if (onProgress is not null)
-            await onProgress(0, targets.Count, "serp");
-
-        var serp = await ValidateSerpAsync(targets, siteHost, location, onProgress, ct);
+        var (keyword, serp) = await RunBothPhasesAsync(targets, siteHost, location, onProgress, ct);
         var competitors = BuildCompetitors(profileId, siteHost, serp.Validations);
         var demoted = ApplySerpDemotions(pillars, serp.Validations, out var demotedSlugs);
 
@@ -152,6 +147,22 @@ public sealed class PillarDemandEnricher(
             .FirstOrDefault();
     }
 
+    private async Task<(
+        (IReadOnlyList<PillarKeywordEnrichment> Enrichments, bool Skipped, string? SkipReason) Keyword,
+        (IReadOnlyList<PillarSerpEnrichment> Validations, bool Skipped, string? SkipReason) Serp)>
+        RunBothPhasesAsync(
+            IReadOnlyList<DiscoveredPillar> targets,
+            string siteHost,
+            string location,
+            Func<int, int, string, Task>? onProgress,
+            CancellationToken ct)
+    {
+        var keywordTask = EnrichKeywordsAsync(targets, location, onProgress, ct);
+        var serpTask = ValidateSerpAsync(targets, siteHost, location, onProgress, ct);
+        await Task.WhenAll(keywordTask, serpTask);
+        return (await keywordTask, await serpTask);
+    }
+
     private async Task<(IReadOnlyList<PillarKeywordEnrichment> Enrichments, bool Skipped, string? SkipReason)>
         EnrichKeywordsAsync(
             IReadOnlyList<DiscoveredPillar> pillars,
@@ -207,8 +218,10 @@ public sealed class PillarDemandEnricher(
 
         await Task.WhenAll(tasks);
 
+        var pillarIndex = pillars.Select((p, i) => (p.Slug, i))
+            .ToDictionary(x => x.Slug, x => x.i, StringComparer.OrdinalIgnoreCase);
         var ordered = enrichments
-            .OrderBy(e => pillars.ToList().FindIndex(p => p.Slug.Equals(e.Slug, StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(e => pillarIndex.GetValueOrDefault(e.Slug, int.MaxValue))
             .ToList();
 
         if (ordered.Count == 0)
@@ -315,8 +328,10 @@ public sealed class PillarDemandEnricher(
 
         await Task.WhenAll(tasks);
 
+        var pillarIndex = pillars.Select((p, i) => (p.Slug, i))
+            .ToDictionary(x => x.Slug, x => x.i, StringComparer.OrdinalIgnoreCase);
         var ordered = validations
-            .OrderBy(v => pillars.ToList().FindIndex(p => p.Slug.Equals(v.Slug, StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(v => pillarIndex.GetValueOrDefault(v.Slug, int.MaxValue))
             .ToList();
 
         if (ordered.Count == 0)
