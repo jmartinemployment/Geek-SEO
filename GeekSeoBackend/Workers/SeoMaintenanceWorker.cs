@@ -2,7 +2,6 @@ using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Infrastructure;
-using GeekSeoBackend.Jobs;
 using GeekSeoBackend.Services;
 
 namespace GeekSeoBackend.Workers;
@@ -10,6 +9,7 @@ namespace GeekSeoBackend.Workers;
 public sealed class SeoMaintenanceWorker(
     IServiceProvider services,
     WorkerUserContext workerUser,
+    NicheAnalysisJobChannel nicheChannel,
     ILogger<SeoMaintenanceWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -152,8 +152,6 @@ public sealed class SeoMaintenanceWorker(
         // Monthly niche re-analysis (daily check, triggers when next_analysis_due <= now)
         workerUser.UserId = serviceUserId;
         var nicheRepo = scope.ServiceProvider.GetRequiredService<INicheProfileRepository>();
-        var nicheJob = scope.ServiceProvider.GetRequiredService<NicheAnalysisBackgroundJob>();
-        var playwrightHolder = scope.ServiceProvider.GetService<PlaywrightBrowserHolder>();
 
         var dueProfiles = await nicheRepo.ListDueForReanalysisAsync(5, ct);
         if (dueProfiles.IsSuccess && dueProfiles.Value is not null)
@@ -162,16 +160,18 @@ public sealed class SeoMaintenanceWorker(
             {
                 try
                 {
-                    var profileResult = await nicheRepo.GetByIdAsync(summary.Id, ct);
-                    if (!profileResult.IsSuccess || profileResult.Value is null) continue;
-
-                    var payload = new NicheAnalysisJobPayload(summary.Id, serviceUserId, profileResult.Value.Domain);
-                    await nicheJob.RunAsync(payload, ct);
-                    logger.LogInformation("Monthly niche re-analysis complete for profile {ProfileId}", summary.Id);
+                    var queued = await nicheRepo.UpdateStatusAsync(summary.Id, "queued", ct: ct);
+                    if (!queued.IsSuccess)
+                    {
+                        logger.LogWarning("Could not queue niche profile {ProfileId} for re-analysis: {Error}", summary.Id, queued.Error);
+                        continue;
+                    }
+                    nicheChannel.Notify();
+                    logger.LogInformation("Queued niche profile {ProfileId} for monthly re-analysis", summary.Id);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning(ex, "Monthly niche re-analysis failed for profile {ProfileId}", summary.Id);
+                    logger.LogWarning(ex, "Failed to queue niche profile {ProfileId} for re-analysis", summary.Id);
                 }
             }
         }

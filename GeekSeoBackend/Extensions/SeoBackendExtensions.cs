@@ -26,6 +26,9 @@ public static class SeoBackendExtensions
         services.AddSingleton<WorkerUserContext>();
         services.AddSingleton<IBackgroundUserContext>(sp => sp.GetRequiredService<WorkerUserContext>());
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();
+        services.AddSingleton<FullArticleJobChannel>();
+        services.AddSingleton<BulkArticleJobChannel>();
+        services.AddSingleton<NicheAnalysisJobChannel>();
 
         // Persistence via GeekAPI → GeekRepository (dumb data pipe)
         services.AddScoped<IProjectRepository, HttpProjectRepository>();

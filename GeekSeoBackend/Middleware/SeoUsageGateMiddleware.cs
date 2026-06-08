@@ -2,16 +2,20 @@ using GeekSeoBackend.Auth;
 using GeekSeo.Application.Constants.Seo;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Results;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace GeekSeoBackend.Middleware;
 
 public sealed class SeoUsageGateMiddleware(RequestDelegate next)
 {
+    private static readonly TimeSpan TierCacheTtl = TimeSpan.FromMinutes(5);
+
     public async Task InvokeAsync(
         HttpContext context,
         IUsageMeteringService metering,
         ISubscriptionService subscriptions,
-        ICurrentUserContext userContext)
+        ICurrentUserContext userContext,
+        IMemoryCache cache)
     {
         var path = context.Request.Path.Value ?? string.Empty;
         var feature = MeteredRoutes.GetFeatureKey(context.Request.Method, path);
@@ -34,13 +38,23 @@ public sealed class SeoUsageGateMiddleware(RequestDelegate next)
         }
 
         Result<SubscriptionTier> tierResult;
-        try
+        var tierCacheKey = $"tier:{userId}";
+        if (cache.TryGetValue(tierCacheKey, out SubscriptionTier cachedTier))
         {
-            tierResult = await subscriptions.GetActiveTierAsync(userId);
+            tierResult = Result<SubscriptionTier>.Success(cachedTier);
         }
-        catch
+        else
         {
-            tierResult = Result<SubscriptionTier>.Success(SubscriptionTier.Starter);
+            try
+            {
+                tierResult = await subscriptions.GetActiveTierAsync(userId);
+                if (tierResult.IsSuccess)
+                    cache.Set(tierCacheKey, tierResult.Value!, TierCacheTtl);
+            }
+            catch
+            {
+                tierResult = Result<SubscriptionTier>.Success(SubscriptionTier.Starter);
+            }
         }
 
         if (!tierResult.IsSuccess)

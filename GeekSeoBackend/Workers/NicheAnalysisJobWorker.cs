@@ -5,71 +5,87 @@ using GeekSeoBackend.Jobs;
 
 namespace GeekSeoBackend.Workers;
 
-/// <summary>
-/// Picks up niche_profiles with status <c>queued</c> and runs analysis.
-/// Replaces fire-and-forget Task.Run on the HTTP request (unreliable on serverless hosts).
-/// </summary>
 public sealed class NicheAnalysisJobWorker(
     IServiceProvider services,
     WorkerUserContext workerUser,
+    NicheAnalysisJobChannel channel,
     ILogger<NicheAnalysisJobWorker> logger) : BackgroundService
 {
     private static readonly TimeSpan StaleProcessingAge = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan JobTimeout = TimeSpan.FromMinutes(15);
+    private const int BatchSize = 3;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested)
+        if (!TryResolveWorkerUserId(out var serviceUserId))
         {
+            logger.LogWarning("WORKER_SERVICE_USER_ID not set — NicheAnalysisJobWorker idle");
+            return;
+        }
+
+        await DrainExistingAsync(serviceUserId, stoppingToken);
+
+        await foreach (var _ in channel.Reader.ReadAllAsync(stoppingToken))
+        {
+            workerUser.UserId = serviceUserId;
             try
             {
-                await ProcessQueuedAsync(stoppingToken);
+                await ProcessQueuedAsync(serviceUserId, stoppingToken);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "NicheAnalysisJobWorker iteration failed");
             }
-
-            await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+            finally
+            {
+                workerUser.UserId = Guid.Empty;
+            }
         }
     }
 
-    private async Task ProcessQueuedAsync(CancellationToken ct)
+    private async Task DrainExistingAsync(Guid serviceUserId, CancellationToken ct)
     {
-        if (!TryResolveWorkerUserId(out var serviceUserId))
+        try
         {
-            logger.LogDebug("WORKER_SERVICE_USER_ID not set — niche analysis queue idle");
-            return;
-        }
+            workerUser.UserId = serviceUserId;
+            using var scope = services.CreateScope();
+            var nicheRepo = scope.ServiceProvider.GetRequiredService<INicheProfileRepository>();
 
+            var stale = await nicheRepo.FailStaleProcessingAsync(StaleProcessingAge, ct);
+            if (stale.IsSuccess && stale.Value > 0)
+                logger.LogWarning("Startup: marked {Count} stale niche profile(s) as failed", stale.Value);
+
+            var queued = await nicheRepo.ListQueuedAsync(50, ct);
+            if (queued.IsSuccess && queued.Value is { Count: > 0 })
+            {
+                foreach (var _ in queued.Value)
+                    channel.Notify();
+                logger.LogInformation("NicheAnalysisJobWorker: {Count} queued profile(s) found on startup", queued.Value.Count);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "NicheAnalysisJobWorker startup drain failed");
+        }
+        finally
+        {
+            workerUser.UserId = Guid.Empty;
+        }
+    }
+
+    private async Task ProcessQueuedAsync(Guid serviceUserId, CancellationToken ct)
+    {
         using var scope = services.CreateScope();
         var nicheRepo = scope.ServiceProvider.GetRequiredService<INicheProfileRepository>();
         var nicheJob = scope.ServiceProvider.GetRequiredService<NicheAnalysisBackgroundJob>();
 
-        // Must set before any repo HTTP call — CurrentUserContext reads WorkerUserContext.
-        workerUser.UserId = serviceUserId;
-
         var stale = await nicheRepo.FailStaleProcessingAsync(StaleProcessingAge, ct);
-        if (!stale.IsSuccess)
-        {
-            logger.LogDebug(
-                "Stale niche cleanup skipped (repo may not support it yet): {Error}",
-                stale.Error);
-        }
-        else if (stale.Value > 0)
-        {
-            logger.LogWarning(
-                "Marked {Count} stale niche analysis profile(s) as failed (no progress for {Minutes} min)",
-                stale.Value,
-                StaleProcessingAge.TotalMinutes);
-        }
+        if (stale.IsSuccess && stale.Value > 0)
+            logger.LogWarning("Marked {Count} stale niche profile(s) as failed", stale.Value);
 
-        var queued = await nicheRepo.ListQueuedAsync(3, ct);
+        var queued = await nicheRepo.ListQueuedAsync(BatchSize, ct);
         if (!queued.IsSuccess || queued.Value is null || queued.Value.Count == 0)
-        {
-            workerUser.UserId = Guid.Empty;
             return;
-        }
 
         foreach (var item in queued.Value)
         {
@@ -80,9 +96,7 @@ public sealed class NicheAnalysisJobWorker(
                     item.ProfileId, "processing", step: "schema", stepNumber: 1, totalSteps: 14, ct: ct);
                 if (!claim.IsSuccess)
                 {
-                    logger.LogWarning(
-                        "Could not claim niche profile {ProfileId}: {Error}",
-                        item.ProfileId, claim.Error);
+                    logger.LogWarning("Could not claim niche profile {ProfileId}: {Error}", item.ProfileId, claim.Error);
                     continue;
                 }
 
@@ -98,7 +112,7 @@ public sealed class NicheAnalysisJobWorker(
             }
         }
 
-        workerUser.UserId = Guid.Empty;
+        workerUser.UserId = serviceUserId;
     }
 
     private static bool TryResolveWorkerUserId(out Guid userId)

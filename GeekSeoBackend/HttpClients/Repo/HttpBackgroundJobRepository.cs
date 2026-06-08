@@ -72,7 +72,7 @@ public sealed class HttpBackgroundJobRepository(IHttpClientFactory factory, ICur
         string jobType, int limit, CancellationToken ct = default)
     {
         var response = await _http.GetAsync(
-            $"api/seo/internal/jobs/pending?jobType={Uri.EscapeDataString(jobType)}&limit={limit}",
+            $"api/seo/internal/jobs/pending?jobType={Uri.EscapeDataString(jobType)}&limit={limit}&userId={user.UserId}",
             ct);
         if (!response.IsSuccessStatusCode)
             return Result<IReadOnlyList<SeoBackgroundJob>>.Failure(await response.Content.ReadAsStringAsync(ct));

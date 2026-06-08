@@ -3,6 +3,7 @@ using GeekSeo.Application.Models.Seo;
 using GeekSeo.Persistence.Entities;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Extensions;
+using GeekSeoBackend.Infrastructure;
 using GeekSeoBackend.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,6 +15,7 @@ public sealed class NicheAnalyzerController(
     NicheAnalyzerService analyzer,
     INicheProfileRepository profileRepo,
     INicheAnalyticsDapperRepository analyticsRepo,
+    NicheAnalysisJobChannel nicheChannel,
     ICurrentUserContext user,
     ILogger<NicheAnalyzerController> logger) : ControllerBase
 {
@@ -26,8 +28,7 @@ public sealed class NicheAnalyzerController(
         {
             var userId = user.RequireUserId();
             var profileId = await analyzer.EnqueueAsync(userId, request.ProjectId, request.Domain, request.SeedTopic, ct);
-
-            // NicheAnalysisJobWorker dequeues profiles with status "queued" (every ~5s).
+            nicheChannel.Notify();
             return Ok(new { profileId, status = "queued" });
         }
         catch (InvalidOperationException ex)

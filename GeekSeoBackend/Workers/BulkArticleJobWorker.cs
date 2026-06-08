@@ -2,6 +2,7 @@ using System.Text.Json;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeoBackend.Auth;
+using GeekSeoBackend.Infrastructure;
 using GeekSeoBackend.Services;
 
 namespace GeekSeoBackend.Workers;
@@ -9,28 +10,65 @@ namespace GeekSeoBackend.Workers;
 public sealed class BulkArticleJobWorker(
     IServiceProvider services,
     WorkerUserContext workerUser,
+    BulkArticleJobChannel channel,
     ILogger<BulkArticleJobWorker> logger) : BackgroundService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested)
+        if (!TryResolveWorkerUserId(out var serviceUserId))
         {
+            logger.LogWarning("WORKER_SERVICE_USER_ID not set — BulkArticleJobWorker idle");
+            return;
+        }
+
+        await DrainExistingAsync(serviceUserId, stoppingToken);
+
+        await foreach (var _ in channel.Reader.ReadAllAsync(stoppingToken))
+        {
+            workerUser.UserId = serviceUserId;
             try
             {
-                await ProcessPendingAsync(stoppingToken);
+                await ProcessNextAsync(stoppingToken);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "BulkArticleJobWorker iteration failed");
             }
-
-            await Task.Delay(TimeSpan.FromSeconds(6), stoppingToken);
+            finally
+            {
+                workerUser.UserId = Guid.Empty;
+            }
         }
     }
 
-    private async Task ProcessPendingAsync(CancellationToken ct)
+    private async Task DrainExistingAsync(Guid serviceUserId, CancellationToken ct)
+    {
+        try
+        {
+            workerUser.UserId = serviceUserId;
+            using var scope = services.CreateScope();
+            var jobs = scope.ServiceProvider.GetRequiredService<IBackgroundJobRepository>();
+            var pending = await jobs.GetPendingAsync("bulk_article", 50, ct);
+            if (pending.IsSuccess && pending.Value is { Count: > 0 })
+            {
+                foreach (var _ in pending.Value)
+                    channel.Notify();
+                logger.LogInformation("BulkArticleJobWorker: {Count} queued job(s) found on startup", pending.Value.Count);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "BulkArticleJobWorker startup drain failed");
+        }
+        finally
+        {
+            workerUser.UserId = Guid.Empty;
+        }
+    }
+
+    private async Task ProcessNextAsync(CancellationToken ct)
     {
         using var scope = services.CreateScope();
         var jobs = scope.ServiceProvider.GetRequiredService<IBackgroundJobRepository>();
@@ -49,7 +87,6 @@ public sealed class BulkArticleJobWorker(
         if (payload is null || payload.Keywords.Count == 0)
         {
             await jobs.MarkFailedAsync(job.Id, "Invalid bulk job payload", ct);
-            workerUser.UserId = Guid.Empty;
             return;
         }
 
@@ -62,59 +99,48 @@ public sealed class BulkArticleJobWorker(
             var progress = (int)Math.Round((i / (double)total) * 90) + 5;
             await jobs.UpdateProgressAsync(job.Id, progress, ct);
 
-            var title = keyword;
             var htmlResult = await ArticleGenerationPipeline.GenerateHtmlAsync(
-                job.UserId,
-                payload.ProjectId,
-                keyword,
-                payload.Location,
-                title,
-                briefs,
-                writing,
-                ct);
+                job.UserId, payload.ProjectId, keyword, payload.Location, keyword,
+                briefs, writing, ct);
 
             if (!htmlResult.IsSuccess || htmlResult.Value is null)
             {
                 await jobs.MarkFailedAsync(job.Id, $"Failed on \"{keyword}\": {htmlResult.Error}", ct);
-                workerUser.UserId = Guid.Empty;
                 return;
             }
 
-            var create = await documents.CreateAsync(
-                job.UserId,
-                new CreateContentDocumentRequest
-                {
-                    ProjectId = payload.ProjectId,
-                    Title = title,
-                    TargetKeyword = keyword,
-                    TargetLocation = payload.Location,
-                },
-                ct);
+            var create = await documents.CreateAsync(job.UserId, new CreateContentDocumentRequest
+            {
+                ProjectId = payload.ProjectId,
+                Title = keyword,
+                TargetKeyword = keyword,
+                TargetLocation = payload.Location,
+            }, ct);
 
             if (!create.IsSuccess || create.Value is null)
             {
                 await jobs.MarkFailedAsync(job.Id, create.Error ?? "Failed to create document", ct);
-                workerUser.UserId = Guid.Empty;
                 return;
             }
 
             lastDocId = create.Value.Id;
-            var updated = await documents.UpdateContentAsync(
-                job.UserId,
-                lastDocId.Value,
-                new UpdateContentRequest { ContentHtml = htmlResult.Value },
-                ct);
+            var updated = await documents.UpdateContentAsync(job.UserId, lastDocId.Value,
+                new UpdateContentRequest { ContentHtml = htmlResult.Value }, ct);
 
             if (!updated.IsSuccess)
             {
                 await jobs.MarkFailedAsync(job.Id, updated.Error ?? "Failed to save content", ct);
-                workerUser.UserId = Guid.Empty;
                 return;
             }
         }
 
         await jobs.MarkCompleteAsync(job.Id, lastDocId, ct);
         logger.LogInformation("Bulk article job {JobId} completed {Count} articles", job.Id, total);
-        workerUser.UserId = Guid.Empty;
+    }
+
+    private static bool TryResolveWorkerUserId(out Guid userId)
+    {
+        var raw = Environment.GetEnvironmentVariable("WORKER_SERVICE_USER_ID");
+        return Guid.TryParse(raw, out userId) && userId != Guid.Empty;
     }
 }
