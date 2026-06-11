@@ -523,10 +523,12 @@ public sealed class NicheAnalyzerController(
             }).ToList(),
             PaaQuestions = TryDeserialize<List<PaaQuestionItem>>(pi.PaaQuestionsJson) ?? [],
             RelatedSearches = TryDeserialize<List<string>>(pi.RelatedSearchesJson) ?? [],
+            LocalPaaQuestions = TryDeserialize<List<PaaQuestionItem>>(pi.LocalPaaQuestionsJson) ?? [],
+            LocalRelatedSearches = TryDeserialize<List<string>>(pi.LocalRelatedSearchesJson) ?? [],
         }).ToList(),
         Competitors = p.Competitors.Select(c => new NicheCompetitorResult(
             c.Id, c.Domain, c.SerpPresence, c.EstimatedAuthorityScore,
-            c.PillarsRanking, c.StrengthAssessment)).ToList(),
+            c.PillarsRanking, c.StrengthAssessment, c.Scope)).ToList(),
         Entities = p.Entities.Select(e => new NicheEntityResult(
             e.Id, e.EntityName, e.EntityType,
             e.MentionFrequency, e.PresentOnDomain, e.AssociatedPillarIds)).ToList(),

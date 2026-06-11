@@ -84,6 +84,10 @@ public sealed class NichePillar
     public string PaaQuestionsJson { get; set; } = "[]";
     /// <summary>JSON array of related search strings from SERP (People Also Search For).</summary>
     public string RelatedSearchesJson { get; set; } = "[]";
+    /// <summary>PAA from geo-targeted local SERP.</summary>
+    public string LocalPaaQuestionsJson { get; set; } = "[]";
+    /// <summary>Related searches from geo-targeted local SERP.</summary>
+    public string LocalRelatedSearchesJson { get; set; } = "[]";
 
     [ValidateNever]
     public NicheProfile? NicheProfile { get; set; }
@@ -123,6 +127,8 @@ public sealed class NicheCompetitor
     public decimal EstimatedAuthorityScore { get; set; }
     public int PillarsRanking { get; set; }
     public string StrengthAssessment { get; set; } = "moderate";
+    /// <summary>national | local | both</summary>
+    public string Scope { get; set; } = "national";
 
     [ValidateNever]
     public NicheProfile? NicheProfile { get; set; }

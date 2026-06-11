@@ -597,13 +597,8 @@ public sealed class NicheAnalyzerService(
             metricsBySlug.TryGetValue(p.Slug, out var metrics);
             serpBySlug.TryGetValue(p.Slug, out var serp);
 
-            var paaJson = serp?.PaaQuestions is { Count: > 0 }
-                ? System.Text.Json.JsonSerializer.Serialize(serp.PaaQuestions)
-                : "[]";
-
-            var relatedJson = serp?.RelatedSearches is { Count: > 0 }
-                ? System.Text.Json.JsonSerializer.Serialize(serp.RelatedSearches)
-                : "[]";
+            static string ToJson<T>(IReadOnlyList<T>? list) =>
+                list is { Count: > 0 } ? System.Text.Json.JsonSerializer.Serialize(list) : "[]";
 
             return new NichePillar
             {
@@ -619,8 +614,10 @@ public sealed class NicheAnalyzerService(
                 RequiredSubtopicCount = Math.Max(p.ChildPageCount, 5),
                 SearchVolume = metrics?.SearchVolume ?? 0,
                 KeywordDifficulty = metrics?.KeywordDifficulty ?? 0m,
-                PaaQuestionsJson = paaJson,
-                RelatedSearchesJson = relatedJson,
+                PaaQuestionsJson = ToJson(serp?.PaaQuestions),
+                RelatedSearchesJson = ToJson(serp?.RelatedSearches),
+                LocalPaaQuestionsJson = ToJson(serp?.LocalPaaQuestions),
+                LocalRelatedSearchesJson = ToJson(serp?.LocalRelatedSearches),
             };
         }).ToList();
     }

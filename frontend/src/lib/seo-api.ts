@@ -1646,6 +1646,8 @@ export type NichePillarResult = {
   subtopics: NicheSubtopicResult[];
   paaQuestions: PaaQuestionItem[];
   relatedSearches: string[];
+  localPaaQuestions: PaaQuestionItem[];
+  localRelatedSearches: string[];
 };
 
 export type NicheProfileResult = {
@@ -1680,6 +1682,7 @@ export type NicheCompetitorResult = {
   estimatedAuthorityScore: number;
   pillarsRanking: number;
   strengthAssessment: string;
+  scope: 'national' | 'local' | 'both';
 };
 
 export type NicheEntityResult = {

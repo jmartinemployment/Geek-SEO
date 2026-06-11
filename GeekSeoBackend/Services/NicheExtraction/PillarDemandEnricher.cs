@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
+using GeekSeo.Application.Results;
 using GeekSeo.Persistence.Entities;
 
 namespace GeekSeoBackend.Services.NicheExtraction;
@@ -86,47 +87,69 @@ public sealed class PillarDemandEnricher(
         if (serpEnrichments.Count == 0)
             return [];
 
-        var presence = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        // national presence count
+        var national = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        // local presence count
+        var local = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var rankingPillars = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var validation in serpEnrichments)
+        foreach (var v in serpEnrichments)
         {
-            foreach (var domain in validation.TopCompetitorDomains)
+            foreach (var domain in v.TopCompetitorDomains)
             {
-                if (string.IsNullOrWhiteSpace(domain)
-                    || IsSameSite(domain, siteHost))
-                    continue;
+                if (string.IsNullOrWhiteSpace(domain) || IsSameSite(domain, siteHost)) continue;
+                national[domain] = national.GetValueOrDefault(domain) + 1;
+                TrackPillar(rankingPillars, domain, v.Slug);
+            }
 
-                presence[domain] = presence.GetValueOrDefault(domain) + 1;
-                if (!rankingPillars.TryGetValue(domain, out var slugs))
-                {
-                    slugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    rankingPillars[domain] = slugs;
-                }
-
-                slugs.Add(validation.Slug);
+            foreach (var domain in v.LocalCompetitorDomains ?? [])
+            {
+                if (string.IsNullOrWhiteSpace(domain) || IsSameSite(domain, siteHost)) continue;
+                local[domain] = local.GetValueOrDefault(domain) + 1;
+                TrackPillar(rankingPillars, domain, v.Slug);
             }
         }
 
-        return presence
-            .OrderByDescending(kvp => kvp.Value)
-            .ThenBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase)
-            .Select(kvp =>
+        var allDomains = national.Keys
+            .Concat(local.Keys)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(d => (national.GetValueOrDefault(d) + local.GetValueOrDefault(d)))
+            .ThenBy(d => d, StringComparer.OrdinalIgnoreCase);
+
+        return allDomains.Select(domain =>
+        {
+            var inNational = national.ContainsKey(domain);
+            var inLocal = local.ContainsKey(domain);
+            var totalPresence = national.GetValueOrDefault(domain) + local.GetValueOrDefault(domain);
+            var scope = (inNational, inLocal) switch
             {
-                var count = kvp.Value;
-                var pillarsRanking = rankingPillars.GetValueOrDefault(kvp.Key)?.Count ?? 0;
-                return new NicheCompetitor
-                {
-                    Id = Guid.NewGuid(),
-                    NicheProfileId = profileId,
-                    Domain = kvp.Key,
-                    SerpPresence = count,
-                    PillarsRanking = pillarsRanking,
-                    StrengthAssessment = AssessStrength(count),
-                    EstimatedAuthorityScore = Math.Min(count * 15m, 100m),
-                };
-            })
-            .ToList();
+                (true, true) => "both",
+                (false, true) => "local",
+                _ => "national",
+            };
+
+            return new NicheCompetitor
+            {
+                Id = Guid.NewGuid(),
+                NicheProfileId = profileId,
+                Domain = domain,
+                SerpPresence = totalPresence,
+                PillarsRanking = rankingPillars.GetValueOrDefault(domain)?.Count ?? 0,
+                StrengthAssessment = AssessStrength(totalPresence),
+                EstimatedAuthorityScore = Math.Min(totalPresence * 15m, 100m),
+                Scope = scope,
+            };
+        }).ToList();
+    }
+
+    private static void TrackPillar(Dictionary<string, HashSet<string>> map, string domain, string slug)
+    {
+        if (!map.TryGetValue(domain, out var slugs))
+        {
+            slugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            map[domain] = slugs;
+        }
+        slugs.Add(slug);
     }
 
     internal static KeywordResult? PickBestKeywordMatch(
@@ -238,6 +261,8 @@ public sealed class PillarDemandEnricher(
         return (ordered, false, null);
     }
 
+    private const string NationalLocation = "United States";
+
     private async Task<(IReadOnlyList<PillarSerpEnrichment> Validations, bool Skipped, string? SkipReason)>
         ValidateSerpAsync(
             IReadOnlyList<DiscoveredPillar> pillars,
@@ -246,6 +271,9 @@ public sealed class PillarDemandEnricher(
             Func<int, int, string, Task>? onProgress,
             CancellationToken ct)
     {
+        var isLocal = !string.IsNullOrWhiteSpace(location)
+            && !location.Equals(NationalLocation, StringComparison.OrdinalIgnoreCase);
+
         var validations = new ConcurrentBag<PillarSerpEnrichment>();
         var failures = 0;
         var attempted = 0;
@@ -260,18 +288,23 @@ public sealed class PillarDemandEnricher(
             {
                 Interlocked.Increment(ref attempted);
                 var keyword = pillar.Name.Trim();
-                var request = new SerpRequest
-                {
-                    Keyword = keyword,
-                    Location = location,
-                    ResultCount = 10,
-                };
 
-                var result = await serpProvider.GetSerpResultsAsync(request, ct);
-                if (!result.IsSuccess || result.Value is null)
+                var nationalRequest = new SerpRequest { Keyword = keyword, Location = NationalLocation, ResultCount = 10 };
+                var nationalTask = serpProvider.GetSerpResultsAsync(nationalRequest, ct);
+
+                Result<SerpResult>? localResult = null;
+                if (isLocal)
+                {
+                    var localRequest = new SerpRequest { Keyword = keyword, Location = location, ResultCount = 10 };
+                    localResult = await serpProvider.GetSerpResultsAsync(localRequest, ct);
+                }
+
+                var nationalResult = await nationalTask;
+
+                if (!nationalResult.IsSuccess || nationalResult.Value is null)
                 {
                     Interlocked.Increment(ref failures);
-                    firstError ??= result.Error;
+                    firstError ??= nationalResult.Error;
                     validations.Add(new PillarSerpEnrichment(
                         pillar.Slug,
                         HasSerpFootprint: true,
@@ -280,32 +313,46 @@ public sealed class PillarDemandEnricher(
                         SitePosition: null,
                         TopCompetitorDomains: [],
                         serpProvider.ProviderName,
-                        result.Error,
+                        nationalResult.Error,
                         []));
                     return;
                 }
 
-                var organic = result.Value.OrganicResults;
-                var expectedTopics = SerpEntityExtractor.ExtractTopicSlugs(result.Value);
+                var organic = nationalResult.Value.OrganicResults;
+                var expectedTopics = SerpEntityExtractor.ExtractTopicSlugs(nationalResult.Value);
                 var hasFootprint = organic.Count > 0;
                 int? sitePosition = null;
                 foreach (var row in organic)
                 {
                     var domain = DomainFromUrl(row.Url) ?? row.Domain;
-                    if (domain is null || !IsSameSite(domain, siteHost))
-                        continue;
-
+                    if (domain is null || !IsSameSite(domain, siteHost)) continue;
                     sitePosition = row.Position;
                     break;
                 }
 
-                var topDomains = organic
+                var nationalDomains = organic
                     .Select(r => DomainFromUrl(r.Url) ?? r.Domain)
-                    .Where(d => !string.IsNullOrWhiteSpace(d))
+                    .Where(d => !string.IsNullOrWhiteSpace(d) && CompetitorDomainFilter.IsCompetitor(d!))
                     .Select(d => d!)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .Take(5)
                     .ToList();
+
+                List<string>? localDomains = null;
+                IReadOnlyList<PeopleAlsoAskResult>? localPaa = null;
+                IReadOnlyList<string>? localRelated = null;
+
+                if (localResult?.IsSuccess == true && localResult.Value is not null)
+                {
+                    var localOrganic = localResult.Value.OrganicResults;
+                    localDomains = localOrganic
+                        .Select(r => DomainFromUrl(r.Url) ?? r.Domain)
+                        .Where(d => !string.IsNullOrWhiteSpace(d) && CompetitorDomainFilter.IsCompetitor(d!))
+                        .Select(d => d!)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    localPaa = localResult.Value.PeopleAlsoAsk.Count > 0 ? localResult.Value.PeopleAlsoAsk : null;
+                    localRelated = localResult.Value.RelatedSearches.Count > 0 ? localResult.Value.RelatedSearches : null;
+                }
 
                 validations.Add(new PillarSerpEnrichment(
                     pillar.Slug,
@@ -313,12 +360,15 @@ public sealed class PillarDemandEnricher(
                     organic.Count,
                     sitePosition.HasValue,
                     sitePosition,
-                    topDomains,
+                    nationalDomains,
                     serpProvider.ProviderName,
                     null,
                     expectedTopics,
-                    result.Value.PeopleAlsoAsk.Count > 0 ? result.Value.PeopleAlsoAsk : null,
-                    result.Value.RelatedSearches.Count > 0 ? result.Value.RelatedSearches : null));
+                    nationalResult.Value.PeopleAlsoAsk.Count > 0 ? nationalResult.Value.PeopleAlsoAsk : null,
+                    nationalResult.Value.RelatedSearches.Count > 0 ? nationalResult.Value.RelatedSearches : null,
+                    localDomains,
+                    localPaa,
+                    localRelated));
             }
             finally
             {
@@ -416,4 +466,7 @@ public sealed record PillarSerpEnrichment(
     string? Error = null,
     IReadOnlyList<string>? ExpectedTopicSlugs = null,
     IReadOnlyList<PeopleAlsoAskResult>? PaaQuestions = null,
-    IReadOnlyList<string>? RelatedSearches = null);
+    IReadOnlyList<string>? RelatedSearches = null,
+    IReadOnlyList<string>? LocalCompetitorDomains = null,
+    IReadOnlyList<PeopleAlsoAskResult>? LocalPaaQuestions = null,
+    IReadOnlyList<string>? LocalRelatedSearches = null);

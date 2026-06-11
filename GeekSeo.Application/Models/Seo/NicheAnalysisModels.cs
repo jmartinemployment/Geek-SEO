@@ -103,6 +103,8 @@ public record NichePillarResult
     public IReadOnlyList<NicheSubtopicResult> Subtopics { get; init; } = [];
     public IReadOnlyList<PaaQuestionItem> PaaQuestions { get; init; } = [];
     public IReadOnlyList<string> RelatedSearches { get; init; } = [];
+    public IReadOnlyList<PaaQuestionItem> LocalPaaQuestions { get; init; } = [];
+    public IReadOnlyList<string> LocalRelatedSearches { get; init; } = [];
 }
 
 public record PaaQuestionItem(string Question, string? Answer, string? SourceUrl, string? SourceTitle);
@@ -125,7 +127,8 @@ public record NicheSubtopicResult
 
 public record NicheCompetitorResult(
     Guid Id, string Domain, int SerpPresence,
-    decimal EstimatedAuthorityScore, int PillarsRanking, string StrengthAssessment);
+    decimal EstimatedAuthorityScore, int PillarsRanking, string StrengthAssessment,
+    string Scope = "national");
 
 public record NicheEntityResult(
     Guid Id, string EntityName, string EntityType,
