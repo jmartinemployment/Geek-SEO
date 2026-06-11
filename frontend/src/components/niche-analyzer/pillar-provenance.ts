@@ -265,7 +265,7 @@ export const OUTPUT_LABELS: Record<string, string> = {
   pillarsWithFootprint: 'Pillars with organic SERP results',
   pillarsDemoted: 'Pillars demoted (no SERP footprint)',
   competitorCount: 'Competitor domains from SERP',
-  sampleCompetitors: 'Sample competitors',
+  sampleCompetitors: 'Competitors found in SERP',
   siteRanksCount: 'Pillars where your site ranks',
   pagesCrawled: 'Pages crawled for structure signals',
   internalLinkCount: 'Internal links parsed',

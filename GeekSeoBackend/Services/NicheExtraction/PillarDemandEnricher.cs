@@ -111,7 +111,6 @@ public sealed class PillarDemandEnricher(
         return presence
             .OrderByDescending(kvp => kvp.Value)
             .ThenBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase)
-            .Take(20)
             .Select(kvp =>
             {
                 var count = kvp.Value;
