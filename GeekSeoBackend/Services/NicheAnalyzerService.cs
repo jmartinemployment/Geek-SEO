@@ -45,6 +45,19 @@ public sealed class NicheAnalyzerService(
         Guid userId, Guid projectId, string domain,
         string? seedTopic = null, CancellationToken ct = default)
     {
+        // Prevent duplicate runs — return existing queued/processing profile
+        var latest = await profileRepo.GetLatestByProjectAsync(projectId, ct);
+        if (latest.IsSuccess && latest.Value is not null)
+        {
+            var s = latest.Value.Status;
+            if (s is "queued" or "processing")
+                return latest.Value.Id;
+
+            // Supersede previous complete/failed profile so UI always shows one active row
+            if (s is "complete" or "failed")
+                await profileRepo.UpdateStatusAsync(latest.Value.Id, "superseded", ct: ct);
+        }
+
         var siteUrl = await ResolveSiteUrlAsync(projectId, domain, ct);
         var profile = new NicheProfile
         {
@@ -283,8 +296,8 @@ public sealed class NicheAnalyzerService(
             var serpMessage = demand.SerpSkipped
                 ? $"SERP validation skipped — {demand.SerpSkipReason ?? "provider unavailable"}."
                 : demand.DemotedSlugs.Count > 0
-                    ? $"SERP validation ({demand.SerpProvider}): {demand.SerpValidations.Count(v => v.HasSerpFootprint)} pillar(s) with footprint, {demand.DemotedSlugs.Count} demoted, {demand.Competitors.Count} competitor(s) found."
-                    : $"SERP validation ({demand.SerpProvider}): {demand.SerpValidations.Count(v => v.HasSerpFootprint)} pillar(s) with organic footprint, {demand.Competitors.Count} competitor(s) found.";
+                    ? $"SERP validation ({demand.SerpProvider}): {demand.SerpValidations.Count} pillar(s) checked, {demand.DemotedSlugs.Count} demoted, {demand.Competitors.Count} competitor(s) found."
+                    : $"SERP validation ({demand.SerpProvider}): {demand.SerpValidations.Count} pillar(s) checked, {demand.Competitors.Count} competitor(s) found.";
             await PushProgress(
                 userId, profileId, 9,
                 NicheAnalysisStepLogBuilder.SerpValidation(9, demand, serpMessage),
