@@ -1625,6 +1625,15 @@ export type PaaQuestionItem = {
   sourceTitle?: string;
 };
 
+export type CompetitorSiteInsight = {
+  domain: string;
+  pagesCrawled: number;
+  avgWordCount: number;
+  topHeadings: string[];
+  hasFaqSchema: boolean;
+  scope: 'national' | 'local' | 'both';
+};
+
 export type NichePillarResult = {
   id: string;
   pillarTopic: string;
@@ -1648,6 +1657,7 @@ export type NichePillarResult = {
   relatedSearches: string[];
   localPaaQuestions: PaaQuestionItem[];
   localRelatedSearches: string[];
+  competitorInsights: CompetitorSiteInsight[];
 };
 
 export type NicheProfileResult = {

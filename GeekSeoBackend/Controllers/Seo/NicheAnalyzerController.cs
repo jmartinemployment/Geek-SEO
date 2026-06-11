@@ -525,6 +525,7 @@ public sealed class NicheAnalyzerController(
             RelatedSearches = TryDeserialize<List<string>>(pi.RelatedSearchesJson) ?? [],
             LocalPaaQuestions = TryDeserialize<List<PaaQuestionItem>>(pi.LocalPaaQuestionsJson) ?? [],
             LocalRelatedSearches = TryDeserialize<List<string>>(pi.LocalRelatedSearchesJson) ?? [],
+            CompetitorInsights = TryDeserialize<List<CompetitorSiteInsightDto>>(pi.CompetitorInsightsJson) ?? [],
         }).ToList(),
         Competitors = p.Competitors.Select(c => new NicheCompetitorResult(
             c.Id, c.Domain, c.SerpPresence, c.EstimatedAuthorityScore,

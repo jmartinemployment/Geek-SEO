@@ -25,6 +25,7 @@ public sealed class NicheAnalyzerService(
     UrlPatternExtractor urlPatternExtractor,
     PillarSelector pillarSelector,
     PillarDemandEnricher pillarDemandEnricher,
+    CompetitorPageFetcher competitorPageFetcher,
     GscQueryExtractor gscQueryExtractor,
     NicheAuthorityScorer scorer,
     NicheRootEntityBuilder rootBuilder,
@@ -32,7 +33,7 @@ public sealed class NicheAnalyzerService(
     ICurrentUserContext userContext,
     ILogger<NicheAnalyzerService> logger)
 {
-    private const int TotalSteps = 14;
+    private const int TotalSteps = 15;
     private static bool FusionArchiveEnabled =>
         string.Equals(
             Environment.GetEnvironmentVariable("NICHE_FUSION_ARCHIVE_ENABLED"),
@@ -308,18 +309,36 @@ public sealed class NicheAnalyzerService(
                 new NichePhaseStatusPatch(EnrichmentStatus: demand.KeywordsSkipped && demand.SerpSkipped ? "skipped" : "complete"),
                 ct);
 
-            // Step 10 — Niche identity
-            var nicheEntities = BuildNichePillars(merged, profileId, demand.Keywords, demand.SerpValidations);
+            // Step 10 — Competitor site crawl
+            await PushProgress(userId, profileId, 10,
+                NicheAnalysisStepLogBuilder.Processing(10, "competitor_crawl", "Crawling competitor sites…"), ct);
+
+            var competitorDomains = demand.Competitors
+                .Where(c => c.SerpPresence >= 2)
+                .Select(c => c.Domain)
+                .ToList();
+
+            var competitorInsights = competitorDomains.Count > 0
+                ? await competitorPageFetcher.CrawlCompetitorsAsync(competitorDomains, browser, ct)
+                : new Dictionary<string, CompetitorSiteInsight>(StringComparer.OrdinalIgnoreCase);
+
+            await PushProgress(userId, profileId, 10,
+                NicheAnalysisStepLogBuilder.Processing(10, "competitor_crawl",
+                    $"Competitor crawl: {competitorInsights.Count} site(s) crawled, " +
+                    $"{competitorInsights.Values.Sum(c => c.PagesCrawled)} pages total."), ct);
+
+            // Step 11 — Niche identity
+            var nicheEntities = BuildNichePillars(merged, profileId, demand.Keywords, demand.SerpValidations, competitorInsights);
             var rootEntity = rootBuilder.Build(schemaData, headings, nicheEntities);
             var audienceType = DetermineAudienceType(nicheEntities, schemaData);
             var nicheTags = BuildNicheTags(schemaData, nicheEntities).ToArray();
             var profileMessage = $"Niche profile: {rootEntity}.";
             await PushProgress(
-                userId, profileId, 10,
-                NicheAnalysisStepLogBuilder.Profile(10, rootEntity, audienceType, nicheTags, profileMessage),
+                userId, profileId, 11,
+                NicheAnalysisStepLogBuilder.Profile(11, rootEntity, audienceType, nicheTags, profileMessage),
                 ct);
 
-            // Step 11 — Local geography (areaServed vs location pages)
+            // Step 12 — Local geography (areaServed vs location pages)
             var localGeo = LocalGapGenerator.Analyze(
                 schemaData,
                 sitemapData,
@@ -336,13 +355,13 @@ public sealed class NicheAnalyzerService(
                         ? $"Local geography: {localGeo.AreasServed.Count} area(s) declared — all have matching location pages."
                         : $"Local geography: {localGeo.LocationPagesFound.Count} location page(s) found.";
             await PushProgress(
-                userId, profileId, 11,
+                userId, profileId, 12,
                 localGeo.IsLocalBusiness
-                    ? NicheAnalysisStepLogBuilder.Local(11, localGeo, localMessage)
-                    : NicheAnalysisStepLogBuilder.LocalDisabled(11, localMessage),
+                    ? NicheAnalysisStepLogBuilder.Local(12, localGeo, localMessage)
+                    : NicheAnalysisStepLogBuilder.LocalDisabled(12, localMessage),
                 ct);
 
-            // Step 12 — Content coverage (fusion + crawl → pillar/subtopic status)
+            // Step 13 — Content coverage (fusion + crawl → pillar/subtopic status)
             foreach (var pillar in nicheEntities)
             {
                 if (pillar.Id == Guid.Empty)
@@ -366,9 +385,9 @@ public sealed class NicheAnalyzerService(
             var coverageMessage =
                 $"Content coverage: {coverageResult.PillarsCovered} covered, {coverageResult.PillarsPartial} partial, {coverageResult.PillarsGap} gap — {coverageResult.SubtopicsCovered}/{coverageResult.SubtopicsTotal} subtopics matched to URLs.";
             await PushProgress(
-                userId, profileId, 12,
+                userId, profileId, 13,
                 NicheAnalysisStepLogBuilder.Coverage(
-                    12,
+                    13,
                     coverageResult.PillarsCovered,
                     coverageResult.PillarsPartial,
                     coverageResult.PillarsGap,
@@ -378,7 +397,7 @@ public sealed class NicheAnalyzerService(
                     coverageMessage),
                 ct);
 
-            // Step 13 — Authority score + persist
+            // Step 14 — Authority score + persist
             var authorityScore = scorer.ComputeTopicalAuthorityScore(nicheEntities);
             var covered = nicheEntities.Count(p => p.CoverageStatus == "covered");
             var partial = nicheEntities.Count(p => p.CoverageStatus == "partial");
@@ -391,9 +410,9 @@ public sealed class NicheAnalyzerService(
             }
 
             await PushProgress(
-                userId, profileId, 13,
+                userId, profileId, 14,
                 NicheAnalysisStepLogBuilder.Processing(
-                    13,
+                    14,
                     "scoring",
                     $"Saving {nicheEntities.Count} pillars and analysis results…"),
                 ct);
@@ -427,9 +446,9 @@ public sealed class NicheAnalyzerService(
             var analyzedAt = DateTimeOffset.UtcNow;
             var nextDue = analyzedAt.AddDays(30);
             await PushProgress(
-                userId, profileId, 13,
+                userId, profileId, 14,
                 NicheAnalysisStepLogBuilder.Processing(
-                    13,
+                    14,
                     "scoring",
                     $"Pillars saved — writing authority score and topic profile…"),
                 ct);
@@ -464,9 +483,9 @@ public sealed class NicheAnalyzerService(
             var linkGraphEdgeCount = fused.InternalLinkGraph?.Edges.Count ?? 0;
             var orphanPillarCount = fused.InternalLinkGraph?.OrphanSlugs.Count ?? 0;
             await PushProgress(
-                userId, profileId, 13,
+                userId, profileId, 14,
                 NicheAnalysisStepLogBuilder.Scoring(
-                    13,
+                    14,
                     authorityScore,
                     covered,
                     partial,
@@ -596,7 +615,8 @@ public sealed class NicheAnalyzerService(
         IReadOnlyList<DiscoveredPillar> merged,
         Guid profileId,
         IReadOnlyList<PillarKeywordEnrichment> keywordMetrics,
-        IReadOnlyList<PillarSerpEnrichment> serpValidations)
+        IReadOnlyList<PillarSerpEnrichment> serpValidations,
+        Dictionary<string, CompetitorSiteInsight> competitorInsights)
     {
         var metricsBySlug = keywordMetrics
             .Where(k => k.Enriched)
@@ -631,6 +651,12 @@ public sealed class NicheAnalyzerService(
                 RelatedSearchesJson = ToJson(serp?.RelatedSearches),
                 LocalPaaQuestionsJson = ToJson(serp?.LocalPaaQuestions),
                 LocalRelatedSearchesJson = ToJson(serp?.LocalRelatedSearches),
+                CompetitorInsightsJson = ToJson(
+                    serp?.TopCompetitorDomains
+                        .Select(d => competitorInsights.GetValueOrDefault(d))
+                        .Where(c => c is not null)
+                        .Select(c => c!)
+                        .ToList()),
             };
         }).ToList();
     }

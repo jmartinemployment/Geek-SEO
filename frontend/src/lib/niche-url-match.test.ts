@@ -45,6 +45,7 @@ const pillars: NichePillarResult[] = [
     relatedSearches: [],
     localPaaQuestions: [],
     localRelatedSearches: [],
+    competitorInsights: [],
   },
   {
     id: '2',
@@ -68,6 +69,7 @@ const pillars: NichePillarResult[] = [
     relatedSearches: [],
     localPaaQuestions: [],
     localRelatedSearches: [],
+    competitorInsights: [],
   },
 ];
 

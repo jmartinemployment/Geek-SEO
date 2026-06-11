@@ -1,6 +1,6 @@
 'use client';
 
-import type { NichePillarResult, PaaQuestionItem } from '@/lib/seo-api';
+import type { CompetitorSiteInsight, NichePillarResult, PaaQuestionItem } from '@/lib/seo-api';
 
 type Props = {
   pillars: NichePillarResult[];
@@ -12,7 +12,8 @@ export function PillarSerpInsightsPanel({ pillars }: Props) {
       p.paaQuestions?.length > 0 ||
       p.relatedSearches?.length > 0 ||
       p.localPaaQuestions?.length > 0 ||
-      p.localRelatedSearches?.length > 0,
+      p.localRelatedSearches?.length > 0 ||
+      p.competitorInsights?.length > 0,
   );
 
   if (withData.length === 0) return null;
@@ -58,14 +59,12 @@ function PillarSerpCard({ pillar }: { pillar: NichePillarResult }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-[var(--color-border)]">
-        {/* National */}
         <SerpColumn
           label="National SERP"
           paaQuestions={pillar.paaQuestions}
           relatedSearches={pillar.relatedSearches}
           empty={!hasNational}
         />
-        {/* Local */}
         <SerpColumn
           label="Local SERP"
           paaQuestions={pillar.localPaaQuestions}
@@ -74,6 +73,51 @@ function PillarSerpCard({ pillar }: { pillar: NichePillarResult }) {
           isLocal
         />
       </div>
+
+      {/* Competitor crawl results */}
+      {pillar.competitorInsights?.length > 0 && (
+        <div className="border-t border-[var(--color-border)] px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)] mb-3">
+            Competitor sites crawled
+          </p>
+          <div className="space-y-3">
+            {pillar.competitorInsights.map((c, i) => (
+              <CompetitorInsightCard key={i} insight={c} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CompetitorInsightCard({ insight }: { insight: CompetitorSiteInsight }) {
+  const scopeColor = insight.scope === 'local' ? 'text-green-600'
+    : insight.scope === 'both' ? 'text-[var(--color-accent)]'
+    : 'text-[var(--color-text-muted)]';
+
+  return (
+    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-semibold text-[var(--color-text-primary)]">{insight.domain}</span>
+        <span className={`text-xs font-medium ${scopeColor}`}>{insight.scope}</span>
+        {insight.hasFaqSchema && (
+          <span className="ml-auto text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">FAQ schema</span>
+        )}
+      </div>
+      <div className="flex gap-4 text-xs text-[var(--color-text-secondary)]">
+        <span>{insight.pagesCrawled} pages</span>
+        <span>~{insight.avgWordCount.toLocaleString()} words avg</span>
+      </div>
+      {insight.topHeadings.length > 0 && (
+        <ul className="space-y-0.5">
+          {insight.topHeadings.slice(0, 8).map((h, i) => (
+            <li key={i} className="text-xs text-[var(--color-text-secondary)] truncate">
+              — {h}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

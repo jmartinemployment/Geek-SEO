@@ -23,7 +23,8 @@ public sealed partial class SitePageCrawler(
         string siteUrl,
         IReadOnlyList<string> sitemapUrls,
         IBrowser? browser,
-        CancellationToken ct)
+        CancellationToken ct,
+        int? maxPages = null)
     {
         if (!TryGetOrigin(siteUrl, out var origin, out var homepage))
             return new SiteCrawlData([], 0, 0);
@@ -53,7 +54,7 @@ public sealed partial class SitePageCrawler(
 
         try
         {
-            while (queue.Count > 0)
+            while (queue.Count > 0 && (maxPages is null || pages.Count < maxPages))
             {
                 ct.ThrowIfCancellationRequested();
                 var url = queue.Dequeue();

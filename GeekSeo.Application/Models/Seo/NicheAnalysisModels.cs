@@ -105,9 +105,18 @@ public record NichePillarResult
     public IReadOnlyList<string> RelatedSearches { get; init; } = [];
     public IReadOnlyList<PaaQuestionItem> LocalPaaQuestions { get; init; } = [];
     public IReadOnlyList<string> LocalRelatedSearches { get; init; } = [];
+    public IReadOnlyList<CompetitorSiteInsightDto> CompetitorInsights { get; init; } = [];
 }
 
 public record PaaQuestionItem(string Question, string? Answer, string? SourceUrl, string? SourceTitle);
+
+public record CompetitorSiteInsightDto(
+    string Domain,
+    int PagesCrawled,
+    int AvgWordCount,
+    IReadOnlyList<string> TopHeadings,
+    bool HasFaqSchema,
+    string Scope = "national");
 
 public record NicheSubtopicResult
 {

@@ -88,6 +88,8 @@ public sealed class NichePillar
     public string LocalPaaQuestionsJson { get; set; } = "[]";
     /// <summary>Related searches from geo-targeted local SERP.</summary>
     public string LocalRelatedSearchesJson { get; set; } = "[]";
+    /// <summary>JSON array of CompetitorSiteInsight — crawled competitor sites for this pillar.</summary>
+    public string CompetitorInsightsJson { get; set; } = "[]";
 
     [ValidateNever]
     public NicheProfile? NicheProfile { get; set; }
