@@ -56,7 +56,7 @@ export function CrawlResultsPanel({ steps }: Readonly<Props>) {
           Crawl transparency
         </h3>
         <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-          Pages fetched during site structure discovery (bounded BFS, max 20)
+          Pages fetched during site structure discovery
         </p>
       </div>
 

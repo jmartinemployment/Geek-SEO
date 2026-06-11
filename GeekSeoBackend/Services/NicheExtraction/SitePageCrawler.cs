@@ -13,8 +13,6 @@ public sealed partial class SitePageCrawler(
     IHttpClientFactory factory,
     ILogger<SitePageCrawler> logger)
 {
-    private const int MaxPages = 20;
-    private const int MaxSitemapSeeds = 10;
     private static readonly string[] SkipExtensions =
     [
         ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".zip", ".xml",
@@ -36,7 +34,7 @@ public sealed partial class SitePageCrawler(
         var attempted = 0;
 
         Enqueue(homepage);
-        foreach (var url in sitemapUrls.Take(MaxSitemapSeeds))
+        foreach (var url in sitemapUrls)
         {
             if (TryNormalizeSameOrigin(url, origin, out var normalized))
                 Enqueue(normalized);
@@ -55,7 +53,7 @@ public sealed partial class SitePageCrawler(
 
         try
         {
-            while (queue.Count > 0 && pages.Count < MaxPages)
+            while (queue.Count > 0)
             {
                 ct.ThrowIfCancellationRequested();
                 var url = queue.Dequeue();
@@ -73,11 +71,7 @@ public sealed partial class SitePageCrawler(
                 pages.Add(new CrawledPage(url, html, playwrightContext is not null ? "playwright" : "http"));
 
                 foreach (var discovered in ExtractSameOriginLinks(html, url, origin))
-                {
-                    if (pages.Count + queue.Count >= MaxPages * 2)
-                        break;
                     Enqueue(discovered);
-                }
             }
         }
         finally
