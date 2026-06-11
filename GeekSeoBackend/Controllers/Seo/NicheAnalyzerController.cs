@@ -1,3 +1,4 @@
+using System.Text.Json;
 using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Persistence.Entities;
@@ -453,6 +454,13 @@ public sealed class NicheAnalyzerController(
         return Ok(new NicheAnalysisDetails(p.AnalysisStepLogVersion, steps, fusion));
     }
 
+    private static T? TryDeserialize<T>(string? json) where T : class
+    {
+        if (string.IsNullOrWhiteSpace(json) || json == "[]") return null;
+        try { return JsonSerializer.Deserialize<T>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+        catch { return null; }
+    }
+
     private static bool IsRouteNotFound(string? error) =>
         error is not null && (
             error.Contains("404", StringComparison.OrdinalIgnoreCase) ||
@@ -513,6 +521,8 @@ public sealed class NicheAnalyzerController(
                 FixEffort = s.FixEffort,
                 IsQuickWin = s.IsQuickWin,
             }).ToList(),
+            PaaQuestions = TryDeserialize<List<PaaQuestionItem>>(pi.PaaQuestionsJson) ?? [],
+            RelatedSearches = TryDeserialize<List<string>>(pi.RelatedSearchesJson) ?? [],
         }).ToList(),
         Competitors = p.Competitors.Select(c => new NicheCompetitorResult(
             c.Id, c.Domain, c.SerpPresence, c.EstimatedAuthorityScore,

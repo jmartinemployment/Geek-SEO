@@ -41,6 +41,8 @@ const pillars: NichePillarResult[] = [
         isQuickWin: true,
       },
     ],
+    paaQuestions: [],
+    relatedSearches: [],
   },
   {
     id: '2',
@@ -60,6 +62,8 @@ const pillars: NichePillarResult[] = [
     source: 'nav',
     displayOrder: 1,
     subtopics: [],
+    paaQuestions: [],
+    relatedSearches: [],
   },
 ];
 

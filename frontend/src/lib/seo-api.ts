@@ -1618,6 +1618,13 @@ export type NicheSubtopicResult = {
   isQuickWin: boolean;
 };
 
+export type PaaQuestionItem = {
+  question: string;
+  answer?: string;
+  sourceUrl?: string;
+  sourceTitle?: string;
+};
+
 export type NichePillarResult = {
   id: string;
   pillarTopic: string;
@@ -1637,6 +1644,8 @@ export type NichePillarResult = {
   source: string;
   displayOrder: number;
   subtopics: NicheSubtopicResult[];
+  paaQuestions: PaaQuestionItem[];
+  relatedSearches: string[];
 };
 
 export type NicheProfileResult = {

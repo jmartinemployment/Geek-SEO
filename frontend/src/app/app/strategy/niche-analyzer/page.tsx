@@ -29,6 +29,7 @@ import { CoverageMatrixTable } from '@/components/niche-analyzer/CoverageMatrixT
 import { TopicalGapsPanel } from '@/components/niche-analyzer/TopicalGapsPanel';
 import { AuthorityProgressChart } from '@/components/niche-analyzer/AuthorityProgressChart';
 import { AnalysisStatusListener } from '@/components/niche-analyzer/AnalysisStatusListener';
+import { PillarSerpInsightsPanel } from '@/components/niche-analyzer/PillarSerpInsightsPanel';
 
 type Tab = 'pillars' | 'contentIdeas' | 'progress';
 
@@ -341,6 +342,7 @@ export default function NicheAnalyzerPage() {
                 pillarsPartial={profile.pillarsPartial}
                 pillarsGap={profile.pillarsGap}
               />
+              <PillarSerpInsightsPanel pillars={profile.pillars} />
               <div className="space-y-2">
                 <div>
                   <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">

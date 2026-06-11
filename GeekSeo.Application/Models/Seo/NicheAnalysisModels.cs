@@ -101,7 +101,11 @@ public record NichePillarResult
     public string Source { get; init; } = "sitemap";
     public int DisplayOrder { get; init; }
     public IReadOnlyList<NicheSubtopicResult> Subtopics { get; init; } = [];
+    public IReadOnlyList<PaaQuestionItem> PaaQuestions { get; init; } = [];
+    public IReadOnlyList<string> RelatedSearches { get; init; } = [];
 }
+
+public record PaaQuestionItem(string Question, string? Answer, string? SourceUrl, string? SourceTitle);
 
 public record NicheSubtopicResult
 {
