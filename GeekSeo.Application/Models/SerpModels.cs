@@ -46,6 +46,8 @@ public sealed record PeopleAlsoAskResult
 {
     public required string Question { get; init; }
     public string? Answer { get; init; }
+    public string? SourceUrl { get; init; }
+    public string? SourceTitle { get; init; }
 }
 
 /// <summary>Stored in seo_serp_results.results JSON for scoring benchmarks.</summary>

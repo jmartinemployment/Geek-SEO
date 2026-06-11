@@ -80,6 +80,10 @@ public sealed class NichePillar
     /// <summary>pending | done | skipped | failed</summary>
     public string EnrichmentStatus { get; set; } = "pending";
     public DateTimeOffset? EnrichedAt { get; set; }
+    /// <summary>JSON array of {Question, Answer, SourceUrl, SourceTitle} from SERP PAA box.</summary>
+    public string PaaQuestionsJson { get; set; } = "[]";
+    /// <summary>JSON array of related search strings from SERP (People Also Search For).</summary>
+    public string RelatedSearchesJson { get; set; } = "[]";
 
     [ValidateNever]
     public NicheProfile? NicheProfile { get; set; }

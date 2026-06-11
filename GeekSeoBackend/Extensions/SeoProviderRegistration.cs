@@ -5,6 +5,7 @@ using GeekSeoBackend.Auth;
 using GeekSeoBackend.Providers.Seo;
 using GeekSeoBackend.Providers.Seo.Metering;
 using GeekSeoBackend.Providers.Seo.Persistence;
+using GeekSeoBackend.Providers.Seo.SerperDev;
 using GeekSeoBackend.Providers.Seo.SerpApi;
 
 namespace GeekSeoBackend.Extensions;
@@ -19,6 +20,7 @@ public static class SeoProviderRegistration
     public const string KeywordProviderEnv = "KEYWORD_PROVIDER";
     public const string RankSnapshotProviderEnv = "RANK_SNAPSHOT_PROVIDER";
     public const string SerpApiKeyEnv = "SERPAPI_API_KEY";
+    public const string SerperDevApiKeyEnv = "SERPER_DEV_API_KEY";
 
     public static IServiceCollection AddSeoDataProviders(this IServiceCollection services)
     {
@@ -31,6 +33,11 @@ public static class SeoProviderRegistration
         {
             client.BaseAddress = new Uri("https://serpapi.com/");
             client.Timeout = TimeSpan.FromSeconds(60);
+        });
+        services.AddHttpClient("SerperDev", client =>
+        {
+            client.BaseAddress = new Uri("https://google.serper.dev/");
+            client.Timeout = TimeSpan.FromSeconds(30);
         });
 
         var config = SeoProviderConfiguration.FromEnvironment();
@@ -78,12 +85,15 @@ public static class SeoProviderRegistration
                 }
 
                 break;
+            case "serpdev":
+                services.AddScoped<SerperDevSerpProvider>();
+                break;
             case "geek":
                 throw new InvalidOperationException(
-                    "SERP_PROVIDER=geek is not implemented yet. Add GeekSerpProvider (Phase C) or use SERP_PROVIDER=dataforseo.");
+                    "SERP_PROVIDER=geek is not implemented yet. Add GeekSerpProvider (Phase C) or use SERP_PROVIDER=serpdev.");
             default:
                 throw new InvalidOperationException(
-                    $"Invalid {SerpProviderEnv}={config.SerpProvider}. Allowed: dataforseo, serpapi, geek.");
+                    $"Invalid {SerpProviderEnv}={config.SerpProvider}. Allowed: dataforseo, serpapi, serpdev, geek.");
         }
 
         services.AddScoped<ISerpProvider>(sp => new DatabaseBackedSerpProvider(
@@ -97,18 +107,24 @@ public static class SeoProviderRegistration
             "dataforseo" => sp.GetRequiredService<DataForSEOSerpProvider>(),
             "serpapi" when config.SerpProviderFallback == "dataforseo" => sp.GetRequiredService<FallbackSerpProvider>(),
             "serpapi" => sp.GetRequiredService<SerpApiSerpProvider>(),
+            "serpdev" => sp.GetRequiredService<SerperDevSerpProvider>(),
             _ => throw new InvalidOperationException($"Unhandled {SerpProviderEnv}={config.SerpProvider}"),
         };
 
     private static void EnsureSerpApiKeyWhenRequired(SeoProviderConfiguration config)
     {
-        if (config.SerpProvider != "serpapi" && config.RankSnapshotProvider != "serpapi")
-            return;
-
-        if (!config.SerpApiKeyConfigured)
+        if (config.SerpProvider == "serpapi" || config.RankSnapshotProvider == "serpapi")
         {
-            throw new InvalidOperationException(
-                $"{SerpApiKeyEnv} is required when SERP_PROVIDER or RANK_SNAPSHOT_PROVIDER is serpapi.");
+            if (!config.SerpApiKeyConfigured)
+                throw new InvalidOperationException(
+                    $"{SerpApiKeyEnv} is required when SERP_PROVIDER or RANK_SNAPSHOT_PROVIDER is serpapi.");
+        }
+
+        if (config.SerpProvider == "serpdev")
+        {
+            if (!config.SerperDevApiKeyConfigured)
+                throw new InvalidOperationException(
+                    $"{SerperDevApiKeyEnv} is required when SERP_PROVIDER=serpdev.");
         }
     }
 
@@ -116,6 +132,10 @@ public static class SeoProviderRegistration
     {
         switch (config.KeywordProvider)
         {
+            case "none":
+                // Keyword enrichment disabled — niche analyzer uses SERP (PAA + related searches) instead.
+                services.AddScoped<IKeywordProvider, NoOpKeywordProvider>();
+                break;
             case "dataforseo":
                 services.AddScoped<DataForSEOKeywordProvider>();
                 services.AddScoped<IKeywordProvider>(sp => new DatabaseBackedKeywordProvider(
@@ -125,10 +145,10 @@ public static class SeoProviderRegistration
             case "gsc_ads":
             case "geek":
                 throw new InvalidOperationException(
-                    $"KEYWORD_PROVIDER={config.KeywordProvider} is not implemented yet. Use KEYWORD_PROVIDER=dataforseo (Phase B).");
+                    $"KEYWORD_PROVIDER={config.KeywordProvider} is not implemented yet. Use KEYWORD_PROVIDER=none or dataforseo.");
             default:
                 throw new InvalidOperationException(
-                    $"Invalid {KeywordProviderEnv}={config.KeywordProvider}. Allowed: dataforseo, gsc_ads, geek.");
+                    $"Invalid {KeywordProviderEnv}={config.KeywordProvider}. Allowed: none, dataforseo.");
         }
     }
 
@@ -171,6 +191,7 @@ public sealed class SeoProviderConfiguration
     public required string RankSnapshotProvider { get; init; }
     public bool DataForSeoCredentialsConfigured { get; init; }
     public bool SerpApiKeyConfigured { get; init; }
+    public bool SerperDevApiKeyConfigured { get; init; }
     public int SerpRetentionDays { get; init; }
     public int KeywordRetentionDays { get; init; }
 
@@ -192,6 +213,8 @@ public sealed class SeoProviderConfiguration
             DataForSeoCredentialsConfigured = DataForSeoClient.TryGetCredentials(out _, out _),
             SerpApiKeyConfigured = !string.IsNullOrWhiteSpace(
                 Environment.GetEnvironmentVariable(SeoProviderRegistration.SerpApiKeyEnv)),
+            SerperDevApiKeyConfigured = !string.IsNullOrWhiteSpace(
+                Environment.GetEnvironmentVariable(SeoProviderRegistration.SerperDevApiKeyEnv)),
             SerpRetentionDays = VendorPersistenceSettings.SerpRetentionDays,
             KeywordRetentionDays = VendorPersistenceSettings.KeywordRetentionDays,
         };

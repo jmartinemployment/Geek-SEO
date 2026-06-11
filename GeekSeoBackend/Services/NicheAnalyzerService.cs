@@ -296,7 +296,7 @@ public sealed class NicheAnalyzerService(
                 ct);
 
             // Step 10 — Niche identity
-            var nicheEntities = BuildNichePillars(merged, profileId, demand.Keywords);
+            var nicheEntities = BuildNichePillars(merged, profileId, demand.Keywords, demand.SerpValidations);
             var rootEntity = rootBuilder.Build(schemaData, headings, nicheEntities);
             var audienceType = DetermineAudienceType(nicheEntities, schemaData);
             var nicheTags = BuildNicheTags(schemaData, nicheEntities).ToArray();
@@ -582,15 +582,29 @@ public sealed class NicheAnalyzerService(
     private static List<NichePillar> BuildNichePillars(
         IReadOnlyList<DiscoveredPillar> merged,
         Guid profileId,
-        IReadOnlyList<PillarKeywordEnrichment> keywordMetrics)
+        IReadOnlyList<PillarKeywordEnrichment> keywordMetrics,
+        IReadOnlyList<PillarSerpEnrichment> serpValidations)
     {
         var metricsBySlug = keywordMetrics
             .Where(k => k.Enriched)
             .ToDictionary(k => k.Slug, StringComparer.OrdinalIgnoreCase);
 
+        var serpBySlug = serpValidations
+            .ToDictionary(s => s.Slug, StringComparer.OrdinalIgnoreCase);
+
         return merged.Select((p, idx) =>
         {
             metricsBySlug.TryGetValue(p.Slug, out var metrics);
+            serpBySlug.TryGetValue(p.Slug, out var serp);
+
+            var paaJson = serp?.PaaQuestions is { Count: > 0 }
+                ? System.Text.Json.JsonSerializer.Serialize(serp.PaaQuestions)
+                : "[]";
+
+            var relatedJson = serp?.RelatedSearches is { Count: > 0 }
+                ? System.Text.Json.JsonSerializer.Serialize(serp.RelatedSearches)
+                : "[]";
+
             return new NichePillar
             {
                 NicheProfileId = profileId,
@@ -605,6 +619,8 @@ public sealed class NicheAnalyzerService(
                 RequiredSubtopicCount = Math.Max(p.ChildPageCount, 5),
                 SearchVolume = metrics?.SearchVolume ?? 0,
                 KeywordDifficulty = metrics?.KeywordDifficulty ?? 0m,
+                PaaQuestionsJson = paaJson,
+                RelatedSearchesJson = relatedJson,
             };
         }).ToList();
     }

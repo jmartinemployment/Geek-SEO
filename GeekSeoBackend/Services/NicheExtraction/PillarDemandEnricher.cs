@@ -157,10 +157,12 @@ public sealed class PillarDemandEnricher(
             Func<int, int, string, Task>? onProgress,
             CancellationToken ct)
     {
-        var keywordTask = EnrichKeywordsAsync(targets, location, onProgress, ct);
-        var serpTask = ValidateSerpAsync(targets, siteHost, location, onProgress, ct);
-        await Task.WhenAll(keywordTask, serpTask);
-        return (await keywordTask, await serpTask);
+        var keyword = (
+            Enrichments: (IReadOnlyList<PillarKeywordEnrichment>)[],
+            Skipped: true,
+            SkipReason: (string?)"Keyword vendor disabled — poor signal quality.");
+        var serp = await ValidateSerpAsync(targets, siteHost, location, onProgress, ct);
+        return (keyword, serp);
     }
 
     private async Task<(IReadOnlyList<PillarKeywordEnrichment> Enrichments, bool Skipped, string? SkipReason)>
@@ -315,7 +317,9 @@ public sealed class PillarDemandEnricher(
                     topDomains,
                     serpProvider.ProviderName,
                     null,
-                    expectedTopics));
+                    expectedTopics,
+                    result.Value.PeopleAlsoAsk.Count > 0 ? result.Value.PeopleAlsoAsk : null,
+                    result.Value.RelatedSearches.Count > 0 ? result.Value.RelatedSearches : null));
             }
             finally
             {
@@ -411,4 +415,6 @@ public sealed record PillarSerpEnrichment(
     IReadOnlyList<string> TopCompetitorDomains,
     string Provider,
     string? Error = null,
-    IReadOnlyList<string>? ExpectedTopicSlugs = null);
+    IReadOnlyList<string>? ExpectedTopicSlugs = null,
+    IReadOnlyList<PeopleAlsoAskResult>? PaaQuestions = null,
+    IReadOnlyList<string>? RelatedSearches = null);
