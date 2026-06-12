@@ -1632,6 +1632,12 @@ export type CompetitorSiteInsight = {
   topHeadings: string[];
   hasFaqSchema: boolean;
   scope: 'national' | 'local' | 'both';
+  services?: string[];
+  knowsAbout?: string[];
+  areaServed?: string[];
+  sameAs?: string[];
+  description?: string;
+  brandName?: string;
 };
 
 export type NichePillarResult = {

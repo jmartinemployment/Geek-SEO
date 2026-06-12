@@ -105,6 +105,43 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
         }
     }
 
+    /// <summary>Parse schema.org from already-fetched HTML — no HTTP call, no Playwright.</summary>
+    public static SchemaOrgData ParseFromHtml(string html)
+    {
+        var blocks = ExtractJsonLdBlocks(html).ToList();
+        if (blocks.Count == 0) return Empty();
+
+        var serviceNames = new List<string>();
+        var knowsAboutTopics = new List<string>();
+        var offerCatalogTopics = new List<string>();
+        var sameAsUrls = new List<string>();
+        string? description = null;
+        string? brand = null;
+        var areas = new List<string>();
+
+        foreach (var block in blocks)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(block);
+                ProcessJsonLdNode(doc.RootElement, serviceNames, knowsAboutTopics, offerCatalogTopics, sameAsUrls, areas, ref description, ref brand);
+            }
+            catch (JsonException) { }
+        }
+
+        var resolvedPlatforms = SameAsClassifier.ResolvePlatforms(sameAsUrls);
+        return new SchemaOrgData(
+            serviceNames.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            knowsAboutTopics.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            offerCatalogTopics.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            description,
+            brand,
+            areas.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            sameAsUrls.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            resolvedPlatforms,
+            SameAsClassifier.IsEntityResolved(resolvedPlatforms));
+    }
+
     private static async Task<IReadOnlyList<string>> ExtractJsonLdWithPlaywrightAsync(
         string siteUrl, IBrowser browser, CancellationToken ct)
     {

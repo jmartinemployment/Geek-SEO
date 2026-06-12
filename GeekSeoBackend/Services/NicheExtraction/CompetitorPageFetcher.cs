@@ -42,13 +42,27 @@ public sealed class CompetitorPageFetcher(
                 var hasFaqSchema = false;
                 var pageCount = crawl.Pages.Count;
 
+                // Schema aggregation across all crawled pages
+                var allServices = new List<string>();
+                var allKnowsAbout = new List<string>();
+                var allAreaServed = new List<string>();
+                var allSameAs = new List<string>();
+                var siteDescription = (string?)null;
+                var siteBrand = (string?)null;
+
                 foreach (var page in crawl.Pages)
                 {
-                    var headings = ExtractHeadings(page.Html);
-                    allHeadings.AddRange(headings);
+                    allHeadings.AddRange(ExtractHeadings(page.Html));
                     totalWords += CountWords(StripContent(page.Html));
-                    if (!hasFaqSchema)
-                        hasFaqSchema = HasFaqSchema(page.Html);
+                    if (!hasFaqSchema) hasFaqSchema = HasFaqSchema(page.Html);
+
+                    var schema = SchemaOrgExtractor.ParseFromHtml(page.Html);
+                    allServices.AddRange(schema.ServiceNames);
+                    allKnowsAbout.AddRange(schema.KnowsAboutTopics);
+                    allAreaServed.AddRange(schema.AreaServed);
+                    allSameAs.AddRange(schema.SameAsUrls);
+                    siteDescription ??= schema.Description;
+                    siteBrand ??= schema.BrandName;
                 }
 
                 var avgWordCount = pageCount > 0 ? totalWords / pageCount : 0;
@@ -65,7 +79,13 @@ public sealed class CompetitorPageFetcher(
                     PagesCrawled: pageCount,
                     AvgWordCount: avgWordCount,
                     TopHeadings: topHeadings,
-                    HasFaqSchema: hasFaqSchema);
+                    HasFaqSchema: hasFaqSchema,
+                    Services: allServices.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                    KnowsAbout: allKnowsAbout.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                    AreaServed: allAreaServed.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                    SameAs: allSameAs.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                    Description: siteDescription,
+                    BrandName: siteBrand);
 
                 logger.LogInformation("Competitor {Domain}: {Pages} pages, {Words} avg words, {Headings} unique headings",
                     domain, pageCount, avgWordCount, topHeadings.Count);
@@ -73,7 +93,7 @@ public sealed class CompetitorPageFetcher(
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Competitor crawl failed for {Domain}", domain);
-                results[domain] = new CompetitorSiteInsight(domain, 0, 0, [], false);
+                results[domain] = new CompetitorSiteInsight(domain, 0, 0, [], false, "national");
             }
         }
 
@@ -148,4 +168,11 @@ public sealed record CompetitorSiteInsight(
     int PagesCrawled,
     int AvgWordCount,
     IReadOnlyList<string> TopHeadings,
-    bool HasFaqSchema);
+    bool HasFaqSchema,
+    string Scope = "national",
+    IReadOnlyList<string>? Services = null,
+    IReadOnlyList<string>? KnowsAbout = null,
+    IReadOnlyList<string>? AreaServed = null,
+    IReadOnlyList<string>? SameAs = null,
+    string? Description = null,
+    string? BrandName = null);

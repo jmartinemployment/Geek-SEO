@@ -98,25 +98,72 @@ function CompetitorInsightCard({ insight }: { insight: CompetitorSiteInsight }) 
 
   return (
     <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 space-y-2">
-      <div className="flex items-center gap-2">
+      {/* Header */}
+      <div className="flex items-center gap-2 flex-wrap">
         <span className="text-sm font-semibold text-[var(--color-text-primary)]">{insight.domain}</span>
         <span className={`text-xs font-medium ${scopeColor}`}>{insight.scope}</span>
         {insight.hasFaqSchema && (
           <span className="ml-auto text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">FAQ schema</span>
         )}
       </div>
+
+      {/* Stats */}
       <div className="flex gap-4 text-xs text-[var(--color-text-secondary)]">
-        <span>{insight.pagesCrawled} pages</span>
+        <span>{insight.pagesCrawled} pages crawled</span>
         <span>~{insight.avgWordCount.toLocaleString()} words avg</span>
       </div>
+
+      {/* Description */}
+      {insight.description && (
+        <p className="text-xs text-[var(--color-text-secondary)] italic line-clamp-2">{insight.description}</p>
+      )}
+
+      {/* Schema — services declared */}
+      {insight.services && insight.services.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide mb-1">Services (schema)</p>
+          <div className="flex flex-wrap gap-1">
+            {insight.services.slice(0, 8).map((s, i) => (
+              <span key={i} className="px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200">{s}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Schema — knowsAbout */}
+      {insight.knowsAbout && insight.knowsAbout.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide mb-1">Knows About (schema)</p>
+          <div className="flex flex-wrap gap-1">
+            {insight.knowsAbout.slice(0, 8).map((k, i) => (
+              <span key={i} className="px-1.5 py-0.5 rounded text-xs bg-purple-50 text-purple-700 border border-purple-200">{k}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Schema — areaServed */}
+      {insight.areaServed && insight.areaServed.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide mb-1">Area Served (schema)</p>
+          <div className="flex flex-wrap gap-1">
+            {insight.areaServed.slice(0, 6).map((a, i) => (
+              <span key={i} className="px-1.5 py-0.5 rounded text-xs bg-green-50 text-green-700 border border-green-200">{a}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Top headings */}
       {insight.topHeadings.length > 0 && (
-        <ul className="space-y-0.5">
-          {insight.topHeadings.slice(0, 8).map((h, i) => (
-            <li key={i} className="text-xs text-[var(--color-text-secondary)] truncate">
-              — {h}
-            </li>
-          ))}
-        </ul>
+        <div>
+          <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide mb-1">Top headings</p>
+          <ul className="space-y-0.5">
+            {insight.topHeadings.slice(0, 6).map((h, i) => (
+              <li key={i} className="text-xs text-[var(--color-text-secondary)] truncate">— {h}</li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

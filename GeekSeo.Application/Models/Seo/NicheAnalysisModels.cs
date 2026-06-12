@@ -116,7 +116,13 @@ public record CompetitorSiteInsightDto(
     int AvgWordCount,
     IReadOnlyList<string> TopHeadings,
     bool HasFaqSchema,
-    string Scope = "national");
+    string Scope = "national",
+    IReadOnlyList<string>? Services = null,
+    IReadOnlyList<string>? KnowsAbout = null,
+    IReadOnlyList<string>? AreaServed = null,
+    IReadOnlyList<string>? SameAs = null,
+    string? Description = null,
+    string? BrandName = null);
 
 public record NicheSubtopicResult
 {
