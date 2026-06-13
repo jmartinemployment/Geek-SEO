@@ -23,12 +23,12 @@ internal static class TopicCandidatePoolBuilder
         foreach (var name in schema.OfferCatalogTopics)
             AddEvidence(bySlug, name, "schema", TopicEvidenceWeights.Schema, "offerCatalog/serviceType");
 
-        // areaServed enters the pool as first-class candidates so they can accumulate evidence
-        // from URL patterns and internal links (e.g. /services/computer-repair/boca-raton).
-        // Schema alone (0.35) falls below SchemaConfidenceFloor; location topics only promote
-        // when corroborated by site structure — same standard as any other topic.
+        // areaServed enters with low weight under "area_served" source (not "schema") so it
+        // does NOT trigger the unconditional schema-promotion path in PillarSelector.
+        // A bare county/city name (0.05) stays below MinPillarConfidence; it only promotes
+        // when corroborated by a URL pattern or nav link (e.g. /services/repair/boca-raton).
         foreach (var area in schema.AreaServed)
-            AddEvidence(bySlug, area, "schema", TopicEvidenceWeights.Schema, "areaServed");
+            AddEvidence(bySlug, area, "area_served", TopicEvidenceWeights.AreaServed, "areaServed");
 
         foreach (var pillar in sitemap.Pillars)
         {

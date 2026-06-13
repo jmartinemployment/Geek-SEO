@@ -11,6 +11,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   internal_link: 'Internal link',
   url_pattern: 'URL pattern',
   gsc: 'Search Console',
+  area_served: 'Area served',
 };
 
 export const SOURCE_COLORS: Record<string, string> = {
@@ -24,6 +25,7 @@ export const SOURCE_COLORS: Record<string, string> = {
   internal_link: 'bg-teal-100 text-teal-800',
   url_pattern: 'bg-blue-100 text-blue-800',
   gsc: 'bg-emerald-100 text-emerald-800',
+  area_served: 'bg-lime-100 text-lime-800',
 };
 
 export function sourceLabel(source: string): string {

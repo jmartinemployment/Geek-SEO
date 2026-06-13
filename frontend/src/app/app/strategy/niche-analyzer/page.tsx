@@ -30,11 +30,13 @@ import { TopicalGapsPanel } from '@/components/niche-analyzer/TopicalGapsPanel';
 import { AuthorityProgressChart } from '@/components/niche-analyzer/AuthorityProgressChart';
 import { AnalysisStatusListener } from '@/components/niche-analyzer/AnalysisStatusListener';
 import { PillarSerpInsightsPanel } from '@/components/niche-analyzer/PillarSerpInsightsPanel';
+import { NicheCompetitorPanel } from '@/components/niche-analyzer/NicheCompetitorPanel';
 
-type Tab = 'pillars' | 'contentIdeas' | 'progress';
+type Tab = 'pillars' | 'competitors' | 'contentIdeas' | 'progress';
 
 const TAB_LABELS: Record<Tab, string> = {
   pillars: 'Pillars',
+  competitors: 'Competitors',
   contentIdeas: 'Content ideas',
   progress: 'Progress',
 };
@@ -312,7 +314,7 @@ export default function NicheAnalyzerPage() {
 
           {/* Tabs */}
           <div className="flex gap-1 border-b border-[var(--color-border)]">
-            {(['pillars', 'contentIdeas', 'progress'] as Tab[]).map((t) => (
+            {(['pillars', 'competitors', 'contentIdeas', 'progress'] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -363,6 +365,13 @@ export default function NicheAnalyzerPage() {
                 />
               </div>
             </div>
+          )}
+
+          {tab === 'competitors' && (
+            <NicheCompetitorPanel
+              competitors={profile.competitors}
+              pillars={profile.pillars}
+            />
           )}
 
           {tab === 'contentIdeas' && (

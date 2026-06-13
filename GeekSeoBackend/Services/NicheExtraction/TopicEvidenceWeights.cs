@@ -12,6 +12,8 @@ internal static class TopicEvidenceWeights
     internal const decimal UrlPattern = 0.12m;
     internal const decimal Heading = 0.10m;
     internal const decimal Gsc = 0.20m;
+    // areaServed alone must NOT reach MinPillarConfidence; requires URL/nav corroboration
+    internal const decimal AreaServed = 0.05m;
     internal const decimal MaxConfidence = 1.0m;
 
     /// <summary>
