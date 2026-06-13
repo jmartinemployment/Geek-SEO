@@ -42,6 +42,10 @@ public sealed class NicheProfile
     public decimal? ScanChangeScore { get; set; }
     /// <summary>Resume hint only — DB row counts are source of truth.</summary>
     public string? PersistStage { get; set; }
+    /// <summary>JSON object keyed by slug: "pending"|"running"|"complete"|"skipped"|"error"</summary>
+    public string StepStatusesJson { get; set; } = "{}";
+    /// <summary>JSON array of crawled page URLs from step 6 — URL list only, no HTML.</summary>
+    public string? CrawledUrlsJson { get; set; }
 
     [ValidateNever]
     public ICollection<NichePillar> Pillars { get; set; } = [];

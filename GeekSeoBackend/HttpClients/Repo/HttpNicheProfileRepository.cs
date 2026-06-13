@@ -315,6 +315,49 @@ public sealed class HttpNicheProfileRepository(
 
     private sealed record FailStaleResponse(int FailedCount);
 
+    // Step isolation methods
+    public async Task<Result> UpdateStepStatusAsync(Guid profileId, string slug, string status,
+        NicheAnalysisStepLogEntry? entry = null, CancellationToken ct = default)
+    {
+        var payload = new { slug, status, stepLogEntry = entry };
+        var res = await _http.PatchAsJsonAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/step-status?userId={user.UserId}",
+            payload, Json, ct);
+        return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await ReadFailureAsync(res, ct));
+    }
+
+    public async Task<Result> InvalidateDownstreamStepsAsync(Guid profileId,
+        IReadOnlyList<string> downstreamSlugs, CancellationToken ct = default)
+    {
+        var payload = new { downstreamSlugs };
+        var res = await _http.PatchAsJsonAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/invalidate-steps?userId={user.UserId}",
+            payload, Json, ct);
+        return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await ReadFailureAsync(res, ct));
+    }
+
+    public async Task<Result> UpdateCrawledUrlsAsync(Guid profileId, string crawledUrlsJson,
+        CancellationToken ct = default)
+    {
+        var payload = new { crawledUrlsJson };
+        var res = await _http.PatchAsJsonAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/crawled-urls?userId={user.UserId}",
+            payload, Json, ct);
+        return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await ReadFailureAsync(res, ct));
+    }
+
+    public async Task<Result<IReadOnlyDictionary<string, string>>> GetStepStatusesAsync(
+        Guid profileId, CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/step-statuses?userId={user.UserId}", ct);
+        if (!res.IsSuccessStatusCode)
+            return Result<IReadOnlyDictionary<string, string>>.Failure(await ReadFailureAsync(res, ct));
+        var dict = await res.Content.ReadFromJsonAsync<Dictionary<string, string>>(Json, ct);
+        return Result<IReadOnlyDictionary<string, string>>.Success(
+            dict ?? new Dictionary<string, string>());
+    }
+
     private static async Task<string> ReadFailureAsync(HttpResponseMessage res, CancellationToken ct)
     {
         var body = await res.Content.ReadAsStringAsync(ct);

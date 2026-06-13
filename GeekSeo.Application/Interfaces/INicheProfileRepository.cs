@@ -46,4 +46,14 @@ public interface INicheProfileRepository
     Task<Result<IReadOnlyList<NicheProfileSummary>>> ListDueForReanalysisAsync(int limit, CancellationToken ct = default);
     Task<Result<IReadOnlyList<NicheQueuedJob>>> ListQueuedAsync(int limit, CancellationToken ct = default);
     Task<Result<int>> FailStaleProcessingAsync(TimeSpan maxAge, CancellationToken ct = default);
+
+    // Step isolation
+    Task<Result> UpdateStepStatusAsync(Guid profileId, string slug, string status,
+        NicheAnalysisStepLogEntry? entry = null, CancellationToken ct = default);
+    Task<Result> InvalidateDownstreamStepsAsync(Guid profileId,
+        IReadOnlyList<string> downstreamSlugs, CancellationToken ct = default);
+    Task<Result> UpdateCrawledUrlsAsync(Guid profileId, string crawledUrlsJson,
+        CancellationToken ct = default);
+    Task<Result<IReadOnlyDictionary<string, string>>> GetStepStatusesAsync(
+        Guid profileId, CancellationToken ct = default);
 }
