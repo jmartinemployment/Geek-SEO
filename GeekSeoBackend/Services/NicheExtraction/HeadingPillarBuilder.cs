@@ -4,7 +4,8 @@ using GeekSeoBackend.Services;
 namespace GeekSeoBackend.Services.NicheExtraction;
 
 /// <summary>
-/// Converts homepage H1–H6 into pillar candidates (used when higher-priority sources are thin).
+/// Converts homepage H1/H2 into pillar candidates. H3+ are supporting content within
+/// their parent H2 section — search engines don't treat them as independent topics.
 /// </summary>
 internal static class HeadingPillarBuilder
 {
@@ -13,7 +14,7 @@ internal static class HeadingPillarBuilder
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var pillars = new List<DiscoveredPillar>();
 
-        foreach (var heading in headings.Headings)
+        foreach (var heading in headings.Headings.Where(h => h.Level <= 2))
         {
             var text = heading.Text.Trim();
             if (text.Length < 4)

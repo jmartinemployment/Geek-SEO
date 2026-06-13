@@ -41,19 +41,9 @@ public sealed class NavMenuExtractor(ILogger<NavMenuExtractor> logger)
 
             await page.WaitForTimeoutAsync(800);
 
+            // Extract only links visible without interaction — search engines don't
+            // click hamburger menus or expand hidden navigation.
             var links = await ExtractLinksAsync(page, siteUrl);
-            if (links.Count < 2)
-            {
-                await page.SetViewportSizeAsync(375, 812);
-                var hamburger = await page.QuerySelectorAsync(
-                    "button[aria-label*='menu' i], button[class*='hamburger' i], .menu-toggle, .nav-toggle");
-                if (hamburger is not null)
-                {
-                    await hamburger.ClickAsync(new ElementHandleClickOptions { Timeout = 3_000 });
-                    await page.WaitForTimeoutAsync(400);
-                }
-                links = await ExtractLinksAsync(page, siteUrl);
-            }
 
             timeoutCts.Token.ThrowIfCancellationRequested();
 

@@ -88,7 +88,8 @@ internal static class NicheContentCoverageMatcher
                 coveredSubs,
                 pillar.RequiredSubtopicCount,
                 candidate?.InternalLinkCount ?? 0,
-                isEntityThin);
+                isEntityThin,
+                pillar.ExistingPageCount);
 
             switch (pillar.CoverageStatus)
             {
@@ -121,10 +122,14 @@ internal static class NicheContentCoverageMatcher
         int coveredSubtopics,
         int requiredSubtopics,
         int internalLinkCount,
-        bool isEntityThin)
+        bool isEntityThin,
+        int existingPageCount = 0)
     {
+        // A dedicated URL must have been successfully crawled (existingPageCount > 0)
+        // — a URL string from nav/schema that returns 404 is not a real page.
         var hasDedicatedPage = !string.IsNullOrWhiteSpace(dedicatedUrl)
-            && !TopicClusteringService.IsHomepageUrl(dedicatedUrl);
+            && !TopicClusteringService.IsHomepageUrl(dedicatedUrl)
+            && existingPageCount > 0;
 
         var subtopicRatio = requiredSubtopics > 0
             ? (decimal)coveredSubtopics / requiredSubtopics
