@@ -99,7 +99,19 @@ public static class NicheBulkInsertMapper
             competitor.SerpPresence,
             competitor.EstimatedAuthorityScore,
             competitor.PillarsRanking,
-            competitor.StrengthAssessment);
+            competitor.StrengthAssessment,
+            competitor.Scope,
+            competitor.PagesCrawled,
+            competitor.AvgWordCount,
+            competitor.HasFaqSchema,
+            competitor.ServicesJson,
+            competitor.KnowsAboutJson,
+            competitor.AreaServedJson,
+            competitor.SameAsJson,
+            competitor.Description,
+            competitor.BrandName,
+            competitor.PillarsJson,
+            competitor.CompetitorAnalyzedAt);
 
     public static NicheCompetitor ToEntity(NicheCompetitorBulkInsert dto) =>
         new()

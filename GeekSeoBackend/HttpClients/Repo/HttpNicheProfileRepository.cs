@@ -254,6 +254,14 @@ public sealed class HttpNicheProfileRepository(
         return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await res.Content.ReadAsStringAsync(ct));
     }
 
+    public async Task<Result> UpdateCompetitorInsightsAsync(NicheCompetitor competitor, CancellationToken ct = default)
+    {
+        var res = await _http.PatchAsJsonAsync(
+            $"api/seo/internal/niche-profiles/competitors/{competitor.Id}/insights?userId={user.UserId}",
+            NicheBulkInsertMapper.ToBulkInsert(competitor), Json, ct);
+        return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await res.Content.ReadAsStringAsync(ct));
+    }
+
     public async Task<Result> BulkInsertEntitiesAsync(IEnumerable<NicheEntity> entities, CancellationToken ct = default)
     {
         var body = entities.Select(NicheBulkInsertMapper.ToBulkInsert).ToList();

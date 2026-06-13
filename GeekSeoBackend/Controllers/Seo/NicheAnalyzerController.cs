@@ -14,6 +14,7 @@ namespace GeekSeoBackend.Controllers.Seo;
 [Route("api/seo/niche-analyzer")]
 public sealed class NicheAnalyzerController(
     NicheAnalyzerService analyzer,
+    CompetitorAnalysisService competitorAnalysisService,
     INicheProfileRepository profileRepo,
     INicheAnalyticsDapperRepository analyticsRepo,
     NicheAnalysisJobChannel nicheChannel,
@@ -319,6 +320,43 @@ public sealed class NicheAnalyzerController(
         }
     }
 
+    [HttpPost("{profileId:guid}/analyze-competitors")]
+    public async Task<IActionResult> AnalyzeCompetitors(Guid profileId, CancellationToken ct)
+    {
+        try
+        {
+            var userId = user.RequireUserId();
+            var profileResult = await profileRepo.GetByIdAsync(profileId, ct);
+            if (!profileResult.IsSuccess || profileResult.Value is null)
+                return NotFound(new { error = "Profile not found." });
+            // Ownership validated implicitly — profile is scoped to user's project
+
+            var competitors = profileResult.Value.Competitors.ToList();
+            if (competitors.Count == 0)
+                return BadRequest(new { error = "No competitors to analyze. Run niche analysis first." });
+
+            _ = Task.Run(async () =>
+            {
+                using var jobCt = new CancellationTokenSource(TimeSpan.FromHours(2));
+                try
+                {
+                    await competitorAnalysisService.AnalyzeAsync(
+                        profileId, userId, competitors, null, jobCt.Token);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Competitor analysis failed for profile {ProfileId}", profileId);
+                }
+            }, CancellationToken.None);
+
+            return Accepted(new { profileId, message = $"Competitor analysis started for {competitors.Count} site(s)." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpGet("{profileId:guid}/competitors")]
     public async Task<IActionResult> GetCompetitors(Guid profileId, CancellationToken ct)
     {
@@ -534,7 +572,9 @@ public sealed class NicheAnalyzerController(
             TryDeserialize<List<string>>(c.KnowsAboutJson),
             TryDeserialize<List<string>>(c.AreaServedJson),
             TryDeserialize<List<string>>(c.SameAsJson),
-            c.Description, c.BrandName)).ToList(),
+            c.Description, c.BrandName,
+            TryDeserialize<List<CompetitorPillarResult>>(c.PillarsJson),
+            c.CompetitorAnalyzedAt)).ToList(),
         Entities = p.Entities.Select(e => new NicheEntityResult(
             e.Id, e.EntityName, e.EntityType,
             e.MentionFrequency, e.PresentOnDomain, e.AssociatedPillarIds)).ToList(),

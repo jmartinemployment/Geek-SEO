@@ -129,7 +129,7 @@ public sealed class NicheCompetitor
     public string StrengthAssessment { get; set; } = "moderate";
     /// <summary>national | local | both</summary>
     public string Scope { get; set; } = "national";
-    // Crawl data — populated by step 10 competitor crawl
+    // Populated by "Get Competitors" analysis (separate event after initial scan)
     public int PagesCrawled { get; set; }
     public int AvgWordCount { get; set; }
     public bool HasFaqSchema { get; set; }
@@ -139,6 +139,8 @@ public sealed class NicheCompetitor
     public string? SameAsJson { get; set; }
     public string? Description { get; set; }
     public string? BrandName { get; set; }
+    public string? PillarsJson { get; set; }
+    public DateTimeOffset? CompetitorAnalyzedAt { get; set; }
 
     [ValidateNever]
     public NicheProfile? NicheProfile { get; set; }

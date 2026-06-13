@@ -149,7 +149,15 @@ public record NicheCompetitorResult(
     IReadOnlyList<string>? AreaServed = null,
     IReadOnlyList<string>? SameAs = null,
     string? Description = null,
-    string? BrandName = null);
+    string? BrandName = null,
+    IReadOnlyList<CompetitorPillarResult>? Pillars = null,
+    DateTimeOffset? CompetitorAnalyzedAt = null);
+
+public record CompetitorPillarResult(
+    string Name,
+    string Slug,
+    string Source,
+    decimal Confidence);
 
 public record NicheEntityResult(
     Guid Id, string EntityName, string EntityType,
@@ -406,7 +414,19 @@ public sealed record NicheCompetitorBulkInsert(
     int SerpPresence,
     decimal EstimatedAuthorityScore,
     int PillarsRanking,
-    string StrengthAssessment);
+    string StrengthAssessment,
+    string Scope = "national",
+    int PagesCrawled = 0,
+    int AvgWordCount = 0,
+    bool HasFaqSchema = false,
+    string? ServicesJson = null,
+    string? KnowsAboutJson = null,
+    string? AreaServedJson = null,
+    string? SameAsJson = null,
+    string? Description = null,
+    string? BrandName = null,
+    string? PillarsJson = null,
+    DateTimeOffset? CompetitorAnalyzedAt = null);
 
 public sealed record NicheEntityBulkInsert(
     Guid Id,

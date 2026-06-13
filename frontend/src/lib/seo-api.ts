@@ -1690,6 +1690,13 @@ export type NicheProfileResult = {
   entities: NicheEntityResult[];
 };
 
+export type CompetitorPillarResult = {
+  name: string;
+  slug: string;
+  source: string;
+  confidence: number;
+};
+
 export type NicheCompetitorResult = {
   id: string;
   domain: string;
@@ -1707,6 +1714,8 @@ export type NicheCompetitorResult = {
   sameAs?: string[];
   description?: string;
   brandName?: string;
+  pillars?: CompetitorPillarResult[];
+  competitorAnalyzedAt?: string;
 };
 
 export type NicheEntityResult = {
@@ -1775,6 +1784,17 @@ export async function analyzeNiche(
     method: 'POST',
     headers: { ...apiHeaders(accessToken), 'Content-Type': 'application/json' },
     body: JSON.stringify({ projectId, domain, seedTopic }),
+  });
+  return seoJson(res);
+}
+
+export async function analyzeCompetitors(
+  profileId: string,
+  accessToken?: string | null,
+): Promise<{ profileId: string; message: string }> {
+  const res = await fetch(`${API_URL}/api/seo/niche-analyzer/${profileId}/analyze-competitors`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
   });
   return seoJson(res);
 }

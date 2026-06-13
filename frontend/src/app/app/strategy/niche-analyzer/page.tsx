@@ -368,7 +368,14 @@ export default function NicheAnalyzerPage() {
           )}
 
           {tab === 'competitors' && (
-            <NicheCompetitorPanel competitors={profile.competitors} />
+            <NicheCompetitorPanel
+              profileId={profile.id}
+              competitors={profile.competitors}
+              accessToken={accessToken}
+              onCompetitorsUpdated={() => {
+                void getNicheProfile(profile.id, accessToken).then(setProfile);
+              }}
+            />
           )}
 
           {tab === 'contentIdeas' && (
