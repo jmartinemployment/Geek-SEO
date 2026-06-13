@@ -23,32 +23,38 @@ public static class ArticleSchemaBuilder
     {
         var scripts = new List<string>
         {
-            BuildScript(new
+            BuildScript(new Dictionary<string, object?>
             {
-                @context = "https://schema.org",
-                @type = brief.SchemaBlueprint.PrimaryType,
-                headline = title,
-                keywords = brief.Keyword,
-                about = brief.SchemaBlueprint.AboutEntities.Select(name => new { @type = "Thing", name }),
-                author = string.IsNullOrWhiteSpace(brief.AuthorOrganizationName)
-                    ? null
-                    : new
+                ["@context"] = "https://schema.org",
+                ["@type"] = brief.SchemaBlueprint.PrimaryType,
+                ["headline"] = title,
+                ["keywords"] = brief.Keyword,
+                ["about"] = brief.SchemaBlueprint.AboutEntities
+                    .Select(name => new Dictionary<string, object?>
                     {
-                        @type = "Organization",
-                        name = brief.AuthorOrganizationName,
-                        url = brief.AuthorOrganizationUrl,
+                        ["@type"] = "Thing",
+                        ["name"] = name,
+                    })
+                    .ToList(),
+                ["author"] = string.IsNullOrWhiteSpace(brief.AuthorOrganizationName)
+                    ? null
+                    : new Dictionary<string, object?>
+                    {
+                        ["@type"] = "Organization",
+                        ["name"] = brief.AuthorOrganizationName,
+                        ["url"] = brief.AuthorOrganizationUrl,
                     },
             }),
         };
 
         foreach (var software in brief.SchemaBlueprint.SoftwareEntities)
         {
-            scripts.Add(BuildScript(new
+            scripts.Add(BuildScript(new Dictionary<string, object?>
             {
-                @context = "https://schema.org",
-                @type = "SoftwareApplication",
-                name = software,
-                applicationCategory = "BusinessApplication",
+                ["@context"] = "https://schema.org",
+                ["@type"] = "SoftwareApplication",
+                ["name"] = software,
+                ["applicationCategory"] = "BusinessApplication",
             }));
         }
 
@@ -56,20 +62,20 @@ public static class ArticleSchemaBuilder
             && brief.PeopleAlsoAsk.Count > 0)
         {
             var answers = ExtractFaqAnswers(articleHtml, brief.PeopleAlsoAsk);
-            scripts.Add(BuildScript(new
+            scripts.Add(BuildScript(new Dictionary<string, object?>
             {
-                @context = "https://schema.org",
-                @type = "FAQPage",
-                mainEntity = brief.PeopleAlsoAsk.Select(question => new
+                ["@context"] = "https://schema.org",
+                ["@type"] = "FAQPage",
+                ["mainEntity"] = brief.PeopleAlsoAsk.Select(question => new Dictionary<string, object?>
                 {
-                    @type = "Question",
-                    name = question,
-                    acceptedAnswer = new
+                    ["@type"] = "Question",
+                    ["name"] = question,
+                    ["acceptedAnswer"] = new Dictionary<string, object?>
                     {
-                        @type = "Answer",
-                        text = answers.TryGetValue(question, out var answer) ? answer : string.Empty,
+                        ["@type"] = "Answer",
+                        ["text"] = answers.TryGetValue(question, out var answer) ? answer : string.Empty,
                     },
-                }),
+                }).ToList(),
             }));
         }
 

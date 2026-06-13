@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuthReady } from '@/hooks/use-auth-ready';
 import { NicheStrategyContextBanner } from '@/components/niche-analyzer/NicheStrategyContextBanner';
@@ -51,7 +51,7 @@ function Sparkline({ points }: { points: PerformanceSnapshotPoint[] }) {
   );
 }
 
-export default function ContentGuardPage() {
+function ContentGuardPageInner() {
   const searchParams = useSearchParams();
   const projectFromUrl = searchParams.get('projectId') ?? '';
   const { accessToken, authLoading, authReady } = useAuthReady();
@@ -374,5 +374,17 @@ export default function ContentGuardPage() {
         })}
       </ul>
     </main>
+  );
+}
+
+export default function ContentGuardPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto max-w-6xl p-8 text-[var(--color-text-secondary)]">Loading…</main>
+      }
+    >
+      <ContentGuardPageInner />
+    </Suspense>
   );
 }

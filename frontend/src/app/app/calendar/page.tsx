@@ -94,7 +94,7 @@ export default function ContentCalendarPage() {
           </p>
         </div>
         <Link
-          href="/app/guided"
+          href="/app/content-writing"
           className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm text-white hover:bg-[var(--color-accent-hover)]"
         >
           New article
@@ -106,13 +106,13 @@ export default function ContentCalendarPage() {
 
       {!loading && cards.length === 0 && (
         <div className="mt-10 rounded-xl border border-dashed bg-[var(--color-bg)] p-12 text-center">
-          <p className="text-sm text-[var(--color-text-secondary)]">No content yet. Start with guided mode or a project.</p>
+          <p className="text-sm text-[var(--color-text-secondary)]">No content yet. Start with the content writing workspace or a project.</p>
           <div className="mt-4 flex justify-center gap-3">
             <Link
-              href="/app/guided"
+              href="/app/content-writing"
               className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm text-white hover:bg-[var(--color-accent-hover)]"
             >
-              Guided flow
+              Content Writing
             </Link>
             <Link
               href="/app/projects"

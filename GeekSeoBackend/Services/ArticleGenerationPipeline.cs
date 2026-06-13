@@ -33,6 +33,7 @@ public static class ArticleGenerationPipeline
         {
             Keyword = keyword,
             Brief = brief,
+            Title = title,
         }, ct);
 
         if (!outlineResult.IsSuccess || outlineResult.Value is null)
@@ -44,6 +45,7 @@ public static class ArticleGenerationPipeline
             Brief = brief,
             Outline = outlineResult.Value.Content,
             TargetWordCount = brief.TargetWordCount,
+            Title = title,
         }, ct);
 
         if (!draftResult.IsSuccess || draftResult.Value is null)

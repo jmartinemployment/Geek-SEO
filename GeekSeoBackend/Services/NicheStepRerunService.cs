@@ -33,6 +33,7 @@ public sealed class NicheStepRerunService(
     NicheAnalysisPersistenceService persistence,
     NicheAuthorityScorer scorer,
     NicheRootEntityBuilder rootBuilder,
+    NicheStepExecutionService stepExecution,
     NicheStepLock stepLock,
     IHubContext<SeoContentScoringHub> hub,
     ILogger<NicheStepRerunService> logger)
@@ -50,8 +51,7 @@ public sealed class NicheStepRerunService(
     public async Task<(bool Success, string? Error)> RerunStepAsync(
         Guid profileId, Guid userId, string slug, IBrowser? browser, CancellationToken ct)
     {
-        // Validate slug
-        if (!NicheStepDependencies.Map.ContainsKey(slug))
+        if (!NicheStepCatalog.BySlug.TryGetValue(slug, out var definition))
             return (false, $"Unknown step slug '{slug}'.");
 
         // Load current step statuses
@@ -60,9 +60,7 @@ public sealed class NicheStepRerunService(
             return (false, $"Could not load step statuses: {statusResult.Error}");
         var statuses = statusResult.Value;
 
-        // Check dependencies
-        var deps = NicheStepDependencies.Map[slug];
-        foreach (var dep in deps)
+        foreach (var dep in definition.Dependencies)
         {
             if (!statuses.TryGetValue(dep, out var depStatus) || depStatus != "complete")
                 return (false, $"Dependency '{dep}' must be complete before running '{slug}'.");
@@ -75,8 +73,7 @@ public sealed class NicheStepRerunService(
 
         try
         {
-            // Cascade-invalidate all downstream steps
-            var downstream = NicheStepDependencies.GetDownstream(slug);
+            var downstream = NicheStepCatalog.GetDownstream(slug);
             if (downstream.Count > 0)
                 await profileRepo.InvalidateDownstreamStepsAsync(profileId, downstream, ct);
 
@@ -84,7 +81,6 @@ public sealed class NicheStepRerunService(
             await profileRepo.UpdateStepStatusAsync(profileId, slug, "running", ct: ct);
             await PushStepEvent(profileId, userId, slug, "running", $"Re-running step: {slug}…", ct);
 
-            // Execute the step
             var entry = await ExecuteStepAsync(profileId, userId, slug, browser, ct);
 
             // Mark complete
@@ -108,31 +104,12 @@ public sealed class NicheStepRerunService(
     private async Task<NicheAnalysisStepLogEntry> ExecuteStepAsync(
         Guid profileId, Guid userId, string slug, IBrowser? browser, CancellationToken ct)
     {
-        // Load profile (needed for domain, projectId)
         var profileResult = await profileRepo.GetByIdAsync(profileId, ct);
         if (!profileResult.IsSuccess || profileResult.Value is null)
             throw new InvalidOperationException("Profile not found.");
         var profile = profileResult.Value;
         var domain = NicheSiteUrlNormalizer.Normalize(profile.Domain);
-
-        return slug switch
-        {
-            "schema"         => await RerunSchemaAsync(profileId, domain, browser, ct),
-            "site_urls"      => await RerunSiteUrlsAsync(profileId, domain, ct),
-            "nav"            => await RerunNavAsync(profileId, domain, browser, ct),
-            "headings"       => await RerunHeadingsAsync(profileId, domain, browser, ct),
-            "page_content"   => await RerunPageContentAsync(profileId, domain, browser, ct),
-            "site_structure" => await RerunSiteStructureAsync(profileId, domain, browser, ct),
-            "merging"        => await RerunMergingAsync(profileId, userId, profile, domain, browser, ct),
-            "keywords"       => await RerunKeywordsAsync(profileId, profile, domain, ct),
-            "serp_validation"=> await RerunSerpValidationAsync(profileId, profile, domain, ct),
-            "profile"        => await RerunProfileAsync(profileId, domain, ct),
-            "local"          => await RerunLocalAsync(profileId, domain, ct),
-            "coverage"       => await RerunCoverageAsync(profileId, domain, ct),
-            "scoring"        => await RerunScoringAsync(profileId, ct),
-            "complete"       => await RerunCompleteAsync(profileId, ct),
-            _ => throw new InvalidOperationException($"No runner for slug '{slug}'.")
-        };
+        return await stepExecution.RunAsync(slug, profileId, userId, domain, browser, ct);
     }
 
     // ── Steps 1–6: Extraction steps — re-execute extractors directly ──────

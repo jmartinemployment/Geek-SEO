@@ -6,6 +6,7 @@ using GeekSeoBackend.Auth;
 using GeekSeoBackend.Extensions;
 using GeekSeoBackend.Infrastructure;
 using GeekSeoBackend.Services;
+using GeekSeoBackend.Services.NicheStepRunners;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GeekSeoBackend.Controllers.Seo;
@@ -52,9 +53,6 @@ public sealed class NicheAnalyzerController(
                 ct);
             if (!result.IsSuccess)
             {
-                if (IsRouteNotFound(result.Error))
-                    return await GetAnalysisDetailsFromFullProfile(profileId, ct);
-
                 logger.LogWarning(
                     "Analysis details unavailable for profile {ProfileId}: {Error}",
                     profileId,
@@ -63,11 +61,11 @@ public sealed class NicheAnalyzerController(
             }
 
             if (result.Value is null)
-                return Ok(new NicheAnalysisDetails(1, [], null));
+                return Ok(new NicheAnalysisDetails(1, [], null, NicheStepCatalog.ToDtos()));
 
             var row = result.Value;
             if (!NicheAnalysisDetailsPolicy.IsStepLogAvailable(row.Status))
-                return Ok(new NicheAnalysisDetails(row.AnalysisStepLogVersion, [], null));
+                return Ok(new NicheAnalysisDetails(row.AnalysisStepLogVersion, [], null, NicheStepCatalog.ToDtos()));
 
             var steps = NicheAnalysisStepLogJson.Parse(row.AnalysisStepLog);
             SiteTopicProfile? fusion = null;
@@ -78,7 +76,7 @@ public sealed class NicheAnalyzerController(
                     fusion = SiteTopicProfileJson.Parse(fusionResult.Value.FusionSnapshot);
             }
 
-            return Ok(new NicheAnalysisDetails(row.AnalysisStepLogVersion, steps, fusion));
+            return Ok(new NicheAnalysisDetails(row.AnalysisStepLogVersion, steps, fusion, NicheStepCatalog.ToDtos()));
         }
         catch (InvalidOperationException ex)
         {
@@ -100,9 +98,6 @@ public sealed class NicheAnalyzerController(
             var result = await profileRepo.GetStatusRowAsync(profileId, ct);
             if (!result.IsSuccess)
             {
-                if (IsRouteNotFound(result.Error))
-                    return await GetStatusFromFullProfile(profileId, ct);
-
                 logger.LogWarning(
                     "Status unavailable for profile {ProfileId}: {Error}",
                     profileId,
@@ -143,32 +138,6 @@ public sealed class NicheAnalyzerController(
             logger.LogWarning(ex, "Transient error fetching niche status for profile {ProfileId}", profileId);
             return StatusCode(503, new { error = "Status temporarily unavailable" });
         }
-    }
-
-    private async Task<IActionResult> GetStatusFromFullProfile(Guid profileId, CancellationToken ct)
-    {
-        var fallback = await profileRepo.GetByIdAsync(profileId, ct);
-        if (!fallback.IsSuccess || fallback.Value is null)
-            return NotFound();
-        var p = fallback.Value;
-        var step = p.AnalysisStep ?? p.Status;
-        var stepNumber = p.AnalysisStepNumber > 0
-            ? p.AnalysisStepNumber
-            : p.Status switch { "complete" => 14, _ => 0 };
-        var totalSteps = p.AnalysisTotalSteps > 0 ? p.AnalysisTotalSteps : 14;
-        return Ok(new NicheAnalysisStatus(
-            p.Id,
-            p.Status,
-            step,
-            stepNumber,
-            totalSteps,
-            p.ErrorMessage,
-            p.CreatedAt,
-            p.AnalysisProgressAt,
-            p.StructureStatus,
-            p.EnrichmentStatus,
-            p.PersistStage,
-            ParseStepStatuses(p.StepStatusesJson)));
     }
 
     private static IReadOnlyDictionary<string, string>? ParseStepStatuses(string? json)
@@ -526,32 +495,12 @@ public sealed class NicheAnalyzerController(
         }
     }
 
-    private async Task<IActionResult> GetAnalysisDetailsFromFullProfile(Guid profileId, CancellationToken ct)
-    {
-        var fallback = await profileRepo.GetByIdAsync(profileId, ct);
-        if (!fallback.IsSuccess || fallback.Value is null)
-            return Ok(new NicheAnalysisDetails(1, [], null));
-        var p = fallback.Value;
-        if (!NicheAnalysisDetailsPolicy.IsStepLogAvailable(p.Status))
-            return Ok(new NicheAnalysisDetails(p.AnalysisStepLogVersion, [], null));
-        var steps = NicheAnalysisStepLogJson.Parse(p.AnalysisStepLog);
-        SiteTopicProfile? fusion = null;
-        if (p.Status is "complete" && p.FusionSnapshot is not null)
-            fusion = SiteTopicProfileJson.Parse(p.FusionSnapshot);
-        return Ok(new NicheAnalysisDetails(p.AnalysisStepLogVersion, steps, fusion));
-    }
-
     private static T? TryDeserialize<T>(string? json) where T : class
     {
         if (string.IsNullOrWhiteSpace(json) || json == "[]") return null;
         try { return JsonSerializer.Deserialize<T>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
         catch { return null; }
     }
-
-    private static bool IsRouteNotFound(string? error) =>
-        error is not null && (
-            error.Contains("404", StringComparison.OrdinalIgnoreCase) ||
-            error.Contains("NotFound", StringComparison.OrdinalIgnoreCase));
 
     private static NicheProfileResult MapToResult(NicheProfile p) => new()
     {

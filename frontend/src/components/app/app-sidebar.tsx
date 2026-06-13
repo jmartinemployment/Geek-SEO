@@ -33,13 +33,12 @@ const primaryItems: SidebarItem[] = [
 ];
 
 const overflowItems: SidebarItem[] = [
-  { href: '/app/guided', label: 'Guided flow', icon: Globe },
+  { href: '/app/content-writing', label: 'Content Writing', icon: Globe },
   { href: '/app/bulk', label: 'Bulk articles', icon: FileText },
   { href: '/app/calendar', label: 'Content calendar', icon: FileText },
   { href: '/app/serp', label: 'Deep SERP', icon: Search },
   { href: '/app/planner', label: 'Planner', icon: Map },
   { href: '/app/brand-voice', label: 'Brand voice', icon: FileText },
-  { href: '/app/briefs/new', label: 'Briefs', icon: FileText },
   { href: '/app/geo', label: 'GEO', icon: Globe },
   { href: '/app/content-guard', label: 'Content guard', icon: ShieldCheck },
 ];

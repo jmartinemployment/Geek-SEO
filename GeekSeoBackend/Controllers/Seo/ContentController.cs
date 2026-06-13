@@ -11,6 +11,7 @@ namespace GeekSeoBackend.Controllers.Seo;
 [Route("api/seo/content")]
 public sealed class ContentController(
     IContentDocumentService content,
+    IArticleRenderService renderer,
     ICompetitorInsightsService competitors,
     IContentScoringService scoring,
     ICurrentUserContext user) : ControllerBase
@@ -26,6 +27,15 @@ public sealed class ContentController(
     public async Task<IActionResult> Get(Guid id, CancellationToken ct)
     {
         var result = await content.GetAsync(user.RequireUserId(), id, ct);
+        if (!result.IsSuccess)
+            return result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true ? NotFound() : BadRequest(result.Error);
+        return Ok(result.Value);
+    }
+
+    [HttpGet("{id:guid}/rendered-html")]
+    public async Task<IActionResult> GetRenderedHtml(Guid id, CancellationToken ct)
+    {
+        var result = await renderer.RenderAsync(user.RequireUserId(), id, ct);
         if (!result.IsSuccess)
             return result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true ? NotFound() : BadRequest(result.Error);
         return Ok(result.Value);

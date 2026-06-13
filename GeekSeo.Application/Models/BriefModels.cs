@@ -10,6 +10,8 @@ public sealed record ContentBrief
     public IReadOnlyList<string> SuggestedHeadings { get; init; } = [];
     public IReadOnlyList<BriefCompetitorSummary> TopCompetitors { get; init; } = [];
     public IReadOnlyList<string> CompetitorDomains { get; init; } = [];
+    public IReadOnlyList<string> CompetitorHeadingHighlights { get; init; } = [];
+    public IReadOnlyList<string> CompetitorSchemaTypes { get; init; } = [];
     public IReadOnlyList<string> PeopleAlsoAsk { get; init; } = [];
     public WritingMethodologySpec Methodology { get; init; } = WritingMethodologySpec.FourPhase;
     public IReadOnlyList<DirectAnswerBlockSpec> DirectAnswerBlocks { get; init; } = [];
@@ -18,6 +20,7 @@ public sealed record ContentBrief
     public SchemaBlueprint SchemaBlueprint { get; init; } = new();
     public IReadOnlyList<string> ReviewChecklist { get; init; } = [];
     public NicheContextSpec NicheContext { get; init; } = new();
+    public SerpIntelligenceSnapshot SerpIntelligence { get; init; } = new();
     public string? AuthorOrganizationName { get; init; }
     public string? AuthorOrganizationUrl { get; init; }
     public string BenchmarkQuality { get; init; } = "good";
@@ -54,6 +57,14 @@ public sealed record NicheContextSpec
     public string? PrimaryNiche { get; init; }
     public string? MatchedPillar { get; init; }
     public IReadOnlyList<string> GapTopics { get; init; } = [];
+}
+
+public sealed record SerpIntelligenceSnapshot
+{
+    public IReadOnlyList<string> PeopleAlsoAsk { get; init; } = [];
+    public IReadOnlyList<string> RelatedSearches { get; init; } = [];
+    public IReadOnlyList<string> FeatureFlags { get; init; } = [];
+    public string? FeaturedSnippet { get; init; }
 }
 
 public sealed record BriefCompetitorSummary
@@ -109,4 +120,12 @@ public sealed record AiDetectionResult
 public sealed record WritingTextResult
 {
     public required string Content { get; init; }
+}
+
+public sealed record RenderedArticleResult
+{
+    public required string BodyHtml { get; init; }
+    public required string RenderedHtml { get; init; }
+    public IReadOnlyList<string> SchemaScripts { get; init; } = [];
+    public IReadOnlyList<string> SchemaTypes { get; init; } = [];
 }

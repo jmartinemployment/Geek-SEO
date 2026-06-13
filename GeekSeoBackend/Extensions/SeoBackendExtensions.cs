@@ -3,6 +3,7 @@ using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeoBackend.Jobs;
 using GeekSeoBackend.Services.NicheExtraction;
+using GeekSeoBackend.Services.NicheStepRunners;
 using GeekSeo.Application.Services.Seo;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.HttpClients.Repo;
@@ -77,6 +78,7 @@ public static class SeoBackendExtensions
         services.AddScoped<IContentScoringService, ContentScoringService>();
         services.AddScoped<ICompetitorInsightsService, CompetitorInsightsService>();
         services.AddScoped<IContentBriefService, ContentBriefService>();
+        services.AddScoped<IArticleRenderService, ArticleRenderService>();
         services.AddScoped<IAIWritingService, AIWritingService>();
         services.AddScoped<IKeywordResearchService, KeywordResearchService>();
         services.AddScoped<IWordPressPublishService, WordPressPublishService>();
@@ -125,6 +127,7 @@ public static class SeoBackendExtensions
         services.AddScoped<NicheAuthorityScorer>();
         services.AddScoped<NicheRootEntityBuilder>();
         services.AddScoped<NicheAnalysisPersistenceService>();
+        services.AddScoped<NicheStepExecutionService>();
         services.AddScoped<NicheAnalyzerService>();
         services.AddScoped<CompetitorAnalysisService>();
         services.AddScoped<NicheStepRerunService>();

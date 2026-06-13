@@ -28,7 +28,17 @@ public sealed record NicheAnalysisStepLogEntry(
 public sealed record NicheAnalysisDetails(
     int StepLogVersion,
     IReadOnlyList<NicheAnalysisStepLogEntry> Steps,
-    SiteTopicProfile? FusionSnapshot = null);
+    SiteTopicProfile? FusionSnapshot = null,
+    IReadOnlyList<NicheStepDefinitionDto>? StepDefinitions = null);
+
+public sealed record NicheStepDefinitionDto(
+    int StepNumber,
+    string Slug,
+    string Title,
+    string Phase,
+    IReadOnlyList<string> Dependencies,
+    bool IsOptional,
+    bool IsTerminal);
 
 /// <summary>Persisted when a niche analysis run completes (metadata + scores).</summary>
 public sealed record NicheAnalysisSaveRequest(

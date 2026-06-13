@@ -6,7 +6,6 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { GoogleSettings } from '@/components/google/google-settings';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
-import { createContent } from '@/lib/seo-api';
 import { loadAllContentDocuments, type ProjectWithDocuments, type RecentDocument } from '@/lib/dashboard-data';
 
 function ContentListPageInner() {
@@ -70,11 +69,10 @@ function ContentListPageInner() {
     setCreating(true);
     try {
       setError(null);
-      const doc = await createContent(
-        { projectId: effectiveCreateProjectId, title, targetKeyword: keyword },
-        accessToken,
-      );
-      router.push(`/app/content/${doc.id}`);
+      const params = new URLSearchParams({ projectId: effectiveCreateProjectId });
+      if (title.trim()) params.set('title', title.trim());
+      if (keyword.trim()) params.set('keyword', keyword.trim());
+      router.push(`/app/content-writing?${params.toString()}`);
     } catch (err) {
       setError(err);
       setCreating(false);
@@ -89,7 +87,7 @@ function ContentListPageInner() {
     <main className="mx-auto max-w-4xl px-2 py-4 md:px-0">
       <h1 className="text-2xl font-semibold tracking-tight">Content documents</h1>
       <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        All articles across your sites — open the editor or filter by project.
+        All articles across your sites — open a document or start a new draft in Content Writing.
       </p>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -150,7 +148,7 @@ function ContentListPageInner() {
         onSubmit={onCreate}
         className="mt-8 flex flex-col gap-3 rounded-xl border bg-white p-5 shadow-sm"
       >
-        <h2 className="font-medium">New document</h2>
+          <h2 className="font-medium">Start in Content Writing</h2>
         <select
           className="rounded-lg border border-[var(--color-border-strong)] px-3 py-2"
           value={effectiveCreateProjectId}
@@ -181,7 +179,7 @@ function ContentListPageInner() {
           disabled={creating || projects.length === 0}
           className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
         >
-          {creating ? 'Opening editor…' : 'Create & open editor'}
+          {creating ? 'Opening workspace…' : 'Open Content Writing'}
         </button>
       </form>
 

@@ -45,6 +45,28 @@ public sealed class PillarDemandEnricher(
             serpProvider.ProviderName);
     }
 
+    public Task<(IReadOnlyList<PillarKeywordEnrichment> Enrichments, bool Skipped, string? SkipReason)>
+        EnrichKeywordsOnlyAsync(
+            IReadOnlyList<DiscoveredPillar> pillars,
+            string location,
+            Func<int, int, string, Task>? onProgress = null,
+            CancellationToken ct = default) =>
+        EnrichKeywordsAsync(pillars, location, onProgress, ct);
+
+    public Task<(IReadOnlyList<PillarSerpEnrichment> Validations, bool Skipped, string? SkipReason)>
+        ValidateSerpOnlyAsync(
+            IReadOnlyList<DiscoveredPillar> pillars,
+            string siteDomain,
+            string location,
+            Func<int, int, string, Task>? onProgress = null,
+            CancellationToken ct = default) =>
+        ValidateSerpAsync(
+            pillars,
+            NormalizeHost(siteDomain),
+            location,
+            onProgress,
+            ct);
+
     internal static IReadOnlyList<DiscoveredPillar> ApplySerpDemotions(
         IReadOnlyList<DiscoveredPillar> pillars,
         IReadOnlyList<PillarSerpEnrichment> serpEnrichments,

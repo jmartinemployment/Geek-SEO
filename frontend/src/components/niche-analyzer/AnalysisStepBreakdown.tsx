@@ -6,23 +6,11 @@ import {
   runNicheStep,
   type NicheAnalysisDetails,
   type NicheAnalysisStepLogEntry,
+  type NicheStepDefinition,
   type StepStatus,
 } from '@/lib/seo-api';
 import { OUTPUT_LABELS } from '@/components/niche-analyzer/pillar-provenance';
 import { TopicCandidateMatrix } from '@/components/niche-analyzer/TopicCandidateMatrix';
-
-// Canonical dependency map — must match backend NicheStepDependencies.Map
-const STEP_DEPENDENCIES: Record<string, string[]> = {
-  schema: [], site_urls: [], nav: [], headings: [], page_content: [], site_structure: [],
-  merging: ['schema','site_urls','nav','headings','page_content','site_structure'],
-  keywords: ['merging'],
-  serp_validation: ['merging'],
-  profile: ['merging','serp_validation'],
-  local: ['schema','site_structure','merging'],
-  coverage: ['schema','site_structure','merging'],
-  scoring: ['profile','local','coverage'],
-  complete: ['scoring'],
-};
 
 type Props = {
   profileId: string;
@@ -88,7 +76,7 @@ function formatOutputValue(value: unknown): string {
 }
 
 function StepOutputs({ outputs }: { outputs: Record<string, unknown> }) {
-  const entries = Object.entries(outputs);
+  const entries = Object.entries(outputs).filter(([key]) => !key.startsWith('_artifact'));
   if (entries.length === 0) return null;
 
   return (
@@ -108,9 +96,10 @@ function StepOutputs({ outputs }: { outputs: Record<string, unknown> }) {
 }
 
 function StepRow({
-  step, stepStatuses, anyStepRunning, profileId, accessToken, onStepRerun,
+  step, stepDefinition, stepStatuses, anyStepRunning, profileId, accessToken, onStepRerun,
 }: {
   step: NicheAnalysisStepLogEntry;
+  stepDefinition?: NicheStepDefinition;
   stepStatuses?: Record<string, StepStatus>;
   anyStepRunning?: boolean;
   profileId: string;
@@ -121,10 +110,14 @@ function StepRow({
   const [rerunError, setRerunError] = useState<string | null>(null);
 
   const isolatedStatus = stepStatuses?.[step.slug];
-  const deps = STEP_DEPENDENCIES[step.slug] ?? [];
-  const depsComplete = deps.every(d => stepStatuses?.[d] === 'complete');
-  const canRerun = isolatedStatus === 'complete' || isolatedStatus === 'error';
-  const rerunDisabled = !depsComplete || anyStepRunning || rerunning;
+  const deps = stepDefinition?.dependencies ?? [];
+  const depsKnown = deps.length === 0 || Boolean(stepStatuses);
+  const depsComplete = deps.every((dep) => stepStatuses?.[dep] === 'complete');
+  const canRerun = Boolean(
+    stepDefinition
+    && (isolatedStatus === 'complete' || isolatedStatus === 'error')
+  );
+  const rerunDisabled = !depsKnown || !depsComplete || anyStepRunning || rerunning;
 
   const statusLabel = isolatedStatus === 'running' ? 'in progress'
     : isolatedStatus === 'error' ? 'error'
@@ -169,7 +162,13 @@ function StepRow({
               type="button"
               onClick={handleRerun}
               disabled={rerunDisabled}
-              title={!depsComplete ? `Dependencies not complete: ${deps.filter(d => stepStatuses?.[d] !== 'complete').join(', ')}` : ''}
+              title={
+                !depsKnown
+                  ? 'Step status map unavailable for this run.'
+                  : !depsComplete
+                    ? `Dependencies not complete: ${deps.filter((d) => stepStatuses?.[d] !== 'complete').join(', ')}`
+                    : ''
+              }
               className="rounded px-2 py-0.5 text-[10px] font-medium transition-colors bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)] hover:bg-[var(--color-border)] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {rerunning ? 'Running…' : 'Re-run'}
@@ -183,10 +182,11 @@ function StepRow({
 }
 
 function PhaseSection({
-  phase, steps, defaultExpanded, stepStatuses, anyStepRunning, profileId, accessToken, onStepRerun,
+  phase, steps, stepDefinitions, defaultExpanded, stepStatuses, anyStepRunning, profileId, accessToken, onStepRerun,
 }: {
   phase: Phase;
   steps: NicheAnalysisStepLogEntry[];
+  stepDefinitions: NicheStepDefinition[];
   defaultExpanded: boolean;
   stepStatuses?: Record<string, StepStatus>;
   anyStepRunning?: boolean;
@@ -223,6 +223,7 @@ function PhaseSection({
             <StepRow
               key={`${step.stepNumber}-${step.slug}`}
               step={step}
+              stepDefinition={stepDefinitions.find((definition) => definition.slug === step.slug)}
               stepStatuses={stepStatuses}
               anyStepRunning={anyStepRunning}
               profileId={profileId}
@@ -295,6 +296,7 @@ export function AnalysisStepBreakdown({
     const grouped = new Set(SE_PHASES.flatMap((p) => p.slugs));
     return details.steps.filter((s) => !grouped.has(s.slug));
   }, [details]);
+  const stepDefinitions = details?.stepDefinitions ?? [];
 
   return (
     <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -335,6 +337,7 @@ export function AnalysisStepBreakdown({
                   key={phase.id}
                   phase={phase}
                   steps={details.steps}
+                  stepDefinitions={stepDefinitions}
                   defaultExpanded={index < 2 || pollIntervalMs !== undefined}
                   stepStatuses={stepStatuses}
                   anyStepRunning={anyStepRunning}
@@ -349,6 +352,7 @@ export function AnalysisStepBreakdown({
                     <StepRow
                       key={`${step.stepNumber}-${step.slug}`}
                       step={step}
+                      stepDefinition={stepDefinitions.find((definition) => definition.slug === step.slug)}
                       stepStatuses={stepStatuses}
                       anyStepRunning={anyStepRunning}
                       profileId={profileId}

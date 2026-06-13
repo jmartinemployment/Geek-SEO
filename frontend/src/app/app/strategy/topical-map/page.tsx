@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { TopicalMapWorkspace } from '@/components/strategy/topical-map-workspace';
 import { useAuthReady } from '@/hooks/use-auth-ready';
 import { listProjects, type SeoProject } from '@/lib/seo-api';
 
-export default function TopicalMapPage() {
+function TopicalMapPageInner() {
   const searchParams = useSearchParams();
   const seedFromUrl = searchParams.get('seed') ?? '';
   const projectFromUrl = searchParams.get('projectId') ?? '';
@@ -70,5 +70,17 @@ export default function TopicalMapPage() {
         </div>
       ) : null}
     </main>
+  );
+}
+
+export default function TopicalMapPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="p-8 text-[var(--color-text-secondary)]">Loading…</main>
+      }
+    >
+      <TopicalMapPageInner />
+    </Suspense>
   );
 }

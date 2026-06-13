@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using GeekSeo.Application.Interfaces.Seo;
 
 namespace GeekSeo.Application.Services.Seo;
@@ -8,7 +7,7 @@ public sealed partial class HtmlRichTextProvider : IRichTextProvider
     public string ProviderName => "html";
 
     public string ExtractPlainText(string html) =>
-        HtmlTagRegex().Replace(html, " ").Trim();
+        HtmlTextUtility.StripHtml(html);
 
     public int CountWords(string html)
     {
@@ -17,7 +16,4 @@ public sealed partial class HtmlRichTextProvider : IRichTextProvider
             ? 0
             : text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
     }
-
-    [GeneratedRegex("<[^>]+>", RegexOptions.None)]
-    private static partial Regex HtmlTagRegex();
 }

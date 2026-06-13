@@ -28,6 +28,14 @@ public static class ArticlePromptBuilder
 
         if (brief.PeopleAlsoAsk.Count > 0)
             builder.AppendLine($"PAA questions: {string.Join("; ", brief.PeopleAlsoAsk)}");
+        if (brief.SerpIntelligence.RelatedSearches.Count > 0)
+            builder.AppendLine($"Related searches: {string.Join("; ", brief.SerpIntelligence.RelatedSearches)}");
+        if (!string.IsNullOrWhiteSpace(brief.SerpIntelligence.FeaturedSnippet))
+            builder.AppendLine($"Featured snippet to outperform: {brief.SerpIntelligence.FeaturedSnippet}");
+        if (brief.CompetitorHeadingHighlights.Count > 0)
+            builder.AppendLine($"Competitor heading patterns: {string.Join("; ", brief.CompetitorHeadingHighlights)}");
+        if (brief.CompetitorSchemaTypes.Count > 0)
+            builder.AppendLine($"Competitor schema signals: {string.Join(", ", brief.CompetitorSchemaTypes)}");
 
         return builder.ToString().Trim();
     }
@@ -77,6 +85,16 @@ public static class ArticlePromptBuilder
             builder.AppendLine();
             builder.AppendLine($"Geo anchor nodes to reference naturally: {string.Join(", ", brief.GeoAnchorNodes)}");
         }
+        if (brief.SerpIntelligence.RelatedSearches.Count > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine($"Related search expansions: {string.Join(", ", brief.SerpIntelligence.RelatedSearches)}");
+        }
+        if (!string.IsNullOrWhiteSpace(brief.SerpIntelligence.FeaturedSnippet))
+        {
+            builder.AppendLine();
+            builder.AppendLine($"Featured snippet to beat: {brief.SerpIntelligence.FeaturedSnippet}");
+        }
 
         builder.AppendLine();
         builder.AppendLine($"Schema target: JSON-LD {brief.SchemaBlueprint.PrimaryType}");
@@ -84,6 +102,10 @@ public static class ArticlePromptBuilder
             builder.AppendLine($"Additional schema types: {string.Join(", ", brief.SchemaBlueprint.AdditionalTypes)}");
         if (brief.SchemaBlueprint.SoftwareEntities.Count > 0)
             builder.AppendLine($"Software entities: {string.Join(", ", brief.SchemaBlueprint.SoftwareEntities)}");
+        if (brief.CompetitorHeadingHighlights.Count > 0)
+            builder.AppendLine($"Competitor heading patterns to learn from: {string.Join("; ", brief.CompetitorHeadingHighlights)}");
+        if (brief.CompetitorSchemaTypes.Count > 0)
+            builder.AppendLine($"Competitor schema signals observed: {string.Join(", ", brief.CompetitorSchemaTypes)}");
 
         if (brief.ReviewChecklist.Count > 0)
         {

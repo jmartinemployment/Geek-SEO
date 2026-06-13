@@ -170,6 +170,18 @@ export async function getContent(
   return res.json() as Promise<SeoContentDocument>;
 }
 
+export async function getRenderedContentHtml(
+  id: string,
+  accessToken?: string | null,
+): Promise<RenderedArticleResult> {
+  const res = await fetch(`${API_URL}/api/seo/content/${id}/rendered-html`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<RenderedArticleResult>;
+}
+
 export async function updateContent(
   id: string,
   body: {
@@ -348,8 +360,52 @@ export type ContentBrief = {
   recommendedTerms: string[];
   suggestedHeadings: string[];
   topCompetitors: { position: number; url: string; title?: string; wordCount: number }[];
+  competitorDomains: string[];
+  competitorHeadingHighlights: string[];
+  competitorSchemaTypes: string[];
   peopleAlsoAsk: string[];
+  methodology: {
+    name: string;
+    phases: string[];
+  };
+  directAnswerBlocks: {
+    label: string;
+    instruction: string;
+  }[];
+  technicalEvidenceRequirements: string[];
+  geoAnchorNodes: string[];
+  schemaBlueprint: {
+    primaryType: string;
+    additionalTypes: string[];
+    softwareEntities: string[];
+    aboutEntities: string[];
+  };
+  reviewChecklist: string[];
+  nicheContext: {
+    primaryNiche?: string | null;
+    matchedPillar?: string | null;
+    gapTopics: string[];
+  };
+  serpIntelligence: {
+    peopleAlsoAsk: string[];
+    relatedSearches: string[];
+    featureFlags: string[];
+    featuredSnippet?: string | null;
+  };
+  authorOrganizationName?: string | null;
+  authorOrganizationUrl?: string | null;
   benchmarkQuality: string;
+};
+
+export type WritingTextResult = {
+  content: string;
+};
+
+export type RenderedArticleResult = {
+  bodyHtml: string;
+  renderedHtml: string;
+  schemaScripts: string[];
+  schemaTypes: string[];
 };
 
 export type AutoOptimizeResult = {
@@ -375,6 +431,38 @@ export async function generateBrief(
   });
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<ContentBrief>;
+}
+
+export async function generateOutline(
+  body: { keyword: string; brief: ContentBrief; title?: string },
+  accessToken?: string | null,
+): Promise<WritingTextResult> {
+  const res = await fetch(`${API_URL}/api/seo/writing/outline`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<WritingTextResult>;
+}
+
+export async function generateDraft(
+  body: {
+    keyword: string;
+    brief: ContentBrief;
+    outline: string;
+    targetWordCount?: number;
+    title?: string;
+  },
+  accessToken?: string | null,
+): Promise<WritingTextResult> {
+  const res = await fetch(`${API_URL}/api/seo/writing/draft`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<WritingTextResult>;
 }
 
 export async function humanizeContent(
@@ -1491,6 +1579,16 @@ export type NicheAnalysisStepLogEntry = {
   outputs: Record<string, unknown>;
 };
 
+export type NicheStepDefinition = {
+  stepNumber: number;
+  slug: string;
+  title: string;
+  phase: string;
+  dependencies: string[];
+  isOptional: boolean;
+  isTerminal: boolean;
+};
+
 export type TopicEvidence = {
   source: string;
   snippet?: string;
@@ -1582,6 +1680,7 @@ export type NicheAnalysisDetails = {
   stepLogVersion: number;
   steps: NicheAnalysisStepLogEntry[];
   fusionSnapshot?: SiteTopicProfile | null;
+  stepDefinitions?: NicheStepDefinition[] | null;
 };
 
 export type NicheTopicCandidateRow = {

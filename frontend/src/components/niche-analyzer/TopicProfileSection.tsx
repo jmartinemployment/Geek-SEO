@@ -2,12 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import {
-  getAllNicheTopicCandidates,
   getNicheAnalysisDetails,
   type NicheAnalysisStepLogEntry,
   type SiteTopicProfile,
 } from '@/lib/seo-api';
-import { fusionFromTopicCandidates } from '@/components/niche-analyzer/candidates-to-fusion';
 import { TopicInsightsStack } from '@/components/niche-analyzer/TopicInsightsStack';
 
 type Props = {
@@ -29,7 +27,6 @@ export function TopicProfileSection({
   const [fusion, setFusion] = useState<SiteTopicProfile | null>(null);
   const [steps, setSteps] = useState<NicheAnalysisStepLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [inventorySource, setInventorySource] = useState<'fusion' | 'candidates' | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,25 +41,12 @@ export function TopicProfileSection({
 
         if (data.fusionSnapshot && data.fusionSnapshot.allCandidates.length > 0) {
           setFusion(data.fusionSnapshot);
-          setInventorySource('fusion');
-          return;
-        }
-
-        const rows = await getAllNicheTopicCandidates(profileId, accessToken);
-        if (cancelled) return;
-
-        const fromInventory = fusionFromTopicCandidates(rows);
-        if (fromInventory) {
-          setFusion(fromInventory);
-          setInventorySource('candidates');
         } else {
           setFusion(null);
-          setInventorySource(null);
         }
       } catch {
         if (!cancelled && showSpinner) {
           setFusion(null);
-          setInventorySource(null);
         }
       } finally {
         if (!cancelled && showSpinner) setLoading(false);
@@ -107,11 +91,6 @@ export function TopicProfileSection({
 
   return (
     <>
-      {inventorySource === 'candidates' ? (
-        <p className="mb-3 text-xs text-[var(--color-text-muted)]">
-          Showing topic inventory from relational candidates (fusion archive not loaded).
-        </p>
-      ) : null}
       <TopicInsightsStack
         fusion={fusion}
         projectId={projectId}

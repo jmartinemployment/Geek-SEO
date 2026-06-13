@@ -108,10 +108,8 @@ public sealed partial class AIWritingService(
         _ = userId;
         var response = await ai.CompleteAsync(new AIRequest
         {
-            SystemPrompt =
-                "You are an SEO content strategist. Output a detailed article outline as HTML using h2 and h3 only. No preamble.",
-            UserPrompt =
-                $"Keyword: {request.Keyword}\nTarget words: {request.Brief.TargetWordCount}\nTerms to cover: {string.Join(", ", request.Brief.RecommendedTerms)}\nSuggested sections: {string.Join("; ", request.Brief.SuggestedHeadings)}",
+            SystemPrompt = ArticlePromptBuilder.BuildOutlineSystemPrompt(),
+            UserPrompt = ArticlePromptBuilder.BuildOutlineUserPrompt(request),
             MaxTokens = 2048,
             Temperature = 0.5,
         }, ct);
@@ -123,13 +121,10 @@ public sealed partial class AIWritingService(
         Guid userId, WritingDraftRequest request, CancellationToken ct = default)
     {
         _ = userId;
-        var target = request.TargetWordCount > 0 ? request.TargetWordCount : request.Brief.TargetWordCount;
         var response = await ai.CompleteAsync(new AIRequest
         {
-            SystemPrompt =
-                "You write SEO articles in HTML (h1 once, multiple h2/h3, paragraphs). Natural tone. No markdown fences.",
-            UserPrompt =
-                $"Keyword: {request.Keyword}\nOutline:\n{request.Outline}\n\nWrite ~{target} words. Include terms: {string.Join(", ", request.Brief.RecommendedTerms.Take(10))}",
+            SystemPrompt = ArticlePromptBuilder.BuildDraftSystemPrompt(),
+            UserPrompt = ArticlePromptBuilder.BuildDraftUserPrompt(request),
             MaxTokens = 8192,
             Temperature = 0.7,
         }, ct);

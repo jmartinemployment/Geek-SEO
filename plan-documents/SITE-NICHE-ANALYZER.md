@@ -1,6 +1,8 @@
 # SiteNicheAnalyzer — Implementation Plan
 
 > **North star & fusion architecture:** [`SEARCH-UNDERSTANDING-LAYER.md`](SEARCH-UNDERSTANDING-LAYER.md) — public-signal composite (schema, page, sitemap, nav, links, optional GSC/SERP). This doc is the **first consumer** implementation; merge rules here will migrate into `TopicFusionEngine`.
+>
+> **Supersession note (June 2026):** The current design direction is stricter than parts of this historical implementation plan. Niche Analyzer now targets a backend-owned canonical 14-step pipeline with no frontend/controller fallback reconstruction or substitution. Each step is expected to persist a canonical artifact boundary. `keywords` remains a standalone Step 8 section under usefulness review.
 
 ## Purpose
 
@@ -29,9 +31,7 @@ progression tracking over time.
 10. Persist versioned NicheProfile snapshot to Postgres
 11. Return structured NicheProfile consumed by TopicalMapService
 
-Steps 6–7 degrade gracefully to skipped if no SERP provider available.
-Steps 5 skips gracefully if no keyword provider available.
-Analysis still produces a complete, useful result from steps 1–4 + 8–10 alone.
+Tier 2 validation steps may still be optional from a product perspective, but missing data must be represented explicitly as canonical skipped/unavailable state rather than repaired through fallback paths.
 
 ---
 
@@ -699,7 +699,7 @@ DELETE /api/seo/niche-analyzer/{profileId}
 `profileId` immediately. The actual analysis runs in `NicheAnalysisBackgroundJob`,
 queued via the existing `SeoMaintenanceWorker` channel pattern.
 
-### Real-Time Status via SignalR (preferred over polling)
+### Real-Time Status via SignalR
 
 The existing `/hubs/seo-scoring` SignalR hub is extended with an
 `AnalysisProgress` event. The background job emits progress at each step:
@@ -730,16 +730,7 @@ connection.on('AnalysisProgress', (msg) => {
 });
 ```
 
-`GET /{profileId}/status` endpoint **kept** as fallback — used for:
-- Initial page load (check if job already finished while navigating)
-- Reconnect recovery if SignalR drops
-
-Frontend flow:
-1. `POST /analyze` → get `profileId`
-2. Subscribe to hub → listen for `AnalysisProgress`
-3. On mount: call `GET /{profileId}/status` → if already complete, skip hub wait
-4. Hub fires step-by-step → progress bar updates in real time
-5. `complete` → fetch full profile; close hub subscription
+The design direction is to treat persisted step state as canonical and avoid status-repair fallback behavior in the UI. Progress transport and persisted status should align on the same 14-step model.
 
 Monthly auto re-analysis: `SeoMaintenanceWorker` checks `next_analysis_due <= NOW()`
 for all complete profiles. Enqueues re-analysis. Powers the authority progression chart.

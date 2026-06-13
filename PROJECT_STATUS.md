@@ -1,6 +1,6 @@
 # Geek SEO — project status
 
-Last updated: June 1, 2026 (plans consolidated)
+Last updated: June 13, 2026
 
 **v1 parity #1–27:** checklist complete (June 2026) — matrix below  
 **Backlog:** [`plan-documents/TODO.md`](plan-documents/TODO.md) · **Providers:** [`plan-documents/SEO-PROVIDER-STRATEGY.md`](plan-documents/SEO-PROVIDER-STRATEGY.md) · **Index:** [`docs/ROADMAP.md`](docs/ROADMAP.md)
@@ -104,6 +104,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 | Internal link suggest + auto-insert | ✅ | ✅ editor panel | sibling docs in project |
 | Keyword cannibalization | ✅ GSC analysis | ✅ `/app/cannibalization` | GSC connected |
 | Topical map **#12 + #12b** | ✅ v2 generate + GET cached | ✅ `/app/strategy/topical-map` (table + React Flow map) | GSC + DataForSEO SERP seeds; priority, pillars, competitors |
+| Niche analyzer | ✅ backend-owned 14-step persisted pipeline | ✅ `/app/strategy/niche-analyzer` | Canonical step artifacts only; no fallback reconstruction; Step 8 `keywords` isolated |
 | Published content decay audit | ✅ GSC compare + sparkline DB | ✅ `/app/content-guard` | Weekly snapshots via worker when `WORKER_SERVICE_USER_ID` set |
 | GEO / AI visibility probe | ✅ probe + query CRUD + 30d trends | ✅ `/app/geo` | DataForSEO; daily worker snapshots enabled queries |
 | Content Guard | ✅ decay scan + AI patch in DB | ✅ policy, runs, approve/rollback | GSC for decay; **WP draft N/A** — operator has no WordPress site |
@@ -184,7 +185,7 @@ Parity **#1–27** shipped per matrix above (June 2026). Waivers: #6, #15, #19, 
 
 See `scripts/LOCAL_DEV.md`. Minimum: GeekSeoBackend + GeekAPI + GeekRepository + frontend. **Geek-SEO repo configures only GeekSeoBackend** (`GEEK_API_URL`, `GEEK_BACKEND_API_KEY`, provider keys). `DATABASE_URL` / `REPO_*` belong on Jeff’s GeekAPI + GeekRepository only.
 
-**Navigation:** `/app/projects/:projectId` redirects to `/app/content?projectId=…` (`frontend/next.config.ts`). Primary sidebar: dashboard, topical map, content, keywords, cannibalization, rankings, audit, analytics; overflow menu includes bulk, SERP, geo, content-guard, guided, calendar, brand voice, briefs.
+**Navigation:** `/app/projects/:projectId` redirects to `/app/content?projectId=…` (`frontend/next.config.ts`). Primary sidebar: dashboard, topical map, content, keywords, cannibalization, rankings, audit, analytics; overflow menu includes bulk, SERP, geo, content-guard, content writing, calendar, brand voice.
 
 ## Plan reference
 

@@ -24,14 +24,14 @@ export function DashboardRecentDocuments({ documents }: { documents: RecentDocum
                   <FileText className="size-5" />
                 </EmptyMedia>
                 <EmptyTitle>No documents yet</EmptyTitle>
-                <EmptyDescription>Create content from the optimizer or guided flow.</EmptyDescription>
+                <EmptyDescription>Create content from the optimizer or the content writing workspace.</EmptyDescription>
               </EmptyHeader>
               <EmptyContent>
                 <Link
-                  href="/app/guided"
+                  href="/app/content-writing"
                   className="inline-flex h-9 items-center rounded-[var(--radius-button)] bg-[var(--color-accent)] px-5 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover)]"
                 >
-                  Start guided flow
+                  Start content writing
                 </Link>
               </EmptyContent>
             </Empty>

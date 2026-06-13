@@ -132,7 +132,17 @@ public sealed class ContentWritingPromptingTests
                         true,
                         "how_to",
                         "create"),
-                ]));
+                ]),
+            new CompetitorCrawlService(
+                new FakeCrawlerProvider(),
+                new FakeCompetitorPageRepository(serpRow.Id,
+                    [
+                        BuildCompetitorPage(
+                            serpRow.Id,
+                            "https://competitor-one.example/zapier-quickbooks",
+                            ["QuickBooks automation checklist", "Zapier invoice sync"],
+                            ["FAQPage", "HowTo"]),
+                    ])));
 
         var result = await service.GenerateBriefAsync(userId, new GenerateBriefRequest
         {
@@ -149,6 +159,8 @@ public sealed class ContentWritingPromptingTests
             result.Value.Methodology.Phases);
         Assert.Equal("QuickBooks Automation", result.Value.NicheContext.MatchedPillar);
         Assert.Contains("competitor-one.example", result.Value.CompetitorDomains);
+        Assert.Contains("QuickBooks automation checklist", result.Value.CompetitorHeadingHighlights);
+        Assert.Contains("FAQPage", result.Value.CompetitorSchemaTypes);
         Assert.Contains("Palm Beach County, FL", result.Value.GeoAnchorNodes);
         Assert.Contains("West Palm Beach, FL", result.Value.GeoAnchorNodes);
         Assert.Equal("TechArticle", result.Value.SchemaBlueprint.PrimaryType);
@@ -351,4 +363,47 @@ public sealed class ContentWritingPromptingTests
         public Task<Result<IReadOnlyList<CompetitorNicheOverlap>>> GetCompetitorOverlapAsync(Guid profileId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Result<IReadOnlyList<EntityCoverageReport>>> GetEntityCoverageAsync(Guid profileId, CancellationToken ct = default) => throw new NotSupportedException();
     }
+
+    private sealed class FakeCrawlerProvider : ICrawlerProvider
+    {
+        public string ProviderName => "fake";
+
+        public Task<Result<PageContent>> CrawlPageAsync(string url, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<bool> IsAllowedByRobotsTxtAsync(string url, CancellationToken ct = default) =>
+            Task.FromResult(false);
+    }
+
+    private sealed class FakeCompetitorPageRepository(Guid serpResultId, IReadOnlyList<SeoCompetitorPage> pages) : ICompetitorPageRepository
+    {
+        public Task<Result<IReadOnlyList<SeoCompetitorPage>>> GetBySerpResultAsync(Guid requestedSerpResultId, CancellationToken ct = default) =>
+            Task.FromResult(Result<IReadOnlyList<SeoCompetitorPage>>.Success(
+                requestedSerpResultId == serpResultId ? pages : []));
+
+        public Task<Result<SeoCompetitorPage>> UpsertAsync(Guid requestedSerpResultId, PageContent page, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+    }
+
+    private static SeoCompetitorPage BuildCompetitorPage(
+        Guid serpResultId,
+        string url,
+        IReadOnlyList<string> headings,
+        IReadOnlyList<string> schemaTypes) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            SerpResultId = serpResultId,
+            Url = url,
+            Domain = new Uri(url).Host,
+            MetaTitle = "Competitor page",
+            ContentText = "Competitor content",
+            WordCount = 1200,
+            HeadingsJson = JsonSerializer.Serialize(headings, JsonOptions),
+            TermsJson = "{}",
+            HasStructuredData = schemaTypes.Count > 0,
+            StructuredDataTypesJson = JsonSerializer.Serialize(schemaTypes, JsonOptions),
+            CrawledAt = DateTimeOffset.UtcNow,
+            ExpiresAt = DateTimeOffset.UtcNow.AddDays(7),
+        };
 }

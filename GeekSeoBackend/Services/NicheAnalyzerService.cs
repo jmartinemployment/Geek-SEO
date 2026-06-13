@@ -6,6 +6,7 @@ using GeekSeo.Persistence.Entities;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Hubs;
 using GeekSeoBackend.Services.NicheExtraction;
+using GeekSeoBackend.Services.NicheStepRunners;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Playwright;
 
@@ -28,6 +29,7 @@ public sealed class NicheAnalyzerService(
     GscQueryExtractor gscQueryExtractor,
     NicheAuthorityScorer scorer,
     NicheRootEntityBuilder rootBuilder,
+    NicheStepExecutionService stepExecution,
     IHubContext<SeoContentScoringHub> hub,
     ICurrentUserContext userContext,
     ILogger<NicheAnalyzerService> logger)
@@ -92,412 +94,21 @@ public sealed class NicheAnalyzerService(
 
             var profile = profileResult.Value;
             var domain = NicheSiteUrlNormalizer.Normalize(profile.Domain);
-
-            // Initialize all steps as pending
             await InitializeStepStatusesAsync(profileId, ct);
-
-            await profileRepo.UpdateStatusAsync(profileId, "processing",
-                step: "schema", stepNumber: 1, totalSteps: TotalSteps, ct: ct);
-
-            // Step 1 — Schema.org
-            var schemaData = await schemaExtractor.ExtractAsync(domain, browser, ct);
-            var schemaMessage = schemaData.ServiceNames.Count > 0
-                ? $"Found {schemaData.ServiceNames.Count} schema topic(s) in homepage JSON-LD ({schemaData.KnowsAboutTopics.Count} knowsAbout, {schemaData.OfferCatalogTopics.Count} offer catalog / serviceType)."
-                : "Schema.org step complete — no service topics on homepage.";
-            await PushProgress(
-                userId, profileId, 1,
-                NicheAnalysisStepLogBuilder.Schema(1, schemaData, schemaMessage),
-                ct);
-
-            // Step 2 — Site URLs (sitemap until crawl service exists)
-            var sitemapData = await sitemapExtractor.ExtractAsync(domain, ct);
-            var siteUrlsMessage = sitemapData.TotalUrlsScanned > 0
-                ? $"Site URLs: {sitemapData.TotalUrlsScanned} from sitemap."
-                : "Site URLs: none found in sitemap.";
-            await PushProgress(
-                userId, profileId, 2,
-                NicheAnalysisStepLogBuilder.SiteUrls(2, sitemapData, siteUrlsMessage),
-                ct);
-
-            // Step 3 — Navigation
-            NavMenuData navData = new([], "skipped");
-            if (browser is not null)
-                navData = await navMenuExtractor.ExtractAsync(domain, browser, ct);
-
-            var navMessage = navData.ExtractMethod switch
-            {
-                "skipped" => "Navigation step skipped — browser unavailable.",
-                _ => $"Navigation: {navData.Pillars.Count} link groups ({navData.ExtractMethod}).",
-            };
-            await PushProgress(
-                userId, profileId, 3,
-                NicheAnalysisStepLogBuilder.Nav(3, navData, navMessage),
-                ct);
-
-            // Step 4 — Homepage headings (extractor output only — no schema substitution)
-            var headings = await headingsExtractor.ExtractAsync(domain, browser, ct);
-            var headingsMessage =
-                headings.Headings.Count > 0 || !string.IsNullOrWhiteSpace(headings.Title)
-                    ? $"Headings: {headings.Headings.Count} elements from homepage."
-                    : "Headings: none found on homepage.";
-            await PushProgress(
-                userId, profileId, 4,
-                NicheAnalysisStepLogBuilder.Headings(4, headings, headingsMessage),
-                ct);
-
-            // Page content (peer signal — lists + section headings on homepage)
-            var pageContent = await pageContentExtractor.ExtractAsync(domain, browser, ct);
-            var pageParts = new List<string>();
-            if (pageContent.VerticalTopics.Count > 0)
-                pageParts.Add($"{pageContent.VerticalTopics.Count} H2/H3 vertical section(s)");
-            if (pageContent.ServicePhrases.Count > 0)
-                pageParts.Add($"{pageContent.ServicePhrases.Count} body phrase(s)");
-            var pageMessage = pageParts.Count > 0
-                ? $"Page content: {string.Join(", ", pageParts)} from homepage."
-                : "Page content: no additional service phrases on homepage.";
-            await PushProgress(
-                userId, profileId, 5,
-                NicheAnalysisStepLogBuilder.PageContent(5, pageContent, pageMessage),
-                ct);
-
-            // Step 6 — Site structure (multi-page crawl, internal links, URL patterns)
-            var crawlData = await sitePageCrawler.CrawlAsync(domain, sitemapData.SampleUrls, browser, ct);
-            var internalLinkData = internalLinkExtractor.Extract(crawlData, domain);
-            var crawlUrls = crawlData.Pages.Select(p => p.Url).ToList();
-            var patternUrls = sitemapData.SampleUrls
-                .Concat(crawlUrls)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            var urlPatternData = urlPatternExtractor.Extract(patternUrls, domain);
-            var structureParts = new List<string>
-            {
-                $"{crawlData.PagesFetched} page(s) crawled",
-                $"{internalLinkData.Links.Count} internal link(s) ({internalLinkData.Links.Count(l => !l.InferredFromUrlSlug)} anchor, {internalLinkData.Links.Count(l => l.InferredFromUrlSlug)} from URL slug)",
-                $"{urlPatternData.Topics.Count} URL pattern topic(s)",
-            };
-            var structureMessage =
-                $"Site structure: {string.Join(", ", structureParts)}.";
-            await PushProgress(
-                userId, profileId, 6,
-                NicheAnalysisStepLogBuilder.SiteStructure(
-                    6, crawlData, internalLinkData, urlPatternData, structureMessage),
-                ct);
-
-            // Persist crawled URL list for isolated step re-runs (URL list only — no HTML)
-            try
-            {
-                var crawledUrlJson = System.Text.Json.JsonSerializer.Serialize(crawlUrls);
-                await profileRepo.UpdateCrawledUrlsAsync(profileId, crawledUrlJson, ct);
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "Failed to persist crawled URLs for {ProfileId}", profileId);
-            }
-
-            // Step 7 — GSC owner overlay (Tier 3, optional) + fuse all signals
-            var gscOverlay = await gscQueryExtractor.ExtractAsync(userId, profile.ProjectId, ct);
-            var candidatePool = TopicCandidatePoolBuilder.Build(
-                schemaData, sitemapData, navData, headings, pageContent,
-                internalLinkData, urlPatternData);
-            candidatePool = GscQueryExtractor.ApplyToPool(candidatePool, gscOverlay);
-            var fused = pillarSelector.Select(
-                candidatePool,
-                schemaData.AreaServed.ToList());
-            fused = NormalizedTopicalityCalculator.Apply(fused, crawlData, urlPatternData);
-            var mergeResult = pillarSelector.ToPillarMergeResult(fused);
-            var merged = mergeResult.Selected;
-            var silentGscSlugs = GscQueryExtractor.FindSilentPillarSlugs(merged, gscOverlay);
-            var gscMatchedCount = CountBySource(fused.AllCandidates, "gsc");
-            var mergeMessage = BuildMergeMessage(mergeResult, fused, gscOverlay, gscMatchedCount, silentGscSlugs);
-            await PushProgress(
-                userId, profileId, 7,
-                NicheAnalysisStepLogBuilder.Merging(
-                    7,
-                    fused.AllCandidates.Count,
-                    merged.Count,
-                    merged,
-                    CountBySource(fused.AllCandidates, "schema"),
-                    CountBySource(fused.AllCandidates, "sitemap"),
-                    CountBySource(fused.AllCandidates, "nav"),
-                    CountBySource(fused.AllCandidates, "heading"),
-                    mergeResult.Excluded,
-                    CountBySource(fused.AllCandidates, "page"),
-                    CountBySource(fused.AllCandidates, "page_vertical"),
-                    CountBySource(fused.AllCandidates, "internal_link"),
-                    CountBySource(fused.AllCandidates, "url_pattern"),
-                    CountBySource(fused.AllCandidates, "same_as"),
-                    CountBySource(fused.AllCandidates, "gsc"),
-                    fused.SulVersion,
-                    fused.SignalSourcesPresent,
-                    SampleExclusionReasons(fused),
-                    gscOverlay.Connected,
-                    gscOverlay.Skipped,
-                    gscOverlay.SkipReason,
-                    gscOverlay.QueryRowCount,
-                    gscMatchedCount,
-                    silentGscSlugs,
-                    fused.NormalizedTopicalityBySlug,
-                    mergeMessage),
-                ct);
-
-            var priorUrls = await LoadPriorSitemapUrlsWithFallbackAsync(profile, ct);
-            var scan = NicheScanFingerprint.Compute(
-                domain, fused.SulVersion, schemaData, sitemapData, navData, priorUrls);
-            var candidatePersist = await persistence.PersistCandidatesAsync(profileId, fused, includeEvidence: false, ct);
-            if (!candidatePersist.IsSuccess)
-            {
-                logger.LogWarning(
-                    "Topic candidates not persisted for {ProfileId}: {Error}",
-                    profileId, candidatePersist.Error);
-            }
-
-            await profileRepo.UpdatePhaseStatusAsync(
+            await profileRepo.UpdateStatusAsync(
                 profileId,
-                new NichePhaseStatusPatch(
-                    StructureStatus: "pending",
-                    EnrichmentStatus: "pending",
-                    PersistStage: "candidates"),
-                ct);
+                "processing",
+                step: NicheStepCatalog.Ordered[0].Slug,
+                stepNumber: 1,
+                totalSteps: TotalSteps,
+                ct: ct);
 
-            var projectResult = await projectRepo.GetByIdAsync(profile.ProjectId, ct);
-            var keywordLocation = projectResult.IsSuccess
-                && !string.IsNullOrWhiteSpace(projectResult.Value?.DefaultLocation)
-                ? projectResult.Value.DefaultLocation
-                : "United States";
-
-            // Step 8–9 — Tier-2 demand validation (keyword + SERP for all selected pillars)
-            await PushProgress(
-                userId, profileId, 8,
-                NicheAnalysisStepLogBuilder.Processing(
-                    8, "keywords", $"Keyword demand: 0/{merged.Count} pillars…"),
-                ct);
-
-            var demand = await pillarDemandEnricher.EnrichAsync(
-                merged,
-                profileId,
-                domain,
-                keywordLocation,
-                async (done, total, phase) =>
-                {
-                    if (phase == "keywords")
-                    {
-                        await PushProgress(
-                            userId, profileId, 8,
-                            NicheAnalysisStepLogBuilder.Processing(
-                                8, "keywords", $"Keyword demand: {done}/{total} pillars…"),
-                            ct);
-                    }
-                    else
-                    {
-                        await PushProgress(
-                            userId, profileId, 9,
-                            NicheAnalysisStepLogBuilder.Processing(
-                                9, "serp_validation", $"SERP validation: {done}/{total} pillars…"),
-                            ct);
-                    }
-                },
-                ct);
-            merged = demand.PillarsAfterDemotion.ToList();
-            var keywordsMessage = demand.KeywordsSkipped
-                ? $"Keyword demand skipped — {demand.KeywordSkipReason ?? "provider unavailable"}."
-                : $"Keyword demand: enriched {demand.Keywords.Count(k => k.Enriched)} of {demand.Keywords.Count} pillar(s) via {demand.KeywordProvider}.";
-            await PushProgress(
-                userId, profileId, 8,
-                NicheAnalysisStepLogBuilder.Keywords(8, demand, keywordsMessage),
-                ct);
-
-            // Step 9 — SERP validation + competitors (Tier 2, optional)
-            var serpMessage = demand.SerpSkipped
-                ? $"SERP validation skipped — {demand.SerpSkipReason ?? "provider unavailable"}."
-                : demand.DemotedSlugs.Count > 0
-                    ? $"SERP validation ({demand.SerpProvider}): {demand.SerpValidations.Count} pillar(s) checked, {demand.DemotedSlugs.Count} demoted, {demand.Competitors.Count} competitor(s) found."
-                    : $"SERP validation ({demand.SerpProvider}): {demand.SerpValidations.Count} pillar(s) checked, {demand.Competitors.Count} competitor(s) found.";
-            await PushProgress(
-                userId, profileId, 9,
-                NicheAnalysisStepLogBuilder.SerpValidation(9, demand, serpMessage),
-                ct);
-
-            await profileRepo.UpdatePhaseStatusAsync(
-                profileId,
-                new NichePhaseStatusPatch(EnrichmentStatus: demand.KeywordsSkipped && demand.SerpSkipped ? "skipped" : "complete"),
-                ct);
-
-            // Step 10 — Niche identity
-            var nicheEntities = BuildNichePillars(merged, profileId, demand.Keywords, demand.SerpValidations);
-            var rootEntity = rootBuilder.Build(schemaData, headings, nicheEntities);
-            var audienceType = DetermineAudienceType(nicheEntities, schemaData);
-            var nicheTags = BuildNicheTags(schemaData, nicheEntities).ToArray();
-            var profileMessage = $"Niche profile: {rootEntity}.";
-            await PushProgress(
-                userId, profileId, 10,
-                NicheAnalysisStepLogBuilder.Profile(10, rootEntity, audienceType, nicheTags, profileMessage),
-                ct);
-
-            // Step 12 — Local geography (areaServed vs location pages)
-            var localGeo = LocalGapGenerator.Analyze(
-                schemaData,
-                sitemapData,
-                crawlUrls,
-                urlPatternData,
-                merged);
-            fused = fused with { LocalGeography = localGeo };
-
-            var localMessage = !localGeo.IsLocalBusiness
-                ? "Local geography: no areaServed or location URLs detected."
-                : localGeo.Gaps.Count > 0
-                    ? $"Local geography: {localGeo.AreasServed.Count} area(s) declared, {localGeo.LocationPagesFound.Count} location page(s), {localGeo.Gaps.Count} gap(s)."
-                    : localGeo.AreasServed.Count > 0
-                        ? $"Local geography: {localGeo.AreasServed.Count} area(s) declared — all have matching location pages."
-                        : $"Local geography: {localGeo.LocationPagesFound.Count} location page(s) found.";
-            await PushProgress(
-                userId, profileId, 11,
-                localGeo.IsLocalBusiness
-                    ? NicheAnalysisStepLogBuilder.Local(11, localGeo, localMessage)
-                    : NicheAnalysisStepLogBuilder.LocalDisabled(11, localMessage),
-                ct);
-
-            // Step 13 — Content coverage (fusion + crawl → pillar/subtopic status)
-            foreach (var pillar in nicheEntities)
+            foreach (var step in NicheStepCatalog.Ordered)
             {
-                if (pillar.Id == Guid.Empty)
-                    pillar.Id = Guid.NewGuid();
+                var entry = await stepExecution.RunAsync(step.Slug, profileId, userId, domain, browser, ct);
+                await PushProgress(userId, profileId, step.StepNumber, entry, ct);
             }
 
-            var subtopics = BuildSubtopics(nicheEntities, merged);
-            AttachSubtopics(nicheEntities, subtopics);
-
-            var coverageResult = NicheContentCoverageMatcher.Apply(
-                nicheEntities,
-                subtopics,
-                fused,
-                merged,
-                crawlData,
-                sitemapData,
-                demand.SerpValidations);
-
-            scorer.ScorePillars(nicheEntities);
-
-            var coverageMessage =
-                $"Content coverage: {coverageResult.PillarsCovered} covered, {coverageResult.PillarsPartial} partial, {coverageResult.PillarsGap} gap — {coverageResult.SubtopicsCovered}/{coverageResult.SubtopicsTotal} subtopics matched to URLs.";
-            await PushProgress(
-                userId, profileId, 12,
-                NicheAnalysisStepLogBuilder.Coverage(
-                    12,
-                    coverageResult.PillarsCovered,
-                    coverageResult.PillarsPartial,
-                    coverageResult.PillarsGap,
-                    coverageResult.SubtopicsCovered,
-                    coverageResult.SubtopicsTotal,
-                    coverageResult.SamplePartialPillars,
-                    coverageMessage),
-                ct);
-
-            // Step 14 — Authority score + persist
-            var authorityScore = scorer.ComputeTopicalAuthorityScore(nicheEntities);
-            var covered = nicheEntities.Count(p => p.CoverageStatus == "covered");
-            var partial = nicheEntities.Count(p => p.CoverageStatus == "partial");
-            var gap = nicheEntities.Count(p => p.CoverageStatus == "gap");
-
-            foreach (var pillar in nicheEntities)
-            {
-                if (pillar.Id == Guid.Empty)
-                    pillar.Id = Guid.NewGuid();
-            }
-
-            await PushProgress(
-                userId, profileId, 13,
-                NicheAnalysisStepLogBuilder.Processing(
-                    13,
-                    "scoring",
-                    $"Saving {nicheEntities.Count} pillars and analysis results…"),
-                ct);
-
-            var pillarsResult = await profileRepo.BulkInsertPillarsAsync(nicheEntities, ct);
-            if (!pillarsResult.IsSuccess)
-                throw new InvalidOperationException($"Failed to save pillars: {pillarsResult.Error}");
-
-            var subtopicsResult = await profileRepo.BulkInsertSubtopicsAsync(subtopics, ct);
-            if (!subtopicsResult.IsSuccess)
-            {
-                logger.LogWarning(
-                    "Subtopics not saved for {ProfileId}: {Error}",
-                    profileId, subtopicsResult.Error);
-            }
-
-            if (demand.Competitors.Count > 0)
-            {
-                var competitorsResult = await profileRepo.BulkInsertCompetitorsAsync(demand.Competitors, ct);
-                if (!competitorsResult.IsSuccess)
-                {
-                    logger.LogWarning(
-                        "Competitors not saved for {ProfileId}: {Error}",
-                        profileId, competitorsResult.Error);
-                }
-            }
-
-            fused = TopicSnapshotEnricher.Apply(
-                fused, internalLinkData, urlPatternData, demand.SerpValidations);
-
-            var analyzedAt = DateTimeOffset.UtcNow;
-            var nextDue = analyzedAt.AddDays(30);
-            await PushProgress(
-                userId, profileId, 13,
-                NicheAnalysisStepLogBuilder.Processing(
-                    13,
-                    "scoring",
-                    $"Pillars saved — writing authority score and topic profile…"),
-                ct);
-
-            var saveResult = await persistence.SaveCompletionAsync(
-                profileId,
-                new NicheProfileSummaryPatch(
-                    rootEntity,
-                    schemaData.Description ?? string.Empty,
-                    nicheTags,
-                    audienceType,
-                    nicheEntities.Count,
-                    analyzedAt,
-                    nextDue,
-                    scan.Fingerprint,
-                    scan.ChangeScore,
-                    PersistStage: "scores",
-                    StructureStatus: "complete",
-                    EnrichmentStatus: null),
-                authorityScore,
-                covered,
-                partial,
-                gap,
-                fused,
-                FusionArchiveEnabled,
-                ct);
-            if (!saveResult.IsSuccess)
-                throw new InvalidOperationException($"Failed to save analysis results: {saveResult.Error}");
-
-            var scoringMessage = $"Authority score: {authorityScore:F0}/100 — results saved.";
-            var entityThinCount = fused.EntityCoverageBySlug.Values.Count(c => c.IsEntityThin);
-            var linkGraphEdgeCount = fused.InternalLinkGraph?.Edges.Count ?? 0;
-            var orphanPillarCount = fused.InternalLinkGraph?.OrphanSlugs.Count ?? 0;
-            await PushProgress(
-                userId, profileId, 13,
-                NicheAnalysisStepLogBuilder.Scoring(
-                    13,
-                    authorityScore,
-                    covered,
-                    partial,
-                    gap,
-                    nicheEntities.Count,
-                    scoringMessage,
-                    entityThinCount,
-                    linkGraphEdgeCount,
-                    orphanPillarCount,
-                    fused.RecommendedActions.Count),
-                ct);
-
-            const string completeMessage = "Analysis complete!";
-            await PushProgress(
-                userId, profileId, TotalSteps,
-                NicheAnalysisStepLogBuilder.Complete(TotalSteps, analyzedAt, nextDue, completeMessage),
-                ct);
             await profileRepo.UpdatePhaseStatusAsync(
                 profileId,
                 new NichePhaseStatusPatch(
@@ -507,10 +118,7 @@ public sealed class NicheAnalyzerService(
                     Status: "complete"),
                 ct);
             await profileRepo.UpdateStatusAsync(profileId, "complete", "complete", TotalSteps, TotalSteps, ct: ct);
-
-            logger.LogInformation(
-                "Niche analysis complete for {ProfileId}: {Niche}, {Pillars} pillars, score {Score}",
-                profileId, rootEntity, nicheEntities.Count, authorityScore);
+            logger.LogInformation("Niche analysis complete for {ProfileId}", profileId);
         }
         catch (Exception ex)
         {
@@ -560,14 +168,11 @@ public sealed class NicheAnalyzerService(
 
     private async Task InitializeStepStatusesAsync(Guid profileId, CancellationToken ct)
     {
-        var allPending = NicheStepRunners.NicheStepDependencies.Map.Keys
-            .ToDictionary(s => s, _ => "pending");
-        var json = System.Text.Json.JsonSerializer.Serialize(allPending);
+        var allPending = NicheStepCatalog.Ordered
+            .Select(step => step.Slug)
+            .ToList();
         try { await profileRepo.UpdateCrawledUrlsAsync(profileId, "[]", ct); } catch { /* non-fatal */ }
-        // Re-use UpdateStepStatusAsync with a special init call — send all-pending as a batch
-        // by calling InvalidateDownstreamStepsAsync with all slugs
-        var allSlugs = allPending.Keys.ToList();
-        try { await profileRepo.InvalidateDownstreamStepsAsync(profileId, allSlugs, ct); } catch { /* non-fatal */ }
+        try { await profileRepo.InvalidateDownstreamStepsAsync(profileId, allPending, ct); } catch { /* non-fatal */ }
     }
 
     private async Task PushProgress(

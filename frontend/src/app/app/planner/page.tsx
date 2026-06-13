@@ -203,10 +203,10 @@ export default function ContentPlannerPage() {
                           AI article
                         </button>
                         <Link
-                          href={`/app/briefs/new?keyword=${encodeURIComponent(kw)}`}
+                          href={`/app/content-writing?projectId=${projectId}&keyword=${encodeURIComponent(kw)}`}
                           className="rounded border px-2 py-1 text-xs hover:bg-[var(--color-surface-muted)]"
                         >
-                          Brief
+                          Write
                         </Link>
                       </span>
                     </li>

@@ -13,7 +13,8 @@ public sealed class ContentBriefService(
     ISerpProvider serpProvider,
     IAIProvider ai,
     INicheProfileRepository nicheProfiles,
-    INicheAnalyticsDapperRepository nicheAnalytics) : IContentBriefService
+    INicheAnalyticsDapperRepository nicheAnalytics,
+    CompetitorCrawlService competitorCrawl) : IContentBriefService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     private static readonly Dictionary<string, string> SoftwareEntityMap = new(StringComparer.OrdinalIgnoreCase)
@@ -68,6 +69,9 @@ public sealed class ContentBriefService(
         var competitorDomains = BuildCompetitorDomains(benchmarks, latestProfile);
         var geoAnchorNodes = BuildGeoAnchorNodes(location, project.Value.BusinessAddress, project.Value.DefaultLocation);
         var softwareEntities = ExtractSoftwareEntities(keyword, latestProfile, terms);
+        var competitorPages = await TryGetCompetitorPagesAsync(serpRow.Value, benchmarks.OrganicResults, ct);
+        var competitorHeadingHighlights = ExtractCompetitorHeadingHighlights(competitorPages);
+        var competitorSchemaTypes = ExtractCompetitorSchemaTypes(competitorPages);
 
         return Result<ContentBrief>.Success(new ContentBrief
         {
@@ -79,6 +83,8 @@ public sealed class ContentBriefService(
             SuggestedHeadings = headings,
             TopCompetitors = competitors,
             CompetitorDomains = competitorDomains,
+            CompetitorHeadingHighlights = competitorHeadingHighlights,
+            CompetitorSchemaTypes = competitorSchemaTypes,
             PeopleAlsoAsk = paa.Select(p => p.Question).Where(q => q.Length > 0).ToList(),
             Methodology = WritingMethodologySpec.FourPhase,
             DirectAnswerBlocks =
@@ -111,6 +117,15 @@ public sealed class ContentBriefService(
                 PrimaryNiche = latestProfile?.PrimaryNiche,
                 MatchedPillar = matchedPillar,
                 GapTopics = gapTopics,
+            },
+            SerpIntelligence = new SerpIntelligenceSnapshot
+            {
+                PeopleAlsoAsk = paa.Select(p => p.Question).Where(q => q.Length > 0).ToList(),
+                RelatedSearches = related,
+                FeatureFlags = ExtractSerpFeatureFlags(serpRow.Value.SerpFeaturesJson),
+                FeaturedSnippet = string.IsNullOrWhiteSpace(serpRow.Value.FeaturedSnippet)
+                    ? null
+                    : serpRow.Value.FeaturedSnippet,
             },
             AuthorOrganizationName = project.Value.Name,
             AuthorOrganizationUrl = project.Value.Url,
@@ -219,6 +234,15 @@ public sealed class ContentBriefService(
             : [];
     }
 
+    private async Task<IReadOnlyList<SeoCompetitorPage>> TryGetCompetitorPagesAsync(
+        SeoSerpResult serpRow,
+        IReadOnlyList<SerpOrganicResult> organicResults,
+        CancellationToken ct)
+    {
+        var pages = await competitorCrawl.EnsureCompetitorPagesAsync(serpRow.Id, organicResults, ct);
+        return pages.IsSuccess && pages.Value is not null ? pages.Value : [];
+    }
+
     private static string? FindMatchedPillar(string keyword, NicheProfile? profile)
     {
         if (profile?.Pillars is null || profile.Pillars.Count == 0)
@@ -231,7 +255,7 @@ public sealed class ContentBriefService(
             || p.PrimaryKeyword.Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .Any(token => normalizedKeyword.Contains(token, StringComparison.OrdinalIgnoreCase)));
 
-        return direct?.PillarTopic ?? profile.Pillars[0].PillarTopic;
+        return direct?.PillarTopic ?? profile.Pillars.First().PillarTopic;
     }
 
     private static IReadOnlyList<string> BuildCompetitorDomains(SerpBenchmarksPayload benchmarks, NicheProfile? profile)
@@ -239,6 +263,7 @@ public sealed class ContentBriefService(
         var domains = benchmarks.OrganicResults
             .Select(o => o.Domain)
             .Where(d => !string.IsNullOrWhiteSpace(d))
+            .Select(d => d!)
             .Concat(profile?.Competitors.Select(c => c.Domain) ?? [])
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(8)
@@ -297,5 +322,73 @@ public sealed class ContentBriefService(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(8)
             .ToList();
+    }
+
+    private static IReadOnlyList<string> ExtractCompetitorHeadingHighlights(IReadOnlyList<SeoCompetitorPage> pages)
+    {
+        var headings = new List<string>();
+        foreach (var page in pages)
+        {
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<List<string>>(page.HeadingsJson, JsonOptions) ?? [];
+                headings.AddRange(parsed);
+            }
+            catch
+            {
+                // ignore malformed cache entries
+            }
+        }
+
+        return headings
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(8)
+            .ToList();
+    }
+
+    private static IReadOnlyList<string> ExtractCompetitorSchemaTypes(IReadOnlyList<SeoCompetitorPage> pages)
+    {
+        var schemaTypes = new List<string>();
+        foreach (var page in pages)
+        {
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<List<string>>(page.StructuredDataTypesJson, JsonOptions) ?? [];
+                schemaTypes.AddRange(parsed);
+            }
+            catch
+            {
+                // ignore malformed cache entries
+            }
+        }
+
+        return schemaTypes
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(8)
+            .ToList();
+    }
+
+    private static IReadOnlyList<string> ExtractSerpFeatureFlags(string serpFeaturesJson)
+    {
+        if (string.IsNullOrWhiteSpace(serpFeaturesJson))
+            return [];
+
+        try
+        {
+            var features = JsonSerializer.Deserialize<Dictionary<string, object?>>(serpFeaturesJson, JsonOptions) ?? [];
+            return features.Keys
+                .Where(key => !string.IsNullOrWhiteSpace(key))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(8)
+                .ToList();
+        }
+        catch
+        {
+            return [];
+        }
     }
 }

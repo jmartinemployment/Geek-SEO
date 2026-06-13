@@ -9,6 +9,7 @@ namespace GeekSeo.Application.Services.Seo;
 public sealed class WordPressPublishService(
     IProjectRepository projects,
     IContentDocumentService documents,
+    IArticleRenderService renderer,
     IWordPressConnectionRepository connections,
     IWordPressProvider wordpress,
     IWordPressPublishRepository publishRepository) : IWordPressPublishService
@@ -57,6 +58,13 @@ public sealed class WordPressPublishService(
         if (!doc.IsSuccess || doc.Value is null)
             return Result<WordPressPublishResult>.Failure(doc.Error ?? "Document not found");
 
+        if (!string.Equals(doc.Value.Status, "approved_for_publish", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(doc.Value.Status, "published", StringComparison.OrdinalIgnoreCase))
+        {
+            return Result<WordPressPublishResult>.Failure(
+                "This draft must be approved for publish before it can be sent to WordPress.");
+        }
+
         var conn = await connections.GetByProjectAsync(doc.Value.ProjectId, ct);
         if (!conn.IsSuccess || conn.Value is null)
         {
@@ -77,11 +85,14 @@ public sealed class WordPressPublishService(
         var status = string.IsNullOrWhiteSpace(options.PostStatus)
             ? conn.Value.DefaultPostStatus
             : options.PostStatus;
+        var rendered = await renderer.RenderAsync(userId, documentId, ct);
+        if (!rendered.IsSuccess || rendered.Value is null)
+            return Result<WordPressPublishResult>.Failure(rendered.Error ?? "Could not assemble rendered HTML");
 
         var published = await wordpress.PublishPostAsync(credentials, new WordPressPostPayload
         {
             Title = doc.Value.Title,
-            ContentHtml = doc.Value.ContentHtml,
+            ContentHtml = rendered.Value.RenderedHtml,
             Status = status,
             Slug = options.Slug,
         }, ct);

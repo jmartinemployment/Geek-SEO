@@ -1,6 +1,6 @@
 # Search Understanding Layer — Product & Architecture Draft
 
-**Status:** Implemented in Niche Analyzer (`sul-1.3`) — unit-validated 2026-06-06; production re-analyze pending  
+**Status:** Implemented in Niche Analyzer (`sul-2.0`) with a canonical 14-step pipeline. Current design direction: no fallback reconstruction or substitution; each step must persist its own artifact and downstream consumers may read only canonical stored outputs.  
 **Owner intent:** Capture north-star direction before implementation; component-scoped rollout.  
 **Related:** [`SITE-NICHE-ANALYZER.md`](SITE-NICHE-ANALYZER.md) (first consumer), [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md) (SERP/keyword APIs), [`ARCHITECTURE.md`](ARCHITECTURE.md)
 
@@ -63,7 +63,7 @@ Not free, but **publicly purchasable** proxies for “does search demand exist f
 
 | Signal | Provider interface | Status |
 |--------|-------------------|--------|
-| Search volume, KD | `IKeywordProvider` | Planned in niche analyzer |
+| Search volume, KD | `IKeywordProvider` | Standalone Step 8 (`keywords`) — optional enrichment under review |
 | SERP results, competitors | `ISerpProvider` | Planned in niche analyzer |
 | Related queries | Keyword discovery providers | [`KEYWORD-DISCOVERY-STRATEGY.md`](KEYWORD-DISCOVERY-STRATEGY.md) |
 
@@ -83,16 +83,19 @@ Available only when the user connects their property. **Must not be required** f
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     Signal extractors (Tier 1–3)                 │
-│  SchemaOrg  PageContent  Sitemap  Nav  Headings  Links  GSC …   │
+│                  14 persisted canonical steps                    │
+│  schema → site_urls → nav → headings → page_content →          │
+│  site_structure → merging → keywords → serp_validation →       │
+│  profile → local → coverage → scoring → complete               │
 └────────────────────────────┬────────────────────────────────────┘
-                             │ TopicCandidate[]
+                             │ persisted artifacts only
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│              TopicCandidatePool + TopicFusionEngine              │
-│  normalize · dedupe · score · provenance · confidence            │
+│                   Stored site-understanding state                │
+│  step log · step statuses · crawled URLs · candidates · fusion  │
+│  profile summary · pillars · subtopics · competitors · scores   │
 └────────────────────────────┬────────────────────────────────────┘
-                             │ FusedSiteUnderstanding
+                             │ no reconstruction / no substitution
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                         Consumers                                │
@@ -183,7 +186,31 @@ Today (`SITE-NICHE-ANALYZER.md` merge section):
 
 **Known gap (geekatyourspot.com example):** Homepage JSON-LD declares **7** `knowsAbout` topics; page copy lists **5** additional services. Current pipeline outputs **7** — under-modeling vs what any crawler reads.
 
-**Migration path:** Niche Analyzer becomes a **consumer** of `FusedSiteUnderstanding` instead of owning merge logic inline. `PillarMerger` evolves into `TopicFusionEngine` or wraps it for backward-compatible `DiscoveredPillar` output until all callers migrate.
+**Migration path:** Niche Analyzer becomes a strict **consumer of persisted canonical artifacts** instead of repairing missing data in the UI or controller layer. `PillarMerger` evolves into `TopicFusionEngine` or wraps it for backward-compatible `DiscoveredPillar` output until all callers migrate.
+
+## Persistence rule
+
+Every canonical step must persist:
+- a step status entry
+- a step log entry
+- a step-specific artifact if downstream sections depend on more than the human-readable log
+
+If a required artifact is missing, malformed, or stale, the API must return an explicit unavailable/not-ready/error state. The system must not:
+- derive statuses from the step log
+- rebuild fusion from topic candidates in the frontend
+- substitute an older successful profile
+- widen a specialized read into a broader fallback snapshot
+
+## `keywords` step rule
+
+Step 8 `keywords` is now treated as a standalone executable section, not as an implicit side effect of generic demand enrichment.
+
+It must answer independently:
+- what keyword artifact is persisted per pillar
+- which downstream steps are allowed to read it
+- whether it materially improves search-engine-style site understanding
+
+This makes `keywords` removable or disable-able if it proves low-value without destabilizing the core Tier 1 site-understanding model.
 
 ---
 
@@ -361,3 +388,4 @@ Reference baseline: [`docs/reference/geekatyourspot-niche-baseline.md`](../docs/
 | Date | Change |
 |------|--------|
 | 2026-06-03 | Initial draft — north star, signal tiers, contracts, phases A–E, niche analyzer migration |
+| 2026-06-13 | Updated for canonical 14-step persisted pipeline, no-fallback rule, and standalone `keywords` step |
