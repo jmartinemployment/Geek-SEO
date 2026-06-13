@@ -413,16 +413,18 @@ public sealed class NicheAnalyzerService(
                 var competitorInsights = await crawlTask.WaitAsync(crawlTimeout.Token);
                 ApplyCompetitorInsights(demand.Competitors, competitorInsights);
                 await PushProgress(userId, profileId, 10,
-                    NicheAnalysisStepLogBuilder.Processing(10, "competitor_crawl",
+                    NicheAnalysisStepLogBuilder.Entry(10, "competitor_crawl",
                         $"Competitor crawl: {competitorInsights.Count} site(s) crawled, " +
-                        $"{competitorInsights.Values.Sum(c => c.PagesCrawled)} pages total."), ct);
+                        $"{competitorInsights.Values.Sum(c => c.PagesCrawled)} pages total.",
+                        new Dictionary<string, object?>(), "complete"), ct);
             }
             catch (Exception ex) when (ex is OperationCanceledException or TimeoutException)
             {
-                logger.LogWarning("Competitor crawl did not finish before pillar save — insights omitted for this run.");
+                logger.LogWarning("Competitor crawl did not complete within time budget.");
                 await PushProgress(userId, profileId, 10,
-                    NicheAnalysisStepLogBuilder.Processing(10, "competitor_crawl",
-                        "Competitor crawl timed out — insights will appear on next re-analysis."), ct);
+                    NicheAnalysisStepLogBuilder.Entry(10, "competitor_crawl",
+                        "Competitor crawl did not complete — insights will appear on next re-analysis.",
+                        new Dictionary<string, object?>(), "complete"), ct);
             }
 
             await PushProgress(
