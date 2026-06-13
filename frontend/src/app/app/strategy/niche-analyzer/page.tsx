@@ -55,6 +55,7 @@ export default function NicheAnalyzerPage() {
   const [tab, setTab] = useState<Tab>('pillars');
   const [quickWinsOnly, setQuickWinsOnly] = useState(false);
   const [stepStatuses, setStepStatuses] = useState<Record<string, string> | undefined>();
+  const analysisStarting = analyzing && !analyzeProfileId;
 
   const anyStepRunning = Object.values(stepStatuses ?? {}).some(s => s === 'running');
 
@@ -86,6 +87,41 @@ export default function NicheAnalyzerPage() {
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, profile?.id, profile?.pillars.length, authReady, accessToken]);
+
+  useEffect(() => {
+    if (!authReady || !analyzing || analyzeProfileId || !projectId) return;
+
+    let cancelled = false;
+    const startedAt = Date.now();
+
+    async function recoverQueuedProfile() {
+      try {
+        const latest = await getLatestNicheProfile(projectId, accessToken);
+        if (cancelled || !latest) return;
+        if (latest.status === 'queued' || latest.status === 'processing') {
+          setAnalyzeProfileId(latest.id);
+        } else if (Date.now() - startedAt > 15_000) {
+          setError('Analysis is taking longer than expected to start. Please try again in a moment.');
+          setAnalyzing(false);
+        }
+      } catch {
+        if (!cancelled && Date.now() - startedAt > 15_000) {
+          setError('Analysis did not report a queued job. Please try again.');
+          setAnalyzing(false);
+        }
+      }
+    }
+
+    void recoverQueuedProfile();
+    const id = window.setInterval(() => {
+      void recoverQueuedProfile();
+    }, 1_500);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [accessToken, analyzeProfileId, analyzing, authReady, projectId]);
 
   async function resolveProfileWithPillars(p: NicheProfileResult): Promise<NicheProfileResult> {
     const needsFull =
@@ -184,6 +220,8 @@ export default function NicheAnalyzerPage() {
     const selected = projects.find((p) => p.id === projectId);
     if (!selected) return;
     setError(null);
+    setStepStatuses(undefined);
+    setAnalyzeProfileId(null);
     setProfile(null);
     setCoverage([]);
     setGaps([]);
@@ -192,6 +230,16 @@ export default function NicheAnalyzerPage() {
       const { profileId } = await analyzeNiche(projectId, selected.url.trim(), accessToken);
       setAnalyzeProfileId(profileId);
     } catch (e) {
+      try {
+        const latest = await getLatestNicheProfile(projectId, accessToken);
+        if (latest && (latest.status === 'queued' || latest.status === 'processing')) {
+          setAnalyzeProfileId(latest.id);
+          return;
+        }
+      } catch {
+        // Fall through to the original error message when recovery fails.
+      }
+
       setError(e instanceof Error ? e.message : 'Failed to start analysis');
       setAnalyzing(false);
     }
@@ -282,6 +330,17 @@ export default function NicheAnalyzerPage() {
       {error && (
         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
+        </div>
+      )}
+
+      {analysisStarting && (
+        <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+          <p className="text-sm font-medium text-[var(--color-text-primary)]">
+            Starting analysis for {selected?.url}…
+          </p>
+          <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+            Creating a new run and attaching live progress.
+          </p>
         </div>
       )}
 

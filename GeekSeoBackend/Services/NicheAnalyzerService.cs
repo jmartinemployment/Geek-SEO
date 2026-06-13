@@ -47,7 +47,6 @@ public sealed class NicheAnalyzerService(
         Guid userId, Guid projectId, string domain,
         string? seedTopic = null, CancellationToken ct = default)
     {
-        // Prevent duplicate runs — return existing queued/processing profile
         var latest = await profileRepo.GetLatestByProjectAsync(projectId, ct);
         if (latest.IsSuccess && latest.Value is not null)
         {
@@ -55,9 +54,37 @@ public sealed class NicheAnalyzerService(
             if (s is "queued" or "processing")
                 return latest.Value.Id;
 
-            // Supersede previous complete/failed profile so UI always shows one active row
-            if (s is "complete" or "failed")
-                await profileRepo.UpdateStatusAsync(latest.Value.Id, "superseded", ct: ct);
+            var allPending = NicheStepCatalog.Ordered
+                .Select(step => step.Slug)
+                .ToList();
+
+            try
+            {
+                await profileRepo.UpdateStatusAsync(
+                    latest.Value.Id,
+                    "queued",
+                    step: null,
+                    stepNumber: 0,
+                    totalSteps: TotalSteps,
+                    errorMessage: null,
+                    ct: ct);
+                await profileRepo.UpdatePhaseStatusAsync(
+                    latest.Value.Id,
+                    new NichePhaseStatusPatch(
+                        StructureStatus: "pending",
+                        EnrichmentStatus: "pending",
+                        PersistStage: null,
+                        Status: "queued"),
+                    ct);
+                await profileRepo.UpdateCrawledUrlsAsync(latest.Value.Id, "[]", ct);
+                await profileRepo.InvalidateDownstreamStepsAsync(latest.Value.Id, allPending, ct);
+            }
+            catch
+            {
+                // Best-effort reset; worker-run initialization remains authoritative.
+            }
+
+            return latest.Value.Id;
         }
 
         var siteUrl = await ResolveSiteUrlAsync(projectId, domain, ct);
@@ -448,24 +475,10 @@ public sealed class NicheAnalyzerService(
         NicheProfile profile,
         CancellationToken ct)
     {
-        var history = await profileRepo.GetHistoryAsync(profile.ProjectId, ct);
-        if (!history.IsSuccess || history.Value is null)
+        if (string.IsNullOrWhiteSpace(profile.FusionSnapshot))
             return null;
 
-        var priorId = history.Value
-            .Where(h => h.Status == "complete" && h.Id != profile.Id)
-            .OrderByDescending(h => h.AnalyzedAt)
-            .Select(h => h.Id)
-            .FirstOrDefault();
-
-        if (priorId == Guid.Empty)
-            return null;
-
-        var prior = await profileRepo.GetByIdAsync(priorId, ct);
-        if (!prior.IsSuccess || prior.Value?.FusionSnapshot is null)
-            return null;
-
-        var fusion = SiteTopicProfileJson.Parse(prior.Value.FusionSnapshot);
+        var fusion = SiteTopicProfileJson.Parse(profile.FusionSnapshot);
         if (fusion is null)
             return null;
 

@@ -85,17 +85,20 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
     completedRef.current = false;
     stepTrackerRef.current = { step: 0, at: Date.now() };
     setStalled(false);
+    setLiveMessage(null);
   }, [profileId]);
 
   // Fallback: poll /status if SignalR is unavailable or the tab was refreshed mid-run
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     let cancelled = false;
+    let consecutiveFailures = 0;
 
     async function poll() {
       if (cancelled || completedRef.current) return;
       try {
         const status = await getNicheAnalysisStatus(profileId, accessToken);
+        consecutiveFailures = 0;
         if (status.status === 'complete' && !completedRef.current) {
           completedRef.current = true;
           onCompleteRef.current(profileId);
@@ -107,7 +110,11 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
         }
         applyStatus(status);
       } catch {
-        // ignore transient errors
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= 5) {
+          onErrorRef.current('Analysis status is unavailable right now. Please refresh and try again.');
+          return;
+        }
       }
       if (!cancelled && !completedRef.current) {
         timer = setTimeout(poll, 3_000);

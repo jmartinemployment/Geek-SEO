@@ -101,6 +101,7 @@ function StepRow({
   stepDefinition,
   stepStatuses,
   anyStepRunning,
+  showOutputs,
   profileId,
   accessToken,
   onStepRerun,
@@ -109,6 +110,7 @@ function StepRow({
   stepDefinition: NicheStepDefinition;
   stepStatuses?: Record<string, StepStatus>;
   anyStepRunning?: boolean;
+  showOutputs: boolean;
   profileId: string;
   accessToken?: string | null;
   onStepRerun?: () => void;
@@ -122,6 +124,7 @@ function StepRow({
   const depsComplete = deps.every((dep) => stepStatuses?.[dep] === 'complete');
   const canRun = Boolean(stepStatuses);
   const rerunDisabled = !depsKnown || !depsComplete || anyStepRunning || rerunning;
+  const visibleStep = showOutputs ? step : undefined;
 
   const statusLabel = isolatedStatus === 'running' ? 'in progress'
     : isolatedStatus === 'error' ? 'error'
@@ -133,9 +136,11 @@ function StepRow({
     : isolatedStatus === 'running' ? 'text-amber-600'
     : 'text-[var(--color-text-muted)]';
 
-  const summary = step?.summary
+  const summary = visibleStep?.summary
     ?? (!depsComplete
       ? `Blocked until: ${deps.filter((dep) => stepStatuses?.[dep] !== 'complete').join(', ')}`
+      : isolatedStatus === 'running'
+        ? 'Step is currently running.'
       : isolatedStatus === 'complete'
         ? 'Step completed.'
         : isolatedStatus === 'error'
@@ -200,7 +205,7 @@ function StepRow({
           ) : null}
         </div>
       </div>
-      {step ? <StepOutputs outputs={step.outputs} /> : null}
+      {visibleStep ? <StepOutputs outputs={visibleStep.outputs} /> : null}
     </li>
   );
 }
@@ -212,6 +217,7 @@ function PhaseSection({
   defaultExpanded,
   stepStatuses,
   anyStepRunning,
+  showOutputs,
   profileId,
   accessToken,
   onStepRerun,
@@ -222,6 +228,7 @@ function PhaseSection({
   defaultExpanded: boolean;
   stepStatuses?: Record<string, StepStatus>;
   anyStepRunning?: boolean;
+  showOutputs: boolean;
   profileId: string;
   accessToken?: string | null;
   onStepRerun?: () => void;
@@ -259,6 +266,7 @@ function PhaseSection({
               stepDefinition={definition}
               stepStatuses={stepStatuses}
               anyStepRunning={anyStepRunning}
+              showOutputs={showOutputs}
               profileId={profileId}
               accessToken={accessToken}
               onStepRerun={onStepRerun}
@@ -345,6 +353,7 @@ export function AnalysisStepBreakdown({
   }, [details]);
   const stepDefinitions = details?.stepDefinitions ?? [];
   const effectiveStepStatuses = stepStatuses ?? liveStepStatuses;
+  const showOutputs = pollIntervalMs === undefined;
 
   return (
     <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -389,6 +398,7 @@ export function AnalysisStepBreakdown({
                   defaultExpanded={index < 2 || pollIntervalMs !== undefined}
                   stepStatuses={effectiveStepStatuses}
                   anyStepRunning={anyStepRunning}
+                  showOutputs={showOutputs}
                   profileId={profileId}
                   accessToken={accessToken}
                   onStepRerun={onStepRerun}
@@ -414,6 +424,7 @@ export function AnalysisStepBreakdown({
                       }
                       stepStatuses={effectiveStepStatuses}
                       anyStepRunning={anyStepRunning}
+                      showOutputs={showOutputs}
                       profileId={profileId}
                       accessToken={accessToken}
                       onStepRerun={onStepRerun}
