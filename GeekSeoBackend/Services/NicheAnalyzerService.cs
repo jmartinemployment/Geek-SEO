@@ -227,7 +227,7 @@ public sealed class NicheAnalyzerService(
                     mergeMessage),
                 ct);
 
-            var priorUrls = await LoadPriorSitemapUrlsAsync(profile, ct);
+            var priorUrls = await LoadPriorSitemapUrlsWithFallbackAsync(profile, ct);
             var scan = NicheScanFingerprint.Compute(
                 domain, fused.SulVersion, schemaData, sitemapData, navData, priorUrls);
             var candidatePersist = await persistence.PersistCandidatesAsync(profileId, fused, includeEvidence: false, ct);
@@ -309,26 +309,23 @@ public sealed class NicheAnalyzerService(
                 new NichePhaseStatusPatch(EnrichmentStatus: demand.KeywordsSkipped && demand.SerpSkipped ? "skipped" : "complete"),
                 ct);
 
-            // Step 10 — Competitor site crawl
-            await PushProgress(userId, profileId, 10,
-                NicheAnalysisStepLogBuilder.Processing(10, "competitor_crawl", "Crawling competitor sites…"), ct);
-
+            // Step 10 — Competitor site crawl (runs concurrently with steps 11–13)
             var competitorDomains = demand.Competitors
                 .Where(c => c.SerpPresence >= 2)
                 .Select(c => c.Domain)
                 .ToList();
 
-            var competitorInsights = competitorDomains.Count > 0
-                ? await competitorPageFetcher.CrawlCompetitorsAsync(competitorDomains, browser, ct)
-                : new Dictionary<string, CompetitorSiteInsight>(StringComparer.OrdinalIgnoreCase);
+            var crawlTask = competitorDomains.Count > 0
+                ? competitorPageFetcher.CrawlCompetitorsAsync(competitorDomains, browser, CancellationToken.None)
+                : Task.FromResult(new Dictionary<string, CompetitorSiteInsight>(StringComparer.OrdinalIgnoreCase));
 
             await PushProgress(userId, profileId, 10,
                 NicheAnalysisStepLogBuilder.Processing(10, "competitor_crawl",
-                    $"Competitor crawl: {competitorInsights.Count} site(s) crawled, " +
-                    $"{competitorInsights.Values.Sum(c => c.PagesCrawled)} pages total."), ct);
+                    $"Competitor crawl queued — {competitorDomains.Count} site(s), running in background."), ct);
 
-            // Step 11 — Niche identity
-            var nicheEntities = BuildNichePillars(merged, profileId, demand.Keywords, demand.SerpValidations, competitorInsights);
+            // Step 11 — Niche identity (uses empty insights; crawl results applied before pillar save)
+            var nicheEntities = BuildNichePillars(merged, profileId, demand.Keywords, demand.SerpValidations,
+                new Dictionary<string, CompetitorSiteInsight>(StringComparer.OrdinalIgnoreCase));
             var rootEntity = rootBuilder.Build(schemaData, headings, nicheEntities);
             var audienceType = DetermineAudienceType(nicheEntities, schemaData);
             var nicheTags = BuildNicheTags(schemaData, nicheEntities).ToArray();
@@ -407,6 +404,26 @@ public sealed class NicheAnalyzerService(
             {
                 if (pillar.Id == Guid.Empty)
                     pillar.Id = Guid.NewGuid();
+            }
+
+            // Await competitor crawl (started at step 10) — up to 5 min; patch pillar insights if done
+            try
+            {
+                using var crawlTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                crawlTimeout.CancelAfter(TimeSpan.FromMinutes(5));
+                var competitorInsights = await crawlTask.WaitAsync(crawlTimeout.Token);
+                ApplyCompetitorInsights(nicheEntities, demand.SerpValidations, competitorInsights);
+                await PushProgress(userId, profileId, 10,
+                    NicheAnalysisStepLogBuilder.Processing(10, "competitor_crawl",
+                        $"Competitor crawl: {competitorInsights.Count} site(s) crawled, " +
+                        $"{competitorInsights.Values.Sum(c => c.PagesCrawled)} pages total."), ct);
+            }
+            catch (Exception ex) when (ex is OperationCanceledException or TimeoutException)
+            {
+                logger.LogWarning("Competitor crawl did not finish before pillar save — insights omitted for this run.");
+                await PushProgress(userId, profileId, 10,
+                    NicheAnalysisStepLogBuilder.Processing(10, "competitor_crawl",
+                        "Competitor crawl timed out — insights will appear on next re-analysis."), ct);
             }
 
             await PushProgress(
@@ -611,6 +628,26 @@ public sealed class NicheAnalyzerService(
             })
             .ToList();
 
+    private static void ApplyCompetitorInsights(
+        List<NichePillar> pillars,
+        IReadOnlyList<PillarSerpEnrichment> serpValidations,
+        Dictionary<string, CompetitorSiteInsight> insights)
+    {
+        if (insights.Count == 0) return;
+        var serpBySlug = serpValidations.ToDictionary(s => s.Slug, StringComparer.OrdinalIgnoreCase);
+        foreach (var pillar in pillars)
+        {
+            if (!serpBySlug.TryGetValue(pillar.PillarSlug, out var serp)) continue;
+            var pillarInsights = serp.TopCompetitorDomains
+                .Select(d => insights.GetValueOrDefault(d))
+                .Where(i => i is not null)
+                .Cast<CompetitorSiteInsight>()
+                .ToList();
+            if (pillarInsights.Count > 0)
+                pillar.CompetitorInsightsJson = System.Text.Json.JsonSerializer.Serialize(pillarInsights);
+        }
+    }
+
     private static List<NichePillar> BuildNichePillars(
         IReadOnlyList<DiscoveredPillar> merged,
         Guid profileId,
@@ -805,6 +842,22 @@ public sealed class NicheAnalyzerService(
             .Take(20)
             .Select(kvp => $"{kvp.Key}: {kvp.Value}")
             .ToArray();
+
+    private async Task<IReadOnlyList<string>?> LoadPriorSitemapUrlsWithFallbackAsync(
+        NicheProfile profile,
+        CancellationToken ct)
+    {
+        try
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(10));
+            return await LoadPriorSitemapUrlsAsync(profile, cts.Token);
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
     private async Task<IReadOnlyList<string>?> LoadPriorSitemapUrlsAsync(
         NicheProfile profile,
