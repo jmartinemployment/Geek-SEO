@@ -127,6 +127,8 @@ public static class SeoBackendExtensions
         services.AddScoped<NicheAnalysisPersistenceService>();
         services.AddScoped<NicheAnalyzerService>();
         services.AddScoped<CompetitorAnalysisService>();
+        services.AddScoped<NicheStepRerunService>();
+        services.AddSingleton<NicheStepLock>();
         services.AddScoped<NicheAnalysisBackgroundJob>();
 
         services.AddHttpClient("PayPal");

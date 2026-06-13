@@ -54,6 +54,9 @@ export default function NicheAnalyzerPage() {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('pillars');
   const [quickWinsOnly, setQuickWinsOnly] = useState(false);
+  const [stepStatuses, setStepStatuses] = useState<Record<string, string> | undefined>();
+
+  const anyStepRunning = Object.values(stepStatuses ?? {}).some(s => s === 'running');
 
   useEffect(() => {
     if (!authReady) return;
@@ -201,6 +204,10 @@ export default function NicheAnalyzerPage() {
       try {
         const p = await getNicheProfile(completedProfileId, accessToken);
         setProfile(p);
+        // Hydrate step statuses from the status endpoint
+        void getNicheAnalysisStatus(completedProfileId, accessToken).then(s => {
+          if (s.stepStatuses) setStepStatuses(s.stepStatuses as Record<string, string>);
+        });
         await loadAnalytics(p.id, isStructureComplete(p));
         if (p.pillars.length > 0) {
           setError(null);
@@ -263,7 +270,8 @@ export default function NicheAnalyzerPage() {
           </select>
           <button
             onClick={handleAnalyze}
-            disabled={!projectId}
+            disabled={!projectId || anyStepRunning}
+            title={anyStepRunning ? 'A step is currently running — wait for it to complete' : undefined}
             className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {analyzing ? 'Re-analyze (restart)' : profile ? 'Re-analyze' : 'Analyze'}
@@ -396,6 +404,13 @@ export default function NicheAnalyzerPage() {
             projectId={projectId}
             accessToken={accessToken}
             defaultOpen={false}
+            stepStatuses={stepStatuses as Record<string, import('@/lib/seo-api').StepStatus> | undefined}
+            anyStepRunning={anyStepRunning}
+            onStepRerun={() => {
+              void getNicheAnalysisStatus(profile.id, accessToken).then(s => {
+                if (s.stepStatuses) setStepStatuses(s.stepStatuses as Record<string, string>);
+              });
+            }}
           />
         </div>
       )}

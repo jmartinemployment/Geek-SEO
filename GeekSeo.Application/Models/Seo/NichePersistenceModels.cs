@@ -67,7 +67,8 @@ public sealed record NicheProfileStatusRow(
     DateTimeOffset? AnalysisProgressAt,
     string StructureStatus,
     string EnrichmentStatus,
-    string? PersistStage);
+    string? PersistStage,
+    string? StepStatusesJson = null);
 
 /// <summary>Lightweight analysis-details read — step log without eager pillar includes.</summary>
 public sealed record NicheAnalysisDetailsRow(

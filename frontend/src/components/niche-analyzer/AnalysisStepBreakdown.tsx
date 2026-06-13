@@ -3,19 +3,36 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   getNicheAnalysisDetails,
+  runNicheStep,
   type NicheAnalysisDetails,
   type NicheAnalysisStepLogEntry,
+  type StepStatus,
 } from '@/lib/seo-api';
 import { OUTPUT_LABELS } from '@/components/niche-analyzer/pillar-provenance';
 import { TopicCandidateMatrix } from '@/components/niche-analyzer/TopicCandidateMatrix';
+
+// Canonical dependency map — must match backend NicheStepDependencies.Map
+const STEP_DEPENDENCIES: Record<string, string[]> = {
+  schema: [], site_urls: [], nav: [], headings: [], page_content: [], site_structure: [],
+  merging: ['schema','site_urls','nav','headings','page_content','site_structure'],
+  keywords: ['merging'],
+  serp_validation: ['merging'],
+  profile: ['merging','serp_validation'],
+  local: ['schema','site_structure','merging'],
+  coverage: ['schema','site_structure','merging'],
+  scoring: ['profile','local','coverage'],
+  complete: ['scoring'],
+};
 
 type Props = {
   profileId: string;
   projectId?: string;
   accessToken?: string | null;
   defaultOpen?: boolean;
-  /** When set, refetch on this interval (e.g. while analysis is in progress). */
   pollIntervalMs?: number;
+  stepStatuses?: Record<string, StepStatus>;
+  anyStepRunning?: boolean;
+  onStepRerun?: () => void;
 };
 
 type Phase = {
@@ -90,22 +107,75 @@ function StepOutputs({ outputs }: { outputs: Record<string, unknown> }) {
   );
 }
 
-function StepRow({ step }: { step: NicheAnalysisStepLogEntry }) {
-  const statusLabel =
-    step.status === 'processing' ? 'in progress' : step.status;
+function StepRow({
+  step, stepStatuses, anyStepRunning, profileId, accessToken, onStepRerun,
+}: {
+  step: NicheAnalysisStepLogEntry;
+  stepStatuses?: Record<string, StepStatus>;
+  anyStepRunning?: boolean;
+  profileId: string;
+  accessToken?: string | null;
+  onStepRerun?: () => void;
+}) {
+  const [rerunning, setRerunning] = useState(false);
+  const [rerunError, setRerunError] = useState<string | null>(null);
+
+  const isolatedStatus = stepStatuses?.[step.slug];
+  const deps = STEP_DEPENDENCIES[step.slug] ?? [];
+  const depsComplete = deps.every(d => stepStatuses?.[d] === 'complete');
+  const canRerun = isolatedStatus === 'complete' || isolatedStatus === 'error';
+  const rerunDisabled = !depsComplete || anyStepRunning || rerunning;
+
+  const statusLabel = isolatedStatus === 'running' ? 'in progress'
+    : isolatedStatus === 'error' ? 'error'
+    : step.status === 'processing' ? 'in progress'
+    : step.status;
+
+  const statusColor = isolatedStatus === 'error' ? 'text-red-600'
+    : isolatedStatus === 'running' ? 'text-amber-600'
+    : 'text-[var(--color-text-muted)]';
+
+  async function handleRerun() {
+    setRerunning(true);
+    setRerunError(null);
+    try {
+      await runNicheStep(profileId, step.slug, accessToken);
+      onStepRerun?.();
+    } catch (e) {
+      setRerunError(e instanceof Error ? e.message : 'Re-run failed');
+    } finally {
+      setRerunning(false);
+    }
+  }
 
   return (
     <li className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-medium text-[var(--color-text-primary)]">
             {step.stepNumber}. {step.title}
           </p>
           <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{step.summary}</p>
+          {rerunError ? (
+            <p className="mt-1 text-xs text-red-600">{rerunError}</p>
+          ) : null}
         </div>
-        <span className="shrink-0 text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
-          {statusLabel}
-        </span>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <span className={`text-xs uppercase tracking-wide ${statusColor}`}>
+            {statusLabel}
+          </span>
+          {canRerun ? (
+            <button
+              type="button"
+              onClick={handleRerun}
+              disabled={rerunDisabled}
+              title={!depsComplete ? `Dependencies not complete: ${deps.filter(d => stepStatuses?.[d] !== 'complete').join(', ')}` : ''}
+              className="rounded px-2 py-0.5 text-[10px] font-medium transition-colors bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)] hover:bg-[var(--color-border)] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {rerunning ? 'Running…' : 'Re-run'}
+            </button>
+          ) : null}
+        </div>
       </div>
       <StepOutputs outputs={step.outputs} />
     </li>
@@ -113,21 +183,26 @@ function StepRow({ step }: { step: NicheAnalysisStepLogEntry }) {
 }
 
 function PhaseSection({
-  phase,
-  steps,
-  defaultExpanded,
+  phase, steps, defaultExpanded, stepStatuses, anyStepRunning, profileId, accessToken, onStepRerun,
 }: {
   phase: Phase;
   steps: NicheAnalysisStepLogEntry[];
   defaultExpanded: boolean;
+  stepStatuses?: Record<string, StepStatus>;
+  anyStepRunning?: boolean;
+  profileId: string;
+  accessToken?: string | null;
+  onStepRerun?: () => void;
 }) {
   const [open, setOpen] = useState(defaultExpanded);
   const phaseSteps = steps.filter((s) => phase.slugs.includes(s.slug));
 
   if (phaseSteps.length === 0) return null;
 
+  const phaseHasError = phaseSteps.some(s => stepStatuses?.[s.slug] === 'error');
+
   return (
-    <div className="rounded-lg border border-[var(--color-border)]">
+    <div className={`rounded-lg border ${phaseHasError ? 'border-red-200' : 'border-[var(--color-border)]'}`}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -145,7 +220,15 @@ function PhaseSection({
       {open ? (
         <ol className="space-y-3 border-t border-[var(--color-border)] px-4 py-3">
           {phaseSteps.map((step) => (
-            <StepRow key={`${step.stepNumber}-${step.slug}`} step={step} />
+            <StepRow
+              key={`${step.stepNumber}-${step.slug}`}
+              step={step}
+              stepStatuses={stepStatuses}
+              anyStepRunning={anyStepRunning}
+              profileId={profileId}
+              accessToken={accessToken}
+              onStepRerun={onStepRerun}
+            />
           ))}
         </ol>
       ) : null}
@@ -159,6 +242,9 @@ export function AnalysisStepBreakdown({
   accessToken,
   defaultOpen = true,
   pollIntervalMs,
+  stepStatuses,
+  anyStepRunning,
+  onStepRerun,
 }: Readonly<Props>) {
   const [open, setOpen] = useState(defaultOpen);
   const [details, setDetails] = useState<NicheAnalysisDetails | null>(null);
@@ -250,12 +336,25 @@ export function AnalysisStepBreakdown({
                   phase={phase}
                   steps={details.steps}
                   defaultExpanded={index < 2 || pollIntervalMs !== undefined}
+                  stepStatuses={stepStatuses}
+                  anyStepRunning={anyStepRunning}
+                  profileId={profileId}
+                  accessToken={accessToken}
+                  onStepRerun={onStepRerun}
                 />
               ))}
               {ungroupedSteps.length > 0 ? (
                 <ol className="space-y-3">
                   {ungroupedSteps.map((step) => (
-                    <StepRow key={`${step.stepNumber}-${step.slug}`} step={step} />
+                    <StepRow
+                      key={`${step.stepNumber}-${step.slug}`}
+                      step={step}
+                      stepStatuses={stepStatuses}
+                      anyStepRunning={anyStepRunning}
+                      profileId={profileId}
+                      accessToken={accessToken}
+                      onStepRerun={onStepRerun}
+                    />
                   ))}
                 </ol>
               ) : null}

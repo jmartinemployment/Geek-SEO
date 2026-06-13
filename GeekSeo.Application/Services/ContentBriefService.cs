@@ -1,4 +1,5 @@
 using System.Text.Json;
+using GeekSeo.Application.Interfaces;
 using GeekSeo.Persistence.Entities;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
@@ -10,9 +11,22 @@ public sealed class ContentBriefService(
     IProjectRepository projects,
     ISerpCacheRepository serpCache,
     ISerpProvider serpProvider,
-    IAIProvider ai) : IContentBriefService
+    IAIProvider ai,
+    INicheProfileRepository nicheProfiles,
+    INicheAnalyticsDapperRepository nicheAnalytics) : IContentBriefService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private static readonly Dictionary<string, string> SoftwareEntityMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["zapier"] = "Zapier",
+        ["quickbooks"] = "QuickBooks",
+        ["hubspot"] = "HubSpot",
+        ["salesforce"] = "Salesforce",
+        ["shopify"] = "Shopify",
+        ["mailchimp"] = "Mailchimp",
+        ["stripe"] = "Stripe",
+        ["xero"] = "Xero",
+    };
 
     public async Task<Result<ContentBrief>> GenerateBriefAsync(
         Guid userId, GenerateBriefRequest request, CancellationToken ct = default)
@@ -48,6 +62,12 @@ public sealed class ContentBriefService(
 
         var terms = await BuildRecommendedTermsAsync(keyword, benchmarks, related, ct);
         var headings = BuildSuggestedHeadings(keyword, paa);
+        var latestProfile = await TryGetLatestProfileAsync(request.ProjectId, ct);
+        var gapTopics = await TryGetGapTopicsAsync(latestProfile?.Id, ct);
+        var matchedPillar = FindMatchedPillar(keyword, latestProfile);
+        var competitorDomains = BuildCompetitorDomains(benchmarks, latestProfile);
+        var geoAnchorNodes = BuildGeoAnchorNodes(location, project.Value.BusinessAddress, project.Value.DefaultLocation);
+        var softwareEntities = ExtractSoftwareEntities(keyword, latestProfile, terms);
 
         return Result<ContentBrief>.Success(new ContentBrief
         {
@@ -58,7 +78,42 @@ public sealed class ContentBriefService(
             RecommendedTerms = terms,
             SuggestedHeadings = headings,
             TopCompetitors = competitors,
+            CompetitorDomains = competitorDomains,
             PeopleAlsoAsk = paa.Select(p => p.Question).Where(q => q.Length > 0).ToList(),
+            Methodology = WritingMethodologySpec.FourPhase,
+            DirectAnswerBlocks =
+            [
+                new DirectAnswerBlockSpec(
+                    "Direct answer",
+                    "Open with a concise definition and business outcome before expanding into methodology and implementation detail."),
+            ],
+            TechnicalEvidenceRequirements =
+            [
+                "Include sanitized code or webhook examples when the topic is technical.",
+                "Reference software versions, workflow constraints, or implementation assumptions when they materially affect execution.",
+            ],
+            GeoAnchorNodes = geoAnchorNodes,
+            SchemaBlueprint = new SchemaBlueprint
+            {
+                PrimaryType = "TechArticle",
+                AdditionalTypes = ["FAQPage"],
+                SoftwareEntities = softwareEntities,
+                AboutEntities = BuildAboutEntities(latestProfile, matchedPillar, geoAnchorNodes),
+            },
+            ReviewChecklist =
+            [
+                "Verify software versions and code logic before publication.",
+                "Confirm direct-answer blocks are factual and concise.",
+                "Check local references against the target service area.",
+            ],
+            NicheContext = new NicheContextSpec
+            {
+                PrimaryNiche = latestProfile?.PrimaryNiche,
+                MatchedPillar = matchedPillar,
+                GapTopics = gapTopics,
+            },
+            AuthorOrganizationName = project.Value.Name,
+            AuthorOrganizationUrl = project.Value.Url,
             BenchmarkQuality = benchmarks.BenchmarkQuality,
         });
     }
@@ -146,4 +201,101 @@ public sealed class ContentBriefService(
 
     private static int CountWords(string text) =>
         string.IsNullOrWhiteSpace(text) ? 0 : text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+
+    private async Task<NicheProfile?> TryGetLatestProfileAsync(Guid projectId, CancellationToken ct)
+    {
+        var profileResult = await nicheProfiles.GetLatestByProjectAsync(projectId, ct);
+        return profileResult.IsSuccess ? profileResult.Value : null;
+    }
+
+    private async Task<IReadOnlyList<string>> TryGetGapTopicsAsync(Guid? profileId, CancellationToken ct)
+    {
+        if (profileId is null)
+            return [];
+
+        var gaps = await nicheAnalytics.GetTopicalGapsAsync(profileId.Value, quickWinsOnly: false, ct);
+        return gaps.IsSuccess && gaps.Value is not null
+            ? gaps.Value.Select(g => g.SubtopicTitle).Distinct(StringComparer.OrdinalIgnoreCase).Take(5).ToList()
+            : [];
+    }
+
+    private static string? FindMatchedPillar(string keyword, NicheProfile? profile)
+    {
+        if (profile?.Pillars is null || profile.Pillars.Count == 0)
+            return null;
+
+        var normalizedKeyword = keyword.ToLowerInvariant();
+        var direct = profile.Pillars.FirstOrDefault(p =>
+            normalizedKeyword.Contains(p.PillarTopic, StringComparison.OrdinalIgnoreCase)
+            || normalizedKeyword.Contains(p.PrimaryKeyword, StringComparison.OrdinalIgnoreCase)
+            || p.PrimaryKeyword.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Any(token => normalizedKeyword.Contains(token, StringComparison.OrdinalIgnoreCase)));
+
+        return direct?.PillarTopic ?? profile.Pillars[0].PillarTopic;
+    }
+
+    private static IReadOnlyList<string> BuildCompetitorDomains(SerpBenchmarksPayload benchmarks, NicheProfile? profile)
+    {
+        var domains = benchmarks.OrganicResults
+            .Select(o => o.Domain)
+            .Where(d => !string.IsNullOrWhiteSpace(d))
+            .Concat(profile?.Competitors.Select(c => c.Domain) ?? [])
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(8)
+            .ToList();
+
+        return domains;
+    }
+
+    private static IReadOnlyList<string> BuildGeoAnchorNodes(string location, string? businessAddress, string? defaultLocation) =>
+        new[] { location, businessAddress, defaultLocation }
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private static IReadOnlyList<string> ExtractSoftwareEntities(
+        string keyword,
+        NicheProfile? profile,
+        IReadOnlyList<string> recommendedTerms)
+    {
+        var candidates = new List<string>();
+        AddMatchingSoftwareEntities(candidates, keyword);
+        foreach (var tag in profile?.NicheTags ?? [])
+            AddMatchingSoftwareEntities(candidates, tag);
+        foreach (var term in recommendedTerms)
+            AddMatchingSoftwareEntities(candidates, term);
+
+        return candidates
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(6)
+            .ToList();
+    }
+
+    private static void AddMatchingSoftwareEntities(List<string> destination, string text)
+    {
+        foreach (var pair in SoftwareEntityMap)
+        {
+            if (text.Contains(pair.Key, StringComparison.OrdinalIgnoreCase))
+                destination.Add(pair.Value);
+        }
+    }
+
+    private static IReadOnlyList<string> BuildAboutEntities(
+        NicheProfile? profile,
+        string? matchedPillar,
+        IReadOnlyList<string> geoAnchorNodes)
+    {
+        var values = new List<string>();
+        if (!string.IsNullOrWhiteSpace(profile?.PrimaryNiche))
+            values.Add(profile.PrimaryNiche);
+        if (!string.IsNullOrWhiteSpace(matchedPillar))
+            values.Add(matchedPillar);
+        values.AddRange(geoAnchorNodes);
+
+        return values
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(8)
+            .ToList();
+    }
 }

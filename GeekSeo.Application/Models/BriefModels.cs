@@ -9,8 +9,51 @@ public sealed record ContentBrief
     public IReadOnlyList<string> RecommendedTerms { get; init; } = [];
     public IReadOnlyList<string> SuggestedHeadings { get; init; } = [];
     public IReadOnlyList<BriefCompetitorSummary> TopCompetitors { get; init; } = [];
+    public IReadOnlyList<string> CompetitorDomains { get; init; } = [];
     public IReadOnlyList<string> PeopleAlsoAsk { get; init; } = [];
+    public WritingMethodologySpec Methodology { get; init; } = WritingMethodologySpec.FourPhase;
+    public IReadOnlyList<DirectAnswerBlockSpec> DirectAnswerBlocks { get; init; } = [];
+    public IReadOnlyList<string> TechnicalEvidenceRequirements { get; init; } = [];
+    public IReadOnlyList<string> GeoAnchorNodes { get; init; } = [];
+    public SchemaBlueprint SchemaBlueprint { get; init; } = new();
+    public IReadOnlyList<string> ReviewChecklist { get; init; } = [];
+    public NicheContextSpec NicheContext { get; init; } = new();
+    public string? AuthorOrganizationName { get; init; }
+    public string? AuthorOrganizationUrl { get; init; }
     public string BenchmarkQuality { get; init; } = "good";
+}
+
+public sealed record WritingMethodologySpec(
+    string Name,
+    IReadOnlyList<string> Phases)
+{
+    public static readonly WritingMethodologySpec FourPhase = new(
+        "Four Phase Methodology",
+        [
+            "Business Objectives",
+            "Data Quality Assessment",
+            "Tech Selection",
+            "Pilot Implementation Strategy",
+        ]);
+}
+
+public sealed record DirectAnswerBlockSpec(
+    string Label,
+    string Instruction);
+
+public sealed record SchemaBlueprint
+{
+    public string PrimaryType { get; init; } = "TechArticle";
+    public IReadOnlyList<string> AdditionalTypes { get; init; } = [];
+    public IReadOnlyList<string> SoftwareEntities { get; init; } = [];
+    public IReadOnlyList<string> AboutEntities { get; init; } = [];
+}
+
+public sealed record NicheContextSpec
+{
+    public string? PrimaryNiche { get; init; }
+    public string? MatchedPillar { get; init; }
+    public IReadOnlyList<string> GapTopics { get; init; } = [];
 }
 
 public sealed record BriefCompetitorSummary
@@ -33,6 +76,7 @@ public sealed record WritingOutlineRequest
 {
     public required string Keyword { get; init; }
     public required ContentBrief Brief { get; init; }
+    public string? Title { get; init; }
 }
 
 public sealed record WritingDraftRequest
@@ -41,6 +85,7 @@ public sealed record WritingDraftRequest
     public required string Outline { get; init; }
     public required ContentBrief Brief { get; init; }
     public int TargetWordCount { get; init; }
+    public string? Title { get; init; }
 }
 
 public sealed record HumanizeRequest

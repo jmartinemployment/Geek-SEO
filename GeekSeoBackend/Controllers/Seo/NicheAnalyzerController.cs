@@ -15,6 +15,7 @@ namespace GeekSeoBackend.Controllers.Seo;
 public sealed class NicheAnalyzerController(
     NicheAnalyzerService analyzer,
     CompetitorAnalysisService competitorAnalysisService,
+    NicheStepRerunService stepRerunService,
     INicheProfileRepository profileRepo,
     INicheAnalyticsDapperRepository analyticsRepo,
     NicheAnalysisJobChannel nicheChannel,
@@ -118,6 +119,7 @@ public sealed class NicheAnalyzerController(
                 ? p.AnalysisStepNumber
                 : p.Status switch { "complete" => 14, _ => 0 };
             var totalSteps = p.AnalysisTotalSteps > 0 ? p.AnalysisTotalSteps : 14;
+            var stepStatuses = ParseStepStatuses(p.StepStatusesJson);
             return Ok(new NicheAnalysisStatus(
                 p.Id,
                 p.Status,
@@ -129,7 +131,8 @@ public sealed class NicheAnalyzerController(
                 p.AnalysisProgressAt,
                 p.StructureStatus,
                 p.EnrichmentStatus,
-                p.PersistStage));
+                p.PersistStage,
+                stepStatuses));
         }
         catch (InvalidOperationException ex)
         {
@@ -164,7 +167,15 @@ public sealed class NicheAnalyzerController(
             p.AnalysisProgressAt,
             p.StructureStatus,
             p.EnrichmentStatus,
-            p.PersistStage));
+            p.PersistStage,
+            ParseStepStatuses(p.StepStatusesJson)));
+    }
+
+    private static IReadOnlyDictionary<string, string>? ParseStepStatuses(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json) || json == "{}") return null;
+        try { return System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(json); }
+        catch { return null; }
     }
 
     [HttpGet("{profileId:guid}")]
@@ -317,6 +328,44 @@ public sealed class NicheAnalyzerController(
         {
             logger.LogWarning(ex, "Transient error fetching topical gaps for profile {ProfileId}", profileId);
             return StatusCode(503, new { error = "Gaps temporarily unavailable" });
+        }
+    }
+
+    [HttpPost("{profileId:guid}/run-step/{slug}")]
+    public IActionResult RunStep(Guid profileId, string slug, CancellationToken ct)
+    {
+        try
+        {
+            var userId = user.RequireUserId();
+            _ = Task.Run(async () =>
+            {
+                using var jobCt = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+                var (success, error) = await stepRerunService.RerunStepAsync(
+                    profileId, userId, slug, null, jobCt.Token);
+                if (!success)
+                    logger.LogWarning("Step re-run {Slug} failed for {ProfileId}: {Error}", slug, profileId, error);
+            }, CancellationToken.None);
+            return Accepted(new { profileId, slug, message = $"Re-running step '{slug}'." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("{profileId:guid}/step-statuses")]
+    public async Task<IActionResult> GetStepStatuses(Guid profileId, CancellationToken ct)
+    {
+        try
+        {
+            user.RequireUserId();
+            var result = await profileRepo.GetStepStatusesAsync(profileId, ct);
+            if (!result.IsSuccess) return StatusCode(500, new { error = result.Error });
+            return Ok(result.Value);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
         }
     }
 

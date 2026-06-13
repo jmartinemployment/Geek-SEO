@@ -1465,6 +1465,8 @@ export async function getRankHistory(
 
 // ─── Niche Analyzer ──────────────────────────────────────────────────────────
 
+export type StepStatus = 'pending' | 'running' | 'complete' | 'skipped' | 'error';
+
 export type NicheAnalysisStatus = {
   profileId: string;
   status: 'queued' | 'processing' | 'complete' | 'failed';
@@ -1477,6 +1479,7 @@ export type NicheAnalysisStatus = {
   structureStatus?: string;
   enrichmentStatus?: string;
   persistStage?: string;
+  stepStatuses?: Record<string, StepStatus>;
 };
 
 export type NicheAnalysisStepLogEntry = {
@@ -1786,6 +1789,18 @@ export async function analyzeNiche(
     body: JSON.stringify({ projectId, domain, seedTopic }),
   });
   return seoJson(res);
+}
+
+export async function runNicheStep(
+  profileId: string,
+  slug: string,
+  accessToken?: string | null,
+): Promise<void> {
+  const res = await fetch(`${API_URL}/api/seo/niche-analyzer/${profileId}/run-step/${slug}`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
 }
 
 export async function analyzeCompetitors(

@@ -93,6 +93,9 @@ public sealed class NicheAnalyzerService(
             var profile = profileResult.Value;
             var domain = NicheSiteUrlNormalizer.Normalize(profile.Domain);
 
+            // Initialize all steps as pending
+            await InitializeStepStatusesAsync(profileId, ct);
+
             await profileRepo.UpdateStatusAsync(profileId, "processing",
                 step: "schema", stepNumber: 1, totalSteps: TotalSteps, ct: ct);
 
@@ -179,6 +182,17 @@ public sealed class NicheAnalyzerService(
                 NicheAnalysisStepLogBuilder.SiteStructure(
                     6, crawlData, internalLinkData, urlPatternData, structureMessage),
                 ct);
+
+            // Persist crawled URL list for isolated step re-runs (URL list only — no HTML)
+            try
+            {
+                var crawledUrlJson = System.Text.Json.JsonSerializer.Serialize(crawlUrls);
+                await profileRepo.UpdateCrawledUrlsAsync(profileId, crawledUrlJson, ct);
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Failed to persist crawled URLs for {ProfileId}", profileId);
+            }
 
             // Step 7 — GSC owner overlay (Tier 3, optional) + fuse all signals
             var gscOverlay = await gscQueryExtractor.ExtractAsync(userId, profile.ProjectId, ct);
@@ -521,6 +535,11 @@ public sealed class NicheAnalyzerService(
             totalSteps: TotalSteps,
             errorMessage: error,
             ct: ct);
+        if (!string.IsNullOrWhiteSpace(_lastProgressStepSlug) && _lastProgressStepSlug != "failed")
+        {
+            try { await profileRepo.UpdateStepStatusAsync(profileId, _lastProgressStepSlug, "error", ct: ct); }
+            catch { /* non-fatal */ }
+        }
         try
         {
             await hub.Clients.User(userId.ToString()).SendAsync("AnalysisProgress", new
@@ -539,6 +558,18 @@ public sealed class NicheAnalyzerService(
         }
     }
 
+    private async Task InitializeStepStatusesAsync(Guid profileId, CancellationToken ct)
+    {
+        var allPending = NicheStepRunners.NicheStepDependencies.Map.Keys
+            .ToDictionary(s => s, _ => "pending");
+        var json = System.Text.Json.JsonSerializer.Serialize(allPending);
+        try { await profileRepo.UpdateCrawledUrlsAsync(profileId, "[]", ct); } catch { /* non-fatal */ }
+        // Re-use UpdateStepStatusAsync with a special init call — send all-pending as a batch
+        // by calling InvalidateDownstreamStepsAsync with all slugs
+        var allSlugs = allPending.Keys.ToList();
+        try { await profileRepo.InvalidateDownstreamStepsAsync(profileId, allSlugs, ct); } catch { /* non-fatal */ }
+    }
+
     private async Task PushProgress(
         Guid userId,
         Guid profileId,
@@ -549,16 +580,27 @@ public sealed class NicheAnalyzerService(
         _lastProgressStepSlug = stepEntry.Slug;
         _lastProgressStepNumber = stepNumber;
 
-        var status = stepNumber >= TotalSteps ? "complete" : "processing";
+        var stepStatus = stepNumber >= TotalSteps ? "complete" : "complete";
+        var overallStatus = stepNumber >= TotalSteps ? "complete" : "processing";
         try
         {
             await profileRepo.UpdateStatusAsync(
-                profileId, status, stepEntry.Slug, stepNumber, TotalSteps, stepLogEntry: stepEntry, ct: ct);
+                profileId, overallStatus, stepEntry.Slug, stepNumber, TotalSteps, stepLogEntry: stepEntry, ct: ct);
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to persist niche step {Step} (step {StepNumber}) for profile {ProfileId}",
                 stepEntry.Slug, stepNumber, profileId);
+        }
+
+        // Write per-step status for isolation
+        try
+        {
+            await profileRepo.UpdateStepStatusAsync(profileId, stepEntry.Slug, stepStatus, ct: ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Step status update failed for {Slug}", stepEntry.Slug);
         }
 
         try

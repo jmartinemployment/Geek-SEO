@@ -13,7 +13,8 @@ public record NicheAnalysisStatus(
     DateTimeOffset? ProgressAt = null,
     string? StructureStatus = null,
     string? EnrichmentStatus = null,
-    string? PersistStage = null);
+    string? PersistStage = null,
+    IReadOnlyDictionary<string, string>? StepStatuses = null);
 
 /// <summary>One persisted row in <c>niche_profiles.AnalysisStepLog</c> JSON array.</summary>
 public sealed record NicheAnalysisStepLogEntry(
