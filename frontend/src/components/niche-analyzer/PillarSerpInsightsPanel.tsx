@@ -13,7 +13,7 @@ export function PillarSerpInsightsPanel({ pillars }: Props) {
       p.relatedSearches?.length > 0 ||
       p.localPaaQuestions?.length > 0 ||
       p.localRelatedSearches?.length > 0 ||
-      p.competitorInsights?.length > 0,
+      false,
   );
 
   if (withData.length === 0) return null;
@@ -74,19 +74,6 @@ function PillarSerpCard({ pillar }: { pillar: NichePillarResult }) {
         />
       </div>
 
-      {/* Competitor crawl results */}
-      {pillar.competitorInsights?.length > 0 && (
-        <div className="border-t border-[var(--color-border)] px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)] mb-3">
-            Competitor sites crawled
-          </p>
-          <div className="space-y-3">
-            {pillar.competitorInsights.map((c, i) => (
-              <CompetitorInsightCard key={i} insight={c} />
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

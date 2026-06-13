@@ -88,8 +88,6 @@ public sealed class NichePillar
     public string LocalPaaQuestionsJson { get; set; } = "[]";
     /// <summary>Related searches from geo-targeted local SERP.</summary>
     public string LocalRelatedSearchesJson { get; set; } = "[]";
-    /// <summary>JSON array of CompetitorSiteInsight — crawled competitor sites for this pillar.</summary>
-    public string CompetitorInsightsJson { get; set; } = "[]";
 
     [ValidateNever]
     public NicheProfile? NicheProfile { get; set; }
@@ -131,6 +129,16 @@ public sealed class NicheCompetitor
     public string StrengthAssessment { get; set; } = "moderate";
     /// <summary>national | local | both</summary>
     public string Scope { get; set; } = "national";
+    // Crawl data — populated by step 10 competitor crawl
+    public int PagesCrawled { get; set; }
+    public int AvgWordCount { get; set; }
+    public bool HasFaqSchema { get; set; }
+    public string? ServicesJson { get; set; }
+    public string? KnowsAboutJson { get; set; }
+    public string? AreaServedJson { get; set; }
+    public string? SameAsJson { get; set; }
+    public string? Description { get; set; }
+    public string? BrandName { get; set; }
 
     [ValidateNever]
     public NicheProfile? NicheProfile { get; set; }

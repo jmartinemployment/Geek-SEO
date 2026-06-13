@@ -1,11 +1,10 @@
 'use client';
 
 import { Fragment, useState } from 'react';
-import type { NicheCompetitorResult, NichePillarResult } from '@/lib/seo-api';
+import type { NicheCompetitorResult } from '@/lib/seo-api';
 
 type Props = {
   competitors: NicheCompetitorResult[];
-  pillars: NichePillarResult[];
 };
 
 const STRENGTH_COLORS: Record<string, string> = {
@@ -20,7 +19,7 @@ const SCOPE_COLORS: Record<string, string> = {
   local: 'bg-emerald-100 text-emerald-800',
 };
 
-export function NicheCompetitorPanel({ competitors, pillars }: Readonly<Props>) {
+export function NicheCompetitorPanel({ competitors }: Readonly<Props>) {
   const [expandedDomain, setExpandedDomain] = useState<string | null>(null);
 
   if (competitors.length === 0) {
@@ -31,36 +30,7 @@ export function NicheCompetitorPanel({ competitors, pillars }: Readonly<Props>) 
     );
   }
 
-  // Aggregate crawl insights for each competitor domain across all pillars
-  const insightsByDomain = new Map<string, { pagesCrawled: number; avgWordCount: number; services: string[]; knowsAbout: string[]; areaServed: string[]; hasFaqSchema: boolean; description?: string; brandName?: string }>();
-  for (const pillar of pillars) {
-    for (const insight of pillar.competitorInsights ?? []) {
-      const existing = insightsByDomain.get(insight.domain);
-      if (!existing) {
-        insightsByDomain.set(insight.domain, {
-          pagesCrawled: insight.pagesCrawled,
-          avgWordCount: insight.avgWordCount,
-          services: [...(insight.services ?? [])],
-          knowsAbout: [...(insight.knowsAbout ?? [])],
-          areaServed: [...(insight.areaServed ?? [])],
-          hasFaqSchema: insight.hasFaqSchema,
-          description: insight.description,
-          brandName: insight.brandName,
-        });
-      } else {
-        existing.pagesCrawled = Math.max(existing.pagesCrawled, insight.pagesCrawled);
-        existing.avgWordCount = Math.max(existing.avgWordCount, insight.avgWordCount);
-        for (const s of insight.services ?? []) if (!existing.services.includes(s)) existing.services.push(s);
-        for (const k of insight.knowsAbout ?? []) if (!existing.knowsAbout.includes(k)) existing.knowsAbout.push(k);
-        for (const a of insight.areaServed ?? []) if (!existing.areaServed.includes(a)) existing.areaServed.push(a);
-        existing.hasFaqSchema = existing.hasFaqSchema || insight.hasFaqSchema;
-        existing.description ??= insight.description;
-        existing.brandName ??= insight.brandName;
-      }
-    }
-  }
-
-  const totalPages = [...insightsByDomain.values()].reduce((sum, i) => sum + i.pagesCrawled, 0);
+  const totalPages = competitors.reduce((sum, c) => sum + (c.pagesCrawled ?? 0), 0);
 
   return (
     <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -88,25 +58,24 @@ export function NicheCompetitorPanel({ competitors, pillars }: Readonly<Props>) 
           </thead>
           <tbody>
             {competitors.map((c) => {
-              const insight = insightsByDomain.get(c.domain);
               const expanded = expandedDomain === c.domain;
+              const hasCrawlData = c.pagesCrawled > 0;
               return (
                 <Fragment key={c.domain}>
                   <tr className="border-t border-[var(--color-border)]">
                     <td className="px-2 py-2">
-                      <button
-                        type="button"
-                        aria-expanded={expanded}
-                        aria-label={expanded ? 'Collapse' : 'Expand'}
-                        onClick={() => setExpandedDomain(expanded ? null : c.domain)}
-                        className="flex h-6 w-6 items-center justify-center rounded text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"
-                      >
-                        {expanded ? '−' : '+'}
-                      </button>
+                      {hasCrawlData ? (
+                        <button
+                          type="button"
+                          aria-expanded={expanded}
+                          onClick={() => setExpandedDomain(expanded ? null : c.domain)}
+                          className="flex h-6 w-6 items-center justify-center rounded text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"
+                        >
+                          {expanded ? '−' : '+'}
+                        </button>
+                      ) : null}
                     </td>
-                    <td className="px-3 py-2 font-medium text-[var(--color-text-primary)]">
-                      {c.domain}
-                    </td>
+                    <td className="px-3 py-2 font-medium text-[var(--color-text-primary)]">{c.domain}</td>
                     <td className="px-3 py-2">
                       <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${SCOPE_COLORS[c.scope] ?? 'bg-stone-100 text-stone-600'}`}>
                         {c.scope}
@@ -117,73 +86,53 @@ export function NicheCompetitorPanel({ competitors, pillars }: Readonly<Props>) 
                         {c.strengthAssessment}
                       </span>
                     </td>
-                    <td className="px-3 py-2 tabular-nums text-[var(--color-text-secondary)]">
-                      {c.serpPresence}
-                    </td>
-                    <td className="px-3 py-2 tabular-nums text-[var(--color-text-secondary)]">
-                      {c.pillarsRanking}
-                    </td>
-                    <td className="px-3 py-2 tabular-nums text-[var(--color-text-secondary)]">
-                      {insight ? insight.pagesCrawled : '—'}
-                    </td>
-                    <td className="px-3 py-2 tabular-nums text-[var(--color-text-secondary)]">
-                      {insight?.avgWordCount ? insight.avgWordCount.toLocaleString() : '—'}
-                    </td>
+                    <td className="px-3 py-2 tabular-nums text-[var(--color-text-secondary)]">{c.serpPresence}</td>
+                    <td className="px-3 py-2 tabular-nums text-[var(--color-text-secondary)]">{c.pillarsRanking}</td>
+                    <td className="px-3 py-2 tabular-nums text-[var(--color-text-secondary)]">{hasCrawlData ? c.pagesCrawled : '—'}</td>
+                    <td className="px-3 py-2 tabular-nums text-[var(--color-text-secondary)]">{hasCrawlData ? c.avgWordCount.toLocaleString() : '—'}</td>
                   </tr>
-                  {expanded && insight ? (
+                  {expanded && hasCrawlData ? (
                     <tr key={`${c.domain}-detail`} className="border-t border-[var(--color-border)] bg-[var(--color-surface-muted)]/40">
                       <td colSpan={8} className="px-5 py-4">
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                          {insight.description ? (
+                          {c.description ? (
                             <div className="col-span-full">
                               <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Description</p>
-                              <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{insight.description}</p>
+                              <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{c.description}</p>
                             </div>
                           ) : null}
-                          {(insight.services?.length ?? 0) > 0 ? (
+                          {(c.services?.length ?? 0) > 0 ? (
                             <div>
-                              <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Services ({insight.services!.length})</p>
+                              <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Services ({c.services!.length})</p>
                               <ul className="mt-1 space-y-0.5">
-                                {insight.services!.slice(0, 10).map((s) => (
-                                  <li key={s} className="text-xs text-[var(--color-text-secondary)]">{s}</li>
-                                ))}
-                                {insight.services!.length > 10 ? (
-                                  <li className="text-[10px] text-[var(--color-text-muted)]">+{insight.services!.length - 10} more</li>
-                                ) : null}
+                                {c.services!.slice(0, 10).map((s) => <li key={s} className="text-xs text-[var(--color-text-secondary)]">{s}</li>)}
+                                {c.services!.length > 10 ? <li className="text-[10px] text-[var(--color-text-muted)]">+{c.services!.length - 10} more</li> : null}
                               </ul>
                             </div>
                           ) : null}
-                          {(insight.knowsAbout?.length ?? 0) > 0 ? (
+                          {(c.knowsAbout?.length ?? 0) > 0 ? (
                             <div>
-                              <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Knows about ({insight.knowsAbout!.length})</p>
+                              <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Knows about ({c.knowsAbout!.length})</p>
                               <ul className="mt-1 space-y-0.5">
-                                {insight.knowsAbout!.slice(0, 10).map((k) => (
-                                  <li key={k} className="text-xs text-[var(--color-text-secondary)]">{k}</li>
-                                ))}
-                                {insight.knowsAbout!.length > 10 ? (
-                                  <li className="text-[10px] text-[var(--color-text-muted)]">+{insight.knowsAbout!.length - 10} more</li>
-                                ) : null}
+                                {c.knowsAbout!.slice(0, 10).map((k) => <li key={k} className="text-xs text-[var(--color-text-secondary)]">{k}</li>)}
+                                {c.knowsAbout!.length > 10 ? <li className="text-[10px] text-[var(--color-text-muted)]">+{c.knowsAbout!.length - 10} more</li> : null}
                               </ul>
                             </div>
                           ) : null}
-                          {(insight.areaServed?.length ?? 0) > 0 ? (
+                          {(c.areaServed?.length ?? 0) > 0 ? (
                             <div>
-                              <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Area served ({insight.areaServed!.length})</p>
+                              <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Area served ({c.areaServed!.length})</p>
                               <ul className="mt-1 space-y-0.5">
-                                {insight.areaServed!.slice(0, 8).map((a) => (
-                                  <li key={a} className="text-xs text-[var(--color-text-secondary)]">{a}</li>
-                                ))}
-                                {insight.areaServed!.length > 8 ? (
-                                  <li className="text-[10px] text-[var(--color-text-muted)]">+{insight.areaServed!.length - 8} more</li>
-                                ) : null}
+                                {c.areaServed!.slice(0, 8).map((a) => <li key={a} className="text-xs text-[var(--color-text-secondary)]">{a}</li>)}
+                                {c.areaServed!.length > 8 ? <li className="text-[10px] text-[var(--color-text-muted)]">+{c.areaServed!.length - 8} more</li> : null}
                               </ul>
                             </div>
                           ) : null}
-                          <div className="flex flex-wrap gap-2">
-                            {insight.hasFaqSchema ? (
+                          {c.hasFaqSchema ? (
+                            <div className="flex items-start">
                               <span className="rounded bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">FAQ schema</span>
-                            ) : null}
-                          </div>
+                            </div>
+                          ) : null}
                         </div>
                       </td>
                     </tr>

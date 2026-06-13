@@ -368,10 +368,7 @@ export default function NicheAnalyzerPage() {
           )}
 
           {tab === 'competitors' && (
-            <NicheCompetitorPanel
-              competitors={profile.competitors}
-              pillars={profile.pillars}
-            />
+            <NicheCompetitorPanel competitors={profile.competitors} />
           )}
 
           {tab === 'contentIdeas' && (

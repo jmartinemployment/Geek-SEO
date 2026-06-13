@@ -1663,7 +1663,6 @@ export type NichePillarResult = {
   relatedSearches: string[];
   localPaaQuestions: PaaQuestionItem[];
   localRelatedSearches: string[];
-  competitorInsights: CompetitorSiteInsight[];
 };
 
 export type NicheProfileResult = {
@@ -1699,6 +1698,15 @@ export type NicheCompetitorResult = {
   pillarsRanking: number;
   strengthAssessment: string;
   scope: 'national' | 'local' | 'both';
+  pagesCrawled: number;
+  avgWordCount: number;
+  hasFaqSchema: boolean;
+  services?: string[];
+  knowsAbout?: string[];
+  areaServed?: string[];
+  sameAs?: string[];
+  description?: string;
+  brandName?: string;
 };
 
 export type NicheEntityResult = {

@@ -323,9 +323,8 @@ public sealed class NicheAnalyzerService(
                 NicheAnalysisStepLogBuilder.Processing(10, "competitor_crawl",
                     $"Competitor crawl queued — {competitorDomains.Count} site(s), running in background."), ct);
 
-            // Step 11 — Niche identity (uses empty insights; crawl results applied before pillar save)
-            var nicheEntities = BuildNichePillars(merged, profileId, demand.Keywords, demand.SerpValidations,
-                new Dictionary<string, CompetitorSiteInsight>(StringComparer.OrdinalIgnoreCase));
+            // Step 11 — Niche identity (crawl results patched onto competitor entities before save)
+            var nicheEntities = BuildNichePillars(merged, profileId, demand.Keywords, demand.SerpValidations);
             var rootEntity = rootBuilder.Build(schemaData, headings, nicheEntities);
             var audienceType = DetermineAudienceType(nicheEntities, schemaData);
             var nicheTags = BuildNicheTags(schemaData, nicheEntities).ToArray();
@@ -406,13 +405,13 @@ public sealed class NicheAnalyzerService(
                     pillar.Id = Guid.NewGuid();
             }
 
-            // Await competitor crawl (started at step 10) — up to 5 min; patch pillar insights if done
+            // Await competitor crawl (started at step 10) — up to 5 min; patch onto competitor entities
             try
             {
                 using var crawlTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 crawlTimeout.CancelAfter(TimeSpan.FromMinutes(5));
                 var competitorInsights = await crawlTask.WaitAsync(crawlTimeout.Token);
-                ApplyCompetitorInsights(nicheEntities, demand.SerpValidations, competitorInsights);
+                ApplyCompetitorInsights(demand.Competitors, competitorInsights);
                 await PushProgress(userId, profileId, 10,
                     NicheAnalysisStepLogBuilder.Processing(10, "competitor_crawl",
                         $"Competitor crawl: {competitorInsights.Count} site(s) crawled, " +
@@ -629,31 +628,33 @@ public sealed class NicheAnalyzerService(
             .ToList();
 
     private static void ApplyCompetitorInsights(
-        List<NichePillar> pillars,
-        IReadOnlyList<PillarSerpEnrichment> serpValidations,
+        IReadOnlyList<NicheCompetitor> competitors,
         Dictionary<string, CompetitorSiteInsight> insights)
     {
         if (insights.Count == 0) return;
-        var serpBySlug = serpValidations.ToDictionary(s => s.Slug, StringComparer.OrdinalIgnoreCase);
-        foreach (var pillar in pillars)
+        foreach (var competitor in competitors)
         {
-            if (!serpBySlug.TryGetValue(pillar.PillarSlug, out var serp)) continue;
-            var pillarInsights = serp.TopCompetitorDomains
-                .Select(d => insights.GetValueOrDefault(d))
-                .Where(i => i is not null)
-                .Cast<CompetitorSiteInsight>()
-                .ToList();
-            if (pillarInsights.Count > 0)
-                pillar.CompetitorInsightsJson = System.Text.Json.JsonSerializer.Serialize(pillarInsights);
+            if (!insights.TryGetValue(competitor.Domain, out var insight)) continue;
+            competitor.PagesCrawled = insight.PagesCrawled;
+            competitor.AvgWordCount = insight.AvgWordCount;
+            competitor.HasFaqSchema = insight.HasFaqSchema;
+            competitor.Description = insight.Description;
+            competitor.BrandName = insight.BrandName;
+            competitor.ServicesJson = ToJson(insight.Services);
+            competitor.KnowsAboutJson = ToJson(insight.KnowsAbout);
+            competitor.AreaServedJson = ToJson(insight.AreaServed);
+            competitor.SameAsJson = ToJson(insight.SameAs);
         }
     }
+
+    private static string? ToJson<T>(IReadOnlyList<T>? list) =>
+        list is { Count: > 0 } ? System.Text.Json.JsonSerializer.Serialize(list) : null;
 
     private static List<NichePillar> BuildNichePillars(
         IReadOnlyList<DiscoveredPillar> merged,
         Guid profileId,
         IReadOnlyList<PillarKeywordEnrichment> keywordMetrics,
-        IReadOnlyList<PillarSerpEnrichment> serpValidations,
-        Dictionary<string, CompetitorSiteInsight> competitorInsights)
+        IReadOnlyList<PillarSerpEnrichment> serpValidations)
     {
         var metricsBySlug = keywordMetrics
             .Where(k => k.Enriched)
@@ -688,12 +689,6 @@ public sealed class NicheAnalyzerService(
                 RelatedSearchesJson = ToJson(serp?.RelatedSearches),
                 LocalPaaQuestionsJson = ToJson(serp?.LocalPaaQuestions),
                 LocalRelatedSearchesJson = ToJson(serp?.LocalRelatedSearches),
-                CompetitorInsightsJson = ToJson(
-                    serp?.TopCompetitorDomains
-                        .Select(d => competitorInsights.GetValueOrDefault(d))
-                        .Where(c => c is not null)
-                        .Select(c => c!)
-                        .ToList()),
             };
         }).ToList();
     }
