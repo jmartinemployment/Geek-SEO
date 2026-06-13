@@ -228,12 +228,7 @@ public sealed class NicheStepExecutionService(
         if (!candidatePersist.IsSuccess)
             throw new InvalidOperationException(candidatePersist.Error ?? "Failed to persist topic candidates.");
 
-        var saveFusion = await profileRepo.SaveFusionSnapshotAsync(
-            profileId,
-            SiteTopicProfileJson.SerializeForPersistence(fused),
-            ct);
-        if (!saveFusion.IsSuccess)
-            throw new InvalidOperationException(saveFusion.Error ?? "Failed to persist fusion snapshot.");
+        await TrySaveFusionSnapshotAsync(profileId, fused, "merging", ct);
 
         await profileRepo.UpdatePhaseStatusAsync(
             profileId,
@@ -328,12 +323,7 @@ public sealed class NicheStepExecutionService(
         var pillarsAfterDemotion = PillarDemandEnricher.ApplySerpDemotions(merged, serp.Validations, out var demotedSlugs);
         var updatedFusion = ApplySerpDemotionsToFusion(fused, pillarsAfterDemotion, demotedSlugs);
 
-        var saveFusion = await profileRepo.SaveFusionSnapshotAsync(
-            profileId,
-            SiteTopicProfileJson.SerializeForPersistence(updatedFusion),
-            ct);
-        if (!saveFusion.IsSuccess)
-            throw new InvalidOperationException(saveFusion.Error ?? "Failed to persist SERP validation fusion snapshot.");
+        await TrySaveFusionSnapshotAsync(profileId, updatedFusion, "serp_validation", ct);
 
         await profileRepo.UpdatePhaseStatusAsync(
             profileId,
@@ -428,12 +418,7 @@ public sealed class NicheStepExecutionService(
             merged);
         var updatedFusion = fused with { LocalGeography = localGeo };
 
-        var saveFusion = await profileRepo.SaveFusionSnapshotAsync(
-            profileId,
-            SiteTopicProfileJson.SerializeForPersistence(updatedFusion),
-            ct);
-        if (!saveFusion.IsSuccess)
-            throw new InvalidOperationException(saveFusion.Error ?? "Failed to persist local geography snapshot.");
+        await TrySaveFusionSnapshotAsync(profileId, updatedFusion, "local", ct);
 
         var message = !localGeo.IsLocalBusiness
             ? "Local geography: no areaServed or location URLs detected."
@@ -648,10 +633,11 @@ public sealed class NicheStepExecutionService(
     private async Task<SiteTopicProfile> LoadFusionAsync(Guid profileId, CancellationToken ct)
     {
         var result = await profileRepo.GetAnalysisDetailsRowAsync(profileId, includeFusion: true, ct);
-        if (!result.IsSuccess || string.IsNullOrWhiteSpace(result.Value?.FusionSnapshot))
+        if (!result.IsSuccess || result.Value is null)
             throw new InvalidOperationException("Fusion snapshot not found — run merging first.");
 
-        var fusion = SiteTopicProfileJson.Parse(result.Value.FusionSnapshot);
+        var steps = NicheAnalysisStepLogJson.Parse(result.Value.AnalysisStepLog);
+        var fusion = NicheStepRunState.ResolveMergedFusionSnapshot(result.Value.FusionSnapshot, steps);
         return fusion ?? throw new InvalidOperationException("Fusion snapshot is malformed.");
     }
 
@@ -662,6 +648,37 @@ public sealed class NicheStepExecutionService(
             ? projectResult.Value.DefaultLocation
             : "United States";
     }
+
+    private async Task TrySaveFusionSnapshotAsync(
+        Guid profileId,
+        SiteTopicProfile fused,
+        string stepSlug,
+        CancellationToken ct)
+    {
+        var saveFusion = await profileRepo.SaveFusionSnapshotAsync(
+            profileId,
+            SiteTopicProfileJson.SerializeForPersistence(fused),
+            ct);
+
+        if (saveFusion.IsSuccess)
+            return;
+
+        if (IsRouteUnavailable(saveFusion.Error))
+        {
+            logger.LogWarning(
+                "Fusion snapshot persistence unavailable during {StepSlug} for {ProfileId}; continuing with step log artifacts",
+                stepSlug,
+                profileId);
+            return;
+        }
+
+        throw new InvalidOperationException(saveFusion.Error ?? $"Failed to persist fusion snapshot during {stepSlug}.");
+    }
+
+    private static bool IsRouteUnavailable(string? error) =>
+        error is not null
+        && (error.Contains("404", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("NotFound", StringComparison.OrdinalIgnoreCase));
 
     private static SiteTopicProfile ApplySerpDemotionsToFusion(
         SiteTopicProfile fused,

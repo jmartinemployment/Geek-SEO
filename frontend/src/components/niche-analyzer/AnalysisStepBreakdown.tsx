@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   getNicheAnalysisDetails,
+  getNicheAnalysisStatus,
   runNicheStep,
   type NicheAnalysisDetails,
   type NicheAnalysisStepLogEntry,
@@ -96,10 +97,16 @@ function StepOutputs({ outputs }: { outputs: Record<string, unknown> }) {
 }
 
 function StepRow({
-  step, stepDefinition, stepStatuses, anyStepRunning, profileId, accessToken, onStepRerun,
+  step,
+  stepDefinition,
+  stepStatuses,
+  anyStepRunning,
+  profileId,
+  accessToken,
+  onStepRerun,
 }: {
-  step: NicheAnalysisStepLogEntry;
-  stepDefinition?: NicheStepDefinition;
+  step?: NicheAnalysisStepLogEntry;
+  stepDefinition: NicheStepDefinition;
   stepStatuses?: Record<string, StepStatus>;
   anyStepRunning?: boolean;
   profileId: string;
@@ -109,30 +116,47 @@ function StepRow({
   const [rerunning, setRerunning] = useState(false);
   const [rerunError, setRerunError] = useState<string | null>(null);
 
-  const isolatedStatus = stepStatuses?.[step.slug];
+  const isolatedStatus = stepStatuses?.[stepDefinition.slug];
   const deps = stepDefinition?.dependencies ?? [];
   const depsKnown = deps.length === 0 || Boolean(stepStatuses);
   const depsComplete = deps.every((dep) => stepStatuses?.[dep] === 'complete');
-  const canRerun = Boolean(
-    stepDefinition
-    && (isolatedStatus === 'complete' || isolatedStatus === 'error')
-  );
+  const canRun = Boolean(stepStatuses);
   const rerunDisabled = !depsKnown || !depsComplete || anyStepRunning || rerunning;
 
   const statusLabel = isolatedStatus === 'running' ? 'in progress'
     : isolatedStatus === 'error' ? 'error'
-    : step.status === 'processing' ? 'in progress'
-    : step.status;
+    : isolatedStatus === 'complete' ? 'complete'
+    : isolatedStatus === 'skipped' ? 'skipped'
+    : 'pending';
 
   const statusColor = isolatedStatus === 'error' ? 'text-red-600'
     : isolatedStatus === 'running' ? 'text-amber-600'
     : 'text-[var(--color-text-muted)]';
 
+  const summary = step?.summary
+    ?? (!depsComplete
+      ? `Blocked until: ${deps.filter((dep) => stepStatuses?.[dep] !== 'complete').join(', ')}`
+      : isolatedStatus === 'complete'
+        ? 'Step completed.'
+        : isolatedStatus === 'error'
+          ? 'Previous run failed. Run again after correcting inputs.'
+          : 'Ready to execute.');
+
+  const buttonLabel = rerunning
+    ? 'Running…'
+    : isolatedStatus === 'running'
+      ? 'Running…'
+      : isolatedStatus === 'complete'
+        ? 'Re-run'
+        : isolatedStatus === 'error'
+          ? 'Retry'
+          : 'Run';
+
   async function handleRerun() {
     setRerunning(true);
     setRerunError(null);
     try {
-      await runNicheStep(profileId, step.slug, accessToken);
+      await runNicheStep(profileId, stepDefinition.slug, accessToken);
       onStepRerun?.();
     } catch (e) {
       setRerunError(e instanceof Error ? e.message : 'Re-run failed');
@@ -146,9 +170,9 @@ function StepRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium text-[var(--color-text-primary)]">
-            {step.stepNumber}. {step.title}
+            {stepDefinition.stepNumber}. {stepDefinition.title}
           </p>
-          <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{step.summary}</p>
+          <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{summary}</p>
           {rerunError ? (
             <p className="mt-1 text-xs text-red-600">{rerunError}</p>
           ) : null}
@@ -157,11 +181,11 @@ function StepRow({
           <span className={`text-xs uppercase tracking-wide ${statusColor}`}>
             {statusLabel}
           </span>
-          {canRerun ? (
+          {canRun ? (
             <button
               type="button"
               onClick={handleRerun}
-              disabled={rerunDisabled}
+              disabled={rerunDisabled || isolatedStatus === 'running'}
               title={
                 !depsKnown
                   ? 'Step status map unavailable for this run.'
@@ -171,18 +195,26 @@ function StepRow({
               }
               className="rounded px-2 py-0.5 text-[10px] font-medium transition-colors bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)] hover:bg-[var(--color-border)] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {rerunning ? 'Running…' : 'Re-run'}
+              {buttonLabel}
             </button>
           ) : null}
         </div>
       </div>
-      <StepOutputs outputs={step.outputs} />
+      {step ? <StepOutputs outputs={step.outputs} /> : null}
     </li>
   );
 }
 
 function PhaseSection({
-  phase, steps, stepDefinitions, defaultExpanded, stepStatuses, anyStepRunning, profileId, accessToken, onStepRerun,
+  phase,
+  steps,
+  stepDefinitions,
+  defaultExpanded,
+  stepStatuses,
+  anyStepRunning,
+  profileId,
+  accessToken,
+  onStepRerun,
 }: {
   phase: Phase;
   steps: NicheAnalysisStepLogEntry[];
@@ -195,11 +227,12 @@ function PhaseSection({
   onStepRerun?: () => void;
 }) {
   const [open, setOpen] = useState(defaultExpanded);
-  const phaseSteps = steps.filter((s) => phase.slugs.includes(s.slug));
+  const phaseDefinitions = stepDefinitions.filter((definition) => phase.slugs.includes(definition.slug));
+  const stepsBySlug = new Map(steps.map((step) => [step.slug, step]));
 
-  if (phaseSteps.length === 0) return null;
+  if (phaseDefinitions.length === 0) return null;
 
-  const phaseHasError = phaseSteps.some(s => stepStatuses?.[s.slug] === 'error');
+  const phaseHasError = phaseDefinitions.some((definition) => stepStatuses?.[definition.slug] === 'error');
 
   return (
     <div className={`rounded-lg border ${phaseHasError ? 'border-red-200' : 'border-[var(--color-border)]'}`}>
@@ -214,16 +247,16 @@ function PhaseSection({
           <p className="text-xs text-[var(--color-text-muted)]">{phase.subtitle}</p>
         </div>
         <span className="text-xs text-[var(--color-text-muted)]">
-          {phaseSteps.length} step{phaseSteps.length === 1 ? '' : 's'} · {open ? 'Hide' : 'Show'}
+          {phaseDefinitions.length} step{phaseDefinitions.length === 1 ? '' : 's'} · {open ? 'Hide' : 'Show'}
         </span>
       </button>
       {open ? (
         <ol className="space-y-3 border-t border-[var(--color-border)] px-4 py-3">
-          {phaseSteps.map((step) => (
+          {phaseDefinitions.map((definition) => (
             <StepRow
-              key={`${step.stepNumber}-${step.slug}`}
-              step={step}
-              stepDefinition={stepDefinitions.find((definition) => definition.slug === step.slug)}
+              key={`${definition.stepNumber}-${definition.slug}`}
+              step={stepsBySlug.get(definition.slug)}
+              stepDefinition={definition}
               stepStatuses={stepStatuses}
               anyStepRunning={anyStepRunning}
               profileId={profileId}
@@ -251,6 +284,7 @@ export function AnalysisStepBreakdown({
   const [details, setDetails] = useState<NicheAnalysisDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [liveStepStatuses, setLiveStepStatuses] = useState<Record<string, StepStatus> | undefined>();
 
   useEffect(() => {
     let cancelled = false;
@@ -273,7 +307,19 @@ export function AnalysisStepBreakdown({
       }
     }
 
+    async function loadStatuses() {
+      try {
+        const status = await getNicheAnalysisStatus(profileId, accessToken);
+        if (!cancelled && status.stepStatuses) {
+          setLiveStepStatuses(status.stepStatuses);
+        }
+      } catch {
+        // keep last known canonical statuses
+      }
+    }
+
     void load(true);
+    void loadStatuses();
 
     if (!pollIntervalMs || pollIntervalMs <= 0) {
       return () => {
@@ -283,6 +329,7 @@ export function AnalysisStepBreakdown({
 
     const id = window.setInterval(() => {
       void load(false);
+      void loadStatuses();
     }, pollIntervalMs);
 
     return () => {
@@ -297,6 +344,7 @@ export function AnalysisStepBreakdown({
     return details.steps.filter((s) => !grouped.has(s.slug));
   }, [details]);
   const stepDefinitions = details?.stepDefinitions ?? [];
+  const effectiveStepStatuses = stepStatuses ?? liveStepStatuses;
 
   return (
     <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -323,14 +371,14 @@ export function AnalysisStepBreakdown({
             <p className="text-sm text-[var(--color-text-muted)]">Loading step log…</p>
           ) : null}
           {error ? <p className="text-sm text-amber-700">{error}</p> : null}
-          {!loading && details && details.steps.length === 0 ? (
+          {!loading && details && details.steps.length === 0 && stepDefinitions.length === 0 ? (
             <p className="text-sm text-[var(--color-text-secondary)]">
               {pollIntervalMs
                 ? 'Step log will appear as each discovery step completes…'
                 : 'No step log for this run. Re-analyze once to capture discovery detail.'}
             </p>
           ) : null}
-          {details && details.steps.length > 0 ? (
+          {details && stepDefinitions.length > 0 ? (
             <div className="space-y-3">
               {SE_PHASES.map((phase, index) => (
                 <PhaseSection
@@ -339,7 +387,7 @@ export function AnalysisStepBreakdown({
                   steps={details.steps}
                   stepDefinitions={stepDefinitions}
                   defaultExpanded={index < 2 || pollIntervalMs !== undefined}
-                  stepStatuses={stepStatuses}
+                  stepStatuses={effectiveStepStatuses}
                   anyStepRunning={anyStepRunning}
                   profileId={profileId}
                   accessToken={accessToken}
@@ -352,8 +400,19 @@ export function AnalysisStepBreakdown({
                     <StepRow
                       key={`${step.stepNumber}-${step.slug}`}
                       step={step}
-                      stepDefinition={stepDefinitions.find((definition) => definition.slug === step.slug)}
-                      stepStatuses={stepStatuses}
+                      stepDefinition={
+                        stepDefinitions.find((definition) => definition.slug === step.slug)
+                        ?? {
+                          stepNumber: step.stepNumber,
+                          slug: step.slug,
+                          title: step.title,
+                          phase: 'unknown',
+                          dependencies: [],
+                          isOptional: false,
+                          isTerminal: false,
+                        }
+                      }
+                      stepStatuses={effectiveStepStatuses}
                       anyStepRunning={anyStepRunning}
                       profileId={profileId}
                       accessToken={accessToken}
