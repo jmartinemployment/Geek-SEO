@@ -1155,6 +1155,70 @@ public sealed class NicheExtractionTests
         ];
     }
 
+    [Fact]
+    public async Task SitePageCrawler_HttpOnly_CrawlsSeedsOnly_NotBfsLinks()
+    {
+        var html = """
+            <html><body>
+            <a href="/about">About</a>
+            <a href="/services/ai">AI</a>
+            <a href="/contact">Contact</a>
+            </body></html>
+            """;
+        var requestCount = 0;
+        var handler = new StubHttpHandler(_ =>
+        {
+            Interlocked.Increment(ref requestCount);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(html, Encoding.UTF8, "text/html"),
+            };
+        });
+        var crawler = new SitePageCrawler(
+            new StubHttpClientFactory(handler),
+            NullLogger<SitePageCrawler>.Instance);
+
+        var result = await crawler.CrawlAsync(
+            "https://example.com",
+            ["https://example.com/pricing"],
+            browser: null,
+            CancellationToken.None,
+            maxPages: 20);
+
+        Assert.Equal(2, result.PagesFetched);
+        Assert.Equal(2, result.PagesAttempted);
+        Assert.Equal(2, requestCount);
+    }
+
+    [Fact]
+    public async Task SitePageCrawler_HttpOnly_StopsAfterAttemptBudget()
+    {
+        var requestCount = 0;
+        var handler = new StubHttpHandler(_ =>
+        {
+            Interlocked.Increment(ref requestCount);
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+        var crawler = new SitePageCrawler(
+            new StubHttpClientFactory(handler),
+            NullLogger<SitePageCrawler>.Instance);
+
+        var sitemapSeeds = Enumerable.Range(1, 40)
+            .Select(i => $"https://example.com/page-{i}")
+            .ToList();
+
+        var result = await crawler.CrawlAsync(
+            "https://example.com",
+            sitemapSeeds,
+            browser: null,
+            CancellationToken.None,
+            maxPages: 20);
+
+        Assert.Equal(0, result.PagesFetched);
+        Assert.Equal(25, result.PagesAttempted);
+        Assert.Equal(25, requestCount);
+    }
+
     private sealed class StubHttpClientFactory(StubHttpHandler handler) : IHttpClientFactory
     {
         public HttpClient CreateClient(string name) => new(handler, disposeHandler: false);

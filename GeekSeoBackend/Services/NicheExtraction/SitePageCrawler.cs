@@ -8,11 +8,16 @@ namespace GeekSeoBackend.Services.NicheExtraction;
 /// <summary>
 /// Fetches a bounded set of same-origin pages (homepage, sitemap seeds, shallow BFS)
 /// for internal-link and URL-pattern extractors.
+/// HTTP-only runs (manual step re-run) crawl seeds only — BFS link following requires Playwright
+/// because SPA shells return the same HTML for every client-side route.
 /// </summary>
 public sealed partial class SitePageCrawler(
     IHttpClientFactory factory,
     ILogger<SitePageCrawler> logger)
 {
+    private const int HttpFetchTimeoutSeconds = 8;
+    private const int DefaultAttemptBudget = 30;
+
     private static readonly string[] SkipExtensions =
     [
         ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".zip", ".xml",
@@ -51,10 +56,16 @@ public sealed partial class SitePageCrawler(
         }
 
         var client = playwrightContext is null ? BuildClient() : null;
+        var followLinks = playwrightContext is not null;
+        var attemptBudget = maxPages is int cap
+            ? Math.Min(cap + 5, DefaultAttemptBudget)
+            : DefaultAttemptBudget;
 
         try
         {
-            while (queue.Count > 0 && (maxPages is null || pages.Count < maxPages))
+            while (queue.Count > 0
+                   && (maxPages is null || pages.Count < maxPages)
+                   && attempted < attemptBudget)
             {
                 ct.ThrowIfCancellationRequested();
                 var url = queue.Dequeue();
@@ -71,8 +82,11 @@ public sealed partial class SitePageCrawler(
 
                 pages.Add(new CrawledPage(url, html, playwrightContext is not null ? "playwright" : "http"));
 
-                foreach (var discovered in ExtractSameOriginLinks(html, url, origin))
-                    Enqueue(discovered);
+                if (followLinks)
+                {
+                    foreach (var discovered in ExtractSameOriginLinks(html, url, origin))
+                        Enqueue(discovered);
+                }
             }
         }
         finally
@@ -80,6 +94,14 @@ public sealed partial class SitePageCrawler(
             if (playwrightContext is not null)
                 await playwrightContext.DisposeAsync();
         }
+
+        logger.LogInformation(
+            "Site crawl finished for {Origin}: {Fetched}/{Attempted} page(s) (budget {Budget}, mode {Mode})",
+            origin,
+            pages.Count,
+            attempted,
+            attemptBudget,
+            followLinks ? "playwright-bfs" : "http-seeds-only");
 
         return new SiteCrawlData(pages, attempted, pages.Count);
 
@@ -250,7 +272,7 @@ public sealed partial class SitePageCrawler(
     private HttpClient BuildClient()
     {
         var client = factory.CreateClient();
-        client.Timeout = TimeSpan.FromSeconds(15);
+        client.Timeout = TimeSpan.FromSeconds(HttpFetchTimeoutSeconds);
         client.DefaultRequestHeaders.Add("User-Agent",
             "Mozilla/5.0 (compatible; GeekSEO/1.0; +https://seo.geekatyourspot.com)");
         return client;
