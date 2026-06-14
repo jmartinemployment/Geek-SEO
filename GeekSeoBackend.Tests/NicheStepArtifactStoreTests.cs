@@ -1,4 +1,5 @@
 using GeekSeo.Application.Models.Seo;
+using GeekSeoBackend.Services.NicheExtraction;
 using GeekSeoBackend.Services.NicheStepRunners;
 
 namespace GeekSeoBackend.Tests;
@@ -52,5 +53,40 @@ public sealed class NicheStepArtifactStoreTests
             "serp_validation");
 
         Assert.Null(artifact);
+    }
+
+    [Fact]
+    public void WithArtifact_StripsCrawlHtmlBeforePersistence()
+    {
+        var crawl = new SiteCrawlData(
+            [new CrawledPage("https://example.com/", new string('x', 50_000), "http")],
+            1,
+            1);
+        var artifact = new NicheStepArtifactStore.SiteStructureArtifact(
+            crawl,
+            new InternalLinkData([], new Dictionary<string, int>(), 1),
+            new UrlPatternData([], 0),
+            ["https://example.com/"]);
+
+        var entry = NicheStepArtifactStore.WithArtifact(
+            new NicheAnalysisStepLogEntry(
+                6,
+                "site_crawl",
+                "Site crawl",
+                "complete",
+                "saved",
+                new Dictionary<string, object?>()),
+            "site_crawl",
+            artifact);
+
+        var rawJson = entry.Outputs["_artifactJson"]?.ToString() ?? string.Empty;
+        Assert.DoesNotContain(new string('x', 100), rawJson);
+
+        var roundTripped = NicheStepArtifactStore.GetRequiredArtifact<NicheStepArtifactStore.SiteStructureArtifact>(
+            [entry],
+            "site_crawl",
+            "site_crawl");
+        Assert.Equal(string.Empty, roundTripped.Crawl.Pages[0].Html);
+        Assert.Equal("https://example.com/", roundTripped.Crawl.Pages[0].Url);
     }
 }

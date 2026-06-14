@@ -27,14 +27,38 @@ internal static class NicheStepArtifactStore
         string artifactType,
         TArtifact artifact)
     {
+        var persisted = StripHtmlForPersistence(artifact);
         var outputs = new Dictionary<string, object?>(entry.Outputs, StringComparer.OrdinalIgnoreCase)
         {
             [ArtifactTypeKey] = artifactType,
             [ArtifactVersionKey] = 1,
-            [ArtifactJsonKey] = JsonSerializer.Serialize(artifact, Json),
+            [ArtifactJsonKey] = JsonSerializer.Serialize(persisted, Json),
         };
 
         return entry with { Outputs = outputs };
+    }
+
+    /// <summary>
+    /// Crawl HTML is kept in memory for extractors but must not be written into
+    /// <c>analysis_step_log</c> — SPA shells can be megabytes per page and explode Supabase egress.
+    /// </summary>
+    private static object StripHtmlForPersistence<TArtifact>(TArtifact artifact) =>
+        artifact switch
+        {
+            SiteStructureArtifact ssa => ssa with { Crawl = StripHtml(ssa.Crawl) },
+            SiteCrawlData scd => StripHtml(scd),
+            _ => artifact!,
+        };
+
+    private static SiteCrawlData StripHtml(SiteCrawlData crawl)
+    {
+        if (crawl.Pages.Count == 0)
+            return crawl;
+
+        var stripped = crawl.Pages
+            .Select(p => p with { Html = string.Empty })
+            .ToList();
+        return crawl with { Pages = stripped };
     }
 
     public static TArtifact GetRequiredArtifact<TArtifact>(

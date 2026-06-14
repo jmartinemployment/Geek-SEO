@@ -416,15 +416,24 @@ internal static partial class NicheStepRelationalLoader
         }
     }
 
+    private const int MaxHtmlCharsForVisibleText = 512_000;
+    private const int MaxVisibleTextChars = 32_768;
+
     private static string ExtractVisibleText(string html)
     {
         if (string.IsNullOrWhiteSpace(html))
             return string.Empty;
 
+        if (html.Length > MaxHtmlCharsForVisibleText)
+            html = html[..MaxHtmlCharsForVisibleText];
+
         var stripped = ScriptTagRegex().Replace(html, " ");
         stripped = StyleTagRegex().Replace(stripped, " ");
         stripped = TagRegex().Replace(stripped, " ");
-        return WebUtility.HtmlDecode(stripped);
+        var decoded = WebUtility.HtmlDecode(stripped).Trim();
+        return decoded.Length <= MaxVisibleTextChars
+            ? decoded
+            : decoded[..MaxVisibleTextChars];
     }
 
     [GeneratedRegex("<script\\b[^<]*(?:(?!<\\/script>)<[^<]*)*<\\/script>", RegexOptions.IgnoreCase)]
