@@ -23,6 +23,9 @@ public sealed class ProjectService(IProjectRepository projects) : IProjectServic
 
     public async Task<Result<SeoProject>> CreateAsync(Guid userId, CreateProjectRequest request, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(request.DefaultLocation))
+            return Result<SeoProject>.Failure("Default location is required.");
+
         var normalized = NormalizeCreate(request);
         var duplicate = await EnsureUniqueUrlAsync(userId, normalized.Url, excludeProjectId: null, ct);
         if (!duplicate.IsSuccess)
@@ -59,6 +62,7 @@ public sealed class ProjectService(IProjectRepository projects) : IProjectServic
         request with
         {
             Url = SeoSiteUrlNormalizer.Normalize(request.Url),
+            DefaultLocation = request.DefaultLocation.Trim(),
             BusinessAddress = NormalizeAddress(request.BusinessAddress),
             ServiceRadiusMiles = LocalServiceAreaDefaults.ClampRadiusMiles(request.ServiceRadiusMiles),
         };

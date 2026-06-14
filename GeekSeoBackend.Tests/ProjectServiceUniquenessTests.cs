@@ -12,6 +12,24 @@ public sealed class ProjectServiceUniquenessTests
     private static readonly Guid ExistingProjectId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
     [Fact]
+    public async Task CreateAsync_rejects_missing_default_location()
+    {
+        var repo = new FakeProjectRepository([]);
+        var sut = new ProjectService(repo);
+
+        var result = await sut.CreateAsync(UserId, new CreateProjectRequest
+        {
+            Name = "Test",
+            Url = "https://example.com",
+            DefaultLocation = "   ",
+        });
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("Default location is required.", result.Error);
+        Assert.False(repo.CreateCalled);
+    }
+
+    [Fact]
     public async Task CreateAsync_rejects_duplicate_normalized_url_for_same_user()
     {
         var repo = new FakeProjectRepository([
@@ -29,6 +47,7 @@ public sealed class ProjectServiceUniquenessTests
         {
             Name = "Duplicate",
             Url = "https://example.com/",
+            DefaultLocation = "United States",
         });
 
         Assert.False(result.IsSuccess);

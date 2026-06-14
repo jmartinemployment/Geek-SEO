@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuthReady } from '@/hooks/use-auth-ready';
 import {
   listProjects,
+  createProject,
   analyzeNiche,
   getNicheAnalysisStatus,
   getLatestNicheProfile,
@@ -59,6 +60,10 @@ export default function NicheAnalyzerPage() {
   const [tab, setTab] = useState<Tab>('pillars');
   const [quickWinsOnly, setQuickWinsOnly] = useState(false);
   const [stepStatuses, setStepStatuses] = useState<Record<string, StepStatus> | undefined>();
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectUrl, setNewProjectUrl] = useState('https://');
+  const [newProjectLocation, setNewProjectLocation] = useState('');
+  const [creatingProject, setCreatingProject] = useState(false);
 
   const anyStepRunning = Object.values(stepStatuses ?? {}).some((s) => s === 'running');
 
@@ -250,6 +255,36 @@ export default function NicheAnalyzerPage() {
     return status.status === 'complete';
   }
 
+  async function handleCreateProject(e: React.FormEvent) {
+    e.preventDefault();
+    const location = newProjectLocation.trim();
+    if (!location) {
+      setError('Default location is required.');
+      return;
+    }
+    setCreatingProject(true);
+    setError(null);
+    try {
+      const project = await createProject(
+        {
+          name: newProjectName.trim(),
+          url: newProjectUrl.trim(),
+          defaultLocation: location,
+        },
+        accessToken,
+      );
+      setProjects([project]);
+      setProjectId(project.id);
+      setNewProjectName('');
+      setNewProjectUrl('https://');
+      setNewProjectLocation('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create project');
+    } finally {
+      setCreatingProject(false);
+    }
+  }
+
   async function handleAnalyze() {
     const selected = projects.find((p) => p.id === projectId);
     if (!selected) return;
@@ -282,6 +317,7 @@ export default function NicheAnalyzerPage() {
   const selected = projects.find((p) => p.id === projectId);
   const showWorkflow = Boolean(workflowProfileId);
   const showResults = Boolean(profile) && !showWorkflow;
+  const hasProject = projects.length > 0 && Boolean(projectId);
 
   if (authLoading) return <main className="p-8 text-sm text-[var(--color-text-muted)]">Loading…</main>;
 
@@ -298,29 +334,95 @@ export default function NicheAnalyzerPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <select
-            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm"
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-          >
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-          <button
-            onClick={handleAnalyze}
-            disabled={!projectId || anyStepRunning || startingAnalysis}
-            title={anyStepRunning ? 'A step is currently running — wait for it to complete' : undefined}
-            className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {startingAnalysis
-              ? 'Preparing…'
-              : showWorkflow || profile
-                ? 'Reset analysis'
-                : 'Start analysis'}
-          </button>
+          {hasProject ? (
+            <>
+              <select
+                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm"
+                value={projectId}
+                onChange={(e) => setProjectId(e.target.value)}
+              >
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleAnalyze}
+                disabled={!projectId || anyStepRunning || startingAnalysis}
+                title={anyStepRunning ? 'A step is currently running — wait for it to complete' : undefined}
+                className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {startingAnalysis
+                  ? 'Preparing…'
+                  : showWorkflow || profile
+                    ? 'Reset analysis'
+                    : 'Start analysis'}
+              </button>
+            </>
+          ) : null}
         </div>
       </div>
+
+      {!hasProject && (
+        <form
+          onSubmit={handleCreateProject}
+          className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
+        >
+          <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Create a project</h2>
+          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+            One project per website URL. Set your target market, then start niche analysis.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5 text-sm sm:col-span-2">
+              <span className="font-medium text-[var(--color-text-primary)]">Project name</span>
+              <input
+                className="rounded-lg border border-[var(--color-border-strong)] px-3 py-2 text-sm"
+                placeholder="e.g. Geek At Your Spot"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                required
+              />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm sm:col-span-2">
+              <span className="font-medium text-[var(--color-text-primary)]">Website URL</span>
+              <input
+                className="rounded-lg border border-[var(--color-border-strong)] px-3 py-2 text-sm"
+                placeholder="https://yourdomain.com"
+                value={newProjectUrl}
+                onChange={(e) => setNewProjectUrl(e.target.value)}
+                required
+              />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm sm:col-span-2">
+              <span className="font-medium text-[var(--color-text-primary)]">Default location</span>
+              <input
+                className="rounded-lg border border-[var(--color-border-strong)] px-3 py-2 text-sm"
+                placeholder="Fort Lauderdale, Florida, United States"
+                value={newProjectLocation}
+                onChange={(e) => setNewProjectLocation(e.target.value)}
+                required
+              />
+              <span className="text-xs text-[var(--color-text-muted)]">
+                Target market for SERP and keyword analysis. Use &quot;United States&quot; for national targeting.
+              </span>
+            </label>
+          </div>
+          <button
+            type="submit"
+            disabled={creatingProject}
+            className="mt-4 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {creatingProject ? 'Creating…' : 'Create project'}
+          </button>
+        </form>
+      )}
+
+      {hasProject && selected && (
+        <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
+          <span className="font-medium text-[var(--color-text-primary)]">{selected.url}</span>
+          {' · '}
+          {selected.defaultLocation}
+        </p>
+      )}
 
       {error && (
         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -353,11 +455,12 @@ export default function NicheAnalyzerPage() {
         </div>
       )}
 
-      {!showWorkflow && !profile && (
+      {!showWorkflow && !profile && hasProject && (
         <div className="mt-12 rounded-xl border border-dashed border-[var(--color-border)] p-12 text-center">
           <p className="text-lg font-medium text-[var(--color-text-primary)]">No analysis yet</p>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-            Select a project and click <strong>Start analysis</strong> to create a run, then execute each step.
+            Click <strong>Start analysis</strong> for{' '}
+            <strong className="text-[var(--color-text-primary)]">{selected?.url}</strong>, then run each step manually.
           </p>
         </div>
       )}

@@ -116,7 +116,7 @@ export type CompetitorInsights = {
 };
 
 export async function createProject(
-  body: { name: string; url: string; defaultLocation?: string },
+  body: { name: string; url: string; defaultLocation: string },
   accessToken?: string | null,
 ): Promise<SeoProject> {
   const res = await fetch(`${API_URL}/api/seo/projects`, {

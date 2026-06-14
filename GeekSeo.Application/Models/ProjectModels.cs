@@ -4,7 +4,7 @@ public sealed record CreateProjectRequest
 {
     public required string Name { get; init; }
     public required string Url { get; init; }
-    public string DefaultLocation { get; init; } = "United States";
+    public required string DefaultLocation { get; init; }
     public string DefaultLanguage { get; init; } = "en";
     public string? BusinessAddress { get; init; }
     public int ServiceRadiusMiles { get; init; } = LocalServiceAreaDefaults.DefaultRadiusMiles;

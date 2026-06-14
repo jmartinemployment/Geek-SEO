@@ -12,12 +12,14 @@ public sealed class ProjectServiceLocalAreaTests
         {
             Name = "Test",
             Url = "https://example.com",
+            DefaultLocation = "Fort Lauderdale, Florida, United States",
             BusinessAddress = "  123 Main St  ",
             ServiceRadiusMiles = 150,
         });
 
         Assert.Equal("123 Main St", normalized.BusinessAddress);
         Assert.Equal(100, normalized.ServiceRadiusMiles);
+        Assert.Equal("Fort Lauderdale, Florida, United States", normalized.DefaultLocation);
     }
 
     [Fact]
