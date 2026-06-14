@@ -60,6 +60,8 @@ export default function NicheAnalyzerPage() {
   const [tab, setTab] = useState<Tab>('pillars');
   const [quickWinsOnly, setQuickWinsOnly] = useState(false);
   const [stepStatuses, setStepStatuses] = useState<Record<string, StepStatus> | undefined>();
+  const [stepSummaries, setStepSummaries] = useState<Record<string, string> | undefined>();
+  const [stepErrors, setStepErrors] = useState<Record<string, string> | undefined>();
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectUrl, setNewProjectUrl] = useState('https://');
   const [newProjectLocation, setNewProjectLocation] = useState('');
@@ -67,16 +69,20 @@ export default function NicheAnalyzerPage() {
 
   const anyStepRunning = Object.values(stepStatuses ?? {}).some((s) => s === 'running');
 
+  const applyAnalysisStatus = useCallback((status: NicheAnalysisStatus) => {
+    if (status.stepStatuses) setStepStatuses(status.stepStatuses);
+    if (status.stepSummaries) setStepSummaries(status.stepSummaries);
+    if (status.stepErrors) setStepErrors(status.stepErrors);
+  }, []);
+
   const refreshStepStatuses = useCallback(
     async (profileId: string) => {
       if (!accessToken) return;
       const status = await getNicheAnalysisStatus(profileId, accessToken);
-      if (status.stepStatuses) {
-        setStepStatuses(status.stepStatuses);
-      }
+      applyAnalysisStatus(status);
       return status;
     },
-    [accessToken],
+    [accessToken, applyAnalysisStatus],
   );
 
   useEffect(() => {
@@ -95,6 +101,8 @@ export default function NicheAnalyzerPage() {
     setGaps([]);
     setProgress([]);
     setStepStatuses(undefined);
+    setStepSummaries(undefined);
+    setStepErrors(undefined);
     void loadExisting();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, authReady, accessToken]);
@@ -291,6 +299,8 @@ export default function NicheAnalyzerPage() {
     if (!selected) return;
     setError(null);
     setStepStatuses(undefined);
+    setStepSummaries(undefined);
+    setStepErrors(undefined);
     setProfile(null);
     setCoverage([]);
     setGaps([]);
@@ -446,11 +456,14 @@ export default function NicheAnalyzerPage() {
             projectId={projectId}
             accessToken={accessToken}
             defaultOpen
-            pollIntervalMs={anyStepRunning ? 3_000 : 0}
+            pollIntervalMs={anyStepRunning ? 1_500 : 0}
             stepStatuses={stepStatuses}
+            stepSummaries={stepSummaries}
+            stepErrors={stepErrors}
             anyStepRunning={anyStepRunning}
-            onStepRerun={() => {
-              void refreshStepStatuses(workflowProfileId);
+            onStepStatusChange={applyAnalysisStatus}
+            onStepRerun={async () => {
+              await refreshStepStatuses(workflowProfileId);
             }}
           />
         </div>
@@ -555,9 +568,12 @@ export default function NicheAnalyzerPage() {
             accessToken={accessToken}
             defaultOpen={false}
             stepStatuses={stepStatuses}
+            stepSummaries={stepSummaries}
+            stepErrors={stepErrors}
             anyStepRunning={anyStepRunning}
-            onStepRerun={() => {
-              void refreshStepStatuses(profile.id);
+            onStepStatusChange={applyAnalysisStatus}
+            onStepRerun={async () => {
+              await refreshStepStatuses(profile.id);
             }}
           />
         </div>

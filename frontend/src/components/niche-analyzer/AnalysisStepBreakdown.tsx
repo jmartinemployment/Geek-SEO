@@ -6,6 +6,7 @@ import {
   getNicheAnalysisStatus,
   runNicheStep,
   type NicheAnalysisDetails,
+  type NicheAnalysisStatus,
   type NicheAnalysisStepLogEntry,
   type NicheStepDefinition,
   type StepStatus,
@@ -23,8 +24,41 @@ type Props = {
   anyStepRunning?: boolean;
   stepSummaries?: Record<string, string>;
   stepErrors?: Record<string, string>;
-  onStepRerun?: () => void;
+  onStepRerun?: () => void | Promise<void>;
+  onStepStatusChange?: (status: NicheAnalysisStatus) => void;
 };
+
+const TERMINAL_STEP_STATUSES = new Set<StepStatus>(['complete', 'error', 'skipped']);
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+async function pollStepUntilTerminal(
+  profileId: string,
+  slug: string,
+  accessToken: string | null | undefined,
+  onStatus: (status: NicheAnalysisStatus) => void,
+  timeoutMs = 120_000,
+): Promise<NicheAnalysisStatus> {
+  const started = Date.now();
+  let latest = await getNicheAnalysisStatus(profileId, accessToken);
+  onStatus(latest);
+
+  while (Date.now() - started < timeoutMs) {
+    const stepState = latest.stepStatuses?.[slug];
+    if (stepState && TERMINAL_STEP_STATUSES.has(stepState)) {
+      return latest;
+    }
+    await sleep(400);
+    latest = await getNicheAnalysisStatus(profileId, accessToken);
+    onStatus(latest);
+  }
+
+  throw new Error(`Timed out waiting for step "${slug}" to finish.`);
+}
 
 type Phase = {
   id: string;
@@ -109,6 +143,7 @@ function StepRow({
   profileId,
   accessToken,
   onStepRerun,
+  onStepStatusChange,
 }: {
   step?: NicheAnalysisStepLogEntry;
   stepDefinition: NicheStepDefinition;
@@ -119,12 +154,17 @@ function StepRow({
   showOutputs: boolean;
   profileId: string;
   accessToken?: string | null;
-  onStepRerun?: () => void;
+  onStepRerun?: () => void | Promise<void>;
+  onStepStatusChange?: (status: NicheAnalysisStatus) => void;
 }) {
   const [rerunning, setRerunning] = useState(false);
+  const [optimisticRunning, setOptimisticRunning] = useState(false);
   const [rerunError, setRerunError] = useState<string | null>(null);
 
   const isolatedStatus = stepStatuses?.[stepDefinition.slug];
+  const displayStatus: StepStatus | undefined = optimisticRunning || rerunning
+    ? 'running'
+    : isolatedStatus;
   const deps = stepDefinition?.dependencies ?? [];
   const depsKnown = deps.length === 0 || Boolean(stepStatuses);
   const depsComplete = deps.every((dep) => stepStatuses?.[dep] === 'complete');
@@ -134,14 +174,14 @@ function StepRow({
   const persistedError = stepErrors?.[stepDefinition.slug];
   const persistedSummary = stepSummaries?.[stepDefinition.slug];
 
-  const statusLabel = isolatedStatus === 'running' ? 'in progress'
-    : isolatedStatus === 'error' ? 'error'
-    : isolatedStatus === 'complete' ? 'complete'
-    : isolatedStatus === 'skipped' ? 'skipped'
+  const statusLabel = displayStatus === 'running' ? 'in progress'
+    : displayStatus === 'error' ? 'error'
+    : displayStatus === 'complete' ? 'complete'
+    : displayStatus === 'skipped' ? 'skipped'
     : 'pending';
 
-  const statusColor = isolatedStatus === 'error' ? 'text-red-600'
-    : isolatedStatus === 'running' ? 'text-amber-600'
+  const statusColor = displayStatus === 'error' ? 'text-red-600'
+    : displayStatus === 'running' ? 'text-amber-600'
     : 'text-[var(--color-text-muted)]';
 
   const summary = visibleStep?.summary
@@ -149,33 +189,41 @@ function StepRow({
     ?? persistedSummary
     ?? (!depsComplete
       ? `Blocked until: ${deps.filter((dep) => stepStatuses?.[dep] !== 'complete').join(', ')}`
-      : isolatedStatus === 'running'
+      : displayStatus === 'running'
         ? 'Step is currently running.'
-      : isolatedStatus === 'complete'
+      : displayStatus === 'complete'
         ? 'Step completed.'
-        : isolatedStatus === 'error'
+        : displayStatus === 'error'
           ? 'Previous run failed. Run again after correcting inputs.'
           : 'Ready to execute.');
 
-  const buttonLabel = rerunning
+  const buttonLabel = rerunning || optimisticRunning
     ? 'Running…'
-    : isolatedStatus === 'running'
+    : displayStatus === 'running'
       ? 'Running…'
-      : isolatedStatus === 'complete'
+    : displayStatus === 'complete'
         ? 'Re-run'
-        : isolatedStatus === 'error'
+        : displayStatus === 'error'
           ? 'Retry'
           : 'Run';
 
   async function handleRerun() {
     setRerunning(true);
+    setOptimisticRunning(true);
     setRerunError(null);
     try {
       await runNicheStep(profileId, stepDefinition.slug, accessToken);
-      onStepRerun?.();
+      await pollStepUntilTerminal(
+        profileId,
+        stepDefinition.slug,
+        accessToken,
+        (status) => onStepStatusChange?.(status),
+      );
+      await onStepRerun?.();
     } catch (e) {
       setRerunError(e instanceof Error ? e.message : 'Re-run failed');
     } finally {
+      setOptimisticRunning(false);
       setRerunning(false);
     }
   }
@@ -202,7 +250,7 @@ function StepRow({
             <button
               type="button"
               onClick={handleRerun}
-              disabled={rerunDisabled || isolatedStatus === 'running'}
+              disabled={rerunDisabled || displayStatus === 'running'}
               title={
                 !depsKnown
                   ? 'Step status map unavailable for this run.'
@@ -235,6 +283,7 @@ function PhaseSection({
   profileId,
   accessToken,
   onStepRerun,
+  onStepStatusChange,
 }: {
   phase: Phase;
   steps: NicheAnalysisStepLogEntry[];
@@ -247,7 +296,8 @@ function PhaseSection({
   showOutputs: boolean;
   profileId: string;
   accessToken?: string | null;
-  onStepRerun?: () => void;
+  onStepRerun?: () => void | Promise<void>;
+  onStepStatusChange?: (status: NicheAnalysisStatus) => void;
 }) {
   const [open, setOpen] = useState(defaultExpanded);
   const phaseDefinitions = stepDefinitions.filter((definition) => phase.slugs.includes(definition.slug));
@@ -288,6 +338,7 @@ function PhaseSection({
               profileId={profileId}
               accessToken={accessToken}
               onStepRerun={onStepRerun}
+              onStepStatusChange={onStepStatusChange}
             />
           ))}
         </ol>
@@ -307,6 +358,7 @@ export function AnalysisStepBreakdown({
   stepSummaries,
   stepErrors,
   onStepRerun,
+  onStepStatusChange,
 }: Readonly<Props>) {
   const [open, setOpen] = useState(defaultOpen);
   const [details, setDetails] = useState<NicheAnalysisDetails | null>(null);
@@ -380,9 +432,9 @@ export function AnalysisStepBreakdown({
     return details.steps.filter((s) => !grouped.has(s.slug));
   }, [details]);
   const stepDefinitions = details?.stepDefinitions ?? [];
-  const effectiveStepStatuses = stepStatuses ?? liveStepStatuses;
-  const effectiveStepSummaries = stepSummaries ?? liveStepSummaries;
-  const effectiveStepErrors = stepErrors ?? liveStepErrors;
+  const effectiveStepStatuses = { ...(stepStatuses ?? {}), ...(liveStepStatuses ?? {}) };
+  const effectiveStepSummaries = { ...(stepSummaries ?? {}), ...(liveStepSummaries ?? {}) };
+  const effectiveStepErrors = { ...(stepErrors ?? {}), ...(liveStepErrors ?? {}) };
   const showOutputs = pollIntervalMs === undefined;
 
   return (
@@ -434,6 +486,12 @@ export function AnalysisStepBreakdown({
                   profileId={profileId}
                   accessToken={accessToken}
                   onStepRerun={onStepRerun}
+                  onStepStatusChange={(status) => {
+                    if (status.stepStatuses) setLiveStepStatuses(status.stepStatuses);
+                    if (status.stepSummaries) setLiveStepSummaries(status.stepSummaries);
+                    if (status.stepErrors) setLiveStepErrors(status.stepErrors);
+                    onStepStatusChange?.(status);
+                  }}
                 />
               ))}
               {ungroupedSteps.length > 0 ? (
@@ -462,6 +520,12 @@ export function AnalysisStepBreakdown({
                       profileId={profileId}
                       accessToken={accessToken}
                       onStepRerun={onStepRerun}
+                      onStepStatusChange={(status) => {
+                        if (status.stepStatuses) setLiveStepStatuses(status.stepStatuses);
+                        if (status.stepSummaries) setLiveStepSummaries(status.stepSummaries);
+                        if (status.stepErrors) setLiveStepErrors(status.stepErrors);
+                        onStepStatusChange?.(status);
+                      }}
                     />
                   ))}
                 </ol>
