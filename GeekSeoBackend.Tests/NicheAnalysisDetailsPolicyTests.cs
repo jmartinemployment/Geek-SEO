@@ -9,7 +9,7 @@ public sealed class NicheAnalysisDetailsPolicyTests
     [InlineData("processing", true)]
     [InlineData("complete", true)]
     [InlineData("failed", true)]
-    [InlineData("pending", false)]
+    [InlineData("pending", true)]
     [InlineData("", false)]
     [InlineData(null, false)]
     public void IsStepLogAvailable_MatchesRunLifecycle(string? status, bool expected) =>

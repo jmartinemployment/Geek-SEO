@@ -51,37 +51,16 @@ public sealed class NicheAnalyzerService(
         if (latest.IsSuccess && latest.Value is not null)
         {
             var s = latest.Value.Status;
-            if (s is "queued" or "processing")
+            if (s is "processing")
                 return latest.Value.Id;
-
-            var allPending = NicheStepCatalog.Ordered
-                .Select(step => step.Slug)
-                .ToList();
 
             try
             {
-                await profileRepo.UpdateStatusAsync(
-                    latest.Value.Id,
-                    "queued",
-                    step: null,
-                    stepNumber: 0,
-                    totalSteps: TotalSteps,
-                    errorMessage: null,
-                    ct: ct);
-                await profileRepo.UpdatePhaseStatusAsync(
-                    latest.Value.Id,
-                    new NichePhaseStatusPatch(
-                        StructureStatus: "pending",
-                        EnrichmentStatus: "pending",
-                        PersistStage: null,
-                        Status: "queued"),
-                    ct);
-                await ClearRelationalCrawlUrlsAsync(latest.Value.Id, ct);
-                await profileRepo.InvalidateDownstreamStepsAsync(latest.Value.Id, allPending, ct);
+                await ResetForManualRunAsync(latest.Value.Id, ct);
             }
-            catch
+            catch (Exception ex)
             {
-                // Best-effort reset; worker-run initialization remains authoritative.
+                logger.LogWarning(ex, "Best-effort manual-run reset failed for profile {ProfileId}", latest.Value.Id);
             }
 
             return latest.Value.Id;
@@ -92,7 +71,7 @@ public sealed class NicheAnalyzerService(
         {
             ProjectId = projectId,
             Domain = siteUrl,
-            Status = "queued",
+            Status = "pending",
             AnalysisVersion = "1.0",
             AnalysisStepLog = "[]",
             AnalysisStepLogVersion = 1,
@@ -102,7 +81,17 @@ public sealed class NicheAnalyzerService(
         if (!result.IsSuccess)
             throw new InvalidOperationException($"Failed to create niche profile: {result.Error}");
 
-        return result.Value!.Id;
+        var profileId = result.Value!.Id;
+        try
+        {
+            await ResetForManualRunAsync(profileId, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Manual-run initialization failed for new profile {ProfileId}", profileId);
+        }
+
+        return profileId;
     }
 
     public async Task RunAnalysisAsync(Guid profileId, Guid userId, IBrowser? browser, CancellationToken ct)
@@ -205,13 +194,54 @@ public sealed class NicheAnalyzerService(
         }
     }
 
-    private async Task InitializeStepStatusesAsync(Guid profileId, CancellationToken ct)
+    private async Task InitializeStepStatusesAsync(Guid profileId, CancellationToken ct) =>
+        await ResetForManualRunAsync(profileId, ct);
+
+    /// <summary>
+    /// Prepares a profile for manual step-by-step execution — all 14 steps pending, no worker queue.
+    /// </summary>
+    private async Task ResetForManualRunAsync(Guid profileId, CancellationToken ct)
     {
-        var allPending = NicheStepCatalog.Ordered
-            .Select(step => step.Slug)
-            .ToList();
-        try { await ClearRelationalCrawlUrlsAsync(profileId, ct); } catch { /* non-fatal */ }
-        try { await profileRepo.InvalidateDownstreamStepsAsync(profileId, allPending, ct); } catch { /* non-fatal */ }
+        var allSlugs = NicheStepCatalog.Ordered.Select(step => step.Slug).ToList();
+
+        await profileRepo.UpdateStatusAsync(
+            profileId,
+            "pending",
+            step: null,
+            stepNumber: 0,
+            totalSteps: TotalSteps,
+            errorMessage: null,
+            ct: ct);
+        await profileRepo.UpdatePhaseStatusAsync(
+            profileId,
+            new NichePhaseStatusPatch(
+                StructureStatus: "pending",
+                EnrichmentStatus: "pending",
+                PersistStage: null,
+                Status: "pending"),
+            ct);
+        await ClearRelationalCrawlUrlsAsync(profileId, ct);
+        await profileRepo.InvalidateDownstreamStepsAsync(profileId, allSlugs, ct);
+        await EnsurePendingStepRunsAsync(profileId, ct);
+    }
+
+    private async Task EnsurePendingStepRunsAsync(Guid profileId, CancellationToken ct)
+    {
+        foreach (var step in NicheStepCatalog.Ordered)
+        {
+            var upsert = await profileRepo.UpsertStepRunAsync(
+                profileId,
+                new NicheProfileStepRunUpsert(step.StepNumber, step.Slug, "pending"),
+                ct);
+            if (!upsert.IsSuccess)
+            {
+                logger.LogWarning(
+                    "Could not upsert pending step run {Slug} for {ProfileId}: {Error}",
+                    step.Slug,
+                    profileId,
+                    upsert.Error);
+            }
+        }
     }
 
     private async Task PushProgress(

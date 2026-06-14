@@ -39,11 +39,11 @@ public sealed class NicheAnalyzerServiceCanonicalProfileTests
 
         Assert.Equal(ProfileId, id);
         Assert.False(repo.CreateCalled);
-        Assert.Equal("queued", repo.LastStatus);
+        Assert.Equal("pending", repo.LastStatus);
     }
 
     [Fact]
-    public async Task EnqueueAsync_keeps_existing_queued_profile_without_creating_another()
+    public async Task EnqueueAsync_resets_existing_queued_profile_to_pending()
     {
         var repo = new FakeNicheProfileRepository(new NicheProfile
         {
@@ -67,7 +67,8 @@ public sealed class NicheAnalyzerServiceCanonicalProfileTests
 
         Assert.Equal(ProfileId, id);
         Assert.False(repo.CreateCalled);
-        Assert.Equal(0, repo.UpdateStatusCalls);
+        Assert.Equal("pending", repo.LastStatus);
+        Assert.True(repo.UpdateStatusCalls > 0);
     }
 
     private static NicheAnalyzerService CreateSut(
@@ -135,7 +136,8 @@ public sealed class NicheAnalyzerServiceCanonicalProfileTests
         public Task<Result<NicheProfile?>> GetLatestByProjectAsync(Guid projectId, CancellationToken ct = default) =>
             Task.FromResult(Result<NicheProfile?>.Success(latest));
         public Task<Result<IReadOnlyList<NicheProfileSummary>>> GetHistoryAsync(Guid projectId, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<Result> UpsertStepRunAsync(Guid profileId, NicheProfileStepRunUpsert stepRun, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result> UpsertStepRunAsync(Guid profileId, NicheProfileStepRunUpsert stepRun, CancellationToken ct = default) =>
+            Task.FromResult(Result.Success());
         public Task<Result> UpdateStepRunStatusAsync(Guid profileId, string stepSlug, NicheProfileStepRunStatusPatch patch, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Result<IReadOnlyList<NicheProfileStepRunRow>>> GetStepRunsAsync(Guid profileId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Result> ReplaceSchemaSignalsAsync(Guid profileId, IReadOnlyList<NicheProfileSchemaSignalWrite> signals, CancellationToken ct = default) => throw new NotSupportedException();

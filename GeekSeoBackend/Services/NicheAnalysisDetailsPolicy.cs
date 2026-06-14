@@ -4,5 +4,5 @@ namespace GeekSeoBackend.Services;
 internal static class NicheAnalysisDetailsPolicy
 {
     internal static bool IsStepLogAvailable(string? status) =>
-        status is "complete" or "failed" or "processing" or "queued";
+        status is "complete" or "failed" or "processing" or "queued" or "pending";
 }

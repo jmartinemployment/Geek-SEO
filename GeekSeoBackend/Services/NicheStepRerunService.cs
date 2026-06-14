@@ -38,6 +38,8 @@ public sealed class NicheStepRerunService(
     IHubContext<SeoContentScoringHub> hub,
     ILogger<NicheStepRerunService> logger)
 {
+    private const int TotalSteps = 14;
+
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -71,21 +73,59 @@ public sealed class NicheStepRerunService(
         if (!await sem.WaitAsync(0, ct))
             return (false, "Another step is already running for this profile.");
 
+        var profileResult = await profileRepo.GetByIdAsync(profileId, ct);
+        if (!profileResult.IsSuccess || profileResult.Value is null)
+            return (false, "Profile not found.");
+        var profileStatus = profileResult.Value.Status;
+
         try
         {
             var downstream = NicheStepCatalog.GetDownstream(slug);
             if (downstream.Count > 0)
                 await profileRepo.InvalidateDownstreamStepsAsync(profileId, downstream, ct);
 
+            if (profileStatus is "pending" or "complete" or "failed")
+            {
+                await profileRepo.UpdateStatusAsync(
+                    profileId,
+                    "processing",
+                    slug,
+                    definition.StepNumber,
+                    TotalSteps,
+                    ct: ct);
+            }
+
             // Mark this step running
             await profileRepo.UpdateStepStatusAsync(profileId, slug, "running", ct: ct);
-            await PushStepEvent(profileId, userId, slug, "running", $"Re-running step: {slug}…", ct);
+            await PushStepEvent(profileId, userId, slug, "running", $"Running step: {slug}…", ct);
 
             var entry = await ExecuteStepAsync(profileId, userId, slug, browser, ct);
 
+            var overallStatus = slug == "complete" ? "complete" : "processing";
+            await profileRepo.UpdateStatusAsync(
+                profileId,
+                overallStatus,
+                slug,
+                definition.StepNumber,
+                TotalSteps,
+                stepLogEntry: entry,
+                ct: ct);
+
+            if (slug == "complete")
+            {
+                await profileRepo.UpdatePhaseStatusAsync(
+                    profileId,
+                    new NichePhaseStatusPatch(
+                        StructureStatus: "complete",
+                        EnrichmentStatus: "complete",
+                        PersistStage: "done",
+                        Status: "complete"),
+                    ct);
+            }
+
             // Mark complete
             await profileRepo.UpdateStepStatusAsync(profileId, slug, "complete", entry, ct);
-            await PushStepEvent(profileId, userId, slug, "complete", entry.Summary, ct);
+            await PushStepEvent(profileId, userId, slug, overallStatus, entry.Summary, ct);
             return (true, null);
         }
         catch (Exception ex)
@@ -100,6 +140,15 @@ public sealed class NicheStepRerunService(
                 ex.Message,
                 new Dictionary<string, object?>());
             await profileRepo.UpdateStepStatusAsync(profileId, slug, "error", errorEntry, ct: ct);
+            await profileRepo.UpdateStatusAsync(
+                profileId,
+                "failed",
+                slug,
+                definition.StepNumber,
+                TotalSteps,
+                errorMessage: ex.Message,
+                stepLogEntry: errorEntry,
+                ct: ct);
             await PushStepEvent(profileId, userId, slug, "error", $"Step '{slug}' failed: {ex.Message}", ct);
             return (false, ex.Message);
         }

@@ -19,6 +19,7 @@ import {
   type PillarCoverageMatrix,
   type TopicalGapSummary,
   type AuthorityProgressPoint,
+  type StepStatus,
 } from '@/lib/seo-api';
 import { ContentGuardContextBanner } from '@/components/niche-analyzer/ContentGuardContextBanner';
 import { AnalysisStepBreakdown } from '@/components/niche-analyzer/AnalysisStepBreakdown';
@@ -28,7 +29,6 @@ import { NicheHeader } from '@/components/niche-analyzer/NicheHeader';
 import { CoverageMatrixTable } from '@/components/niche-analyzer/CoverageMatrixTable';
 import { TopicalGapsPanel } from '@/components/niche-analyzer/TopicalGapsPanel';
 import { AuthorityProgressChart } from '@/components/niche-analyzer/AuthorityProgressChart';
-import { AnalysisStatusListener } from '@/components/niche-analyzer/AnalysisStatusListener';
 import { PillarSerpInsightsPanel } from '@/components/niche-analyzer/PillarSerpInsightsPanel';
 import { NicheCompetitorPanel } from '@/components/niche-analyzer/NicheCompetitorPanel';
 
@@ -41,6 +41,10 @@ const TAB_LABELS: Record<Tab, string> = {
   progress: 'Progress',
 };
 
+function isManualWorkflowStatus(status: string | undefined): boolean {
+  return status === 'pending' || status === 'processing' || status === 'queued';
+}
+
 export default function NicheAnalyzerPage() {
   const { accessToken, authLoading, authReady } = useAuthReady();
   const [projects, setProjects] = useState<SeoProject[]>([]);
@@ -49,15 +53,26 @@ export default function NicheAnalyzerPage() {
   const [coverage, setCoverage] = useState<PillarCoverageMatrix[]>([]);
   const [gaps, setGaps] = useState<TopicalGapSummary[]>([]);
   const [progress, setProgress] = useState<AuthorityProgressPoint[]>([]);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analyzeProfileId, setAnalyzeProfileId] = useState<string | null>(null);
+  const [workflowProfileId, setWorkflowProfileId] = useState<string | null>(null);
+  const [startingAnalysis, setStartingAnalysis] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('pillars');
   const [quickWinsOnly, setQuickWinsOnly] = useState(false);
-  const [stepStatuses, setStepStatuses] = useState<Record<string, string> | undefined>();
-  const analysisStarting = analyzing && !analyzeProfileId;
+  const [stepStatuses, setStepStatuses] = useState<Record<string, StepStatus> | undefined>();
 
-  const anyStepRunning = Object.values(stepStatuses ?? {}).some(s => s === 'running');
+  const anyStepRunning = Object.values(stepStatuses ?? {}).some((s) => s === 'running');
+
+  const refreshStepStatuses = useCallback(
+    async (profileId: string) => {
+      if (!accessToken) return;
+      const status = await getNicheAnalysisStatus(profileId, accessToken);
+      if (status.stepStatuses) {
+        setStepStatuses(status.stepStatuses);
+      }
+      return status;
+    },
+    [accessToken],
+  );
 
   useEffect(() => {
     if (!authReady) return;
@@ -69,12 +84,12 @@ export default function NicheAnalyzerPage() {
 
   useEffect(() => {
     if (!authReady || !projectId) return;
-    setAnalyzing(false);
-    setAnalyzeProfileId(null);
+    setWorkflowProfileId(null);
     setProfile(null);
     setCoverage([]);
     setGaps([]);
     setProgress([]);
+    setStepStatuses(undefined);
     void loadExisting();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, authReady, accessToken]);
@@ -88,41 +103,73 @@ export default function NicheAnalyzerPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, profile?.id, profile?.pillars.length, authReady, accessToken]);
 
-  useEffect(() => {
-    if (!authReady || !analyzing || analyzeProfileId || !projectId) return;
-
-    let cancelled = false;
-    const startedAt = Date.now();
-
-    async function recoverQueuedProfile() {
+  const handleAnalysisComplete = useCallback(
+    async (completedProfileId: string) => {
       try {
-        const history = await getNicheHistory(projectId, accessToken);
-        if (cancelled) return;
-        const inFlight = history.find((h) => h.status === 'queued' || h.status === 'processing');
-        if (inFlight) {
-          setAnalyzeProfileId(inFlight.id);
-        } else if (Date.now() - startedAt > 15_000) {
-          setError('Analysis is taking longer than expected to start. Please try again in a moment.');
-          setAnalyzing(false);
+        const p = await getNicheProfile(completedProfileId, accessToken);
+        setProfile(p);
+        void refreshStepStatuses(completedProfileId);
+        await loadAnalytics(p.id, isStructureComplete(p));
+        if (p.pillars.length > 0) {
+          setError(null);
+        } else if (p.totalPillarsIdentified > 0) {
+          setError(
+            'Analysis saved pillar counts but the pillar list did not persist. Reset and re-run steps; if the table stays empty, we need to fix storage on the server.',
+          );
+        } else {
+          setError(
+            'No pillars were detected. For sites like geekatyourspot.com, pillars usually come from schema.org JSON-LD on the homepage (knowsAbout). Ensure the homepage exposes JSON-LD and re-run the early steps.',
+          );
         }
       } catch {
-        if (!cancelled && Date.now() - startedAt > 15_000) {
-          setError('Analysis did not report a queued job. Please try again.');
-          setAnalyzing(false);
+        setError('Analysis complete but failed to load results.');
+      }
+    },
+    [accessToken, projectId, quickWinsOnly, refreshStepStatuses],
+  );
+
+  useEffect(() => {
+    if (!authReady || !accessToken || !workflowProfileId) return;
+
+    let cancelled = false;
+
+    async function poll() {
+      try {
+        const status = await refreshStepStatuses(workflowProfileId);
+        if (cancelled || !status) return;
+
+        if (status.status === 'complete') {
+          setWorkflowProfileId(null);
+          await handleAnalysisComplete(workflowProfileId);
+          return;
         }
+
+        if (status.status === 'failed') {
+          setError(status.errorMessage ?? 'A step failed. Fix the issue and retry that step.');
+        }
+      } catch {
+        // keep last known statuses
       }
     }
 
-    void recoverQueuedProfile();
+    void poll();
+    const intervalMs = anyStepRunning ? 3_000 : 6_000;
     const id = window.setInterval(() => {
-      void recoverQueuedProfile();
-    }, 5_000);
+      void poll();
+    }, intervalMs);
 
     return () => {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [accessToken, analyzeProfileId, analyzing, authReady, projectId]);
+  }, [
+    accessToken,
+    authReady,
+    workflowProfileId,
+    anyStepRunning,
+    refreshStepStatuses,
+    handleAnalysisComplete,
+  ]);
 
   async function resolveProfileWithPillars(p: NicheProfileResult): Promise<NicheProfileResult> {
     const needsFull =
@@ -147,8 +194,8 @@ export default function NicheAnalyzerPage() {
           raw.includes('[0].NicheProfile');
         setError(
           isPillarSaveValidation
-            ? 'The last run failed while saving pillars (a server deploy fix is required). Click Re-analyze after GeekRepository and GeekSeoBackend have redeployed — the red message will clear on success.'
-            : raw || 'The last analysis failed. Click Re-analyze to try again.',
+            ? 'The last run failed while saving pillars (a server deploy fix is required). Reset analysis after GeekRepository and GeekSeoBackend have redeployed.'
+            : raw || 'The last analysis failed. Reset analysis to try again.',
         );
 
         const history = await getNicheHistory(projectId, accessToken);
@@ -161,32 +208,19 @@ export default function NicheAnalyzerPage() {
         return;
       }
 
-      if (p.status === 'processing' || p.status === 'queued') {
-        const status = await getNicheAnalysisStatus(p.id, accessToken);
-        if (status.status === 'failed') {
-          setError(status.errorMessage ?? 'The last analysis failed. Click Re-analyze to try again.');
-          const history = await getNicheHistory(projectId, accessToken);
-          const lastComplete = history.find((h) => h.status === 'complete');
-          if (lastComplete) {
-            const full = await getNicheProfile(lastComplete.id, accessToken);
-            setProfile(await resolveProfileWithPillars(full));
-            await loadAnalytics(full.id, isStructureComplete(full));
-          }
-          return;
-        }
-
-        // Resume in-progress run — poll until complete or failed (no stale banner on load).
+      if (isManualWorkflowStatus(p.status)) {
         setProfile(null);
         setCoverage([]);
         setGaps([]);
-        setAnalyzeProfileId(p.id);
-        setAnalyzing(true);
+        setWorkflowProfileId(p.id);
+        await refreshStepStatuses(p.id);
         return;
       }
 
       const full = await resolveProfileWithPillars(p);
       setProfile(full);
       await loadAnalytics(full.id, isStructureComplete(full));
+      await refreshStepStatuses(full.id);
     } catch (e) {
       if (e instanceof SeoApiError && e.status !== 404) {
         setError(
@@ -195,7 +229,6 @@ export default function NicheAnalyzerPage() {
             : `Failed to load existing analysis (${e.status}).`,
         );
       }
-      // 404 = no existing profile, show form
     }
   }
 
@@ -222,66 +255,21 @@ export default function NicheAnalyzerPage() {
     if (!selected) return;
     setError(null);
     setStepStatuses(undefined);
-    setAnalyzeProfileId(null);
     setProfile(null);
     setCoverage([]);
     setGaps([]);
-    setAnalyzing(true);
+    setStartingAnalysis(true);
     try {
       const { profileId } = await analyzeNiche(projectId, selected.url.trim(), accessToken);
-      setAnalyzeProfileId(profileId);
+      setWorkflowProfileId(profileId);
+      await refreshStepStatuses(profileId);
     } catch (e) {
-      try {
-        const history = await getNicheHistory(projectId, accessToken);
-        const inFlight = history.find((h) => h.status === 'queued' || h.status === 'processing');
-        if (inFlight) {
-          setAnalyzeProfileId(inFlight.id);
-          return;
-        }
-      } catch {
-        // Fall through to the original error message when recovery fails.
-      }
-
       setError(e instanceof Error ? e.message : 'Failed to start analysis');
-      setAnalyzing(false);
+      setWorkflowProfileId(null);
+    } finally {
+      setStartingAnalysis(false);
     }
   }
-
-  const handleAnalysisComplete = useCallback(
-    async (completedProfileId: string) => {
-      setAnalyzing(false);
-      setAnalyzeProfileId(null);
-      try {
-        const p = await getNicheProfile(completedProfileId, accessToken);
-        setProfile(p);
-        // Hydrate step statuses from the status endpoint
-        void getNicheAnalysisStatus(completedProfileId, accessToken).then(s => {
-          if (s.stepStatuses) setStepStatuses(s.stepStatuses as Record<string, string>);
-        });
-        await loadAnalytics(p.id, isStructureComplete(p));
-        if (p.pillars.length > 0) {
-          setError(null);
-        } else if (p.totalPillarsIdentified > 0) {
-          setError(
-            'Analysis saved pillar counts but the pillar list did not persist. Run Re-analyze once; if the table stays empty, we need to fix storage on the server.',
-          );
-        } else {
-          setError(
-            'No pillars were detected. For sites like geekatyourspot.com, pillars usually come from schema.org JSON-LD on the homepage (knowsAbout). Ensure the homepage exposes JSON-LD and re-run analysis.',
-          );
-        }
-      } catch {
-        setError('Analysis complete but failed to load results.');
-      }
-    },
-    [accessToken, projectId, quickWinsOnly],
-  );
-
-  const handleAnalysisError = useCallback((msg: string) => {
-    setAnalyzing(false);
-    setAnalyzeProfileId(null);
-    setError(msg);
-  }, []);
 
   async function handleQuickWinsToggle(qw: boolean) {
     setQuickWinsOnly(qw);
@@ -292,6 +280,8 @@ export default function NicheAnalyzerPage() {
   }
 
   const selected = projects.find((p) => p.id === projectId);
+  const showWorkflow = Boolean(workflowProfileId);
+  const showResults = Boolean(profile) && !showWorkflow;
 
   if (authLoading) return <main className="p-8 text-sm text-[var(--color-text-muted)]">Loading…</main>;
 
@@ -303,8 +293,7 @@ export default function NicheAnalyzerPage() {
             How search engines understand your site
           </h1>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-            Composite view of public crawl and schema signals — what search systems would associate
-            with your domain, plus optional keyword and SERP validation. Not a Google-only clone.
+            Run each analysis step manually — discover, crawl, validate, and score — one at a time.
           </p>
         </div>
 
@@ -320,11 +309,15 @@ export default function NicheAnalyzerPage() {
           </select>
           <button
             onClick={handleAnalyze}
-            disabled={!projectId || anyStepRunning}
+            disabled={!projectId || anyStepRunning || startingAnalysis}
             title={anyStepRunning ? 'A step is currently running — wait for it to complete' : undefined}
             className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {analyzing ? 'Re-analyze (restart)' : profile ? 'Re-analyze' : 'Analyze'}
+            {startingAnalysis
+              ? 'Preparing…'
+              : showWorkflow || profile
+                ? 'Reset analysis'
+                : 'Start analysis'}
           </button>
         </div>
       </div>
@@ -335,53 +328,45 @@ export default function NicheAnalyzerPage() {
         </div>
       )}
 
-      {analysisStarting && (
-        <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-          <p className="text-sm font-medium text-[var(--color-text-primary)]">
-            Starting analysis for {selected?.url}…
-          </p>
-          <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-            Creating a new run and attaching live progress.
-          </p>
-        </div>
-      )}
-
-      {analyzing && analyzeProfileId && (
-        <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-          <p className="mb-4 text-sm font-medium text-[var(--color-text-primary)]">
-            Analyzing {selected?.url}…
-          </p>
-          <AnalysisStatusListener
-            profileId={analyzeProfileId}
-            accessToken={accessToken}
-            onComplete={handleAnalysisComplete}
-            onError={handleAnalysisError}
-          />
+      {showWorkflow && workflowProfileId && (
+        <div className="mt-6 space-y-4">
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+            <p className="text-sm font-medium text-[var(--color-text-primary)]">
+              Manual analysis — {selected?.url}
+            </p>
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+              Run steps in order. Each step reads prior results from the database — nothing runs automatically.
+            </p>
+          </div>
           <AnalysisStepBreakdown
-            profileId={analyzeProfileId}
+            profileId={workflowProfileId}
             projectId={projectId}
             accessToken={accessToken}
-            defaultOpen={false}
-            pollIntervalMs={4000}
+            defaultOpen
+            pollIntervalMs={anyStepRunning ? 3_000 : 0}
+            stepStatuses={stepStatuses}
+            anyStepRunning={anyStepRunning}
+            onStepRerun={() => {
+              void refreshStepStatuses(workflowProfileId);
+            }}
           />
         </div>
       )}
 
-      {!analyzing && !profile && (
+      {!showWorkflow && !profile && (
         <div className="mt-12 rounded-xl border border-dashed border-[var(--color-border)] p-12 text-center">
           <p className="text-lg font-medium text-[var(--color-text-primary)]">No analysis yet</p>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-            Select a project and click <strong>Analyze</strong> to identify your core niche pillars.
+            Select a project and click <strong>Start analysis</strong> to create a run, then execute each step.
           </p>
         </div>
       )}
 
-      {profile && !analyzing && (
+      {showResults && profile && (
         <div className="mt-6 space-y-6">
           <NicheHeader profile={profile} />
           <ContentGuardContextBanner projectId={projectId} />
 
-          {/* Tabs */}
           <div className="flex gap-1 border-b border-[var(--color-border)]">
             {(['pillars', 'competitors', 'contentIdeas', 'progress'] as Tab[]).map((t) => (
               <button
@@ -465,12 +450,10 @@ export default function NicheAnalyzerPage() {
             projectId={projectId}
             accessToken={accessToken}
             defaultOpen={false}
-            stepStatuses={stepStatuses as Record<string, import('@/lib/seo-api').StepStatus> | undefined}
+            stepStatuses={stepStatuses}
             anyStepRunning={anyStepRunning}
             onStepRerun={() => {
-              void getNicheAnalysisStatus(profile.id, accessToken).then(s => {
-                if (s.stepStatuses) setStepStatuses(s.stepStatuses as Record<string, string>);
-              });
+              void refreshStepStatuses(profile.id);
             }}
           />
         </div>

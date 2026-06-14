@@ -9,7 +9,6 @@ namespace GeekSeoBackend.Workers;
 public sealed class SeoMaintenanceWorker(
     IServiceProvider services,
     WorkerUserContext workerUser,
-    NicheAnalysisJobChannel nicheChannel,
     ILogger<SeoMaintenanceWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -160,14 +159,13 @@ public sealed class SeoMaintenanceWorker(
             {
                 try
                 {
-                    var queued = await nicheRepo.UpdateStatusAsync(summary.Id, "queued", ct: ct);
-                    if (!queued.IsSuccess)
+                    var reset = await nicheRepo.UpdateStatusAsync(summary.Id, "pending", ct: ct);
+                    if (!reset.IsSuccess)
                     {
-                        logger.LogWarning("Could not queue niche profile {ProfileId} for re-analysis: {Error}", summary.Id, queued.Error);
+                        logger.LogWarning("Could not reset niche profile {ProfileId} for re-analysis: {Error}", summary.Id, reset.Error);
                         continue;
                     }
-                    nicheChannel.Notify();
-                    logger.LogInformation("Queued niche profile {ProfileId} for monthly re-analysis", summary.Id);
+                    logger.LogInformation("Reset niche profile {ProfileId} to pending for manual re-analysis", summary.Id);
                 }
                 catch (Exception ex)
                 {

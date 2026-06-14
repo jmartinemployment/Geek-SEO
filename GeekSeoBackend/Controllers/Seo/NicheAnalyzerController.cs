@@ -4,7 +4,6 @@ using GeekSeo.Application.Models.Seo;
 using GeekSeo.Persistence.Entities;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Extensions;
-using GeekSeoBackend.Infrastructure;
 using GeekSeoBackend.Services;
 using GeekSeoBackend.Services.NicheStepRunners;
 using Microsoft.AspNetCore.Mvc;
@@ -19,7 +18,6 @@ public sealed class NicheAnalyzerController(
     NicheStepRerunService stepRerunService,
     INicheProfileRepository profileRepo,
     INicheAnalyticsDapperRepository analyticsRepo,
-    NicheAnalysisJobChannel nicheChannel,
     ICurrentUserContext user,
     ILogger<NicheAnalyzerController> logger) : ControllerBase
 {
@@ -32,8 +30,7 @@ public sealed class NicheAnalyzerController(
         {
             var userId = user.RequireUserId();
             var profileId = await analyzer.EnqueueAsync(userId, request.ProjectId, request.Domain, request.SeedTopic, ct);
-            nicheChannel.Notify();
-            return Ok(new { profileId, status = "queued" });
+            return Ok(new { profileId, status = "pending", message = "Run each step manually in order." });
         }
         catch (InvalidOperationException ex)
         {

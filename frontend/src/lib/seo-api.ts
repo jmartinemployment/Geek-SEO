@@ -1557,7 +1557,7 @@ export type StepStatus = 'pending' | 'running' | 'complete' | 'skipped' | 'error
 
 export type NicheAnalysisStatus = {
   profileId: string;
-  status: 'queued' | 'processing' | 'complete' | 'failed';
+  status: 'pending' | 'queued' | 'processing' | 'complete' | 'failed';
   step?: string;
   stepNumber?: number;
   totalSteps?: number;
