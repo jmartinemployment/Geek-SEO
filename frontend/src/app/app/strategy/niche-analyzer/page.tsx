@@ -96,10 +96,11 @@ export default function NicheAnalyzerPage() {
 
     async function recoverQueuedProfile() {
       try {
-        const latest = await getLatestNicheProfile(projectId, accessToken);
-        if (cancelled || !latest) return;
-        if (latest.status === 'queued' || latest.status === 'processing') {
-          setAnalyzeProfileId(latest.id);
+        const history = await getNicheHistory(projectId, accessToken);
+        if (cancelled) return;
+        const inFlight = history.find((h) => h.status === 'queued' || h.status === 'processing');
+        if (inFlight) {
+          setAnalyzeProfileId(inFlight.id);
         } else if (Date.now() - startedAt > 15_000) {
           setError('Analysis is taking longer than expected to start. Please try again in a moment.');
           setAnalyzing(false);
@@ -115,7 +116,7 @@ export default function NicheAnalyzerPage() {
     void recoverQueuedProfile();
     const id = window.setInterval(() => {
       void recoverQueuedProfile();
-    }, 1_500);
+    }, 5_000);
 
     return () => {
       cancelled = true;
@@ -231,9 +232,10 @@ export default function NicheAnalyzerPage() {
       setAnalyzeProfileId(profileId);
     } catch (e) {
       try {
-        const latest = await getLatestNicheProfile(projectId, accessToken);
-        if (latest && (latest.status === 'queued' || latest.status === 'processing')) {
-          setAnalyzeProfileId(latest.id);
+        const history = await getNicheHistory(projectId, accessToken);
+        const inFlight = history.find((h) => h.status === 'queued' || h.status === 'processing');
+        if (inFlight) {
+          setAnalyzeProfileId(inFlight.id);
           return;
         }
       } catch {
