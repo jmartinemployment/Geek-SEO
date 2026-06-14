@@ -13,6 +13,7 @@ import {
 } from '@/lib/seo-api';
 import { OUTPUT_LABELS } from '@/components/niche-analyzer/pillar-provenance';
 import { TopicCandidateMatrix } from '@/components/niche-analyzer/TopicCandidateMatrix';
+import { waitForNicheStepViaSignalR } from '@/lib/niche-step-wait';
 
 type Props = {
   profileId: string;
@@ -28,9 +29,9 @@ type Props = {
   onStepStatusChange?: (status: NicheAnalysisStatus) => void;
 };
 
-import { waitForNicheStepViaSignalR } from '@/lib/niche-step-wait';
-
 const TERMINAL_STEP_STATUSES = new Set<StepStatus>(['complete', 'error', 'skipped']);
+
+type Phase = {
   id: string;
   title: string;
   subtitle: string;
