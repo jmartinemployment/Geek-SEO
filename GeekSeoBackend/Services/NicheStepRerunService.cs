@@ -56,30 +56,31 @@ public sealed class NicheStepRerunService(
         if (!NicheStepCatalog.BySlug.TryGetValue(slug, out var definition))
             return (false, $"Unknown step slug '{slug}'.");
 
-        // Load current step statuses
-        var statusResult = await profileRepo.GetStepStatusesAsync(profileId, ct);
-        if (!statusResult.IsSuccess)
-            return (false, $"Could not load step statuses: {statusResult.Error}");
-        var statuses = statusResult.Value ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var dep in definition.Dependencies)
-        {
-            if (!statuses.TryGetValue(dep, out var depStatus) || depStatus != "complete")
-                return (false, $"Dependency '{dep}' must be complete before running '{slug}'.");
-        }
-
-        // Acquire per-profile lock
-        var sem = stepLock.Get(profileId);
-        if (!await sem.WaitAsync(0, ct))
-            return (false, "Another step is already running for this profile.");
-
-        var profileResult = await profileRepo.GetByIdAsync(profileId, ct);
-        if (!profileResult.IsSuccess || profileResult.Value is null)
-            return (false, "Profile not found.");
-        var profileStatus = profileResult.Value.Status;
-
+        SemaphoreSlim? sem = null;
+        var lockHeld = false;
         try
         {
+            var statusResult = await profileRepo.GetStepStatusesAsync(profileId, ct);
+            if (!statusResult.IsSuccess)
+                return (false, $"Could not load step statuses: {statusResult.Error}");
+            var statuses = statusResult.Value ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var dep in definition.Dependencies)
+            {
+                if (!statuses.TryGetValue(dep, out var depStatus) || depStatus != "complete")
+                    return (false, $"Dependency '{dep}' must be complete before running '{slug}'.");
+            }
+
+            sem = stepLock.Get(profileId);
+            if (!await sem.WaitAsync(0, ct))
+                return (false, "Another step is already running for this profile.");
+            lockHeld = true;
+
+            var profileResult = await profileRepo.GetByIdAsync(profileId, ct);
+            if (!profileResult.IsSuccess || profileResult.Value is null)
+                return (false, "Profile not found.");
+            var profileStatus = profileResult.Value.Status;
+
             var downstream = NicheStepCatalog.GetDownstream(slug);
             if (downstream.Count > 0)
                 await profileRepo.InvalidateDownstreamStepsAsync(profileId, downstream, ct);
@@ -95,7 +96,6 @@ public sealed class NicheStepRerunService(
                     ct: ct);
             }
 
-            // Mark this step running
             await profileRepo.UpdateStepStatusAsync(profileId, slug, "running", ct: ct);
             await PushStepEvent(profileId, userId, slug, "running", $"Running step: {slug}…", ct);
 
@@ -123,7 +123,6 @@ public sealed class NicheStepRerunService(
                     ct);
             }
 
-            // Mark complete
             await profileRepo.UpdateStepStatusAsync(profileId, slug, "complete", entry, ct);
             await PushStepEvent(profileId, userId, slug, overallStatus, entry.Summary, ct);
             return (true, null);
@@ -131,30 +130,58 @@ public sealed class NicheStepRerunService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Step re-run failed for profile {ProfileId} slug {Slug}", profileId, slug);
+            await RecordStepFailureAsync(profileId, userId, slug, definition, ex.Message, ct);
+            return (false, ex.Message);
+        }
+        finally
+        {
+            if (lockHeld && sem is not null)
+                sem.Release();
+        }
+    }
+
+    /// <summary>
+    /// Persists step/profile error state when background work fails. Never throws — logs secondary failures.
+    /// </summary>
+    public async Task RecordStepFailureAsync(
+        Guid profileId,
+        Guid userId,
+        string slug,
+        NicheStepDefinition? definition,
+        string message,
+        CancellationToken ct)
+    {
+        try
+        {
             NicheStepCatalog.BySlug.TryGetValue(slug, out var stepDef);
+            definition ??= stepDef;
             var errorEntry = new NicheAnalysisStepLogEntry(
-                stepDef?.StepNumber ?? 0,
+                definition?.StepNumber ?? 0,
                 slug,
-                stepDef?.Title ?? slug,
+                definition?.Title ?? slug,
                 "error",
-                ex.Message,
+                message,
                 new Dictionary<string, object?>());
             await profileRepo.UpdateStepStatusAsync(profileId, slug, "error", errorEntry, ct: ct);
             await profileRepo.UpdateStatusAsync(
                 profileId,
                 "failed",
                 slug,
-                definition.StepNumber,
+                definition?.StepNumber ?? 0,
                 TotalSteps,
-                errorMessage: ex.Message,
+                errorMessage: message,
                 stepLogEntry: errorEntry,
                 ct: ct);
-            await PushStepEvent(profileId, userId, slug, "error", $"Step '{slug}' failed: {ex.Message}", ct);
-            return (false, ex.Message);
+            await PushStepEvent(profileId, userId, slug, "error", $"Step '{slug}' failed: {message}", ct);
         }
-        finally
+        catch (Exception persistEx)
         {
-            sem.Release();
+            logger.LogError(
+                persistEx,
+                "Could not persist step failure for profile {ProfileId} slug {Slug}: {Message}",
+                profileId,
+                slug,
+                message);
         }
     }
 

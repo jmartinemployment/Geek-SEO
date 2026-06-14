@@ -14,11 +14,11 @@ namespace GeekSeoBackend.Controllers.Seo;
 [Route("api/seo/niche-analyzer")]
 public sealed class NicheAnalyzerController(
     NicheAnalyzerService analyzer,
-    CompetitorAnalysisService competitorAnalysisService,
-    NicheStepRerunService stepRerunService,
     INicheProfileRepository profileRepo,
     INicheAnalyticsDapperRepository analyticsRepo,
     ICurrentUserContext user,
+    IServiceProvider services,
+    WorkerUserContext workerUser,
     ILogger<NicheAnalyzerController> logger) : ControllerBase
 {
     [HttpPost("analyze")]
@@ -295,11 +295,41 @@ public sealed class NicheAnalyzerController(
             var userId = user.RequireUserId();
             _ = Task.Run(async () =>
             {
-                using var jobCt = new CancellationTokenSource(TimeSpan.FromMinutes(30));
-                var (success, error) = await stepRerunService.RerunStepAsync(
-                    profileId, userId, slug, null, jobCt.Token);
-                if (!success)
-                    logger.LogWarning("Step re-run {Slug} failed for {ProfileId}: {Error}", slug, profileId, error);
+                workerUser.UserId = userId;
+                try
+                {
+                    using var scope = services.CreateScope();
+                    using var jobCt = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+                    var stepRerunService = scope.ServiceProvider.GetRequiredService<NicheStepRerunService>();
+                    var (success, error) = await stepRerunService.RerunStepAsync(
+                        profileId, userId, slug, null, jobCt.Token);
+                    if (!success)
+                        logger.LogWarning("Step re-run {Slug} failed for {ProfileId}: {Error}", slug, profileId, error);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Step re-run {Slug} crashed for {ProfileId}", slug, profileId);
+                    try
+                    {
+                        using var errorScope = services.CreateScope();
+                        var failureRecorder = errorScope.ServiceProvider.GetRequiredService<NicheStepRerunService>();
+                        NicheStepCatalog.BySlug.TryGetValue(slug, out var definition);
+                        await failureRecorder.RecordStepFailureAsync(
+                            profileId, userId, slug, definition, ex.Message, CancellationToken.None);
+                    }
+                    catch (Exception persistEx)
+                    {
+                        logger.LogError(
+                            persistEx,
+                            "Failed to persist crash state for step {Slug} profile {ProfileId}",
+                            slug,
+                            profileId);
+                    }
+                }
+                finally
+                {
+                    workerUser.UserId = Guid.Empty;
+                }
             }, CancellationToken.None);
             return Accepted(new { profileId, slug, message = $"Re-running step '{slug}'." });
         }
@@ -342,15 +372,22 @@ public sealed class NicheAnalyzerController(
 
             _ = Task.Run(async () =>
             {
-                using var jobCt = new CancellationTokenSource(TimeSpan.FromHours(2));
+                workerUser.UserId = userId;
                 try
                 {
-                    await competitorAnalysisService.AnalyzeAsync(
+                    using var scope = services.CreateScope();
+                    using var jobCt = new CancellationTokenSource(TimeSpan.FromHours(2));
+                    var competitorService = scope.ServiceProvider.GetRequiredService<CompetitorAnalysisService>();
+                    await competitorService.AnalyzeAsync(
                         profileId, userId, competitors, null, jobCt.Token);
                 }
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Competitor analysis failed for profile {ProfileId}", profileId);
+                }
+                finally
+                {
+                    workerUser.UserId = Guid.Empty;
                 }
             }, CancellationToken.None);
 
