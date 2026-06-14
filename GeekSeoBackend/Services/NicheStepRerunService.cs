@@ -95,6 +95,8 @@ public sealed class NicheStepRerunService(
             }
 
             await profileRepo.UpdateStepStatusAsync(profileId, slug, "running", ct: ct);
+            await NicheStepRunStatusWriter.SyncAsync(
+                profileRepo, logger, profileId, slug, "running", definition, ct: ct);
             await PushStepEvent(profileId, userId, slug, definition, "running", $"Running step: {slug}…", ct);
 
             var entry = await ExecuteStepAsync(profileId, userId, slug, browser, ct);
@@ -122,6 +124,8 @@ public sealed class NicheStepRerunService(
             }
 
             await profileRepo.UpdateStepStatusAsync(profileId, slug, "complete", entry, ct);
+            await NicheStepRunStatusWriter.SyncAsync(
+                profileRepo, logger, profileId, slug, "complete", definition, entry, ct: ct);
             await PushStepEvent(profileId, userId, slug, definition, overallStatus, entry.Summary, ct);
             return (true, null);
         }
@@ -161,6 +165,8 @@ public sealed class NicheStepRerunService(
                 message,
                 new Dictionary<string, object?>());
             await profileRepo.UpdateStepStatusAsync(profileId, slug, "error", errorEntry, ct: ct);
+            await NicheStepRunStatusWriter.SyncAsync(
+                profileRepo, logger, profileId, slug, "error", definition, errorEntry, message, ct);
             await profileRepo.UpdateStatusAsync(
                 profileId,
                 "failed",

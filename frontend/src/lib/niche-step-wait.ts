@@ -69,6 +69,8 @@ export type WaitForNicheStepOptions = {
   slug: string;
   accessToken?: string | null;
   timeoutMs?: number;
+  /** Called after the hub is connected — use this to POST run-step so events are not missed. */
+  triggerRun?: () => Promise<void>;
   onProgress?: (message: string) => void;
   onStatus?: (status: NicheAnalysisStatus) => void;
 };
@@ -79,7 +81,7 @@ export type WaitForNicheStepOptions = {
 export async function waitForNicheStepViaSignalR(
   options: WaitForNicheStepOptions,
 ): Promise<NicheAnalysisStatus> {
-  const { profileId, slug, accessToken, onProgress, onStatus } = options;
+  const { profileId, slug, accessToken, onProgress, onStatus, triggerRun } = options;
   const timeoutMs =
     options.timeoutMs ?? (slug === 'site_crawl' ? 300_000 : 120_000);
 
@@ -123,6 +125,10 @@ export async function waitForNicheStepViaSignalR(
         const status = await hydrate();
         const stepState = status.stepStatuses?.[slug];
         if (isTerminalStepStatus(stepState)) return status;
+        if (status.stepErrors?.[slug]) {
+          throw new Error(status.stepErrors[slug] ?? `Step "${slug}" failed.`);
+        }
+        if (status.stepSummaries?.[slug] && stepState !== 'running') return status;
         if (status.status === 'failed' && status.step === slug) {
           throw new Error(status.errorMessage ?? `Step "${slug}" failed.`);
         }
@@ -229,6 +235,7 @@ export async function waitForNicheStepViaSignalR(
           return;
         }
         await conn.invoke('JoinGroup', `niche-${profileId}`);
+        if (triggerRun) await triggerRun();
         if (!settled) void settleFromDb();
       } catch (e) {
         const done = await settleFromDb();

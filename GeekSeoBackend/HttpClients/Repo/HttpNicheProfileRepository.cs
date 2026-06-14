@@ -571,20 +571,50 @@ public sealed class HttpNicheProfileRepository(
     public async Task<Result<IReadOnlyDictionary<string, string>>> GetStepStatusesAsync(
         Guid profileId, CancellationToken ct = default)
     {
-        var runs = await GetStepRunsAsync(profileId, ct);
-        if (runs.IsSuccess && runs.Value is { Count: > 0 })
+        var merged = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        var jsonRes = await _http.GetAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/step-statuses?userId={user.UserId}", ct);
+        if (jsonRes.IsSuccessStatusCode)
         {
-            return Result<IReadOnlyDictionary<string, string>>.Success(
-                runs.Value.ToDictionary(r => r.StepSlug, r => r.Status, StringComparer.OrdinalIgnoreCase));
+            var jsonDict = await jsonRes.Content.ReadFromJsonAsync<Dictionary<string, string>>(Json, ct);
+            if (jsonDict is not null)
+            {
+                foreach (var (slug, status) in jsonDict)
+                    merged[slug] = PreferStatus(merged.GetValueOrDefault(slug), status);
+            }
         }
 
-        var res = await _http.GetAsync(
-            $"api/seo/internal/niche-profiles/{profileId}/step-statuses?userId={user.UserId}", ct);
-        if (!res.IsSuccessStatusCode)
-            return Result<IReadOnlyDictionary<string, string>>.Failure(await ReadFailureAsync(res, ct));
-        var dict = await res.Content.ReadFromJsonAsync<Dictionary<string, string>>(Json, ct);
-        return Result<IReadOnlyDictionary<string, string>>.Success(
-            dict ?? new Dictionary<string, string>());
+        var runs = await GetStepRunsAsync(profileId, ct);
+        if (runs.IsSuccess && runs.Value is not null)
+        {
+            foreach (var run in runs.Value)
+                merged[run.StepSlug] = PreferStatus(merged.GetValueOrDefault(run.StepSlug), run.Status);
+        }
+
+        if (merged.Count > 0)
+            return Result<IReadOnlyDictionary<string, string>>.Success(merged);
+
+        if (!jsonRes.IsSuccessStatusCode)
+            return Result<IReadOnlyDictionary<string, string>>.Failure(await ReadFailureAsync(jsonRes, ct));
+
+        return Result<IReadOnlyDictionary<string, string>>.Success(merged);
+    }
+
+    private static string PreferStatus(string? existing, string incoming)
+    {
+        if (string.IsNullOrWhiteSpace(existing))
+            return incoming;
+
+        static int Rank(string? status) => status switch
+        {
+            "complete" or "error" or "skipped" => 3,
+            "running" => 2,
+            "pending" => 1,
+            _ => 0,
+        };
+
+        return Rank(incoming) >= Rank(existing) ? incoming : existing;
     }
 
     private static async Task<string> ReadFailureAsync(HttpResponseMessage res, CancellationToken ct)

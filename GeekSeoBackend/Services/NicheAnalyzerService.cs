@@ -171,6 +171,8 @@ public sealed class NicheAnalyzerService(
                     error,
                     new Dictionary<string, object?>());
                 await profileRepo.UpdateStepStatusAsync(profileId, _lastProgressStepSlug, "error", errorEntry, ct: ct);
+                await NicheStepRunStatusWriter.SyncAsync(
+                    profileRepo, logger, profileId, _lastProgressStepSlug, "error", failedStepDef, errorEntry, error, ct);
             }
             catch { /* non-fatal */ }
         }
@@ -262,6 +264,9 @@ public sealed class NicheAnalyzerService(
         try
         {
             await profileRepo.UpdateStepStatusAsync(profileId, stepEntry.Slug, stepStatus, stepEntry, ct: ct);
+            NicheStepCatalog.BySlug.TryGetValue(stepEntry.Slug, out var stepDef);
+            await NicheStepRunStatusWriter.SyncAsync(
+                profileRepo, logger, profileId, stepEntry.Slug, stepStatus, stepDef, stepEntry, ct: ct);
         }
         catch (Exception ex)
         {

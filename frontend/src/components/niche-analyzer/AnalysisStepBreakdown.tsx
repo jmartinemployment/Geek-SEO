@@ -190,11 +190,11 @@ function StepRow({
     setRerunError(null);
     setLiveProgress(null);
     try {
-      await runNicheStep(profileId, stepDefinition.slug, accessToken);
       await waitForNicheStepViaSignalR({
         profileId,
         slug: stepDefinition.slug,
         accessToken,
+        triggerRun: () => runNicheStep(profileId, stepDefinition.slug, accessToken),
         onProgress: setLiveProgress,
         onStatus: (status) => {
           onStepStatusChange?.(status);
