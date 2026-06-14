@@ -571,6 +571,13 @@ public sealed class HttpNicheProfileRepository(
     public async Task<Result<IReadOnlyDictionary<string, string>>> GetStepStatusesAsync(
         Guid profileId, CancellationToken ct = default)
     {
+        var runs = await GetStepRunsAsync(profileId, ct);
+        if (runs.IsSuccess && runs.Value is { Count: > 0 })
+        {
+            return Result<IReadOnlyDictionary<string, string>>.Success(
+                runs.Value.ToDictionary(r => r.StepSlug, r => r.Status, StringComparer.OrdinalIgnoreCase));
+        }
+
         var res = await _http.GetAsync(
             $"api/seo/internal/niche-profiles/{profileId}/step-statuses?userId={user.UserId}", ct);
         if (!res.IsSuccessStatusCode)
