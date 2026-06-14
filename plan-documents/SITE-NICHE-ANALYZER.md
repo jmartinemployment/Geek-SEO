@@ -2,6 +2,8 @@
 
 > **North star & fusion architecture:** [`SEARCH-UNDERSTANDING-LAYER.md`](SEARCH-UNDERSTANDING-LAYER.md) — public-signal composite (schema, page, sitemap, nav, links, optional GSC/SERP). This doc is the **first consumer** implementation; merge rules here will migrate into `TopicFusionEngine`.
 >
+> **Manual pipeline & troubleshooting:** [`NICHE-ANALYZER-ARTIFACT-PARADIGM.md`](NICHE-ANALYZER-ARTIFACT-PARADIGM.md) — read from DB by default; execute only after approval or first populate.
+>
 > **Supersession note (June 2026):** The current design direction is stricter than parts of this historical implementation plan. Niche Analyzer now targets a backend-owned canonical 14-step pipeline with no frontend/controller fallback reconstruction or substitution. Each step is expected to persist a canonical artifact boundary. `keywords` remains a standalone Step 8 section under usefulness review.
 
 ## Purpose

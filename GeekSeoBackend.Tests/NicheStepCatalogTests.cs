@@ -6,11 +6,11 @@ namespace GeekSeoBackend.Tests;
 public sealed class NicheStepCatalogTests
 {
     [Fact]
-    public void Ordered_ExposesCanonicalFourteenStepSequence()
+    public void Ordered_ExposesCanonicalSixteenStepSequence()
     {
         var ordered = NicheStepCatalog.Ordered;
 
-        Assert.Equal(14, ordered.Count);
+        Assert.Equal(16, ordered.Count);
         Assert.Equal(
             [
                 "schema",
@@ -18,7 +18,9 @@ public sealed class NicheStepCatalogTests
                 "nav",
                 "headings",
                 "page_content",
-                "site_structure",
+                "site_crawl",
+                "internal_links",
+                "url_patterns",
                 "merging",
                 "keywords",
                 "serp_validation",
@@ -38,6 +40,16 @@ public sealed class NicheStepCatalogTests
 
         Assert.Equal(
             ["keywords", "serp_validation", "profile", "local", "coverage", "scoring", "complete"],
+            downstream);
+    }
+
+    [Fact]
+    public void GetDownstream_FromSiteCrawl_IncludesStructureAndMergeSteps()
+    {
+        var downstream = NicheStepCatalog.GetDownstream("site_crawl");
+
+        Assert.Equal(
+            ["internal_links", "url_patterns", "merging", "keywords", "serp_validation", "profile", "local", "coverage", "scoring", "complete"],
             downstream);
     }
 

@@ -1,15 +1,15 @@
 # Geek SEO — project status
 
-Last updated: June 13, 2026
+Last updated: June 14, 2026
 
 **v1 parity #1–27:** checklist complete (June 2026) — matrix below  
-**Backlog:** [`plan-documents/TODO.md`](plan-documents/TODO.md) · **Providers:** [`plan-documents/SEO-PROVIDER-STRATEGY.md`](plan-documents/SEO-PROVIDER-STRATEGY.md) · **Index:** [`docs/ROADMAP.md`](docs/ROADMAP.md)
+**Backlog:** [`plan-documents/TODO.md`](plan-documents/TODO.md) · **Providers:** [`plan-documents/SEO-PROVIDER-STRATEGY.md`](plan-documents/SEO-PROVIDER-STRATEGY.md) · **Index:** [`docs/ROADMAP.md`](docs/ROADMAP.md) · **Niche artifact paradigm:** [`plan-documents/NICHE-ANALYZER-ARTIFACT-PARADIGM.md`](plan-documents/NICHE-ANALYZER-ARTIFACT-PARADIGM.md)
 
 ## Latest on `main`
 
 | Item | Detail |
 |------|--------|
-| **HEAD** | `3b1d98e`+ — auth bootstrap gate (`auth-provider` blocks `/app` until token refresh); GA4 live integration test; human audit 0 API failures |
+| **HEAD** | `110e7cd` — manual niche pipeline fixes (run-step scope, UI poll, Reset hidden) + artifact paradigm doc |
 | **New backend APIs** | `GET /api/seo/topical-map/{id}`, `GET/PUT/POST /api/seo/content-guard/*`, `GET/POST/DELETE /api/seo/geo/queries`, `GET /api/seo/geo/queries/{id}/trends` |
 | **Workers** | `SeoMaintenanceWorker` — hourly topical refresh, published snapshots, daily GEO probes + Content Guard scan | ✅ `WORKER_SERVICE_USER_ID` set on Railway (see **Identity & worker service account**). **TODO later:** migrate to `@geekatyourspot.com` service account. |
 | **GeekRepository** | New `repo/seo/*` controllers + `AddContentGuardTables` EF migration |
@@ -104,7 +104,7 @@ GeekSeoBackend does **not** use `REPO_URL`. Providers and scoring run on the pro
 | Internal link suggest + auto-insert | ✅ | ✅ editor panel | sibling docs in project |
 | Keyword cannibalization | ✅ GSC analysis | ✅ `/app/cannibalization` | GSC connected |
 | Topical map **#12 + #12b** | ✅ v2 generate + GET cached | ✅ `/app/strategy/topical-map` (table + React Flow map) | GSC + DataForSEO SERP seeds; priority, pillars, competitors |
-| Niche analyzer | ✅ backend-owned 14-step persisted pipeline | ✅ `/app/strategy/niche-analyzer` | Canonical step artifacts only; no fallback reconstruction; Step 8 `keywords` isolated |
+| Niche analyzer | ✅ manual 14-step pipeline | ✅ `/app/strategy/niche-analyzer` | **Step 1 ready to test** — see [artifact paradigm](plan-documents/NICHE-ANALYZER-ARTIFACT-PARADIGM.md#step-1--testing-status-june-2026); Tier A suggestions not built |
 | Published content decay audit | ✅ GSC compare + sparkline DB | ✅ `/app/content-guard` | Weekly snapshots via worker when `WORKER_SERVICE_USER_ID` set |
 | GEO / AI visibility probe | ✅ probe + query CRUD + 30d trends | ✅ `/app/geo` | DataForSEO; daily worker snapshots enabled queries |
 | Content Guard | ✅ decay scan + AI patch in DB | ✅ policy, runs, approve/rollback | GSC for decay; **WP draft N/A** — operator has no WordPress site |

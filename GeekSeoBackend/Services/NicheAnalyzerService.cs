@@ -4,10 +4,8 @@ using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Services;
 using GeekSeo.Persistence.Entities;
 using GeekSeoBackend.Auth;
-using GeekSeoBackend.Hubs;
 using GeekSeoBackend.Services.NicheExtraction;
 using GeekSeoBackend.Services.NicheStepRunners;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.Playwright;
 
 namespace GeekSeoBackend.Services;
@@ -30,11 +28,11 @@ public sealed class NicheAnalyzerService(
     NicheAuthorityScorer scorer,
     NicheRootEntityBuilder rootBuilder,
     NicheStepExecutionService stepExecution,
-    IHubContext<SeoContentScoringHub> hub,
+    NicheAnalysisProgressNotifier progressNotifier,
     ICurrentUserContext userContext,
     ILogger<NicheAnalyzerService> logger)
 {
-    private const int TotalSteps = 14;
+    private static int TotalSteps => NicheStepCatalog.Ordered.Count;
     private static bool FusionArchiveEnabled =>
         string.Equals(
             Environment.GetEnvironmentVariable("NICHE_FUSION_ARCHIVE_ENABLED"),
@@ -176,29 +174,22 @@ public sealed class NicheAnalyzerService(
             }
             catch { /* non-fatal */ }
         }
-        try
-        {
-            await hub.Clients.User(userId.ToString()).SendAsync("AnalysisProgress", new
-            {
-                ProfileId = profileId,
-                Step = "failed",
-                StepNumber = failedStepNumber,
-                TotalSteps,
-                Message = error,
-                Status = "failed",
-            }, ct);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to push failure notification for {ProfileId}", profileId);
-        }
+        await progressNotifier.PushAsync(
+            profileId,
+            userId,
+            "failed",
+            "failed",
+            error,
+            failedStepNumber,
+            TotalSteps,
+            ct);
     }
 
     private async Task InitializeStepStatusesAsync(Guid profileId, CancellationToken ct) =>
         await ResetForManualRunAsync(profileId, ct);
 
     /// <summary>
-    /// Prepares a profile for manual step-by-step execution — all 14 steps pending, no worker queue.
+    /// Prepares a profile for manual step-by-step execution — all steps pending, no worker queue.
     /// </summary>
     private async Task ResetForManualRunAsync(Guid profileId, CancellationToken ct)
     {
@@ -277,22 +268,15 @@ public sealed class NicheAnalyzerService(
             logger.LogDebug(ex, "Step status update failed for {Slug}", stepEntry.Slug);
         }
 
-        try
-        {
-            await hub.Clients.User(userId.ToString()).SendAsync("AnalysisProgress", new
-            {
-                ProfileId = profileId,
-                Step = stepEntry.Slug,
-                StepNumber = stepNumber,
-                TotalSteps,
-                Message = stepEntry.Summary,
-                Status = stepNumber >= TotalSteps ? "complete" : "processing",
-            });
-        }
-        catch (Exception ex)
-        {
-            logger.LogDebug(ex, "SignalR push failed for {ProfileId} step {Step}", profileId, stepEntry.Slug);
-        }
+        await progressNotifier.PushAsync(
+            profileId,
+            userId,
+            stepEntry.Slug,
+            stepNumber >= TotalSteps ? "complete" : "processing",
+            stepEntry.Summary,
+            stepNumber,
+            TotalSteps,
+            ct);
     }
 
     private static IReadOnlyList<DiscoveredPillar> BuildSchemaDiscoveredPillars(SchemaOrgData schema) =>

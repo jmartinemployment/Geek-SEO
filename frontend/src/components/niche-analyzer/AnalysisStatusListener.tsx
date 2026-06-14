@@ -13,6 +13,9 @@ const STEP_LABELS: Record<string, string> = {
   headings: 'Reading homepage headings…',
   merging: 'Merging pillar signals…',
   page_content: 'Reading homepage content…',
+  site_crawl: 'Crawling site pages…',
+  internal_links: 'Extracting internal links…',
+  url_patterns: 'Detecting URL patterns…',
   site_structure: 'Scanning site structure…',
   keywords: 'Enriching keyword demand…',
   serp_validation: 'Validating SERP footprint…',
@@ -22,7 +25,6 @@ const STEP_LABELS: Record<string, string> = {
   scoring: 'Computing authority score…',
   complete: 'Analysis complete',
   failed: 'Analysis failed',
-  // Legacy slugs from in-flight or older runs
   sitemap: 'Collecting site URLs…',
   discovery: 'Collecting site URLs…',
   validating: 'Building niche profile…',
@@ -59,6 +61,7 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
   const [progress, setProgress] = useState<NicheAnalysisStatus | null>(null);
   const [liveMessage, setLiveMessage] = useState<string | null>(null);
   const [stalled, setStalled] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const completedRef = useRef(false);
   const onCompleteRef = useRef(onComplete);
   const onErrorRef = useRef(onError);
@@ -74,6 +77,15 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
     }
 
     setProgress((prev) => mergeStatus(prev, status));
+
+    if (status.status === 'complete' && !completedRef.current) {
+      completedRef.current = true;
+      onCompleteRef.current(profileId);
+      return;
+    }
+    if (status.status === 'failed') {
+      onErrorRef.current(status.errorMessage ?? 'Analysis failed');
+    }
   }
 
   useEffect(() => {
@@ -86,54 +98,45 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
     stepTrackerRef.current = { step: 0, at: Date.now() };
     setStalled(false);
     setLiveMessage(null);
+    setConnectionError(null);
   }, [profileId]);
 
-  // Fallback: poll /status if SignalR is unavailable or the tab was refreshed mid-run
+  // One-time hydrate on mount / profile change (e.g. tab refresh mid-run).
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
     let cancelled = false;
-    let consecutiveFailures = 0;
 
-    async function poll() {
-      if (cancelled || completedRef.current) return;
+    void (async () => {
       try {
         const status = await getNicheAnalysisStatus(profileId, accessToken);
-        consecutiveFailures = 0;
-        if (status.status === 'complete' && !completedRef.current) {
-          completedRef.current = true;
-          onCompleteRef.current(profileId);
-          return;
-        }
-        if (status.status === 'failed') {
-          onErrorRef.current(status.errorMessage ?? 'Analysis failed');
-          return;
-        }
-        applyStatus(status);
+        if (!cancelled) applyStatus(status);
       } catch {
-        consecutiveFailures += 1;
-        if (consecutiveFailures >= 5) {
-          onErrorRef.current('Analysis status is unavailable right now. Please refresh and try again.');
-          return;
+        if (!cancelled) {
+          setConnectionError('Could not load analysis status. Please refresh.');
         }
       }
-      if (!cancelled && !completedRef.current) {
-        timer = setTimeout(poll, 3_000);
-      }
-    }
-
-    void poll();
+    })();
 
     return () => {
       cancelled = true;
-      clearTimeout(timer);
     };
   }, [profileId, accessToken]);
 
-  // SignalR live progress (optional; polling remains the source of truth)
+  // SignalR live progress; reconcile from DB on reconnect.
   useEffect(() => {
     let disposed = false;
     let started = false;
     let connection: import('@microsoft/signalr').HubConnection | null = null;
+
+    async function hydrateOnce() {
+      try {
+        const status = await getNicheAnalysisStatus(profileId, accessToken);
+        if (!disposed) applyStatus(status);
+      } catch {
+        if (!disposed) {
+          setConnectionError('Could not refresh analysis status.');
+        }
+      }
+    }
 
     async function connect() {
       try {
@@ -160,6 +163,7 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
             const status = msg.status ?? (msg as { Status?: string }).Status ?? 'processing';
             if (status === 'complete' && !completedRef.current) {
               completedRef.current = true;
+              void hydrateOnce();
               onCompleteRef.current(profileId);
               return;
             }
@@ -173,20 +177,32 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
               status: status as NicheAnalysisStatus['status'],
               step: msg.step ?? (msg as { Step?: string }).Step,
               stepNumber: msg.stepNumber ?? (msg as { StepNumber?: number }).StepNumber,
-              totalSteps: msg.totalSteps ?? (msg as { TotalSteps?: number }).TotalSteps ?? 10,
+              totalSteps: msg.totalSteps ?? (msg as { TotalSteps?: number }).TotalSteps ?? 16,
               errorMessage: msg.errorMessage ?? (msg as { ErrorMessage?: string }).ErrorMessage,
             });
           },
         );
+
+        conn.onreconnected(() => {
+          setConnectionError(null);
+          void hydrateOnce();
+        });
 
         connection = conn;
         await conn.start();
         started = true;
         if (disposed) {
           void conn.stop().catch(() => {});
+          return;
         }
-      } catch {
-        // Polling fallback continues
+        setConnectionError(null);
+        await conn.invoke('JoinGroup', `niche-${profileId}`);
+      } catch (e) {
+        if (!disposed) {
+          setConnectionError(
+            e instanceof Error ? e.message : 'Live progress connection failed.',
+          );
+        }
       }
     }
 
@@ -196,15 +212,12 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
       disposed = true;
       const conn = connection;
       connection = null;
-      // Only stop after start() completed — calling stop() during connecting throws
-      if (conn && started) {
-        void conn.stop().catch(() => {});
-      }
+      if (conn && started) void conn.stop().catch(() => {});
     };
   }, [profileId, accessToken]);
 
   const stepNumber = progress?.stepNumber ?? 0;
-  const totalSteps = progress?.totalSteps ?? 14;
+  const totalSteps = progress?.totalSteps ?? 16;
   const pct = totalSteps > 0 ? Math.round((stepNumber / totalSteps) * 100) : 0;
   const label =
     liveMessage ??
@@ -229,6 +242,9 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
       <p className="text-xs text-[var(--color-text-muted)]">
         Step {stepNumber} of {totalSteps}
       </p>
+      {connectionError ? (
+        <p className="text-xs text-amber-700">{connectionError}</p>
+      ) : null}
       {stalled ? (
         <p className="text-xs text-amber-700">
           This step has not changed for {Math.round(NICHE_STALL_MS / 60_000)} minutes. If nothing

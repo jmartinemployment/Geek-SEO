@@ -92,7 +92,9 @@ public sealed class NicheAnalyzerServiceCanonicalProfileTests
             null!,
             null!,
             null!,
-            NullHubContext.Instance,
+            new NicheAnalysisProgressNotifier(
+                NullHubContext.Instance,
+                NullLogger<NicheAnalysisProgressNotifier>.Instance),
             null!,
             NullLogger<NicheAnalyzerService>.Instance);
 

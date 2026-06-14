@@ -117,7 +117,7 @@ public sealed class NicheAnalyzerController(
             var stepNumber = p.AnalysisStepNumber > 0
                 ? p.AnalysisStepNumber
                 : p.Status switch { "complete" => 14, _ => 0 };
-            var totalSteps = p.AnalysisTotalSteps > 0 ? p.AnalysisTotalSteps : 14;
+            var totalSteps = p.AnalysisTotalSteps > 0 ? p.AnalysisTotalSteps : NicheStepCatalog.Ordered.Count;
             var stepStatusesResult = await profileRepo.GetStepStatusesAsync(profileId, ct);
             IReadOnlyDictionary<string, string>? stepStatuses = stepStatusesResult.IsSuccess
                 && stepStatusesResult.Value is { Count: > 0 }

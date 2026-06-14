@@ -2,7 +2,7 @@
 
 **Status:** Implemented in Niche Analyzer (`sul-2.0`) with a canonical 14-step pipeline. Current design direction: no fallback reconstruction or substitution; each step must persist its own artifact and downstream consumers may read only canonical stored outputs.  
 **Owner intent:** Capture north-star direction before implementation; component-scoped rollout.  
-**Related:** [`SITE-NICHE-ANALYZER.md`](SITE-NICHE-ANALYZER.md) (first consumer), [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md) (SERP/keyword APIs), [`ARCHITECTURE.md`](ARCHITECTURE.md)
+**Related:** [`SITE-NICHE-ANALYZER.md`](SITE-NICHE-ANALYZER.md) (first consumer), [`NICHE-ANALYZER-ARTIFACT-PARADIGM.md`](NICHE-ANALYZER-ARTIFACT-PARADIGM.md) (read-from-DB default, execute-on-approval, suggestion tiers), [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md) (SERP/keyword APIs), [`ARCHITECTURE.md`](ARCHITECTURE.md)
 
 ---
 

@@ -27,6 +27,7 @@ public sealed class NicheStepExecutionService(
     NicheRootEntityBuilder rootBuilder,
     ILogger<NicheStepExecutionService> logger)
 {
+    private const int MaxSiteCrawlPages = 20;
     private sealed record KeywordArtifact(
         IReadOnlyList<PillarKeywordEnrichment> Keywords,
         bool Skipped,
@@ -60,7 +61,9 @@ public sealed class NicheStepExecutionService(
             "nav" => RunNavAsync(profileId, domain, browser, ct),
             "headings" => RunHeadingsAsync(profileId, domain, browser, ct),
             "page_content" => RunPageContentAsync(profileId, domain, browser, ct),
-            "site_structure" => RunSiteStructureAsync(profileId, domain, browser, ct),
+            "site_crawl" => RunSiteCrawlAsync(profileId, domain, browser, ct),
+            "internal_links" => RunInternalLinksAsync(profileId, domain, ct),
+            "url_patterns" => RunUrlPatternsAsync(profileId, domain, ct),
             "merging" => RunMergingAsync(profileId, userId, ct),
             "keywords" => RunKeywordsAsync(profileId, domain, ct),
             "serp_validation" => RunSerpValidationAsync(profileId, domain, ct),
@@ -211,7 +214,7 @@ public sealed class NicheStepExecutionService(
             pageContent);
     }
 
-    private async Task<NicheAnalysisStepLogEntry> RunSiteStructureAsync(
+    private async Task<NicheAnalysisStepLogEntry> RunSiteCrawlAsync(
         Guid profileId,
         string domain,
         IBrowser? browser,
@@ -219,17 +222,97 @@ public sealed class NicheStepExecutionService(
     {
         var steps = await LoadStepLogAsync(profileId, ct);
         var sitemap = await NicheStepRelationalLoader.LoadSitemapAsync(profileRepo, profileId, steps, ct);
-        var crawlData = await sitePageCrawler.CrawlAsync(domain, sitemap.SampleUrls, browser, ct);
-        var internalLinks = internalLinkExtractor.Extract(crawlData, domain);
+        var crawlData = await sitePageCrawler.CrawlAsync(
+            domain,
+            sitemap.SampleUrls,
+            browser,
+            ct,
+            maxPages: MaxSiteCrawlPages);
         var crawlUrls = crawlData.Pages.Select(p => p.Url).ToList();
+        var message =
+            $"Site crawl: {crawlData.PagesFetched} page(s) fetched from {crawlData.PagesAttempted} attempt(s).";
+
+        await PersistCrawlDiscoveredUrlsAsync(profileId, crawlUrls, ct);
+        await PersistSiteStructureAsync(
+            profileId,
+            crawlData,
+            NicheStepRelationalLoader.EmptyInternalLinks(crawlData.PagesFetched),
+            NicheStepRelationalLoader.EmptyUrlPatterns(),
+            ct);
+
+        var artifact = new NicheStepArtifactStore.SiteStructureArtifact(
+            crawlData,
+            NicheStepRelationalLoader.EmptyInternalLinks(crawlData.PagesFetched),
+            NicheStepRelationalLoader.EmptyUrlPatterns(),
+            crawlUrls);
+
+        return NicheStepArtifactStore.WithArtifact(
+            NicheAnalysisStepLogBuilder.SiteCrawl(6, crawlData, message),
+            "site_crawl",
+            artifact);
+    }
+
+    private async Task<NicheAnalysisStepLogEntry> RunInternalLinksAsync(
+        Guid profileId,
+        string domain,
+        CancellationToken ct)
+    {
+        var steps = await LoadStepLogAsync(profileId, ct);
+        var structure = await NicheStepRelationalLoader.LoadSiteCrawlAsync(profileRepo, profileId, steps, ct);
+        var internalLinks = internalLinkExtractor.Extract(structure.Crawl, domain);
+        var message =
+            $"Internal links: {internalLinks.Links.Count} link(s) ({internalLinks.Links.Count(l => !l.InferredFromUrlSlug)} anchor, {internalLinks.Links.Count(l => l.InferredFromUrlSlug)} from URL slug).";
+
+        await PersistSiteStructureAsync(
+            profileId,
+            structure.Crawl,
+            internalLinks,
+            structure.UrlPatterns,
+            ct);
+
+        var artifact = structure with { InternalLinks = internalLinks };
+
+        return NicheStepArtifactStore.WithArtifact(
+            NicheAnalysisStepLogBuilder.InternalLinks(7, structure.Crawl, internalLinks, message),
+            "internal_links",
+            artifact);
+    }
+
+    private async Task<NicheAnalysisStepLogEntry> RunUrlPatternsAsync(
+        Guid profileId,
+        string domain,
+        CancellationToken ct)
+    {
+        var steps = await LoadStepLogAsync(profileId, ct);
+        var sitemap = await NicheStepRelationalLoader.LoadSitemapAsync(profileRepo, profileId, steps, ct);
+        var structure = await NicheStepRelationalLoader.LoadSiteStructureAsync(profileRepo, profileId, steps, ct);
         var patternUrls = sitemap.SampleUrls
-            .Concat(crawlUrls)
+            .Concat(structure.CrawledUrls)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         var urlPatterns = urlPatternExtractor.Extract(patternUrls, domain);
-        var message =
-            $"Site structure: {crawlData.PagesFetched} page(s) crawled, {internalLinks.Links.Count} internal link(s) ({internalLinks.Links.Count(l => !l.InferredFromUrlSlug)} anchor, {internalLinks.Links.Count(l => l.InferredFromUrlSlug)} from URL slug), {urlPatterns.Topics.Count} URL pattern topic(s).";
+        var message = $"URL patterns: {urlPatterns.Topics.Count} topic(s) from {urlPatterns.UrlsScanned} URL(s).";
 
+        await PersistSiteStructureAsync(
+            profileId,
+            structure.Crawl,
+            structure.InternalLinks,
+            urlPatterns,
+            ct);
+
+        var artifact = structure with { UrlPatterns = urlPatterns };
+
+        return NicheStepArtifactStore.WithArtifact(
+            NicheAnalysisStepLogBuilder.UrlPatterns(8, urlPatterns, message),
+            "url_patterns",
+            artifact);
+    }
+
+    private async Task PersistCrawlDiscoveredUrlsAsync(
+        Guid profileId,
+        IReadOnlyList<string> crawlUrls,
+        CancellationToken ct)
+    {
         var discoveredUrls = await profileRepo.GetDiscoveredUrlsAsync(profileId, ct);
         if (!discoveredUrls.IsSuccess)
             throw new InvalidOperationException(discoveredUrls.Error ?? "Failed to load discovered URL inventory.");
@@ -244,18 +327,21 @@ public sealed class NicheStepExecutionService(
         var persistInventory = await profileRepo.ReplaceDiscoveredUrlsAsync(profileId, refreshedInventory, ct);
         if (!persistInventory.IsSuccess)
             throw new InvalidOperationException(persistInventory.Error ?? "Failed to persist discovered URL inventory.");
+    }
 
+    private async Task PersistSiteStructureAsync(
+        Guid profileId,
+        SiteCrawlData crawlData,
+        InternalLinkData internalLinks,
+        UrlPatternData urlPatterns,
+        CancellationToken ct)
+    {
         var persistStructure = await profileRepo.ReplaceSiteStructureAsync(
             profileId,
             NicheStepRelationalLoader.ToSiteStructureWrite(crawlData, internalLinks, urlPatterns),
             ct);
         if (!persistStructure.IsSuccess)
             throw new InvalidOperationException(persistStructure.Error ?? "Failed to persist site structure.");
-
-        return NicheStepArtifactStore.WithArtifact(
-            NicheAnalysisStepLogBuilder.SiteStructure(6, crawlData, internalLinks, urlPatterns, message),
-            "site_structure",
-            new NicheStepArtifactStore.SiteStructureArtifact(crawlData, internalLinks, urlPatterns, crawlUrls));
     }
 
     private async Task<NicheAnalysisStepLogEntry> RunMergingAsync(
@@ -306,7 +392,7 @@ public sealed class NicheStepExecutionService(
 
         return NicheStepArtifactStore.WithArtifact(
             NicheAnalysisStepLogBuilder.Merging(
-                7,
+                9,
                 fused.AllCandidates.Count,
                 merged.Count,
                 merged,
@@ -353,7 +439,7 @@ public sealed class NicheStepExecutionService(
 
         return NicheStepArtifactStore.WithArtifact(
             NicheAnalysisStepLogBuilder.Keywords(
-                8,
+                10,
                 new PillarDemandEnrichment(
                     keyword.Enrichments,
                     [],
@@ -363,7 +449,7 @@ public sealed class NicheStepExecutionService(
                     keyword.Skipped,
                     true,
                     keyword.SkipReason,
-                    "SERP validation not run in step 8.",
+                    "SERP validation not run in step 11.",
                     provider,
                     "disabled"),
                 message),
@@ -404,7 +490,7 @@ public sealed class NicheStepExecutionService(
 
         return NicheStepArtifactStore.WithArtifact(
             NicheAnalysisStepLogBuilder.SerpValidation(
-                9,
+                11,
                 new PillarDemandEnrichment(
                     [],
                     serp.Validations,
@@ -413,7 +499,7 @@ public sealed class NicheStepExecutionService(
                     demotedSlugs,
                     true,
                     serp.Skipped,
-                    "Keyword demand not run in step 9.",
+                    "Keyword demand not run in step 10.",
                     serp.SkipReason,
                     "disabled",
                     provider),
@@ -463,7 +549,7 @@ public sealed class NicheStepExecutionService(
         var message = $"Niche profile: {rootEntity}.";
 
         return NicheStepArtifactStore.WithArtifact(
-            NicheAnalysisStepLogBuilder.Profile(10, rootEntity, audienceType, nicheTags, message),
+            NicheAnalysisStepLogBuilder.Profile(12, rootEntity, audienceType, nicheTags, message),
             "profile",
             new ProfileArtifact(rootEntity, audienceType, nicheTags));
     }
@@ -499,8 +585,8 @@ public sealed class NicheStepExecutionService(
                     : $"Local geography: {localGeo.LocationPagesFound.Count} location page(s) found.";
 
         var entry = localGeo.IsLocalBusiness
-            ? NicheAnalysisStepLogBuilder.Local(11, localGeo, message)
-            : NicheAnalysisStepLogBuilder.LocalDisabled(11, message);
+            ? NicheAnalysisStepLogBuilder.Local(13, localGeo, message)
+            : NicheAnalysisStepLogBuilder.LocalDisabled(13, message);
 
         return NicheStepArtifactStore.WithArtifact(entry, "local", localGeo);
     }
@@ -569,7 +655,7 @@ public sealed class NicheStepExecutionService(
 
         return NicheStepArtifactStore.WithArtifact(
             NicheAnalysisStepLogBuilder.Coverage(
-                12,
+                14,
                 coverageResult.PillarsCovered,
                 coverageResult.PillarsPartial,
                 coverageResult.PillarsGap,
@@ -660,7 +746,7 @@ public sealed class NicheStepExecutionService(
         var orphanPillarCount = enrichedFusion.InternalLinkGraph?.OrphanSlugs.Count ?? 0;
 
         return NicheAnalysisStepLogBuilder.Scoring(
-            13,
+            15,
             authorityScore,
             covered,
             partial,
@@ -679,7 +765,7 @@ public sealed class NicheStepExecutionService(
     {
         var now = DateTimeOffset.UtcNow;
         return Task.FromResult(
-            NicheAnalysisStepLogBuilder.Complete(14, now, now.AddDays(30), "Analysis complete!"));
+            NicheAnalysisStepLogBuilder.Complete(16, now, now.AddDays(30), "Analysis complete!"));
     }
 
     private async Task<NicheProfile> LoadProfileAsync(Guid profileId, CancellationToken ct)

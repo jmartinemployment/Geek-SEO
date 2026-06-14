@@ -3,10 +3,8 @@ using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Services;
 using GeekSeo.Persistence.Entities;
-using GeekSeoBackend.Hubs;
 using GeekSeoBackend.Services.NicheExtraction;
 using GeekSeoBackend.Services.NicheStepRunners;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.Playwright;
 
 namespace GeekSeoBackend.Services;
@@ -35,10 +33,10 @@ public sealed class NicheStepRerunService(
     NicheRootEntityBuilder rootBuilder,
     NicheStepExecutionService stepExecution,
     NicheStepLock stepLock,
-    IHubContext<SeoContentScoringHub> hub,
+    NicheAnalysisProgressNotifier progressNotifier,
     ILogger<NicheStepRerunService> logger)
 {
-    private const int TotalSteps = 14;
+    private static int TotalSteps => NicheStepCatalog.Ordered.Count;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -97,7 +95,7 @@ public sealed class NicheStepRerunService(
             }
 
             await profileRepo.UpdateStepStatusAsync(profileId, slug, "running", ct: ct);
-            await PushStepEvent(profileId, userId, slug, "running", $"Running step: {slug}…", ct);
+            await PushStepEvent(profileId, userId, slug, definition, "running", $"Running step: {slug}…", ct);
 
             var entry = await ExecuteStepAsync(profileId, userId, slug, browser, ct);
 
@@ -124,7 +122,7 @@ public sealed class NicheStepRerunService(
             }
 
             await profileRepo.UpdateStepStatusAsync(profileId, slug, "complete", entry, ct);
-            await PushStepEvent(profileId, userId, slug, overallStatus, entry.Summary, ct);
+            await PushStepEvent(profileId, userId, slug, definition, overallStatus, entry.Summary, ct);
             return (true, null);
         }
         catch (Exception ex)
@@ -172,7 +170,7 @@ public sealed class NicheStepRerunService(
                 errorMessage: message,
                 stepLogEntry: errorEntry,
                 ct: ct);
-            await PushStepEvent(profileId, userId, slug, "error", $"Step '{slug}' failed: {message}", ct);
+            await PushStepEvent(profileId, userId, slug, definition, "error", $"Step '{slug}' failed: {message}", ct);
         }
         catch (Exception persistEx)
         {
@@ -541,22 +539,21 @@ public sealed class NicheStepRerunService(
     private static string[] BuildNicheTagsLight(SchemaOrgData schema, List<NichePillar> pillars) =>
         schema.AreaServed.Take(3).Concat(pillars.Take(3).Select(p => p.PillarTopic)).ToArray();
 
-    private async Task PushStepEvent(
-        Guid profileId, Guid userId, string slug, string status, string message, CancellationToken ct)
-    {
-        try
-        {
-            await hub.Clients.User(userId.ToString()).SendAsync("AnalysisProgress", new
-            {
-                ProfileId = profileId,
-                Step = slug,
-                Status = status,
-                Message = message,
-            }, ct);
-        }
-        catch (Exception ex)
-        {
-            logger.LogDebug(ex, "SignalR push failed for step re-run {Slug}", slug);
-        }
-    }
+    private Task PushStepEvent(
+        Guid profileId,
+        Guid userId,
+        string slug,
+        NicheStepDefinition? definition,
+        string status,
+        string message,
+        CancellationToken ct) =>
+        progressNotifier.PushAsync(
+            profileId,
+            userId,
+            slug,
+            status,
+            message,
+            definition?.StepNumber,
+            TotalSteps,
+            ct);
 }

@@ -77,6 +77,23 @@ Competitors win on **SERP term checklist + score that moves when you add specifi
 
 ---
 
+## SUL / Niche Analyzer — manual pipeline & artifact paradigm
+
+**Canonical spec:** [`NICHE-ANALYZER-ARTIFACT-PARADIGM.md`](NICHE-ANALYZER-ARTIFACT-PARADIGM.md) (locked decisions — do not regress)
+
+| Item | Priority | Status |
+|------|----------|--------|
+| Step 1 manual Run + persist schema signals | P0 | ✅ Ready for user testing (`110e7cd` prod) |
+| Read-from-DB default UI (View, not Run) | P1 | Backlog |
+| Approve → patch schema signals (no re-fetch) | P1 | Backlog |
+| Approve → execute with reason audit trail | P1 | Backlog |
+| Tier A Step 1 suggestions (schema hygiene only) | P1 | Backlog — read `GetSchemaSignalsAsync`, no live fetch |
+| Tier B/C suggestion gates (Steps 7, 8–12) | P2 | Backlog |
+| Full Reset (wipe profile artifacts, keep vendor cache) | P1 | Backlog — UI hidden until done |
+| Artifact version / stale badges on downstream steps | P2 | Backlog |
+
+---
+
 ## Parity gaps (waived from v1 closure)
 
 | # | Item | Notes |

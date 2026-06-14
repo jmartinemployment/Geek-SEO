@@ -33,18 +33,26 @@ function parseCrawledUrls(outputs: Record<string, unknown>): CrawledUrlRow[] {
     .filter((row): row is CrawledUrlRow => row !== null);
 }
 
-export function CrawlResultsPanel({ steps }: Readonly<Props>) {
-  const siteStructure = steps.find((s) => s.slug === 'site_structure');
-  if (!siteStructure) return null;
+function findCrawlStep(steps: NicheAnalysisStepLogEntry[]): NicheAnalysisStepLogEntry | undefined {
+  return (
+    steps.find((s) => s.slug === 'internal_links')
+    ?? steps.find((s) => s.slug === 'site_crawl')
+    ?? steps.find((s) => s.slug === 'site_structure')
+  );
+}
 
-  const rows = parseCrawledUrls(siteStructure.outputs);
+export function CrawlResultsPanel({ steps }: Readonly<Props>) {
+  const crawlStep = findCrawlStep(steps);
+  if (!crawlStep) return null;
+
+  const rows = parseCrawledUrls(crawlStep.outputs);
   const pagesCrawled =
-    typeof siteStructure.outputs.pagesCrawled === 'number'
-      ? siteStructure.outputs.pagesCrawled
+    typeof crawlStep.outputs.pagesCrawled === 'number'
+      ? crawlStep.outputs.pagesCrawled
       : rows.length;
   const crawlStopReason =
-    typeof siteStructure.outputs.crawlStopReason === 'string'
-      ? siteStructure.outputs.crawlStopReason
+    typeof crawlStep.outputs.crawlStopReason === 'string'
+      ? crawlStep.outputs.crawlStopReason
       : null;
 
   if (rows.length === 0 && pagesCrawled <= 1) return null;
@@ -56,7 +64,7 @@ export function CrawlResultsPanel({ steps }: Readonly<Props>) {
           Crawl transparency
         </h3>
         <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-          Pages fetched during site structure discovery
+          Pages fetched during site crawl
         </p>
       </div>
 

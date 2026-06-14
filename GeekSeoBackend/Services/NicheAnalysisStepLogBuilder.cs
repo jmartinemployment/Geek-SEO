@@ -15,6 +15,9 @@ internal static class NicheAnalysisStepLogBuilder
             ["nav"] = "Navigation",
             ["headings"] = "Homepage headings",
             ["page_content"] = "Page content",
+            ["site_crawl"] = "Site crawl",
+            ["internal_links"] = "Internal links",
+            ["url_patterns"] = "URL patterns",
             ["site_structure"] = "Site structure",
             ["merging"] = "Topic selection",
             ["keywords"] = "Keyword demand",
@@ -100,6 +103,68 @@ internal static class NicheAnalysisStepLogBuilder
             ["becomesPillars"] = true,
         });
 
+    internal static NicheAnalysisStepLogEntry SiteCrawl(int step, SiteCrawlData crawl, string summary) =>
+        Entry(step, "site_crawl", summary, new Dictionary<string, object?>
+        {
+            ["pagesCrawled"] = crawl.PagesFetched,
+            ["pagesAttempted"] = crawl.PagesAttempted,
+            ["crawlStopReason"] = CrawlStopReason(crawl),
+            ["sampleCrawledUrls"] = crawl.Pages
+                .Take(SampleLimit)
+                .Select(p => new Dictionary<string, object?>
+                {
+                    ["url"] = p.Url,
+                    ["fetchMethod"] = p.FetchMethod,
+                    ["outboundLinkCount"] = 0,
+                })
+                .ToArray(),
+            ["becomesPillars"] = true,
+        });
+
+    internal static NicheAnalysisStepLogEntry InternalLinks(
+        int step,
+        SiteCrawlData crawl,
+        InternalLinkData internalLinks,
+        string summary) =>
+        Entry(step, "internal_links", summary, new Dictionary<string, object?>
+        {
+            ["pagesCrawled"] = crawl.PagesFetched,
+            ["internalLinkCount"] = internalLinks.Links.Count,
+            ["internalLinkAnchorCount"] = internalLinks.Links.Count(l => !l.InferredFromUrlSlug),
+            ["internalLinkSlugInferredCount"] = internalLinks.Links.Count(l => l.InferredFromUrlSlug),
+            ["sampleInternalAnchors"] = internalLinks.Links
+                .Select(l => l.AnchorText)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(SampleLimit)
+                .ToArray(),
+            ["sampleCrawledUrls"] = crawl.Pages
+                .Take(SampleLimit)
+                .Select(p =>
+                {
+                    var outbound = internalLinks.Links.Count(l =>
+                        l.SourceUrl.Equals(p.Url, StringComparison.OrdinalIgnoreCase));
+                    return new Dictionary<string, object?>
+                    {
+                        ["url"] = p.Url,
+                        ["fetchMethod"] = p.FetchMethod,
+                        ["outboundLinkCount"] = outbound,
+                    };
+                })
+                .ToArray(),
+            ["becomesPillars"] = true,
+        });
+
+    internal static NicheAnalysisStepLogEntry UrlPatterns(int step, UrlPatternData urlPatterns, string summary) =>
+        Entry(step, "url_patterns", summary, new Dictionary<string, object?>
+        {
+            ["urlPatternTopicCount"] = urlPatterns.Topics.Count,
+            ["sampleUrlPatterns"] = urlPatterns.Topics
+                .Select(t => t.Name)
+                .Take(SampleLimit)
+                .ToArray(),
+            ["becomesPillars"] = true,
+        });
+
     internal static NicheAnalysisStepLogEntry SiteStructure(
         int step,
         SiteCrawlData crawl,
@@ -123,9 +188,7 @@ internal static class NicheAnalysisStepLogBuilder
                 .Select(t => t.Name)
                 .Take(SampleLimit)
                 .ToArray(),
-            ["crawlStopReason"] = crawl.PagesFetched >= 20
-                ? "Reached max 20 pages"
-                : "Queue exhausted (no more same-origin links)",
+            ["crawlStopReason"] = CrawlStopReason(crawl),
             ["sampleCrawledUrls"] = crawl.Pages
                 .Take(SampleLimit)
                 .Select(p =>
@@ -351,4 +414,9 @@ internal static class NicheAnalysisStepLogBuilder
             ["analyzedAt"] = analyzedAt,
             ["nextAnalysisDue"] = nextDue,
         });
+
+    private static string CrawlStopReason(SiteCrawlData crawl) =>
+        crawl.PagesFetched >= 20
+            ? "Reached max 20 pages"
+            : "Queue exhausted (no more same-origin links)";
 }

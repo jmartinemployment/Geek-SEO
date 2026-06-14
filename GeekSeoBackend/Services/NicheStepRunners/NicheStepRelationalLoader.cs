@@ -170,10 +170,7 @@ internal static partial class NicheStepRelationalLoader
         if (structureResult.IsSuccess && structureResult.Value is { Pages.Count: > 0 } row)
             return BuildSiteStructure(row);
 
-        return NicheStepArtifactStore.TryGetArtifact<NicheStepArtifactStore.SiteStructureArtifact>(
-            steps,
-            "site_structure",
-            "site_structure");
+        return TryGetSiteStructureFromStepArtifacts(steps);
     }
 
     internal static async Task<NicheStepArtifactStore.SiteStructureArtifact> LoadSiteStructureAsync(
@@ -186,11 +183,84 @@ internal static partial class NicheStepRelationalLoader
         if (structureResult.IsSuccess && structureResult.Value is { Pages.Count: > 0 } row)
             return BuildSiteStructure(row);
 
-        return NicheStepArtifactStore.GetRequiredArtifact<NicheStepArtifactStore.SiteStructureArtifact>(
+        var artifact = TryGetSiteStructureFromStepArtifacts(steps);
+        if (artifact is not null)
+            return artifact;
+
+        throw new InvalidOperationException("Site structure artifact is not available.");
+    }
+
+    internal static async Task<NicheStepArtifactStore.SiteStructureArtifact> LoadSiteCrawlAsync(
+        INicheProfileRepository profileRepo,
+        Guid profileId,
+        IReadOnlyList<NicheAnalysisStepLogEntry> steps,
+        CancellationToken ct)
+    {
+        var structureResult = await profileRepo.GetSiteStructureAsync(profileId, ct);
+        if (structureResult.IsSuccess && structureResult.Value is { Pages.Count: > 0 } row)
+            return BuildSiteStructure(row);
+
+        var artifact = TryGetSiteStructureFromStepArtifacts(steps);
+        if (artifact is not null)
+            return artifact;
+
+        throw new InvalidOperationException("Site crawl artifact is not available.");
+    }
+
+    private static NicheStepArtifactStore.SiteStructureArtifact? TryGetSiteStructureFromStepArtifacts(
+        IReadOnlyList<NicheAnalysisStepLogEntry> steps)
+    {
+        var legacy = NicheStepArtifactStore.TryGetArtifact<NicheStepArtifactStore.SiteStructureArtifact>(
             steps,
             "site_structure",
             "site_structure");
+        if (legacy is not null)
+            return legacy;
+
+        var crawlArtifact = NicheStepArtifactStore.TryGetArtifact<NicheStepArtifactStore.SiteStructureArtifact>(
+            steps,
+            "site_crawl",
+            "site_crawl");
+        var linksArtifact = NicheStepArtifactStore.TryGetArtifact<NicheStepArtifactStore.SiteStructureArtifact>(
+            steps,
+            "internal_links",
+            "internal_links");
+        var patternsArtifact = NicheStepArtifactStore.TryGetArtifact<NicheStepArtifactStore.SiteStructureArtifact>(
+            steps,
+            "url_patterns",
+            "url_patterns");
+
+        if (crawlArtifact is null && linksArtifact is null && patternsArtifact is null)
+            return null;
+
+        var crawl = crawlArtifact?.Crawl
+            ?? linksArtifact?.Crawl
+            ?? patternsArtifact?.Crawl
+            ?? throw new InvalidOperationException("Site crawl data is missing from step artifacts.");
+        var internalLinks = linksArtifact?.InternalLinks
+            ?? patternsArtifact?.InternalLinks
+            ?? crawlArtifact?.InternalLinks
+            ?? EmptyInternalLinks(crawl.PagesFetched);
+        var urlPatterns = patternsArtifact?.UrlPatterns
+            ?? linksArtifact?.UrlPatterns
+            ?? crawlArtifact?.UrlPatterns
+            ?? EmptyUrlPatterns();
+        var crawledUrls = crawlArtifact?.CrawledUrls
+            ?? linksArtifact?.CrawledUrls
+            ?? patternsArtifact?.CrawledUrls
+            ?? crawl.Pages.Select(p => p.Url).ToList();
+
+        return new NicheStepArtifactStore.SiteStructureArtifact(
+            crawl,
+            internalLinks,
+            urlPatterns,
+            crawledUrls);
     }
+
+    internal static InternalLinkData EmptyInternalLinks(int pagesScanned = 0) =>
+        new([], new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase), pagesScanned);
+
+    internal static UrlPatternData EmptyUrlPatterns() => new([], 0);
 
     private static NicheStepArtifactStore.SiteStructureArtifact BuildSiteStructure(
         NicheProfileSiteStructureRow row)

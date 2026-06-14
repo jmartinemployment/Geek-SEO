@@ -2,6 +2,7 @@ using GeekSeo.Application.Interfaces;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Infrastructure;
 using GeekSeoBackend.Jobs;
+using GeekSeoBackend.Services.NicheStepRunners;
 
 namespace GeekSeoBackend.Workers;
 
@@ -93,7 +94,7 @@ public sealed class NicheAnalysisJobWorker(
             {
                 workerUser.UserId = item.UserId;
                 var claim = await nicheRepo.UpdateStatusAsync(
-                    item.ProfileId, "processing", step: "schema", stepNumber: 1, totalSteps: 14, ct: ct);
+                    item.ProfileId, "processing", step: "schema", stepNumber: 1, totalSteps: NicheStepCatalog.Ordered.Count, ct: ct);
                 if (!claim.IsSuccess)
                 {
                     logger.LogWarning("Could not claim niche profile {ProfileId}: {Error}", item.ProfileId, claim.Error);

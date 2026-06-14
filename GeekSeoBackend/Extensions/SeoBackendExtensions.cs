@@ -130,6 +130,7 @@ public static class SeoBackendExtensions
         services.AddScoped<NicheStepExecutionService>();
         services.AddScoped<NicheAnalyzerService>();
         services.AddScoped<CompetitorAnalysisService>();
+        services.AddScoped<NicheAnalysisProgressNotifier>();
         services.AddScoped<NicheStepRerunService>();
         services.AddSingleton<NicheStepLock>();
         services.AddScoped<NicheAnalysisBackgroundJob>();

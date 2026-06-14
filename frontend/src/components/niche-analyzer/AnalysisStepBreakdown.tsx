@@ -28,39 +28,7 @@ type Props = {
   onStepStatusChange?: (status: NicheAnalysisStatus) => void;
 };
 
-const TERMINAL_STEP_STATUSES = new Set<StepStatus>(['complete', 'error', 'skipped']);
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
-}
-
-async function pollStepUntilTerminal(
-  profileId: string,
-  slug: string,
-  accessToken: string | null | undefined,
-  onStatus: (status: NicheAnalysisStatus) => void,
-  timeoutMs = 120_000,
-): Promise<NicheAnalysisStatus> {
-  const started = Date.now();
-  let latest = await getNicheAnalysisStatus(profileId, accessToken);
-  onStatus(latest);
-
-  while (Date.now() - started < timeoutMs) {
-    const stepState = latest.stepStatuses?.[slug];
-    if (stepState && TERMINAL_STEP_STATUSES.has(stepState)) {
-      return latest;
-    }
-    await sleep(400);
-    latest = await getNicheAnalysisStatus(profileId, accessToken);
-    onStatus(latest);
-  }
-
-  throw new Error(`Timed out waiting for step "${slug}" to finish.`);
-}
-
-type Phase = {
+import { waitForNicheStepViaSignalR } from '@/lib/niche-step-wait';
   id: string;
   title: string;
   subtitle: string;
@@ -78,7 +46,7 @@ const SE_PHASES: Phase[] = [
     id: 'fetch',
     title: 'Fetch & parse',
     subtitle: 'What the crawler read',
-    slugs: ['headings', 'page_content', 'site_structure'],
+    slugs: ['headings', 'page_content', 'site_crawl', 'internal_links', 'url_patterns'],
   },
   {
     id: 'understand',
@@ -159,6 +127,7 @@ function StepRow({
 }) {
   const [rerunning, setRerunning] = useState(false);
   const [optimisticRunning, setOptimisticRunning] = useState(false);
+  const [liveProgress, setLiveProgress] = useState<string | null>(null);
   const [rerunError, setRerunError] = useState<string | null>(null);
 
   const isolatedStatus = stepStatuses?.[stepDefinition.slug];
@@ -184,7 +153,8 @@ function StepRow({
     : displayStatus === 'running' ? 'text-amber-600'
     : 'text-[var(--color-text-muted)]';
 
-  const summary = visibleStep?.summary
+  const summary = liveProgress
+    ?? visibleStep?.summary
     ?? persistedError
     ?? persistedSummary
     ?? (!depsComplete
@@ -211,20 +181,23 @@ function StepRow({
     setRerunning(true);
     setOptimisticRunning(true);
     setRerunError(null);
+    setLiveProgress(null);
     try {
       await runNicheStep(profileId, stepDefinition.slug, accessToken);
-      await pollStepUntilTerminal(
+      await waitForNicheStepViaSignalR({
         profileId,
-        stepDefinition.slug,
+        slug: stepDefinition.slug,
         accessToken,
-        (status) => onStepStatusChange?.(status),
-      );
+        onProgress: setLiveProgress,
+        onStatus: (status) => onStepStatusChange?.(status),
+      });
       await onStepRerun?.();
     } catch (e) {
       setRerunError(e instanceof Error ? e.message : 'Re-run failed');
     } finally {
       setOptimisticRunning(false);
       setRerunning(false);
+      setLiveProgress(null);
     }
   }
 

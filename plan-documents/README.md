@@ -15,6 +15,7 @@
 | File | Purpose |
 |------|---------|
 | [`SEARCH-UNDERSTANDING-LAYER.md`](SEARCH-UNDERSTANDING-LAYER.md) | **North star** — public-signal composite approximating shared search-engine understanding; fusion architecture + phased rollout |
+| [`NICHE-ANALYZER-ARTIFACT-PARADIGM.md`](NICHE-ANALYZER-ARTIFACT-PARADIGM.md) | **Manual pipeline** — read-from-DB default, execute-on-approval, step contracts, AI suggestion timing |
 | [`TopicalMapUpgrade.md`](TopicalMapUpgrade.md) | Topical map UX gaps — data deps per [`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md) |
 
 ## Research

@@ -18,7 +18,10 @@ export function buildPillarProvenanceSummary(
 ): string | null {
   const schema = steps.find((s) => s.slug === 'schema');
   const siteUrls = steps.find((s) => s.slug === 'site_urls');
-  const siteStructure = steps.find((s) => s.slug === 'site_structure');
+  const siteStructure =
+    steps.find((s) => s.slug === 'internal_links')
+    ?? steps.find((s) => s.slug === 'site_crawl')
+    ?? steps.find((s) => s.slug === 'site_structure');
   const merging = steps.find((s) => s.slug === 'merging');
 
   if (!merging || pillarCount === 0) return null;

@@ -12,6 +12,19 @@ public sealed class SeoContentScoringHub(IContentScoringService scoring, IHttpCo
         await Groups.AddToGroupAsync(Context.ConnectionId, $"doc:{documentId}");
     }
 
+    /// <summary>Join a hub group (e.g. <c>niche-{profileId}</c>) for profile-scoped push events.</summary>
+    public async Task JoinGroup(string groupName)
+    {
+        if (string.IsNullOrWhiteSpace(groupName) || groupName.Length > 128)
+            return;
+
+        if (!groupName.StartsWith("niche-", StringComparison.Ordinal)
+            && !groupName.StartsWith("doc:", StringComparison.Ordinal))
+            return;
+
+        await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+    }
+
     public async Task ContentChanged(string documentId, string contentHtml, string targetKeyword)
     {
         if (!Guid.TryParse(documentId, out var docId))
