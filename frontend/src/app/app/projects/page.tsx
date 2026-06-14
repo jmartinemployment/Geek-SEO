@@ -46,7 +46,10 @@ function ProjectsPageInner() {
     setCreating(true);
     try {
       setError(null);
-      const project = await createProject({ name, url }, accessToken);
+      const project = await createProject(
+        { name, url, defaultLocation: 'United States' },
+        accessToken,
+      );
       router.push(`/app/projects/${project.id}`);
     } catch (err) {
       setError(err);

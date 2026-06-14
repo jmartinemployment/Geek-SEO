@@ -136,16 +136,17 @@ export default function NicheAnalyzerPage() {
   useEffect(() => {
     if (!authReady || !accessToken || !workflowProfileId) return;
 
+    const activeProfileId = workflowProfileId;
     let cancelled = false;
 
     async function poll() {
       try {
-        const status = await refreshStepStatuses(workflowProfileId);
+        const status = await refreshStepStatuses(activeProfileId);
         if (cancelled || !status) return;
 
         if (status.status === 'complete') {
           setWorkflowProfileId(null);
-          await handleAnalysisComplete(workflowProfileId);
+          await handleAnalysisComplete(activeProfileId);
           return;
         }
 
