@@ -76,7 +76,7 @@ public sealed class NicheAnalyzerService(
                         PersistStage: null,
                         Status: "queued"),
                     ct);
-                await profileRepo.UpdateCrawledUrlsAsync(latest.Value.Id, "[]", ct);
+                await ClearRelationalCrawlUrlsAsync(latest.Value.Id, ct);
                 await profileRepo.InvalidateDownstreamStepsAsync(latest.Value.Id, allPending, ct);
             }
             catch
@@ -172,7 +172,19 @@ public sealed class NicheAnalyzerService(
             ct: ct);
         if (!string.IsNullOrWhiteSpace(_lastProgressStepSlug) && _lastProgressStepSlug != "failed")
         {
-            try { await profileRepo.UpdateStepStatusAsync(profileId, _lastProgressStepSlug, "error", ct: ct); }
+            try
+            {
+                var errorEntry = new NicheAnalysisStepLogEntry(
+                    _lastProgressStepNumber,
+                    _lastProgressStepSlug,
+                    NicheStepCatalog.BySlug.TryGetValue(_lastProgressStepSlug, out var failedStepDef)
+                        ? failedStepDef.Title
+                        : _lastProgressStepSlug,
+                    "error",
+                    error,
+                    new Dictionary<string, object?>());
+                await profileRepo.UpdateStepStatusAsync(profileId, _lastProgressStepSlug, "error", errorEntry, ct: ct);
+            }
             catch { /* non-fatal */ }
         }
         try
@@ -198,7 +210,7 @@ public sealed class NicheAnalyzerService(
         var allPending = NicheStepCatalog.Ordered
             .Select(step => step.Slug)
             .ToList();
-        try { await profileRepo.UpdateCrawledUrlsAsync(profileId, "[]", ct); } catch { /* non-fatal */ }
+        try { await ClearRelationalCrawlUrlsAsync(profileId, ct); } catch { /* non-fatal */ }
         try { await profileRepo.InvalidateDownstreamStepsAsync(profileId, allPending, ct); } catch { /* non-fatal */ }
     }
 
@@ -228,7 +240,7 @@ public sealed class NicheAnalyzerService(
         // Write per-step status for isolation
         try
         {
-            await profileRepo.UpdateStepStatusAsync(profileId, stepEntry.Slug, stepStatus, ct: ct);
+            await profileRepo.UpdateStepStatusAsync(profileId, stepEntry.Slug, stepStatus, stepEntry, ct: ct);
         }
         catch (Exception ex)
         {
@@ -475,19 +487,29 @@ public sealed class NicheAnalyzerService(
         NicheProfile profile,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(profile.FusionSnapshot))
+        var discoveredUrls = await profileRepo.GetDiscoveredUrlsAsync(profile.Id, ct);
+        if (!discoveredUrls.IsSuccess)
             return null;
 
-        var fusion = SiteTopicProfileJson.Parse(profile.FusionSnapshot);
-        if (fusion is null)
-            return null;
-
-        return fusion.AllCandidates
-            .Select(c => c.DedicatedPageUrl)
-            .Where(u => !string.IsNullOrWhiteSpace(u))
-            .Cast<string>()
+        return (discoveredUrls.Value ?? [])
+            .Where(x => string.Equals(x.SourceType, "sitemap", StringComparison.OrdinalIgnoreCase))
+            .Select(x => x.Url)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private async Task ClearRelationalCrawlUrlsAsync(Guid profileId, CancellationToken ct)
+    {
+        var discoveredUrls = await profileRepo.GetDiscoveredUrlsAsync(profileId, ct);
+        if (!discoveredUrls.IsSuccess)
+            return;
+
+        var preservedUrls = (discoveredUrls.Value ?? [])
+            .Where(x => !string.Equals(x.SourceType, "crawl", StringComparison.OrdinalIgnoreCase))
+            .Select(x => new NicheProfileDiscoveredUrlWrite(x.Url, x.SourceType, x.LastSeenAt))
+            .ToList();
+
+        await profileRepo.ReplaceDiscoveredUrlsAsync(profileId, preservedUrls, ct);
     }
 
     private async Task<string> ResolveSiteUrlAsync(

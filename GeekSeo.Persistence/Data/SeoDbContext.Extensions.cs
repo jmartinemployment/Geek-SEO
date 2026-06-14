@@ -186,6 +186,105 @@ public partial class SeoDbContext
             e.Property(x => x.ScanChangeScore).HasPrecision(5, 4);
         });
 
+        modelBuilder.Entity<NicheProfileStepRun>(e =>
+        {
+            e.ToTable("niche_profile_step_runs");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.NicheProfile).WithMany(p => p.StepRuns).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.NicheProfileId, x.StepNumber }).IsUnique();
+            e.HasIndex(x => new { x.NicheProfileId, x.StepSlug }).IsUnique();
+        });
+
+        modelBuilder.Entity<NicheProfileSchemaSignal>(e =>
+        {
+            e.ToTable("niche_profile_schema_signals");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.NicheProfile).WithMany(p => p.SchemaSignals).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.NicheProfileId);
+        });
+
+        modelBuilder.Entity<NicheProfileDiscoveredUrl>(e =>
+        {
+            e.ToTable("niche_profile_discovered_urls");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.NicheProfile).WithMany(p => p.DiscoveredUrls).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.NicheProfileId);
+            e.HasIndex(x => new { x.NicheProfileId, x.Url, x.SourceType }).IsUnique();
+        });
+
+        modelBuilder.Entity<NicheProfileNavigationLink>(e =>
+        {
+            e.ToTable("niche_profile_navigation_links");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.NicheProfile).WithMany(p => p.NavigationLinks).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.NicheProfileId);
+        });
+
+        modelBuilder.Entity<NicheProfileHeading>(e =>
+        {
+            e.ToTable("niche_profile_headings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.NicheProfile).WithMany(p => p.Headings).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.NicheProfileId);
+        });
+
+        modelBuilder.Entity<NicheProfilePageContentItem>(e =>
+        {
+            e.ToTable("niche_profile_page_content_items");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.NicheProfile).WithMany(p => p.PageContentItems).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.NicheProfileId);
+        });
+
+        modelBuilder.Entity<NicheProfilePageContentMeta>(e =>
+        {
+            e.ToTable("niche_profile_page_content_meta");
+            e.HasKey(x => x.NicheProfileId);
+            e.HasOne(x => x.NicheProfile).WithOne(p => p.PageContentMeta).HasForeignKey<NicheProfilePageContentMeta>(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NicheProfileSitePage>(e =>
+        {
+            e.ToTable("niche_profile_site_pages");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.NicheProfile).WithMany(p => p.SitePages).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.NicheProfileId);
+            e.HasIndex(x => new { x.NicheProfileId, x.Url }).IsUnique();
+        });
+
+        modelBuilder.Entity<NicheProfileSitePageLink>(e =>
+        {
+            e.ToTable("niche_profile_site_page_links");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.NicheProfile).WithMany(p => p.SitePageLinks).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.NicheProfileId);
+        });
+
+        modelBuilder.Entity<NicheProfileUrlPatternTopic>(e =>
+        {
+            e.ToTable("niche_profile_url_pattern_topics");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.NicheProfile).WithMany(p => p.UrlPatternTopics).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.NicheProfileId);
+            e.HasIndex(x => new { x.NicheProfileId, x.Slug }).IsUnique();
+        });
+
+        modelBuilder.Entity<NicheProfileSiteCrawlMeta>(e =>
+        {
+            e.ToTable("niche_profile_site_crawl_meta");
+            e.HasKey(x => x.NicheProfileId);
+            e.HasOne(x => x.NicheProfile).WithOne(p => p.SiteCrawlMeta).HasForeignKey<NicheProfileSiteCrawlMeta>(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<NicheTopicCandidate>(e =>
         {
             e.ToTable("niche_topic_candidates");
@@ -196,6 +295,15 @@ public partial class SeoDbContext
             e.HasIndex(x => new { x.NicheProfileId, x.Slug }).IsUnique();
             e.HasIndex(x => x.NicheProfileId);
             e.HasIndex(x => new { x.NicheProfileId, x.IsSelected });
+        });
+
+        modelBuilder.Entity<NicheTopicCandidateEvidence>(e =>
+        {
+            e.ToTable("niche_topic_candidate_evidence");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.TopicCandidate).WithMany(c => c.EvidenceRows).HasForeignKey(x => x.TopicCandidateId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.TopicCandidateId);
         });
 
         modelBuilder.Entity<NichePillar>(e =>

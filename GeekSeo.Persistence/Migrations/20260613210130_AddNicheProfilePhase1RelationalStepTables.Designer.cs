@@ -3,6 +3,7 @@ using System;
 using GeekSeo.Persistence.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GeekSeo.Persistence.Migrations
 {
     [DbContext(typeof(SeoDbContext))]
-    partial class SeoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260613210130_AddNicheProfilePhase1RelationalStepTables")]
+    partial class AddNicheProfilePhase1RelationalStepTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -508,55 +511,6 @@ namespace GeekSeo.Persistence.Migrations
                     b.ToTable("niche_profile_navigation_links", "geek_seo");
                 });
 
-            modelBuilder.Entity("GeekSeo.Persistence.Entities.NicheProfilePageContentItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ItemKind")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ItemText")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("NicheProfileId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("PageUrl")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("NicheProfileId");
-
-                    b.ToTable("niche_profile_page_content_items", "geek_seo");
-                });
-
-            modelBuilder.Entity("GeekSeo.Persistence.Entities.NicheProfilePageContentMeta", b =>
-                {
-                    b.Property<Guid>("NicheProfileId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("ListItemsScanned")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("PageUrl")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("NicheProfileId");
-
-                    b.ToTable("niche_profile_page_content_meta", "geek_seo");
-                });
-
             modelBuilder.Entity("GeekSeo.Persistence.Entities.NicheProfileSchemaSignal", b =>
                 {
                     b.Property<Guid>("Id")
@@ -590,95 +544,6 @@ namespace GeekSeo.Persistence.Migrations
                     b.HasIndex("NicheProfileId");
 
                     b.ToTable("niche_profile_schema_signals", "geek_seo");
-                });
-
-            modelBuilder.Entity("GeekSeo.Persistence.Entities.NicheProfileSiteCrawlMeta", b =>
-                {
-                    b.Property<Guid>("NicheProfileId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("PagesAttempted")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("PagesFetched")
-                        .HasColumnType("integer");
-
-                    b.HasKey("NicheProfileId");
-
-                    b.ToTable("niche_profile_site_crawl_meta", "geek_seo");
-                });
-
-            modelBuilder.Entity("GeekSeo.Persistence.Entities.NicheProfileSitePage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("FetchMethod")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("NicheProfileId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Url")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("VisibleText")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("WordCount")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("NicheProfileId");
-
-                    b.HasIndex("NicheProfileId", "Url")
-                        .IsUnique();
-
-                    b.ToTable("niche_profile_site_pages", "geek_seo");
-                });
-
-            modelBuilder.Entity("GeekSeo.Persistence.Entities.NicheProfileSitePageLink", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<string>("AnchorText")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("InferredFromUrlSlug")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid>("NicheProfileId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("SourceUrl")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("TargetUrl")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("NicheProfileId");
-
-                    b.ToTable("niche_profile_site_page_links", "geek_seo");
                 });
 
             modelBuilder.Entity("GeekSeo.Persistence.Entities.NicheProfileStepRun", b =>
@@ -735,45 +600,6 @@ namespace GeekSeo.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("niche_profile_step_runs", "geek_seo");
-                });
-
-            modelBuilder.Entity("GeekSeo.Persistence.Entities.NicheProfileUrlPatternTopic", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("NicheProfileId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("PathSegment")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Slug")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Url")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("NicheProfileId");
-
-                    b.HasIndex("NicheProfileId", "Slug")
-                        .IsUnique();
-
-                    b.ToTable("niche_profile_url_pattern_topics", "geek_seo");
                 });
 
             modelBuilder.Entity("GeekSeo.Persistence.Entities.NicheSubtopic", b =>
@@ -2347,28 +2173,6 @@ namespace GeekSeo.Persistence.Migrations
                     b.Navigation("NicheProfile");
                 });
 
-            modelBuilder.Entity("GeekSeo.Persistence.Entities.NicheProfilePageContentItem", b =>
-                {
-                    b.HasOne("GeekSeo.Persistence.Entities.NicheProfile", "NicheProfile")
-                        .WithMany("PageContentItems")
-                        .HasForeignKey("NicheProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("NicheProfile");
-                });
-
-            modelBuilder.Entity("GeekSeo.Persistence.Entities.NicheProfilePageContentMeta", b =>
-                {
-                    b.HasOne("GeekSeo.Persistence.Entities.NicheProfile", "NicheProfile")
-                        .WithOne("PageContentMeta")
-                        .HasForeignKey("GeekSeo.Persistence.Entities.NicheProfilePageContentMeta", "NicheProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("NicheProfile");
-                });
-
             modelBuilder.Entity("GeekSeo.Persistence.Entities.NicheProfileSchemaSignal", b =>
                 {
                     b.HasOne("GeekSeo.Persistence.Entities.NicheProfile", "NicheProfile")
@@ -2380,54 +2184,10 @@ namespace GeekSeo.Persistence.Migrations
                     b.Navigation("NicheProfile");
                 });
 
-            modelBuilder.Entity("GeekSeo.Persistence.Entities.NicheProfileSiteCrawlMeta", b =>
-                {
-                    b.HasOne("GeekSeo.Persistence.Entities.NicheProfile", "NicheProfile")
-                        .WithOne("SiteCrawlMeta")
-                        .HasForeignKey("GeekSeo.Persistence.Entities.NicheProfileSiteCrawlMeta", "NicheProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("NicheProfile");
-                });
-
-            modelBuilder.Entity("GeekSeo.Persistence.Entities.NicheProfileSitePage", b =>
-                {
-                    b.HasOne("GeekSeo.Persistence.Entities.NicheProfile", "NicheProfile")
-                        .WithMany("SitePages")
-                        .HasForeignKey("NicheProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("NicheProfile");
-                });
-
-            modelBuilder.Entity("GeekSeo.Persistence.Entities.NicheProfileSitePageLink", b =>
-                {
-                    b.HasOne("GeekSeo.Persistence.Entities.NicheProfile", "NicheProfile")
-                        .WithMany("SitePageLinks")
-                        .HasForeignKey("NicheProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("NicheProfile");
-                });
-
             modelBuilder.Entity("GeekSeo.Persistence.Entities.NicheProfileStepRun", b =>
                 {
                     b.HasOne("GeekSeo.Persistence.Entities.NicheProfile", "NicheProfile")
                         .WithMany("StepRuns")
-                        .HasForeignKey("NicheProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("NicheProfile");
-                });
-
-            modelBuilder.Entity("GeekSeo.Persistence.Entities.NicheProfileUrlPatternTopic", b =>
-                {
-                    b.HasOne("GeekSeo.Persistence.Entities.NicheProfile", "NicheProfile")
-                        .WithMany("UrlPatternTopics")
                         .HasForeignKey("NicheProfileId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -2561,25 +2321,13 @@ namespace GeekSeo.Persistence.Migrations
 
                     b.Navigation("NavigationLinks");
 
-                    b.Navigation("PageContentItems");
-
-                    b.Navigation("PageContentMeta");
-
                     b.Navigation("Pillars");
 
                     b.Navigation("SchemaSignals");
 
-                    b.Navigation("SiteCrawlMeta");
-
-                    b.Navigation("SitePageLinks");
-
-                    b.Navigation("SitePages");
-
                     b.Navigation("StepRuns");
 
                     b.Navigation("TopicCandidates");
-
-                    b.Navigation("UrlPatternTopics");
                 });
 
             modelBuilder.Entity("GeekSeo.Persistence.Entities.NicheTopicCandidate", b =>

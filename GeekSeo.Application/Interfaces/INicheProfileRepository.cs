@@ -47,6 +47,75 @@ public interface INicheProfileRepository
     Task<Result<IReadOnlyList<NicheQueuedJob>>> ListQueuedAsync(int limit, CancellationToken ct = default);
     Task<Result<int>> FailStaleProcessingAsync(TimeSpan maxAge, CancellationToken ct = default);
 
+    Task<Result> UpsertStepRunAsync(
+        Guid profileId,
+        NicheProfileStepRunUpsert stepRun,
+        CancellationToken ct = default);
+    Task<Result> UpdateStepRunStatusAsync(
+        Guid profileId,
+        string stepSlug,
+        NicheProfileStepRunStatusPatch patch,
+        CancellationToken ct = default);
+    Task<Result<IReadOnlyList<NicheProfileStepRunRow>>> GetStepRunsAsync(
+        Guid profileId,
+        CancellationToken ct = default);
+
+    Task<Result> ReplaceSchemaSignalsAsync(
+        Guid profileId,
+        IReadOnlyList<NicheProfileSchemaSignalWrite> signals,
+        CancellationToken ct = default);
+    Task<Result<IReadOnlyList<NicheProfileSchemaSignalRow>>> GetSchemaSignalsAsync(
+        Guid profileId,
+        CancellationToken ct = default);
+
+    Task<Result> ReplaceDiscoveredUrlsAsync(
+        Guid profileId,
+        IReadOnlyList<NicheProfileDiscoveredUrlWrite> urls,
+        CancellationToken ct = default);
+    Task<Result<IReadOnlyList<NicheProfileDiscoveredUrlRow>>> GetDiscoveredUrlsAsync(
+        Guid profileId,
+        CancellationToken ct = default);
+
+    Task<Result> ReplaceNavigationLinksAsync(
+        Guid profileId,
+        IReadOnlyList<NicheProfileNavigationLinkWrite> links,
+        CancellationToken ct = default);
+    Task<Result<IReadOnlyList<NicheProfileNavigationLinkRow>>> GetNavigationLinksAsync(
+        Guid profileId,
+        CancellationToken ct = default);
+
+    Task<Result> ReplaceHeadingsAsync(
+        Guid profileId,
+        IReadOnlyList<NicheProfileHeadingWrite> headings,
+        CancellationToken ct = default);
+    Task<Result<IReadOnlyList<NicheProfileHeadingRow>>> GetHeadingsAsync(
+        Guid profileId,
+        CancellationToken ct = default);
+
+    Task<Result> ReplaceTopicCandidateEvidenceAsync(
+        Guid profileId,
+        IReadOnlyList<NicheTopicCandidateEvidenceWrite> evidence,
+        CancellationToken ct = default);
+    Task<Result<IReadOnlyList<NicheTopicCandidateEvidenceRow>>> GetTopicCandidateEvidenceAsync(
+        Guid profileId,
+        CancellationToken ct = default);
+
+    Task<Result> ReplacePageContentAsync(
+        Guid profileId,
+        NicheProfilePageContentWrite content,
+        CancellationToken ct = default);
+    Task<Result<NicheProfilePageContentRow?>> GetPageContentAsync(
+        Guid profileId,
+        CancellationToken ct = default);
+
+    Task<Result> ReplaceSiteStructureAsync(
+        Guid profileId,
+        NicheProfileSiteStructureWrite structure,
+        CancellationToken ct = default);
+    Task<Result<NicheProfileSiteStructureRow?>> GetSiteStructureAsync(
+        Guid profileId,
+        CancellationToken ct = default);
+
     // Step isolation
     Task<Result> UpdateStepStatusAsync(Guid profileId, string slug, string status,
         NicheAnalysisStepLogEntry? entry = null, CancellationToken ct = default);

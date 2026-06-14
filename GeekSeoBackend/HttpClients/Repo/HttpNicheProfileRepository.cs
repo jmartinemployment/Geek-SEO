@@ -112,6 +112,228 @@ public sealed class HttpNicheProfileRepository(
         return Result<IReadOnlyList<NicheProfileSummary>>.Success(value ?? []);
     }
 
+    public async Task<Result> UpsertStepRunAsync(
+        Guid profileId,
+        NicheProfileStepRunUpsert stepRun,
+        CancellationToken ct = default)
+    {
+        var res = await _http.PutAsJsonAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/step-runs/{stepRun.StepSlug}?userId={user.UserId}",
+            stepRun,
+            Json,
+            ct);
+        return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await ReadFailureAsync(res, ct));
+    }
+
+    public async Task<Result> UpdateStepRunStatusAsync(
+        Guid profileId,
+        string stepSlug,
+        NicheProfileStepRunStatusPatch patch,
+        CancellationToken ct = default)
+    {
+        var res = await _http.PatchAsJsonAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/step-runs/{stepSlug}/status?userId={user.UserId}",
+            patch,
+            Json,
+            ct);
+        return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await ReadFailureAsync(res, ct));
+    }
+
+    public async Task<Result<IReadOnlyList<NicheProfileStepRunRow>>> GetStepRunsAsync(
+        Guid profileId,
+        CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/step-runs?userId={user.UserId}",
+            ct);
+        if (!res.IsSuccessStatusCode)
+            return Result<IReadOnlyList<NicheProfileStepRunRow>>.Failure(await ReadFailureAsync(res, ct));
+        var value = await res.Content.ReadFromJsonAsync<List<NicheProfileStepRunRow>>(Json, ct);
+        return Result<IReadOnlyList<NicheProfileStepRunRow>>.Success(value ?? []);
+    }
+
+    public async Task<Result> ReplaceSchemaSignalsAsync(
+        Guid profileId,
+        IReadOnlyList<NicheProfileSchemaSignalWrite> signals,
+        CancellationToken ct = default)
+    {
+        var res = await _http.PutAsJsonAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/schema-signals?userId={user.UserId}",
+            new { signals },
+            Json,
+            ct);
+        return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await ReadFailureAsync(res, ct));
+    }
+
+    public async Task<Result<IReadOnlyList<NicheProfileSchemaSignalRow>>> GetSchemaSignalsAsync(
+        Guid profileId,
+        CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/schema-signals?userId={user.UserId}",
+            ct);
+        if (!res.IsSuccessStatusCode)
+            return Result<IReadOnlyList<NicheProfileSchemaSignalRow>>.Failure(await ReadFailureAsync(res, ct));
+        var value = await res.Content.ReadFromJsonAsync<List<NicheProfileSchemaSignalRow>>(Json, ct);
+        return Result<IReadOnlyList<NicheProfileSchemaSignalRow>>.Success(value ?? []);
+    }
+
+    public async Task<Result> ReplaceDiscoveredUrlsAsync(
+        Guid profileId,
+        IReadOnlyList<NicheProfileDiscoveredUrlWrite> urls,
+        CancellationToken ct = default)
+    {
+        var res = await _http.PutAsJsonAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/discovered-urls?userId={user.UserId}",
+            new { urls },
+            Json,
+            ct);
+        return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await ReadFailureAsync(res, ct));
+    }
+
+    public async Task<Result<IReadOnlyList<NicheProfileDiscoveredUrlRow>>> GetDiscoveredUrlsAsync(
+        Guid profileId,
+        CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/discovered-urls?userId={user.UserId}",
+            ct);
+        if (!res.IsSuccessStatusCode)
+            return Result<IReadOnlyList<NicheProfileDiscoveredUrlRow>>.Failure(await ReadFailureAsync(res, ct));
+        var value = await res.Content.ReadFromJsonAsync<List<NicheProfileDiscoveredUrlRow>>(Json, ct);
+        return Result<IReadOnlyList<NicheProfileDiscoveredUrlRow>>.Success(value ?? []);
+    }
+
+    public async Task<Result> ReplaceNavigationLinksAsync(
+        Guid profileId,
+        IReadOnlyList<NicheProfileNavigationLinkWrite> links,
+        CancellationToken ct = default)
+    {
+        var res = await _http.PutAsJsonAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/navigation-links?userId={user.UserId}",
+            new { links },
+            Json,
+            ct);
+        return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await ReadFailureAsync(res, ct));
+    }
+
+    public async Task<Result<IReadOnlyList<NicheProfileNavigationLinkRow>>> GetNavigationLinksAsync(
+        Guid profileId,
+        CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/navigation-links?userId={user.UserId}",
+            ct);
+        if (!res.IsSuccessStatusCode)
+            return Result<IReadOnlyList<NicheProfileNavigationLinkRow>>.Failure(await ReadFailureAsync(res, ct));
+        var value = await res.Content.ReadFromJsonAsync<List<NicheProfileNavigationLinkRow>>(Json, ct);
+        return Result<IReadOnlyList<NicheProfileNavigationLinkRow>>.Success(value ?? []);
+    }
+
+    public async Task<Result> ReplaceHeadingsAsync(
+        Guid profileId,
+        IReadOnlyList<NicheProfileHeadingWrite> headings,
+        CancellationToken ct = default)
+    {
+        var res = await _http.PutAsJsonAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/headings?userId={user.UserId}",
+            new { headings },
+            Json,
+            ct);
+        return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await ReadFailureAsync(res, ct));
+    }
+
+    public async Task<Result<IReadOnlyList<NicheProfileHeadingRow>>> GetHeadingsAsync(
+        Guid profileId,
+        CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/headings?userId={user.UserId}",
+            ct);
+        if (!res.IsSuccessStatusCode)
+            return Result<IReadOnlyList<NicheProfileHeadingRow>>.Failure(await ReadFailureAsync(res, ct));
+        var value = await res.Content.ReadFromJsonAsync<List<NicheProfileHeadingRow>>(Json, ct);
+        return Result<IReadOnlyList<NicheProfileHeadingRow>>.Success(value ?? []);
+    }
+
+    public async Task<Result> ReplaceTopicCandidateEvidenceAsync(
+        Guid profileId,
+        IReadOnlyList<NicheTopicCandidateEvidenceWrite> evidence,
+        CancellationToken ct = default)
+    {
+        var res = await _http.PutAsJsonAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/topic-candidate-evidence?userId={user.UserId}",
+            new { evidence },
+            Json,
+            ct);
+        return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await ReadFailureAsync(res, ct));
+    }
+
+    public async Task<Result<IReadOnlyList<NicheTopicCandidateEvidenceRow>>> GetTopicCandidateEvidenceAsync(
+        Guid profileId,
+        CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/topic-candidate-evidence?userId={user.UserId}",
+            ct);
+        if (!res.IsSuccessStatusCode)
+            return Result<IReadOnlyList<NicheTopicCandidateEvidenceRow>>.Failure(await ReadFailureAsync(res, ct));
+        var value = await res.Content.ReadFromJsonAsync<List<NicheTopicCandidateEvidenceRow>>(Json, ct);
+        return Result<IReadOnlyList<NicheTopicCandidateEvidenceRow>>.Success(value ?? []);
+    }
+
+    public async Task<Result> ReplacePageContentAsync(
+        Guid profileId,
+        NicheProfilePageContentWrite content,
+        CancellationToken ct = default)
+    {
+        var res = await _http.PutAsJsonAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/page-content?userId={user.UserId}",
+            new { content },
+            Json,
+            ct);
+        return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await ReadFailureAsync(res, ct));
+    }
+
+    public async Task<Result<NicheProfilePageContentRow?>> GetPageContentAsync(
+        Guid profileId,
+        CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/page-content?userId={user.UserId}",
+            ct);
+        if (!res.IsSuccessStatusCode)
+            return Result<NicheProfilePageContentRow?>.Failure(await ReadFailureAsync(res, ct));
+        var value = await res.Content.ReadFromJsonAsync<NicheProfilePageContentRow>(Json, ct);
+        return Result<NicheProfilePageContentRow?>.Success(value);
+    }
+
+    public async Task<Result> ReplaceSiteStructureAsync(
+        Guid profileId,
+        NicheProfileSiteStructureWrite structure,
+        CancellationToken ct = default)
+    {
+        var res = await _http.PutAsJsonAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/site-structure?userId={user.UserId}",
+            new { structure },
+            Json,
+            ct);
+        return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await ReadFailureAsync(res, ct));
+    }
+
+    public async Task<Result<NicheProfileSiteStructureRow?>> GetSiteStructureAsync(
+        Guid profileId,
+        CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/site-structure?userId={user.UserId}",
+            ct);
+        if (!res.IsSuccessStatusCode)
+            return Result<NicheProfileSiteStructureRow?>.Failure(await ReadFailureAsync(res, ct));
+        var value = await res.Content.ReadFromJsonAsync<NicheProfileSiteStructureRow>(Json, ct);
+        return Result<NicheProfileSiteStructureRow?>.Success(value);
+    }
+
     public async Task<Result> UpdateStatusAsync(
         Guid profileId, string status, string? step = null,
         int stepNumber = 0, int totalSteps = 0, string? errorMessage = null,

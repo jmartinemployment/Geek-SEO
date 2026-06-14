@@ -46,11 +46,68 @@ public sealed class NicheAnalysisPersistenceService(
             }
         }
 
+        if (includeEvidence)
+        {
+            var persistedCandidates = await LoadAllPersistedCandidatesAsync(profileId, ct);
+            if (!persistedCandidates.IsSuccess)
+                return Result.Failure(persistedCandidates.Error ?? "Failed to read persisted topic candidates.");
+
+            var candidateIdsBySlug = (persistedCandidates.Value ?? [])
+                .GroupBy(x => x.Slug, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+
+            var evidenceRows = fused.AllCandidates
+                .Where(c => candidateIdsBySlug.ContainsKey(c.Slug))
+                .SelectMany(c => c.Evidence.Select((e, index) => new NicheTopicCandidateEvidenceWrite(
+                    candidateIdsBySlug[c.Slug],
+                    e.Source,
+                    e.Url,
+                    e.Snippet,
+                    e.Snippet ?? c.Name,
+                    index)))
+                .ToList();
+
+            var evidenceResult = await profileRepo.ReplaceTopicCandidateEvidenceAsync(profileId, evidenceRows, ct);
+            if (!evidenceResult.IsSuccess)
+                return evidenceResult;
+        }
+
         await profileRepo.UpdatePhaseStatusAsync(
             profileId,
             new NichePhaseStatusPatch(null, null, PersistStage: "candidates"),
             ct);
         return Result.Success();
+    }
+
+    private async Task<Result<IReadOnlyList<NicheTopicCandidatePage>>> LoadAllPersistedCandidatesAsync(
+        Guid profileId,
+        CancellationToken ct)
+    {
+        const int pageSize = 500;
+        var page = 1;
+        var items = new List<NicheTopicCandidatePage>();
+
+        while (true)
+        {
+            var result = await profileRepo.GetTopicCandidatesAsync(
+                profileId,
+                page,
+                pageSize,
+                selectedOnly: null,
+                ct);
+            if (!result.IsSuccess)
+                return Result<IReadOnlyList<NicheTopicCandidatePage>>.Failure(result.Error ?? "Failed loading topic candidates.");
+            if (result.Value is null)
+                return Result<IReadOnlyList<NicheTopicCandidatePage>>.Failure("Topic candidate response was empty.");
+
+            items.AddRange(result.Value.Items);
+            if (items.Count >= result.Value.Total || result.Value.Items.Count == 0)
+                break;
+
+            page++;
+        }
+
+        return Result<IReadOnlyList<NicheTopicCandidatePage>>.Success(items);
     }
 
     public async Task<Result> SaveCompletionAsync(

@@ -14,7 +14,9 @@ public record NicheAnalysisStatus(
     string? StructureStatus = null,
     string? EnrichmentStatus = null,
     string? PersistStage = null,
-    IReadOnlyDictionary<string, string>? StepStatuses = null);
+    IReadOnlyDictionary<string, string>? StepStatuses = null,
+    IReadOnlyDictionary<string, string>? StepSummaries = null,
+    IReadOnlyDictionary<string, string>? StepErrors = null);
 
 /// <summary>One persisted row in <c>niche_profiles.AnalysisStepLog</c> JSON array.</summary>
 public sealed record NicheAnalysisStepLogEntry(

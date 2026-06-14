@@ -21,6 +21,8 @@ type Props = {
   pollIntervalMs?: number;
   stepStatuses?: Record<string, StepStatus>;
   anyStepRunning?: boolean;
+  stepSummaries?: Record<string, string>;
+  stepErrors?: Record<string, string>;
   onStepRerun?: () => void;
 };
 
@@ -101,6 +103,8 @@ function StepRow({
   stepDefinition,
   stepStatuses,
   anyStepRunning,
+  stepSummaries,
+  stepErrors,
   showOutputs,
   profileId,
   accessToken,
@@ -110,6 +114,8 @@ function StepRow({
   stepDefinition: NicheStepDefinition;
   stepStatuses?: Record<string, StepStatus>;
   anyStepRunning?: boolean;
+  stepSummaries?: Record<string, string>;
+  stepErrors?: Record<string, string>;
   showOutputs: boolean;
   profileId: string;
   accessToken?: string | null;
@@ -125,6 +131,8 @@ function StepRow({
   const canRun = Boolean(stepStatuses);
   const rerunDisabled = !depsKnown || !depsComplete || anyStepRunning || rerunning;
   const visibleStep = showOutputs ? step : undefined;
+  const persistedError = stepErrors?.[stepDefinition.slug];
+  const persistedSummary = stepSummaries?.[stepDefinition.slug];
 
   const statusLabel = isolatedStatus === 'running' ? 'in progress'
     : isolatedStatus === 'error' ? 'error'
@@ -137,6 +145,8 @@ function StepRow({
     : 'text-[var(--color-text-muted)]';
 
   const summary = visibleStep?.summary
+    ?? persistedError
+    ?? persistedSummary
     ?? (!depsComplete
       ? `Blocked until: ${deps.filter((dep) => stepStatuses?.[dep] !== 'complete').join(', ')}`
       : isolatedStatus === 'running'
@@ -177,7 +187,9 @@ function StepRow({
           <p className="text-sm font-medium text-[var(--color-text-primary)]">
             {stepDefinition.stepNumber}. {stepDefinition.title}
           </p>
-          <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{summary}</p>
+          <p className={`mt-0.5 text-sm ${persistedError ? 'text-red-700' : 'text-[var(--color-text-secondary)]'}`}>
+            {summary}
+          </p>
           {rerunError ? (
             <p className="mt-1 text-xs text-red-600">{rerunError}</p>
           ) : null}
@@ -217,6 +229,8 @@ function PhaseSection({
   defaultExpanded,
   stepStatuses,
   anyStepRunning,
+  stepSummaries,
+  stepErrors,
   showOutputs,
   profileId,
   accessToken,
@@ -228,6 +242,8 @@ function PhaseSection({
   defaultExpanded: boolean;
   stepStatuses?: Record<string, StepStatus>;
   anyStepRunning?: boolean;
+  stepSummaries?: Record<string, string>;
+  stepErrors?: Record<string, string>;
   showOutputs: boolean;
   profileId: string;
   accessToken?: string | null;
@@ -266,6 +282,8 @@ function PhaseSection({
               stepDefinition={definition}
               stepStatuses={stepStatuses}
               anyStepRunning={anyStepRunning}
+              stepSummaries={stepSummaries}
+              stepErrors={stepErrors}
               showOutputs={showOutputs}
               profileId={profileId}
               accessToken={accessToken}
@@ -286,6 +304,8 @@ export function AnalysisStepBreakdown({
   pollIntervalMs,
   stepStatuses,
   anyStepRunning,
+  stepSummaries,
+  stepErrors,
   onStepRerun,
 }: Readonly<Props>) {
   const [open, setOpen] = useState(defaultOpen);
@@ -293,6 +313,8 @@ export function AnalysisStepBreakdown({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [liveStepStatuses, setLiveStepStatuses] = useState<Record<string, StepStatus> | undefined>();
+  const [liveStepSummaries, setLiveStepSummaries] = useState<Record<string, string> | undefined>();
+  const [liveStepErrors, setLiveStepErrors] = useState<Record<string, string> | undefined>();
 
   useEffect(() => {
     let cancelled = false;
@@ -320,6 +342,12 @@ export function AnalysisStepBreakdown({
         const status = await getNicheAnalysisStatus(profileId, accessToken);
         if (!cancelled && status.stepStatuses) {
           setLiveStepStatuses(status.stepStatuses);
+        }
+        if (!cancelled && status.stepSummaries) {
+          setLiveStepSummaries(status.stepSummaries);
+        }
+        if (!cancelled && status.stepErrors) {
+          setLiveStepErrors(status.stepErrors);
         }
       } catch {
         // keep last known canonical statuses
@@ -353,6 +381,8 @@ export function AnalysisStepBreakdown({
   }, [details]);
   const stepDefinitions = details?.stepDefinitions ?? [];
   const effectiveStepStatuses = stepStatuses ?? liveStepStatuses;
+  const effectiveStepSummaries = stepSummaries ?? liveStepSummaries;
+  const effectiveStepErrors = stepErrors ?? liveStepErrors;
   const showOutputs = pollIntervalMs === undefined;
 
   return (
@@ -398,6 +428,8 @@ export function AnalysisStepBreakdown({
                   defaultExpanded={index < 2 || pollIntervalMs !== undefined}
                   stepStatuses={effectiveStepStatuses}
                   anyStepRunning={anyStepRunning}
+                  stepSummaries={effectiveStepSummaries}
+                  stepErrors={effectiveStepErrors}
                   showOutputs={showOutputs}
                   profileId={profileId}
                   accessToken={accessToken}
@@ -424,6 +456,8 @@ export function AnalysisStepBreakdown({
                       }
                       stepStatuses={effectiveStepStatuses}
                       anyStepRunning={anyStepRunning}
+                      stepSummaries={effectiveStepSummaries}
+                      stepErrors={effectiveStepErrors}
                       showOutputs={showOutputs}
                       profileId={profileId}
                       accessToken={accessToken}

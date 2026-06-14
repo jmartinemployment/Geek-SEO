@@ -9,6 +9,7 @@ using GeekSeoBackend.Auth;
 using GeekSeoBackend.Models;
 using GeekSeoBackend.Providers.Seo.Metering;
 using GeekSeoBackend.Services.NicheExtraction;
+using GeekSeoBackend.Services.NicheStepRunners;
 
 namespace GeekSeoBackend.Services;
 
@@ -323,7 +324,20 @@ public sealed class TopicalMapService(
                 "Niche analysis is still in progress. Wait for it to complete before building a topical map.");
         }
 
-        var fused = SiteTopicProfileJson.Parse(profile.FusionSnapshot);
+        var details = await nicheProfiles.GetAnalysisDetailsRowAsync(profile.Id, includeFusion: true, ct);
+        if (!details.IsSuccess || details.Value is null)
+        {
+            throw new InvalidOperationException(
+                "Niche analysis details are unavailable. Re-analyze to refresh pillar data.");
+        }
+
+        var steps = NicheAnalysisStepLogJson.Parse(details.Value.AnalysisStepLog);
+        var fused = await NicheStepRunState.LoadMergedFusionSnapshotAsync(
+            nicheProfiles,
+            profile.Id,
+            details.Value.FusionSnapshot,
+            steps,
+            ct);
         if (fused is null || fused.SelectedPillars.Count == 0)
         {
             throw new InvalidOperationException(

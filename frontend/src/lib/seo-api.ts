@@ -1568,6 +1568,8 @@ export type NicheAnalysisStatus = {
   enrichmentStatus?: string;
   persistStage?: string;
   stepStatuses?: Record<string, StepStatus>;
+  stepSummaries?: Record<string, string>;
+  stepErrors?: Record<string, string>;
 };
 
 export type NicheAnalysisStepLogEntry = {

@@ -58,7 +58,7 @@ public sealed class NicheStepRerunService(
         var statusResult = await profileRepo.GetStepStatusesAsync(profileId, ct);
         if (!statusResult.IsSuccess)
             return (false, $"Could not load step statuses: {statusResult.Error}");
-        var statuses = statusResult.Value;
+        var statuses = statusResult.Value ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var dep in definition.Dependencies)
         {
@@ -91,7 +91,15 @@ public sealed class NicheStepRerunService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Step re-run failed for profile {ProfileId} slug {Slug}", profileId, slug);
-            await profileRepo.UpdateStepStatusAsync(profileId, slug, "error", ct: ct);
+            NicheStepCatalog.BySlug.TryGetValue(slug, out var stepDef);
+            var errorEntry = new NicheAnalysisStepLogEntry(
+                stepDef?.StepNumber ?? 0,
+                slug,
+                stepDef?.Title ?? slug,
+                "error",
+                ex.Message,
+                new Dictionary<string, object?>());
+            await profileRepo.UpdateStepStatusAsync(profileId, slug, "error", errorEntry, ct: ct);
             await PushStepEvent(profileId, userId, slug, "error", $"Step '{slug}' failed: {ex.Message}", ct);
             return (false, ex.Message);
         }
@@ -157,6 +165,12 @@ public sealed class NicheStepRerunService(
     {
         // Always homepage only — see plan constraint
         var data = await pageContentExtractor.ExtractAsync(domain, browser, ct);
+        var persistContent = await profileRepo.ReplacePageContentAsync(
+            profileId,
+            NicheStepRelationalLoader.ToPageContentWrite(domain, data),
+            ct);
+        if (!persistContent.IsSuccess)
+            throw new InvalidOperationException(persistContent.Error ?? "Failed to persist page content.");
         var msg = $"Page content: {data.ServicePhrases.Count} phrase(s), {data.VerticalTopics.Count} section(s).";
         return NicheAnalysisStepLogBuilder.PageContent(5, data, msg);
     }
@@ -171,9 +185,27 @@ public sealed class NicheStepRerunService(
         var patternUrls = sitemap.SampleUrls.Concat(crawlUrls).Distinct().ToList();
         var urlPatterns = urlPatternExtractor.Extract(patternUrls, domain);
 
-        // Persist updated URL list
-        await profileRepo.UpdateCrawledUrlsAsync(profileId,
-            JsonSerializer.Serialize(crawlUrls), ct);
+        var discoveredUrls = await profileRepo.GetDiscoveredUrlsAsync(profileId, ct);
+        if (!discoveredUrls.IsSuccess)
+            throw new InvalidOperationException(discoveredUrls.Error ?? "Failed to load discovered URL inventory.");
+        var existingInventory = discoveredUrls.Value ?? [];
+        var refreshedInventory = existingInventory
+            .Where(x => !string.Equals(x.SourceType, "crawl", StringComparison.OrdinalIgnoreCase))
+            .Select(x => new NicheProfileDiscoveredUrlWrite(x.Url, x.SourceType, x.LastSeenAt))
+            .Concat(crawlUrls
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(url => new NicheProfileDiscoveredUrlWrite(url, "crawl")))
+            .ToList();
+        var replaceUrls = await profileRepo.ReplaceDiscoveredUrlsAsync(profileId, refreshedInventory, ct);
+        if (!replaceUrls.IsSuccess)
+            throw new InvalidOperationException(replaceUrls.Error ?? "Failed to persist discovered URL inventory.");
+
+        var persistStructure = await profileRepo.ReplaceSiteStructureAsync(
+            profileId,
+            NicheStepRelationalLoader.ToSiteStructureWrite(crawlData, internalLinks, urlPatterns),
+            ct);
+        if (!persistStructure.IsSuccess)
+            throw new InvalidOperationException(persistStructure.Error ?? "Failed to persist site structure.");
 
         var msg = $"Site structure: {crawlData.PagesFetched} page(s) crawled, {internalLinks.Links.Count} link(s).";
         return NicheAnalysisStepLogBuilder.SiteStructure(6, crawlData, internalLinks, urlPatterns, msg);
@@ -198,7 +230,20 @@ public sealed class NicheStepRerunService(
         var patterns  = urlPatternExtractor.Extract(
             sitemap.SampleUrls.Concat(crawlUrls).Distinct().ToList(), domain);
 
-        await profileRepo.UpdateCrawledUrlsAsync(profileId, JsonSerializer.Serialize(crawlUrls), ct);
+        var discoveredUrls = await profileRepo.GetDiscoveredUrlsAsync(profileId, ct);
+        if (!discoveredUrls.IsSuccess)
+            throw new InvalidOperationException(discoveredUrls.Error ?? "Failed to load discovered URL inventory.");
+        var existingInventory = discoveredUrls.Value ?? [];
+        var refreshedInventory = existingInventory
+            .Where(x => !string.Equals(x.SourceType, "crawl", StringComparison.OrdinalIgnoreCase))
+            .Select(x => new NicheProfileDiscoveredUrlWrite(x.Url, x.SourceType, x.LastSeenAt))
+            .Concat(crawlUrls
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(url => new NicheProfileDiscoveredUrlWrite(url, "crawl")))
+            .ToList();
+        var replaceUrls = await profileRepo.ReplaceDiscoveredUrlsAsync(profileId, refreshedInventory, ct);
+        if (!replaceUrls.IsSuccess)
+            throw new InvalidOperationException(replaceUrls.Error ?? "Failed to persist discovered URL inventory.");
 
         var gsc = await gscQueryExtractor.ExtractAsync(userId, profile.ProjectId, ct);
         var pool = TopicCandidatePoolBuilder.Build(schema, sitemap, nav, headings, content, links, patterns);
@@ -210,7 +255,9 @@ public sealed class NicheStepRerunService(
         var silent = GscQueryExtractor.FindSilentPillarSlugs(merged, gsc);
         var gscCount = pool.Count(c => c.Evidence.Any(e => e.Source == "gsc"));
 
-        await persistence.PersistCandidatesAsync(profileId, fused, includeEvidence: false, ct);
+        var persistCandidates = await persistence.PersistCandidatesAsync(profileId, fused, includeEvidence: true, ct);
+        if (!persistCandidates.IsSuccess)
+            throw new InvalidOperationException(persistCandidates.Error ?? "Failed to persist relational topic candidates.");
         await profileRepo.SaveFusionSnapshotAsync(profileId,
             SiteTopicProfileJson.SerializeForPersistence(fused), ct);
 
@@ -371,18 +418,30 @@ public sealed class NicheStepRerunService(
     private async Task<SiteTopicProfile> LoadFusionAsync(Guid profileId)
     {
         var details = await profileRepo.GetAnalysisDetailsRowAsync(profileId, includeFusion: true);
-        if (!details.IsSuccess || details.Value?.FusionSnapshot is null)
+        if (!details.IsSuccess || details.Value is null)
             throw new InvalidOperationException("Fusion snapshot not found — run merging step first.");
-        return SiteTopicProfileJson.Parse(details.Value.FusionSnapshot)
-            ?? throw new InvalidOperationException("Could not parse fusion snapshot.");
+
+        var steps = NicheAnalysisStepLogJson.Parse(details.Value.AnalysisStepLog);
+        var fusion = await NicheStepRunState.LoadMergedFusionSnapshotAsync(
+            profileRepo,
+            profileId,
+            details.Value.FusionSnapshot,
+            steps,
+            CancellationToken.None);
+        return fusion ?? throw new InvalidOperationException("Could not reconstruct topic snapshot.");
     }
 
     private async Task<List<string>> LoadCrawledUrlsAsync(Guid profileId, CancellationToken ct)
     {
-        var profile = await profileRepo.GetByIdAsync(profileId, ct);
-        var json = profile.Value?.CrawledUrlsJson;
-        if (string.IsNullOrWhiteSpace(json)) return [];
-        return JsonSerializer.Deserialize<List<string>>(json, JsonOpts) ?? [];
+        var urls = await profileRepo.GetDiscoveredUrlsAsync(profileId, ct);
+        if (!urls.IsSuccess)
+            return [];
+
+        return (urls.Value ?? [])
+            .Where(x => string.Equals(x.SourceType, "crawl", StringComparison.OrdinalIgnoreCase))
+            .Select(x => x.Url)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private async Task<string> GetLocationAsync(Guid projectId, CancellationToken ct)

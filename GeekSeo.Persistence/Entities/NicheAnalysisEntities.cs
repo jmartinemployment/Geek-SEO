@@ -52,9 +52,104 @@ public sealed class NicheProfile
     [ValidateNever]
     public ICollection<NicheTopicCandidate> TopicCandidates { get; set; } = [];
     [ValidateNever]
+    public ICollection<NicheProfileStepRun> StepRuns { get; set; } = [];
+    [ValidateNever]
+    public ICollection<NicheProfileSchemaSignal> SchemaSignals { get; set; } = [];
+    [ValidateNever]
+    public ICollection<NicheProfileDiscoveredUrl> DiscoveredUrls { get; set; } = [];
+    [ValidateNever]
+    public ICollection<NicheProfileNavigationLink> NavigationLinks { get; set; } = [];
+    [ValidateNever]
+    public ICollection<NicheProfileHeading> Headings { get; set; } = [];
+    [ValidateNever]
+    public ICollection<NicheProfilePageContentItem> PageContentItems { get; set; } = [];
+    [ValidateNever]
+    public NicheProfilePageContentMeta? PageContentMeta { get; set; }
+    [ValidateNever]
+    public ICollection<NicheProfileSitePage> SitePages { get; set; } = [];
+    [ValidateNever]
+    public ICollection<NicheProfileSitePageLink> SitePageLinks { get; set; } = [];
+    [ValidateNever]
+    public ICollection<NicheProfileUrlPatternTopic> UrlPatternTopics { get; set; } = [];
+    [ValidateNever]
+    public NicheProfileSiteCrawlMeta? SiteCrawlMeta { get; set; }
+    [ValidateNever]
     public ICollection<NicheCompetitor> Competitors { get; set; } = [];
     [ValidateNever]
     public ICollection<NicheEntity> Entities { get; set; } = [];
+}
+
+public sealed class NicheProfileStepRun
+{
+    public Guid Id { get; set; }
+    public Guid NicheProfileId { get; set; }
+    public int StepNumber { get; set; }
+    public string StepSlug { get; set; } = string.Empty;
+    public string Status { get; set; } = "pending";
+    public DateTimeOffset? StartedAt { get; set; }
+    public DateTimeOffset? HeartbeatAt { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
+    public string? ErrorMessage { get; set; }
+    public int RetryCount { get; set; }
+    public int InputVersion { get; set; } = 1;
+    public int OutputVersion { get; set; } = 1;
+    public string? Summary { get; set; }
+
+    [ValidateNever]
+    public NicheProfile? NicheProfile { get; set; }
+}
+
+public sealed class NicheProfileSchemaSignal
+{
+    public Guid Id { get; set; }
+    public Guid NicheProfileId { get; set; }
+    public string SchemaType { get; set; } = string.Empty;
+    public string PropertyName { get; set; } = string.Empty;
+    public string PropertyValue { get; set; } = string.Empty;
+    public string? SourceUrl { get; set; }
+    public int DisplayOrder { get; set; }
+
+    [ValidateNever]
+    public NicheProfile? NicheProfile { get; set; }
+}
+
+public sealed class NicheProfileDiscoveredUrl
+{
+    public Guid Id { get; set; }
+    public Guid NicheProfileId { get; set; }
+    public string Url { get; set; } = string.Empty;
+    public string SourceType { get; set; } = string.Empty;
+    public DateTimeOffset? LastSeenAt { get; set; }
+
+    [ValidateNever]
+    public NicheProfile? NicheProfile { get; set; }
+}
+
+public sealed class NicheProfileNavigationLink
+{
+    public Guid Id { get; set; }
+    public Guid NicheProfileId { get; set; }
+    public string? SourceUrl { get; set; }
+    public string LinkUrl { get; set; } = string.Empty;
+    public string? AnchorText { get; set; }
+    public string? LinkArea { get; set; }
+    public int DisplayOrder { get; set; }
+
+    [ValidateNever]
+    public NicheProfile? NicheProfile { get; set; }
+}
+
+public sealed class NicheProfileHeading
+{
+    public Guid Id { get; set; }
+    public Guid NicheProfileId { get; set; }
+    public string PageUrl { get; set; } = string.Empty;
+    public int HeadingLevel { get; set; }
+    public string HeadingText { get; set; } = string.Empty;
+    public int DisplayOrder { get; set; }
+
+    [ValidateNever]
+    public NicheProfile? NicheProfile { get; set; }
 }
 
 public sealed class NichePillar
@@ -199,4 +294,95 @@ public sealed class NicheTopicCandidate
 
     [ValidateNever]
     public NicheProfile? NicheProfile { get; set; }
+    [ValidateNever]
+    public ICollection<NicheTopicCandidateEvidence> EvidenceRows { get; set; } = [];
+}
+
+public sealed class NicheProfilePageContentItem
+{
+    public Guid Id { get; set; }
+    public Guid NicheProfileId { get; set; }
+    public string PageUrl { get; set; } = string.Empty;
+    public string ItemKind { get; set; } = string.Empty;
+    public string ItemText { get; set; } = string.Empty;
+    public int DisplayOrder { get; set; }
+
+    [ValidateNever]
+    public NicheProfile? NicheProfile { get; set; }
+}
+
+public sealed class NicheProfilePageContentMeta
+{
+    public Guid NicheProfileId { get; set; }
+    public string PageUrl { get; set; } = string.Empty;
+    public int ListItemsScanned { get; set; }
+
+    [ValidateNever]
+    public NicheProfile? NicheProfile { get; set; }
+}
+
+public sealed class NicheProfileSitePage
+{
+    public Guid Id { get; set; }
+    public Guid NicheProfileId { get; set; }
+    public string Url { get; set; } = string.Empty;
+    public string FetchMethod { get; set; } = "http";
+    public string VisibleText { get; set; } = string.Empty;
+    public int WordCount { get; set; }
+    public int DisplayOrder { get; set; }
+
+    [ValidateNever]
+    public NicheProfile? NicheProfile { get; set; }
+}
+
+public sealed class NicheProfileSitePageLink
+{
+    public Guid Id { get; set; }
+    public Guid NicheProfileId { get; set; }
+    public string SourceUrl { get; set; } = string.Empty;
+    public string TargetUrl { get; set; } = string.Empty;
+    public string AnchorText { get; set; } = string.Empty;
+    public bool InferredFromUrlSlug { get; set; }
+    public int DisplayOrder { get; set; }
+
+    [ValidateNever]
+    public NicheProfile? NicheProfile { get; set; }
+}
+
+public sealed class NicheProfileUrlPatternTopic
+{
+    public Guid Id { get; set; }
+    public Guid NicheProfileId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Slug { get; set; } = string.Empty;
+    public string Url { get; set; } = string.Empty;
+    public string PathSegment { get; set; } = string.Empty;
+    public int DisplayOrder { get; set; }
+
+    [ValidateNever]
+    public NicheProfile? NicheProfile { get; set; }
+}
+
+public sealed class NicheProfileSiteCrawlMeta
+{
+    public Guid NicheProfileId { get; set; }
+    public int PagesAttempted { get; set; }
+    public int PagesFetched { get; set; }
+
+    [ValidateNever]
+    public NicheProfile? NicheProfile { get; set; }
+}
+
+public sealed class NicheTopicCandidateEvidence
+{
+    public Guid Id { get; set; }
+    public Guid TopicCandidateId { get; set; }
+    public string EvidenceType { get; set; } = string.Empty;
+    public string? SourceUrl { get; set; }
+    public string? SourceLabel { get; set; }
+    public string EvidenceText { get; set; } = string.Empty;
+    public int DisplayOrder { get; set; }
+
+    [ValidateNever]
+    public NicheTopicCandidate? TopicCandidate { get; set; }
 }

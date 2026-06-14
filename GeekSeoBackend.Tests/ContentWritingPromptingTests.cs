@@ -330,6 +330,23 @@ public sealed class ContentWritingPromptingTests
         public Task<Result<NicheProfile?>> GetLatestByProjectAsync(Guid projectId, CancellationToken ct = default) =>
             Task.FromResult(Result<NicheProfile?>.Success(latestProfile));
         public Task<Result<IReadOnlyList<NicheProfileSummary>>> GetHistoryAsync(Guid projectId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result> UpsertStepRunAsync(Guid profileId, NicheProfileStepRunUpsert stepRun, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result> UpdateStepRunStatusAsync(Guid profileId, string stepSlug, NicheProfileStepRunStatusPatch patch, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result<IReadOnlyList<NicheProfileStepRunRow>>> GetStepRunsAsync(Guid profileId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result> ReplaceSchemaSignalsAsync(Guid profileId, IReadOnlyList<NicheProfileSchemaSignalWrite> signals, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result<IReadOnlyList<NicheProfileSchemaSignalRow>>> GetSchemaSignalsAsync(Guid profileId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result> ReplaceDiscoveredUrlsAsync(Guid profileId, IReadOnlyList<NicheProfileDiscoveredUrlWrite> urls, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result<IReadOnlyList<NicheProfileDiscoveredUrlRow>>> GetDiscoveredUrlsAsync(Guid profileId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result> ReplaceNavigationLinksAsync(Guid profileId, IReadOnlyList<NicheProfileNavigationLinkWrite> links, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result<IReadOnlyList<NicheProfileNavigationLinkRow>>> GetNavigationLinksAsync(Guid profileId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result> ReplaceHeadingsAsync(Guid profileId, IReadOnlyList<NicheProfileHeadingWrite> headings, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result<IReadOnlyList<NicheProfileHeadingRow>>> GetHeadingsAsync(Guid profileId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result> ReplaceTopicCandidateEvidenceAsync(Guid profileId, IReadOnlyList<NicheTopicCandidateEvidenceWrite> evidence, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result<IReadOnlyList<NicheTopicCandidateEvidenceRow>>> GetTopicCandidateEvidenceAsync(Guid profileId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result> ReplacePageContentAsync(Guid profileId, NicheProfilePageContentWrite content, CancellationToken ct = default) => Task.FromResult(Result.Success());
+        public Task<Result<NicheProfilePageContentRow?>> GetPageContentAsync(Guid profileId, CancellationToken ct = default) => Task.FromResult(Result<NicheProfilePageContentRow?>.Success(null));
+        public Task<Result> ReplaceSiteStructureAsync(Guid profileId, NicheProfileSiteStructureWrite structure, CancellationToken ct = default) => Task.FromResult(Result.Success());
+        public Task<Result<NicheProfileSiteStructureRow?>> GetSiteStructureAsync(Guid profileId, CancellationToken ct = default) => Task.FromResult(Result<NicheProfileSiteStructureRow?>.Success(null));
         public Task<Result> UpdateStatusAsync(Guid profileId, string status, string? step = null, int stepNumber = 0, int totalSteps = 0, string? errorMessage = null, NicheAnalysisStepLogEntry? stepLogEntry = null, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Result> UpdateScoresAsync(Guid profileId, decimal authorityScore, int covered, int partial, int gap, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Result> UpdateProfileSummaryAsync(Guid profileId, NicheProfileSummaryPatch summary, CancellationToken ct = default) => throw new NotSupportedException();
@@ -350,7 +367,9 @@ public sealed class ContentWritingPromptingTests
         public Task<Result> UpdateStepStatusAsync(Guid profileId, string slug, string status, NicheAnalysisStepLogEntry? entry = null, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Result> InvalidateDownstreamStepsAsync(Guid profileId, IReadOnlyList<string> downstreamSlugs, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Result> UpdateCrawledUrlsAsync(Guid profileId, string crawledUrlsJson, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<Result<IReadOnlyDictionary<string, string>>> GetStepStatusesAsync(Guid profileId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result<IReadOnlyDictionary<string, string>>> GetStepStatusesAsync(Guid profileId, CancellationToken ct = default) =>
+            Task.FromResult<Result<IReadOnlyDictionary<string, string>>>(
+                Result<IReadOnlyDictionary<string, string>>.Success(new Dictionary<string, string>()));
     }
 
     private sealed class FakeNicheAnalyticsRepository(IReadOnlyList<TopicalGapSummary> gaps) : INicheAnalyticsDapperRepository

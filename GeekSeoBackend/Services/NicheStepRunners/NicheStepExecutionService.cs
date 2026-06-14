@@ -56,10 +56,10 @@ public sealed class NicheStepExecutionService(
         slug switch
         {
             "schema" => RunSchemaAsync(profileId, domain, browser, ct),
-            "site_urls" => RunSiteUrlsAsync(domain, ct),
-            "nav" => RunNavAsync(domain, browser, ct),
-            "headings" => RunHeadingsAsync(domain, browser, ct),
-            "page_content" => RunPageContentAsync(domain, browser, ct),
+            "site_urls" => RunSiteUrlsAsync(profileId, domain, ct),
+            "nav" => RunNavAsync(profileId, domain, browser, ct),
+            "headings" => RunHeadingsAsync(profileId, domain, browser, ct),
+            "page_content" => RunPageContentAsync(profileId, domain, browser, ct),
             "site_structure" => RunSiteStructureAsync(profileId, domain, browser, ct),
             "merging" => RunMergingAsync(profileId, userId, ct),
             "keywords" => RunKeywordsAsync(profileId, domain, ct),
@@ -79,6 +79,12 @@ public sealed class NicheStepExecutionService(
         CancellationToken ct)
     {
         var schemaData = await schemaExtractor.ExtractAsync(domain, browser, ct);
+        var persistSignals = await profileRepo.ReplaceSchemaSignalsAsync(
+            profileId,
+            BuildSchemaSignals(schemaData),
+            ct);
+        if (!persistSignals.IsSuccess)
+            throw new InvalidOperationException(persistSignals.Error ?? "Failed to persist schema signals.");
         var message = schemaData.ServiceNames.Count > 0
             ? $"Found {schemaData.ServiceNames.Count} schema topic(s) in homepage JSON-LD ({schemaData.KnowsAboutTopics.Count} knowsAbout, {schemaData.OfferCatalogTopics.Count} offer catalog / serviceType)."
             : "Schema.org step complete — no service topics on homepage.";
@@ -90,10 +96,20 @@ public sealed class NicheStepExecutionService(
     }
 
     private async Task<NicheAnalysisStepLogEntry> RunSiteUrlsAsync(
+        Guid profileId,
         string domain,
         CancellationToken ct)
     {
         var sitemapData = await sitemapExtractor.ExtractAsync(domain, ct);
+        var persistUrls = await profileRepo.ReplaceDiscoveredUrlsAsync(
+            profileId,
+            sitemapData.SampleUrls
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(url => new NicheProfileDiscoveredUrlWrite(url, "sitemap"))
+                .ToList(),
+            ct);
+        if (!persistUrls.IsSuccess)
+            throw new InvalidOperationException(persistUrls.Error ?? "Failed to persist discovered URLs.");
         var message = sitemapData.TotalUrlsScanned > 0
             ? $"Site URLs: {sitemapData.TotalUrlsScanned} from sitemap."
             : "Site URLs: none found in sitemap.";
@@ -105,6 +121,7 @@ public sealed class NicheStepExecutionService(
     }
 
     private async Task<NicheAnalysisStepLogEntry> RunNavAsync(
+        Guid profileId,
         string domain,
         IBrowser? browser,
         CancellationToken ct)
@@ -112,6 +129,18 @@ public sealed class NicheStepExecutionService(
         var navData = browser is not null
             ? await navMenuExtractor.ExtractAsync(domain, browser, ct)
             : new NavMenuData([], "skipped");
+        var persistLinks = await profileRepo.ReplaceNavigationLinksAsync(
+            profileId,
+            navData.Pillars.Select((pillar, index) => new NicheProfileNavigationLinkWrite(
+                domain,
+                pillar.PageUrl ?? $"{domain.TrimEnd('/')}/{pillar.Slug.TrimStart('/')}",
+                pillar.Name,
+                navData.ExtractMethod,
+                index))
+                .ToList(),
+            ct);
+        if (!persistLinks.IsSuccess)
+            throw new InvalidOperationException(persistLinks.Error ?? "Failed to persist navigation links.");
         var message = navData.ExtractMethod switch
         {
             "skipped" => "Navigation step skipped — browser unavailable.",
@@ -125,11 +154,24 @@ public sealed class NicheStepExecutionService(
     }
 
     private async Task<NicheAnalysisStepLogEntry> RunHeadingsAsync(
+        Guid profileId,
         string domain,
         IBrowser? browser,
         CancellationToken ct)
     {
         var headings = await headingsExtractor.ExtractAsync(domain, browser, ct);
+        var persistHeadings = await profileRepo.ReplaceHeadingsAsync(
+            profileId,
+            headings.Headings
+                .Select((heading, index) => new NicheProfileHeadingWrite(
+                    domain,
+                    heading.Level,
+                    heading.Text,
+                    index))
+                .ToList(),
+            ct);
+        if (!persistHeadings.IsSuccess)
+            throw new InvalidOperationException(persistHeadings.Error ?? "Failed to persist headings.");
         var message =
             headings.Headings.Count > 0 || !string.IsNullOrWhiteSpace(headings.Title)
                 ? $"Headings: {headings.Headings.Count} elements from homepage."
@@ -142,11 +184,18 @@ public sealed class NicheStepExecutionService(
     }
 
     private async Task<NicheAnalysisStepLogEntry> RunPageContentAsync(
+        Guid profileId,
         string domain,
         IBrowser? browser,
         CancellationToken ct)
     {
         var pageContent = await pageContentExtractor.ExtractAsync(domain, browser, ct);
+        var persistContent = await profileRepo.ReplacePageContentAsync(
+            profileId,
+            NicheStepRelationalLoader.ToPageContentWrite(domain, pageContent),
+            ct);
+        if (!persistContent.IsSuccess)
+            throw new InvalidOperationException(persistContent.Error ?? "Failed to persist page content.");
         var parts = new List<string>();
         if (pageContent.VerticalTopics.Count > 0)
             parts.Add($"{pageContent.VerticalTopics.Count} H2/H3 vertical section(s)");
@@ -169,7 +218,7 @@ public sealed class NicheStepExecutionService(
         CancellationToken ct)
     {
         var steps = await LoadStepLogAsync(profileId, ct);
-        var sitemap = NicheStepArtifactStore.GetRequiredArtifact<SitemapData>(steps, "site_urls", "site_urls");
+        var sitemap = await NicheStepRelationalLoader.LoadSitemapAsync(profileRepo, profileId, steps, ct);
         var crawlData = await sitePageCrawler.CrawlAsync(domain, sitemap.SampleUrls, browser, ct);
         var internalLinks = internalLinkExtractor.Extract(crawlData, domain);
         var crawlUrls = crawlData.Pages.Select(p => p.Url).ToList();
@@ -181,7 +230,27 @@ public sealed class NicheStepExecutionService(
         var message =
             $"Site structure: {crawlData.PagesFetched} page(s) crawled, {internalLinks.Links.Count} internal link(s) ({internalLinks.Links.Count(l => !l.InferredFromUrlSlug)} anchor, {internalLinks.Links.Count(l => l.InferredFromUrlSlug)} from URL slug), {urlPatterns.Topics.Count} URL pattern topic(s).";
 
-        await profileRepo.UpdateCrawledUrlsAsync(profileId, System.Text.Json.JsonSerializer.Serialize(crawlUrls), ct);
+        var discoveredUrls = await profileRepo.GetDiscoveredUrlsAsync(profileId, ct);
+        if (!discoveredUrls.IsSuccess)
+            throw new InvalidOperationException(discoveredUrls.Error ?? "Failed to load discovered URL inventory.");
+        var existingInventory = discoveredUrls.Value ?? [];
+        var refreshedInventory = existingInventory
+            .Where(x => !string.Equals(x.SourceType, "crawl", StringComparison.OrdinalIgnoreCase))
+            .Select(x => new NicheProfileDiscoveredUrlWrite(x.Url, x.SourceType, x.LastSeenAt))
+            .Concat(crawlUrls
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(url => new NicheProfileDiscoveredUrlWrite(url, "crawl")))
+            .ToList();
+        var persistInventory = await profileRepo.ReplaceDiscoveredUrlsAsync(profileId, refreshedInventory, ct);
+        if (!persistInventory.IsSuccess)
+            throw new InvalidOperationException(persistInventory.Error ?? "Failed to persist discovered URL inventory.");
+
+        var persistStructure = await profileRepo.ReplaceSiteStructureAsync(
+            profileId,
+            NicheStepRelationalLoader.ToSiteStructureWrite(crawlData, internalLinks, urlPatterns),
+            ct);
+        if (!persistStructure.IsSuccess)
+            throw new InvalidOperationException(persistStructure.Error ?? "Failed to persist site structure.");
 
         return NicheStepArtifactStore.WithArtifact(
             NicheAnalysisStepLogBuilder.SiteStructure(6, crawlData, internalLinks, urlPatterns, message),
@@ -196,35 +265,32 @@ public sealed class NicheStepExecutionService(
     {
         var profile = await LoadProfileAsync(profileId, ct);
         var steps = await LoadStepLogAsync(profileId, ct);
-        var schema = NicheStepArtifactStore.GetRequiredArtifact<SchemaOrgData>(steps, "schema", "schema");
-        var sitemap = NicheStepArtifactStore.GetRequiredArtifact<SitemapData>(steps, "site_urls", "site_urls");
-        var nav = NicheStepArtifactStore.GetRequiredArtifact<NavMenuData>(steps, "nav", "nav");
-        var headings = NicheStepArtifactStore.GetRequiredArtifact<HomepageHeadings>(steps, "headings", "headings");
-        var pageContent = NicheStepArtifactStore.GetRequiredArtifact<PageContentData>(steps, "page_content", "page_content");
-        var structure = NicheStepArtifactStore.GetRequiredArtifact<NicheStepArtifactStore.SiteStructureArtifact>(
+        var inputs = await NicheStepRelationalLoader.LoadMergingInputsAsync(
+            profileRepo,
+            profileId,
+            profile.Domain,
             steps,
-            "site_structure",
-            "site_structure");
+            ct);
 
         var gscOverlay = await gscQueryExtractor.ExtractAsync(userId, profile.ProjectId, ct);
         var candidatePool = TopicCandidatePoolBuilder.Build(
-            schema,
-            sitemap,
-            nav,
-            headings,
-            pageContent,
-            structure.InternalLinks,
-            structure.UrlPatterns);
+            inputs.Schema,
+            inputs.Sitemap,
+            inputs.Nav,
+            inputs.Headings,
+            inputs.PageContent,
+            inputs.Structure.InternalLinks,
+            inputs.Structure.UrlPatterns);
         candidatePool = GscQueryExtractor.ApplyToPool(candidatePool, gscOverlay);
-        var fused = pillarSelector.Select(candidatePool, schema.AreaServed.ToList());
-        fused = NormalizedTopicalityCalculator.Apply(fused, structure.Crawl, structure.UrlPatterns);
+        var fused = pillarSelector.Select(candidatePool, inputs.Schema.AreaServed.ToList());
+        fused = NormalizedTopicalityCalculator.Apply(fused, inputs.Structure.Crawl, inputs.Structure.UrlPatterns);
         var mergeResult = pillarSelector.ToPillarMergeResult(fused);
         var merged = mergeResult.Selected;
         var silentGscSlugs = GscQueryExtractor.FindSilentPillarSlugs(merged, gscOverlay);
         var gscMatchedCount = CountBySource(fused.AllCandidates, "gsc");
         var mergeMessage = BuildMergeMessage(mergeResult, fused, gscOverlay, gscMatchedCount, silentGscSlugs);
 
-        var candidatePersist = await persistence.PersistCandidatesAsync(profileId, fused, includeEvidence: false, ct);
+        var candidatePersist = await persistence.PersistCandidatesAsync(profileId, fused, includeEvidence: true, ct);
         if (!candidatePersist.IsSuccess)
             throw new InvalidOperationException(candidatePersist.Error ?? "Failed to persist topic candidates.");
 
@@ -367,9 +433,15 @@ public sealed class NicheStepExecutionService(
         CancellationToken ct)
     {
         var fused = await LoadFusionAsync(profileId, ct);
+        var profile = await LoadProfileAsync(profileId, ct);
         var steps = await LoadStepLogAsync(profileId, ct);
-        var schema = NicheStepArtifactStore.GetRequiredArtifact<SchemaOrgData>(steps, "schema", "schema");
-        var headings = NicheStepArtifactStore.GetRequiredArtifact<HomepageHeadings>(steps, "headings", "headings");
+        var schema = await NicheStepRelationalLoader.LoadSchemaAsync(profileRepo, profileId, steps, ct);
+        var headings = await NicheStepRelationalLoader.LoadHeadingsAsync(
+            profileRepo,
+            profileId,
+            profile.Domain,
+            steps,
+            ct);
         var pillars = fused.SelectedPillars
             .Select(PillarSelector.ToDiscoveredPillar)
             .Select((p, index) => new NichePillar
@@ -401,13 +473,11 @@ public sealed class NicheStepExecutionService(
         CancellationToken ct)
     {
         var fused = await LoadFusionAsync(profileId, ct);
+        var profile = await LoadProfileAsync(profileId, ct);
         var steps = await LoadStepLogAsync(profileId, ct);
-        var schema = NicheStepArtifactStore.GetRequiredArtifact<SchemaOrgData>(steps, "schema", "schema");
-        var sitemap = NicheStepArtifactStore.GetRequiredArtifact<SitemapData>(steps, "site_urls", "site_urls");
-        var structure = NicheStepArtifactStore.GetRequiredArtifact<NicheStepArtifactStore.SiteStructureArtifact>(
-            steps,
-            "site_structure",
-            "site_structure");
+        var schema = await NicheStepRelationalLoader.LoadSchemaAsync(profileRepo, profileId, steps, ct);
+        var sitemap = await NicheStepRelationalLoader.LoadSitemapAsync(profileRepo, profileId, steps, ct);
+        var structure = await NicheStepRelationalLoader.LoadSiteStructureAsync(profileRepo, profileId, steps, ct);
         var merged = fused.SelectedPillars.Select(PillarSelector.ToDiscoveredPillar).ToList();
 
         var localGeo = LocalGapGenerator.Analyze(
@@ -441,11 +511,8 @@ public sealed class NicheStepExecutionService(
     {
         var fused = await LoadFusionAsync(profileId, ct);
         var steps = await LoadStepLogAsync(profileId, ct);
-        var sitemap = NicheStepArtifactStore.GetRequiredArtifact<SitemapData>(steps, "site_urls", "site_urls");
-        var structure = NicheStepArtifactStore.GetRequiredArtifact<NicheStepArtifactStore.SiteStructureArtifact>(
-            steps,
-            "site_structure",
-            "site_structure");
+        var sitemap = await NicheStepRelationalLoader.LoadSitemapAsync(profileRepo, profileId, steps, ct);
+        var structure = await NicheStepRelationalLoader.LoadSiteStructureAsync(profileRepo, profileId, steps, ct);
         var merged = fused.SelectedPillars.Select(PillarSelector.ToDiscoveredPillar).ToList();
         var keywordArtifact = NicheStepArtifactStore.TryGetArtifact<KeywordArtifact>(steps, "keywords", "keywords");
         var serpArtifact = NicheStepArtifactStore.TryGetArtifact<SerpValidationArtifact>(steps, "serp_validation", "serp_validation");
@@ -521,10 +588,11 @@ public sealed class NicheStepExecutionService(
         var profile = await LoadProfileAsync(profileId, ct);
         var fused = await LoadFusionAsync(profileId, ct);
         var steps = await LoadStepLogAsync(profileId, ct);
-        var structure = NicheStepArtifactStore.TryGetArtifact<NicheStepArtifactStore.SiteStructureArtifact>(
+        var structure = await NicheStepRelationalLoader.TryLoadSiteStructureAsync(
+            profileRepo,
+            profileId,
             steps,
-            "site_structure",
-            "site_structure");
+            ct);
         var serpArtifact = NicheStepArtifactStore.TryGetArtifact<SerpValidationArtifact>(
             steps,
             "serp_validation",
@@ -637,7 +705,12 @@ public sealed class NicheStepExecutionService(
             throw new InvalidOperationException("Fusion snapshot not found — run merging first.");
 
         var steps = NicheAnalysisStepLogJson.Parse(result.Value.AnalysisStepLog);
-        var fusion = NicheStepRunState.ResolveMergedFusionSnapshot(result.Value.FusionSnapshot, steps);
+        var fusion = await NicheStepRunState.LoadMergedFusionSnapshotAsync(
+            profileRepo,
+            profileId,
+            result.Value.FusionSnapshot,
+            steps,
+            ct);
         return fusion ?? throw new InvalidOperationException("Fusion snapshot is malformed.");
     }
 
@@ -911,6 +984,30 @@ public sealed class NicheStepExecutionService(
 
     private static int CountBySource(IReadOnlyList<TopicCandidate> pool, string source) =>
         pool.Count(c => c.Evidence.Any(e => e.Source.Equals(source, StringComparison.OrdinalIgnoreCase)));
+
+    private static List<NicheProfileSchemaSignalWrite> BuildSchemaSignals(SchemaOrgData schemaData)
+    {
+        var signals = new List<NicheProfileSchemaSignalWrite>();
+        var order = 0;
+
+        signals.AddRange(schemaData.ServiceNames.Select(value =>
+            new NicheProfileSchemaSignalWrite("service", "name", value, null, order++)));
+        signals.AddRange(schemaData.KnowsAboutTopics.Select(value =>
+            new NicheProfileSchemaSignalWrite("thing", "knowsAbout", value, null, order++)));
+        signals.AddRange(schemaData.OfferCatalogTopics.Select(value =>
+            new NicheProfileSchemaSignalWrite("offer_catalog", "serviceType", value, null, order++)));
+        signals.AddRange(schemaData.AreaServed.Select(value =>
+            new NicheProfileSchemaSignalWrite("organization", "areaServed", value, null, order++)));
+        signals.AddRange(schemaData.SameAsUrls.Select(value =>
+            new NicheProfileSchemaSignalWrite("organization", "sameAs", value, value, order++)));
+
+        if (!string.IsNullOrWhiteSpace(schemaData.Description))
+            signals.Add(new NicheProfileSchemaSignalWrite("organization", "description", schemaData.Description, null, order++));
+        if (!string.IsNullOrWhiteSpace(schemaData.BrandName))
+            signals.Add(new NicheProfileSchemaSignalWrite("organization", "brandName", schemaData.BrandName, null, order++));
+
+        return signals;
+    }
 
     private static string[] SampleExclusionReasons(SiteTopicProfile fused) =>
         fused.ExclusionReasons

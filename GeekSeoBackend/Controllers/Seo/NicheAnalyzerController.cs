@@ -72,8 +72,15 @@ public sealed class NicheAnalyzerController(
             if (row.Status is "complete")
             {
                 var fusionResult = await profileRepo.GetAnalysisDetailsRowAsync(profileId, includeFusion: true, ct);
-                if (fusionResult.IsSuccess && fusionResult.Value?.FusionSnapshot is not null)
-                    fusion = SiteTopicProfileJson.Parse(fusionResult.Value.FusionSnapshot);
+                if (fusionResult.IsSuccess && fusionResult.Value is not null)
+                {
+                    fusion = await NicheStepRunState.LoadMergedFusionSnapshotAsync(
+                        profileRepo,
+                        profileId,
+                        fusionResult.Value.FusionSnapshot,
+                        steps,
+                        ct);
+                }
             }
 
             return Ok(new NicheAnalysisDetails(row.AnalysisStepLogVersion, steps, fusion, NicheStepCatalog.ToDtos()));
@@ -114,7 +121,27 @@ public sealed class NicheAnalyzerController(
                 ? p.AnalysisStepNumber
                 : p.Status switch { "complete" => 14, _ => 0 };
             var totalSteps = p.AnalysisTotalSteps > 0 ? p.AnalysisTotalSteps : 14;
-            var stepStatuses = ParseStepStatuses(p.StepStatusesJson);
+            var stepStatusesResult = await profileRepo.GetStepStatusesAsync(profileId, ct);
+            IReadOnlyDictionary<string, string>? stepStatuses = stepStatusesResult.IsSuccess
+                && stepStatusesResult.Value is { Count: > 0 }
+                ? stepStatusesResult.Value
+                : null;
+
+            IReadOnlyDictionary<string, string>? stepSummaries = null;
+            IReadOnlyDictionary<string, string>? stepErrors = null;
+            var stepRunsResult = await profileRepo.GetStepRunsAsync(profileId, ct);
+            if (stepRunsResult.IsSuccess && stepRunsResult.Value is { Count: > 0 } runs)
+            {
+                stepSummaries = runs
+                    .Where(r => !string.IsNullOrWhiteSpace(r.Summary))
+                    .ToDictionary(r => r.StepSlug, r => r.Summary!, StringComparer.OrdinalIgnoreCase);
+                stepErrors = runs
+                    .Where(r =>
+                        string.Equals(r.Status, "error", StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrWhiteSpace(r.ErrorMessage))
+                    .ToDictionary(r => r.StepSlug, r => r.ErrorMessage!, StringComparer.OrdinalIgnoreCase);
+            }
+
             return Ok(new NicheAnalysisStatus(
                 p.Id,
                 p.Status,
@@ -127,7 +154,9 @@ public sealed class NicheAnalyzerController(
                 p.StructureStatus,
                 p.EnrichmentStatus,
                 p.PersistStage,
-                stepStatuses));
+                stepStatuses,
+                stepSummaries,
+                stepErrors));
         }
         catch (InvalidOperationException ex)
         {
@@ -138,13 +167,6 @@ public sealed class NicheAnalyzerController(
             logger.LogWarning(ex, "Transient error fetching niche status for profile {ProfileId}", profileId);
             return StatusCode(503, new { error = "Status temporarily unavailable" });
         }
-    }
-
-    private static IReadOnlyDictionary<string, string>? ParseStepStatuses(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json) || json == "{}") return null;
-        try { return System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(json); }
-        catch { return null; }
     }
 
     [HttpGet("{profileId:guid}")]
@@ -187,39 +209,7 @@ public sealed class NicheAnalyzerController(
             var result = await profileRepo.GetTopicCandidatesAsync(profileId, page, pageSize, selectedOnly, ct);
             if (result.IsSuccess)
                 return Ok(result.Value);
-
-            var profile = await profileRepo.GetByIdAsync(profileId, ct);
-            if (!profile.IsSuccess || profile.Value is null)
-                return NotFound();
-
-            var fusion = SiteTopicProfileJson.Parse(profile.Value.FusionSnapshot);
-            if (fusion is null)
-                return Ok(new NicheTopicCandidateListResult([], 0, page, pageSize));
-
-            var items = fusion.AllCandidates
-                .Select((c, i) => new NicheTopicCandidatePage(
-                    Guid.Empty,
-                    profileId,
-                    c.Slug,
-                    c.Name,
-                    c.Confidence,
-                    fusion.SelectedPillars.Any(s => s.Slug.Equals(c.Slug, StringComparison.OrdinalIgnoreCase)),
-                    fusion.ExclusionReasons.GetValueOrDefault(c.Slug),
-                    c.DedicatedPageUrl,
-                    c.InternalLinkCount,
-                    c.ContentDepthScore,
-                    i,
-                    c.Evidence.ToList()))
-                .ToList();
-
-            if (selectedOnly == true)
-                items = items.Where(i => i.IsSelected).ToList();
-            else if (selectedOnly == false)
-                items = items.Where(i => !i.IsSelected).ToList();
-
-            var total = items.Count;
-            var paged = items.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-            return Ok(new NicheTopicCandidateListResult(paged, total, page, pageSize));
+            return StatusCode(503, new { error = result.Error ?? "Topic candidates temporarily unavailable" });
         }
         catch (InvalidOperationException ex)
         {

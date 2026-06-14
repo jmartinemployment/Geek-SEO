@@ -53,6 +53,18 @@ public partial class SeoDbContext : DbContext
     public DbSet<NicheEntity> NicheEntities => Set<NicheEntity>();
     public DbSet<NichePillarPage> NichePillarPages => Set<NichePillarPage>();
     public DbSet<NicheTopicCandidate> NicheTopicCandidates => Set<NicheTopicCandidate>();
+    public DbSet<NicheProfileStepRun> NicheProfileStepRuns => Set<NicheProfileStepRun>();
+    public DbSet<NicheProfileSchemaSignal> NicheProfileSchemaSignals => Set<NicheProfileSchemaSignal>();
+    public DbSet<NicheProfileDiscoveredUrl> NicheProfileDiscoveredUrls => Set<NicheProfileDiscoveredUrl>();
+    public DbSet<NicheProfileNavigationLink> NicheProfileNavigationLinks => Set<NicheProfileNavigationLink>();
+    public DbSet<NicheProfileHeading> NicheProfileHeadings => Set<NicheProfileHeading>();
+    public DbSet<NicheProfilePageContentItem> NicheProfilePageContentItems => Set<NicheProfilePageContentItem>();
+    public DbSet<NicheProfilePageContentMeta> NicheProfilePageContentMetaRows => Set<NicheProfilePageContentMeta>();
+    public DbSet<NicheProfileSitePage> NicheProfileSitePages => Set<NicheProfileSitePage>();
+    public DbSet<NicheProfileSitePageLink> NicheProfileSitePageLinks => Set<NicheProfileSitePageLink>();
+    public DbSet<NicheProfileUrlPatternTopic> NicheProfileUrlPatternTopics => Set<NicheProfileUrlPatternTopic>();
+    public DbSet<NicheProfileSiteCrawlMeta> NicheProfileSiteCrawlMetaRows => Set<NicheProfileSiteCrawlMeta>();
+    public DbSet<NicheTopicCandidateEvidence> NicheTopicCandidateEvidenceRows => Set<NicheTopicCandidateEvidence>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
