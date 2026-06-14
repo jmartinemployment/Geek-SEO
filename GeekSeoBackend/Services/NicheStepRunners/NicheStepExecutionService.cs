@@ -220,8 +220,8 @@ public sealed class NicheStepExecutionService(
         IBrowser? browser,
         CancellationToken ct)
     {
-        var steps = await LoadStepLogAsync(profileId, ct);
-        var sitemap = await NicheStepRelationalLoader.LoadSitemapAsync(profileRepo, profileId, steps, ct);
+        logger.LogInformation("Site crawl starting for profile {ProfileId} domain {Domain}", profileId, domain);
+        var sitemap = await NicheStepRelationalLoader.LoadSitemapAsync(profileRepo, profileId, [], ct);
         var crawlData = await sitePageCrawler.CrawlAsync(
             domain,
             sitemap.SampleUrls,
@@ -231,6 +231,10 @@ public sealed class NicheStepExecutionService(
         var crawlUrls = crawlData.Pages.Select(p => p.Url).ToList();
         var message =
             $"Site crawl: {crawlData.PagesFetched} page(s) fetched from {crawlData.PagesAttempted} attempt(s).";
+        logger.LogInformation(
+            "Site crawl extracted for profile {ProfileId}: {Message}",
+            profileId,
+            message);
 
         await PersistCrawlDiscoveredUrlsAsync(profileId, crawlUrls, ct);
         await PersistSiteStructureAsync(
@@ -239,6 +243,7 @@ public sealed class NicheStepExecutionService(
             NicheStepRelationalLoader.EmptyInternalLinks(crawlData.PagesFetched),
             NicheStepRelationalLoader.EmptyUrlPatterns(),
             ct);
+        logger.LogInformation("Site crawl persisted for profile {ProfileId}", profileId);
 
         var artifact = new NicheStepArtifactStore.SiteStructureArtifact(
             crawlData,
@@ -257,8 +262,7 @@ public sealed class NicheStepExecutionService(
         string domain,
         CancellationToken ct)
     {
-        var steps = await LoadStepLogAsync(profileId, ct);
-        var structure = await NicheStepRelationalLoader.LoadSiteCrawlAsync(profileRepo, profileId, steps, ct);
+        var structure = await NicheStepRelationalLoader.LoadSiteCrawlAsync(profileRepo, profileId, [], ct);
         var internalLinks = internalLinkExtractor.Extract(structure.Crawl, domain);
         var message =
             $"Internal links: {internalLinks.Links.Count} link(s) ({internalLinks.Links.Count(l => !l.InferredFromUrlSlug)} anchor, {internalLinks.Links.Count(l => l.InferredFromUrlSlug)} from URL slug).";
@@ -283,9 +287,8 @@ public sealed class NicheStepExecutionService(
         string domain,
         CancellationToken ct)
     {
-        var steps = await LoadStepLogAsync(profileId, ct);
-        var sitemap = await NicheStepRelationalLoader.LoadSitemapAsync(profileRepo, profileId, steps, ct);
-        var structure = await NicheStepRelationalLoader.LoadSiteStructureAsync(profileRepo, profileId, steps, ct);
+        var sitemap = await NicheStepRelationalLoader.LoadSitemapAsync(profileRepo, profileId, [], ct);
+        var structure = await NicheStepRelationalLoader.LoadSiteStructureAsync(profileRepo, profileId, [], ct);
         var patternUrls = sitemap.SampleUrls
             .Concat(structure.CrawledUrls)
             .Distinct(StringComparer.OrdinalIgnoreCase)

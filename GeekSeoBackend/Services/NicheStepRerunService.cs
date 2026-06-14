@@ -102,6 +102,10 @@ public sealed class NicheStepRerunService(
             var entry = await ExecuteStepAsync(profileId, userId, slug, browser, ct);
 
             var overallStatus = slug == "complete" ? "complete" : "processing";
+            // Mark the step complete before heavy profile/step-log PATCHes so status polls and SignalR unblock.
+            await profileRepo.UpdateStepStatusAsync(profileId, slug, "complete", ct: ct);
+            await PushStepEvent(profileId, userId, slug, definition, overallStatus, entry.Summary, ct);
+
             await profileRepo.UpdateStatusAsync(
                 profileId,
                 overallStatus,
@@ -126,7 +130,6 @@ public sealed class NicheStepRerunService(
             await profileRepo.UpdateStepStatusAsync(profileId, slug, "complete", entry, ct);
             await NicheStepRunStatusWriter.SyncAsync(
                 profileRepo, logger, profileId, slug, "complete", definition, entry, ct: ct);
-            await PushStepEvent(profileId, userId, slug, definition, overallStatus, entry.Summary, ct);
             return (true, null);
         }
         catch (Exception ex)
