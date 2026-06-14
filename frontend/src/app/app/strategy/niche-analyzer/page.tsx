@@ -208,8 +208,8 @@ export default function NicheAnalyzerPage() {
           raw.includes('[0].NicheProfile');
         setError(
           isPillarSaveValidation
-            ? 'The last run failed while saving pillars (a server deploy fix is required). Reset analysis after GeekRepository and GeekSeoBackend have redeployed.'
-            : raw || 'The last analysis failed. Reset analysis to try again.',
+            ? 'The last run failed while saving pillars (a server deploy fix is required). Re-run the failed step after GeekRepository and GeekSeoBackend have redeployed.'
+            : raw || 'The last analysis failed. Re-run the failed step to try again.',
         );
 
         const history = await getNicheHistory(projectId, accessToken);
@@ -356,18 +356,16 @@ export default function NicheAnalyzerPage() {
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
-              <button
-                onClick={handleAnalyze}
-                disabled={!projectId || anyStepRunning || startingAnalysis}
-                title={anyStepRunning ? 'A step is currently running — wait for it to complete' : undefined}
-                className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {startingAnalysis
-                  ? 'Preparing…'
-                  : showWorkflow || profile
-                    ? 'Reset analysis'
-                    : 'Start analysis'}
-              </button>
+              {!showWorkflow && !profile ? (
+                <button
+                  onClick={handleAnalyze}
+                  disabled={!projectId || anyStepRunning || startingAnalysis}
+                  title={anyStepRunning ? 'A step is currently running — wait for it to complete' : undefined}
+                  className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {startingAnalysis ? 'Preparing…' : 'Start analysis'}
+                </button>
+              ) : null}
             </>
           ) : null}
         </div>
