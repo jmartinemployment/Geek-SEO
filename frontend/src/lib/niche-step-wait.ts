@@ -9,6 +9,16 @@ const DEV_USER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID;
 
 const TERMINAL_STEP_STATUSES = new Set<StepStatus>(['complete', 'error', 'skipped']);
 
+function normalizeId(id: string | undefined): string | undefined {
+  return id?.toLowerCase();
+}
+
+function idsMatch(a: string | undefined, b: string): boolean {
+  const left = normalizeId(a);
+  const right = normalizeId(b);
+  return !left || left === right;
+}
+
 type AnalysisProgressMsg = {
   profileId?: string;
   ProfileId?: string;
@@ -144,6 +154,13 @@ export async function waitForNicheStepViaSignalR(
       })();
     }, timeoutMs);
 
+    // Fast steps can finish before the hub connects; reconcile a few times during the wait.
+    for (const delayMs of [1_000, 3_000, 8_000]) {
+      setTimeout(() => {
+        if (!settled) void settleFromDb();
+      }, delayMs);
+    }
+
     const onTerminalSignal = () => {
       void (async () => {
         const done = await settleFromDb();
@@ -170,7 +187,7 @@ export async function waitForNicheStepViaSignalR(
         conn.on('AnalysisProgress', (raw: AnalysisProgressMsg) => {
           const pid = msgProfileId(raw);
           const step = msgStep(raw);
-          if (pid && pid !== profileId) return;
+          if (!idsMatch(pid, profileId)) return;
           if (step && step !== slug) return;
 
           const detail = msgMessage(raw);
@@ -212,6 +229,7 @@ export async function waitForNicheStepViaSignalR(
           return;
         }
         await conn.invoke('JoinGroup', `niche-${profileId}`);
+        if (!settled) void settleFromDb();
       } catch (e) {
         const done = await settleFromDb();
         if (!done) {

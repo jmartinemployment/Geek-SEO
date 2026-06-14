@@ -29,6 +29,8 @@ type Props = {
 };
 
 import { waitForNicheStepViaSignalR } from '@/lib/niche-step-wait';
+
+const TERMINAL_STEP_STATUSES = new Set<StepStatus>(['complete', 'error', 'skipped']);
   id: string;
   title: string;
   subtitle: string;
@@ -131,14 +133,19 @@ function StepRow({
   const [rerunError, setRerunError] = useState<string | null>(null);
 
   const isolatedStatus = stepStatuses?.[stepDefinition.slug];
-  const displayStatus: StepStatus | undefined = optimisticRunning || rerunning
-    ? 'running'
-    : isolatedStatus;
+  const isolatedTerminal =
+    isolatedStatus !== undefined && TERMINAL_STEP_STATUSES.has(isolatedStatus);
+  const displayStatus: StepStatus | undefined = isolatedTerminal
+    ? isolatedStatus
+    : optimisticRunning || rerunning
+      ? 'running'
+      : isolatedStatus;
   const deps = stepDefinition?.dependencies ?? [];
   const depsKnown = deps.length === 0 || Boolean(stepStatuses);
   const depsComplete = deps.every((dep) => stepStatuses?.[dep] === 'complete');
   const canRun = Boolean(stepStatuses);
-  const rerunDisabled = !depsKnown || !depsComplete || anyStepRunning || rerunning;
+  const rerunDisabled =
+    !depsKnown || !depsComplete || anyStepRunning || (rerunning && !isolatedTerminal);
   const visibleStep = showOutputs ? step : undefined;
   const persistedError = stepErrors?.[stepDefinition.slug];
   const persistedSummary = stepSummaries?.[stepDefinition.slug];
@@ -167,7 +174,7 @@ function StepRow({
           ? 'Previous run failed. Run again after correcting inputs.'
           : 'Ready to execute.');
 
-  const buttonLabel = rerunning || optimisticRunning
+  const buttonLabel = !isolatedTerminal && (rerunning || optimisticRunning)
     ? 'Running…'
     : displayStatus === 'running'
       ? 'Running…'
@@ -189,7 +196,13 @@ function StepRow({
         slug: stepDefinition.slug,
         accessToken,
         onProgress: setLiveProgress,
-        onStatus: (status) => onStepStatusChange?.(status),
+        onStatus: (status) => {
+          onStepStatusChange?.(status);
+          const stepState = status.stepStatuses?.[stepDefinition.slug];
+          if (stepState && TERMINAL_STEP_STATUSES.has(stepState)) {
+            setOptimisticRunning(false);
+          }
+        },
       });
       await onStepRerun?.();
     } catch (e) {
