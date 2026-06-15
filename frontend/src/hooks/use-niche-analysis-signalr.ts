@@ -68,6 +68,7 @@ export function useNicheAnalysisSignalR(
   useEffect(() => {
     if (!profileId || !accessToken) return;
 
+    const activeProfileId = profileId;
     let disposed = false;
     let started = false;
     let hydrateTimer: ReturnType<typeof setTimeout> | null = null;
@@ -75,7 +76,7 @@ export function useNicheAnalysisSignalR(
 
     async function hydrate(): Promise<NicheAnalysisStatus | null> {
       try {
-        const status = await getNicheAnalysisStatus(profileId, accessToken);
+        const status = await getNicheAnalysisStatus(activeProfileId, accessToken);
         if (!disposed) onStatusRef.current(status);
         return status;
       } catch {
@@ -109,14 +110,14 @@ export function useNicheAnalysisSignalR(
           .build();
 
         conn.on('AnalysisProgress', (raw: AnalysisProgressMsg) => {
-          if (!idsMatch(msgProfileId(raw), profileId)) return;
+          if (!idsMatch(msgProfileId(raw), activeProfileId)) return;
 
           const status = msgStatus(raw)?.toLowerCase();
           if (status === 'complete' && (raw.step ?? raw.Step) === 'complete') {
             void (async () => {
               const hydrated = await hydrate();
               if (!disposed && hydrated?.status === 'complete') {
-                onCompleteRef.current?.(profileId);
+                onCompleteRef.current?.(activeProfileId);
               }
             })();
             return;
@@ -136,7 +137,7 @@ export function useNicheAnalysisSignalR(
           void conn.stop().catch(() => {});
           return;
         }
-        await conn.invoke('JoinGroup', `niche-${profileId}`);
+        await conn.invoke('JoinGroup', `niche-${activeProfileId}`);
         await hydrate();
       } catch (e) {
         if (!disposed) {

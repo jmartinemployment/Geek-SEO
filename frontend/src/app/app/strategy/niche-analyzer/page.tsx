@@ -35,6 +35,7 @@ import { TopicalGapsPanel } from '@/components/niche-analyzer/TopicalGapsPanel';
 import { AuthorityProgressChart } from '@/components/niche-analyzer/AuthorityProgressChart';
 import { PillarSerpInsightsPanel } from '@/components/niche-analyzer/PillarSerpInsightsPanel';
 import { NicheCompetitorPanel } from '@/components/niche-analyzer/NicheCompetitorPanel';
+import { ContentGuardContextBanner } from '@/components/niche-analyzer/ContentGuardContextBanner';
 
 type Tab = 'pillars' | 'competitors' | 'contentIdeas' | 'progress';
 
