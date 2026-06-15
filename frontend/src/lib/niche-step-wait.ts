@@ -204,32 +204,31 @@ export async function waitForNicheStepViaSignalR(
 
           if (status === 'complete') {
             void (async () => {
+              let base: NicheAnalysisStatus | null = null;
               try {
-                const hydrated = await hydrateUntilTerminal(12);
-                if (hydrated) {
-                  finishResolve(hydrated);
-                  return;
-                }
-
-                const fallback = await hydrate();
-                finishResolve({
-                  ...fallback,
-                  stepStatuses: {
-                    ...(fallback.stepStatuses ?? {}),
-                    [slug]: 'complete',
-                  },
-                  stepSummaries: detail
-                    ? {
-                        ...(fallback.stepSummaries ?? {}),
-                        [slug]: detail,
-                      }
-                    : fallback.stepSummaries,
-                });
-              } catch (e) {
-                finishReject(
-                  e instanceof Error ? e : new Error(`Step "${slug}" failed.`),
-                );
+                base = await hydrate();
+              } catch {
+                // DB may lag; SignalR complete is authoritative for manual step runs.
               }
+
+              finishResolve({
+                ...(base ?? {
+                  profileId,
+                  status: 'processing',
+                  step: slug,
+                  totalSteps: 16,
+                }),
+                stepStatuses: {
+                  ...(base?.stepStatuses ?? {}),
+                  [slug]: 'complete',
+                },
+                stepSummaries: detail
+                  ? {
+                      ...(base?.stepSummaries ?? {}),
+                      [slug]: detail,
+                    }
+                  : base?.stepSummaries,
+              });
             })();
             return;
           }
