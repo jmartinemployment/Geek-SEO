@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   getNicheAnalysisDetails,
-  getNicheAnalysisStatus,
   runNicheStep,
   type NicheAnalysisDetails,
   type NicheAnalysisStatus,
@@ -25,7 +24,6 @@ type Props = {
   projectId?: string;
   accessToken?: string | null;
   defaultOpen?: boolean;
-  pollIntervalMs?: number;
   stepStatuses?: Record<string, StepStatus>;
   anyStepRunning?: boolean;
   stepSummaries?: Record<string, string>;
@@ -344,7 +342,6 @@ export function AnalysisStepBreakdown({
   projectId,
   accessToken,
   defaultOpen = true,
-  pollIntervalMs,
   stepStatuses,
   anyStepRunning,
   stepSummaries,
@@ -356,16 +353,13 @@ export function AnalysisStepBreakdown({
   const [details, setDetails] = useState<NicheAnalysisDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [liveStepStatuses, setLiveStepStatuses] = useState<Record<string, StepStatus> | undefined>();
-  const [liveStepSummaries, setLiveStepSummaries] = useState<Record<string, string> | undefined>();
-  const [liveStepErrors, setLiveStepErrors] = useState<Record<string, string> | undefined>();
 
   useEffect(() => {
     let cancelled = false;
 
-    async function load(showSpinner: boolean) {
-      if (showSpinner) setLoading(true);
-      if (showSpinner) setError(null);
+    async function load() {
+      setLoading(true);
+      setError(null);
       try {
         const data = await getNicheAnalysisDetails(profileId, accessToken);
         if (!cancelled) {
@@ -373,50 +367,30 @@ export function AnalysisStepBreakdown({
           setError(null);
         }
       } catch (e: unknown) {
-        if (!cancelled && showSpinner) {
+        if (!cancelled) {
           setError(e instanceof Error ? e.message : 'Could not load scan breakdown');
         }
       } finally {
-        if (!cancelled && showSpinner) setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
-    async function loadStatuses() {
-      try {
-        const status = await getNicheAnalysisStatus(profileId, accessToken);
-        if (!cancelled && status.stepStatuses) {
-          setLiveStepStatuses(status.stepStatuses);
-        }
-        if (!cancelled && status.stepSummaries) {
-          setLiveStepSummaries(status.stepSummaries);
-        }
-        if (!cancelled && status.stepErrors) {
-          setLiveStepErrors(status.stepErrors);
-        }
-      } catch {
-        // keep last known canonical statuses
-      }
-    }
-
-    void load(true);
-    void loadStatuses();
-
-    if (!pollIntervalMs || pollIntervalMs <= 0) {
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const id = window.setInterval(() => {
-      void load(false);
-      void loadStatuses();
-    }, pollIntervalMs);
+    void load();
 
     return () => {
       cancelled = true;
-      window.clearInterval(id);
     };
-  }, [profileId, accessToken, pollIntervalMs]);
+  }, [profileId, accessToken]);
+
+  async function handleStepRerun() {
+    await onStepRerun?.();
+    try {
+      const data = await getNicheAnalysisDetails(profileId, accessToken);
+      setDetails(data);
+    } catch {
+      // keep last loaded step log
+    }
+  }
 
   const ungroupedSteps = useMemo(() => {
     if (!details) return [];
@@ -426,12 +400,10 @@ export function AnalysisStepBreakdown({
   const stepDefinitions = details?.stepDefinitions ?? [];
   const effectiveStepStatuses = mergeStepStatuses(
     stepStatuses,
-    liveStepStatuses,
     stepStatusesFromLog(details?.steps),
   );
-  const effectiveStepSummaries = { ...(stepSummaries ?? {}), ...(liveStepSummaries ?? {}) };
-  const effectiveStepErrors = { ...(stepErrors ?? {}), ...(liveStepErrors ?? {}) };
-  const showOutputs = pollIntervalMs === undefined;
+  const effectiveStepSummaries = { ...(stepSummaries ?? {}) };
+  const effectiveStepErrors = { ...(stepErrors ?? {}) };
 
   return (
     <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -460,9 +432,7 @@ export function AnalysisStepBreakdown({
           {error ? <p className="text-sm text-amber-700">{error}</p> : null}
           {!loading && details && details.steps.length === 0 && stepDefinitions.length === 0 ? (
             <p className="text-sm text-[var(--color-text-secondary)]">
-              {pollIntervalMs
-                ? 'Step log will appear as each discovery step completes…'
-                : 'No step log for this run. Re-analyze once to capture discovery detail.'}
+              No step log for this run yet. Run the first step to capture discovery detail.
             </p>
           ) : null}
           {details && stepDefinitions.length > 0 ? (
@@ -473,21 +443,16 @@ export function AnalysisStepBreakdown({
                   phase={phase}
                   steps={details.steps}
                   stepDefinitions={stepDefinitions}
-                  defaultExpanded={index < 2 || pollIntervalMs !== undefined}
+                  defaultExpanded={index < 2}
                   stepStatuses={effectiveStepStatuses}
                   anyStepRunning={anyStepRunning}
                   stepSummaries={effectiveStepSummaries}
                   stepErrors={effectiveStepErrors}
-                  showOutputs={showOutputs}
+                  showOutputs
                   profileId={profileId}
                   accessToken={accessToken}
-                  onStepRerun={onStepRerun}
-                  onStepStatusChange={(status) => {
-                    if (status.stepStatuses) setLiveStepStatuses(status.stepStatuses);
-                    if (status.stepSummaries) setLiveStepSummaries(status.stepSummaries);
-                    if (status.stepErrors) setLiveStepErrors(status.stepErrors);
-                    onStepStatusChange?.(status);
-                  }}
+                  onStepRerun={handleStepRerun}
+                  onStepStatusChange={onStepStatusChange}
                 />
               ))}
               {ungroupedSteps.length > 0 ? (
@@ -512,16 +477,11 @@ export function AnalysisStepBreakdown({
                       anyStepRunning={anyStepRunning}
                       stepSummaries={effectiveStepSummaries}
                       stepErrors={effectiveStepErrors}
-                      showOutputs={showOutputs}
+                      showOutputs
                       profileId={profileId}
                       accessToken={accessToken}
-                      onStepRerun={onStepRerun}
-                      onStepStatusChange={(status) => {
-                        if (status.stepStatuses) setLiveStepStatuses(status.stepStatuses);
-                        if (status.stepSummaries) setLiveStepSummaries(status.stepSummaries);
-                        if (status.stepErrors) setLiveStepErrors(status.stepErrors);
-                        onStepStatusChange?.(status);
-                      }}
+                      onStepRerun={handleStepRerun}
+                      onStepStatusChange={onStepStatusChange}
                     />
                   ))}
                 </ol>

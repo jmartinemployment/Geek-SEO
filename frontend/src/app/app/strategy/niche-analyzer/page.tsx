@@ -12,7 +12,6 @@ import {
   getNicheCoverageMatrix,
   getNicheGaps,
   getNicheProgress,
-  getNicheHistory,
   SeoApiError,
   type SeoProject,
   type NicheProfileResult,
@@ -26,6 +25,7 @@ import {
   isAnyNicheStepRunning,
   mergeStepStatuses,
 } from '@/lib/niche-step-status';
+import { useNicheAnalysisSignalR } from '@/hooks/use-niche-analysis-signalr';
 import { AnalysisStepBreakdown } from '@/components/niche-analyzer/AnalysisStepBreakdown';
 import { TopicProfileSection } from '@/components/niche-analyzer/TopicProfileSection';
 import { PillarProvenanceCallout } from '@/components/niche-analyzer/PillarProvenanceCallout';
@@ -146,49 +146,17 @@ export default function NicheAnalyzerPage() {
     [accessToken, projectId, quickWinsOnly, refreshStepStatuses],
   );
 
-  useEffect(() => {
-    if (!authReady || !accessToken || !workflowProfileId) return;
-
-    const activeProfileId = workflowProfileId;
-    let cancelled = false;
-
-    async function poll() {
-      try {
-        const status = await refreshStepStatuses(activeProfileId);
-        if (cancelled || !status) return;
-
-        if (status.status === 'complete') {
-          setWorkflowProfileId(null);
-          await handleAnalysisComplete(activeProfileId);
-          return;
-        }
-
-        if (status.status === 'failed') {
-          setError(status.errorMessage ?? 'A step failed. Fix the issue and retry that step.');
-        }
-      } catch {
-        // keep last known statuses
-      }
-    }
-
-    void poll();
-    const intervalMs = anyStepRunning ? 3_000 : 6_000;
-    const id = window.setInterval(() => {
-      void poll();
-    }, intervalMs);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [
-    accessToken,
-    authReady,
+  useNicheAnalysisSignalR(
     workflowProfileId,
-    anyStepRunning,
-    refreshStepStatuses,
-    handleAnalysisComplete,
-  ]);
+    accessToken,
+    applyAnalysisStatus,
+    {
+      onComplete: (completedProfileId) => {
+        setWorkflowProfileId(null);
+        void handleAnalysisComplete(completedProfileId);
+      },
+    },
+  );
 
   async function resolveProfileWithPillars(p: NicheProfileResult): Promise<NicheProfileResult> {
     const needsFull =
@@ -207,22 +175,18 @@ export default function NicheAnalyzerPage() {
 
       if (p.status === 'failed') {
         const status = await getNicheAnalysisStatus(p.id, accessToken);
-        const raw = status.errorMessage ?? '';
-        const isPillarSaveValidation =
-          raw.includes('NicheProfile field is required') ||
-          raw.includes('[0].NicheProfile');
-        setError(
-          isPillarSaveValidation
-            ? 'The last run failed while saving pillars (a server deploy fix is required). Re-run the failed step after GeekRepository and GeekSeoBackend have redeployed.'
-            : raw || 'The last analysis failed. Re-run the failed step to try again.',
-        );
-
-        const history = await getNicheHistory(projectId, accessToken);
-        const lastComplete = history.find((h) => h.status === 'complete');
-        if (lastComplete) {
-          const full = await getNicheProfile(lastComplete.id, accessToken);
-          setProfile(await resolveProfileWithPillars(full));
-          await loadAnalytics(full.id, isStructureComplete(full));
+        applyAnalysisStatus(status);
+        setWorkflowProfileId(p.id);
+        setProfile(null);
+        setCoverage([]);
+        setGaps([]);
+        // Step-level failures belong on the step row — not a page-level dead end.
+        if (status.stepErrors && Object.keys(status.stepErrors).length > 0) {
+          setError(null);
+        } else {
+          setError(
+            status.errorMessage ?? 'The last analysis failed. Re-run the failed step to try again.',
+          );
         }
         return;
       }
@@ -459,7 +423,6 @@ export default function NicheAnalyzerPage() {
             projectId={projectId}
             accessToken={accessToken}
             defaultOpen
-            pollIntervalMs={anyStepRunning ? 1_500 : 0}
             stepStatuses={stepStatuses}
             stepSummaries={stepSummaries}
             stepErrors={stepErrors}
