@@ -101,7 +101,13 @@ internal static partial class NicheStepRelationalLoader
             return new NavMenuData(pillars, extractMethod);
         }
 
-        return NicheStepArtifactStore.GetRequiredArtifact<NavMenuData>(steps, "nav", "nav");
+        var artifact = NicheStepArtifactStore.TryGetArtifact<NavMenuData>(steps, "nav", "nav");
+        if (artifact is not null)
+            return artifact;
+
+        // Nav is optional; manual runs often skip Playwright and step-log artifacts are stripped
+        // after relational persist, leaving zero navigation link rows.
+        return new NavMenuData([], "skipped");
     }
 
     internal static async Task<HomepageHeadings> LoadHeadingsAsync(
