@@ -82,17 +82,30 @@ public sealed class NicheStepRerunService(
                 return (false, "Profile not found.");
             var profileStatus = profileResult.Value.Status;
 
-            // SignalR before GeekRepository jsonb merges — bloated step logs can block PATCHes for minutes.
+            var downstream = NicheStepCatalog.GetDownstream(slug);
+            if (downstream.Count > 0)
+                await profileRepo.InvalidateDownstreamStepsAsync(profileId, downstream, ct);
+
+            if (profileStatus is "pending" or "complete" or "failed")
+            {
+                await profileRepo.UpdateStatusAsync(
+                    profileId,
+                    "processing",
+                    slug,
+                    definition.StepNumber,
+                    TotalSteps,
+                    ct: ct);
+            }
+
+            await profileRepo.UpdateStepStatusAsync(profileId, slug, "running", ct: ct);
+            await NicheStepRunStatusWriter.SyncAsync(
+                profileRepo, logger, profileId, slug, "running", definition, ct: ct);
             await PushStepEvent(profileId, userId, slug, definition, "running", $"Running step: {slug}…", ct);
-            ScheduleStepRunningPersist(profileId, userId, slug, definition, profileStatus);
 
             var entry = await ExecuteStepAsync(profileId, userId, slug, browser, ct);
 
+            // SignalR first — GeekRepository step-log PATCHes can take minutes on bloated profiles.
             await PushStepEvent(profileId, userId, slug, definition, "complete", entry.Summary, ct);
-            logger.LogInformation(
-                "Step re-run complete for profile {ProfileId} slug {Slug}",
-                profileId,
-                slug);
             ScheduleStepCompletionPersist(profileId, userId, slug, definition, entry);
             return (true, null);
         }
@@ -511,63 +524,6 @@ public sealed class NicheStepRerunService(
 
     private static string[] BuildNicheTagsLight(SchemaOrgData schema, List<NichePillar> pillars) =>
         schema.AreaServed.Take(3).Concat(pillars.Take(3).Select(p => p.PillarTopic)).ToArray();
-
-    private void ScheduleStepRunningPersist(
-        Guid profileId,
-        Guid userId,
-        string slug,
-        NicheStepDefinition definition,
-        string profileStatus)
-    {
-        var downstream = NicheStepCatalog.GetDownstream(slug);
-
-        _ = Task.Run(async () =>
-        {
-            workerUser.UserId = userId;
-            try
-            {
-                await using var scope = scopeFactory.CreateAsyncScope();
-                var repo = scope.ServiceProvider.GetRequiredService<INicheProfileRepository>();
-                var persistLogger = scope.ServiceProvider.GetRequiredService<ILogger<NicheStepRerunService>>();
-
-                if (downstream.Count > 0)
-                    await repo.InvalidateDownstreamStepsAsync(profileId, downstream, CancellationToken.None);
-
-                if (profileStatus is "pending" or "complete" or "failed")
-                {
-                    await repo.UpdateStatusAsync(
-                        profileId,
-                        "processing",
-                        slug,
-                        definition.StepNumber,
-                        TotalSteps,
-                        ct: CancellationToken.None);
-                }
-
-                await repo.UpdateStepStatusAsync(profileId, slug, "running", ct: CancellationToken.None);
-                await NicheStepRunStatusWriter.SyncAsync(
-                    repo,
-                    persistLogger,
-                    profileId,
-                    slug,
-                    "running",
-                    definition,
-                    ct: CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(
-                    ex,
-                    "Background step running persist failed for profile {ProfileId} slug {Slug}",
-                    profileId,
-                    slug);
-            }
-            finally
-            {
-                workerUser.UserId = Guid.Empty;
-            }
-        });
-    }
 
     private void ScheduleStepCompletionPersist(
         Guid profileId,
