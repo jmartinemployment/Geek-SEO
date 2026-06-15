@@ -3,6 +3,7 @@ using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Services;
 using GeekSeo.Persistence.Entities;
+using GeekSeoBackend.Auth;
 using GeekSeoBackend.Services.NicheExtraction;
 using GeekSeoBackend.Services.NicheStepRunners;
 using Microsoft.Playwright;
@@ -34,6 +35,8 @@ public sealed class NicheStepRerunService(
     NicheStepExecutionService stepExecution,
     NicheStepLock stepLock,
     NicheAnalysisProgressNotifier progressNotifier,
+    IServiceScopeFactory scopeFactory,
+    WorkerUserContext workerUser,
     ILogger<NicheStepRerunService> logger)
 {
     private static int TotalSteps => NicheStepCatalog.Ordered.Count;
@@ -101,35 +104,9 @@ public sealed class NicheStepRerunService(
 
             var entry = await ExecuteStepAsync(profileId, userId, slug, browser, ct);
 
-            var overallStatus = slug == "complete" ? "complete" : "processing";
-            // Mark the step complete before heavy profile/step-log PATCHes so status polls and SignalR unblock.
-            await profileRepo.UpdateStepStatusAsync(profileId, slug, "complete", ct: ct);
-            await PushStepEvent(profileId, userId, slug, definition, overallStatus, entry.Summary, ct);
-
-            await profileRepo.UpdateStatusAsync(
-                profileId,
-                overallStatus,
-                slug,
-                definition.StepNumber,
-                TotalSteps,
-                stepLogEntry: entry,
-                ct: ct);
-
-            if (slug == "complete")
-            {
-                await profileRepo.UpdatePhaseStatusAsync(
-                    profileId,
-                    new NichePhaseStatusPatch(
-                        StructureStatus: "complete",
-                        EnrichmentStatus: "complete",
-                        PersistStage: "done",
-                        Status: "complete"),
-                    ct);
-            }
-
-            await profileRepo.UpdateStepStatusAsync(profileId, slug, "complete", entry, ct);
-            await NicheStepRunStatusWriter.SyncAsync(
-                profileRepo, logger, profileId, slug, "complete", definition, entry, ct: ct);
+            // SignalR first — GeekRepository step-log PATCHes can take minutes on bloated profiles.
+            await PushStepEvent(profileId, userId, slug, definition, "complete", entry.Summary, ct);
+            ScheduleStepCompletionPersist(profileId, userId, slug, definition, entry);
             return (true, null);
         }
         catch (Exception ex)
@@ -547,6 +524,72 @@ public sealed class NicheStepRerunService(
 
     private static string[] BuildNicheTagsLight(SchemaOrgData schema, List<NichePillar> pillars) =>
         schema.AreaServed.Take(3).Concat(pillars.Take(3).Select(p => p.PillarTopic)).ToArray();
+
+    private void ScheduleStepCompletionPersist(
+        Guid profileId,
+        Guid userId,
+        string slug,
+        NicheStepDefinition definition,
+        NicheAnalysisStepLogEntry entry)
+    {
+        var slimEntry = NicheStepArtifactStore.ForStepLogPersistence(entry);
+        var overallStatus = slug == "complete" ? "complete" : "processing";
+
+        _ = Task.Run(async () =>
+        {
+            workerUser.UserId = userId;
+            try
+            {
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var repo = scope.ServiceProvider.GetRequiredService<INicheProfileRepository>();
+                var persistLogger = scope.ServiceProvider.GetRequiredService<ILogger<NicheStepRerunService>>();
+
+                await repo.UpdateStepStatusAsync(profileId, slug, "complete", slimEntry, CancellationToken.None);
+                await repo.UpdateStatusAsync(
+                    profileId,
+                    overallStatus,
+                    slug,
+                    definition.StepNumber,
+                    TotalSteps,
+                    stepLogEntry: slimEntry,
+                    ct: CancellationToken.None);
+
+                if (slug == "complete")
+                {
+                    await repo.UpdatePhaseStatusAsync(
+                        profileId,
+                        new NichePhaseStatusPatch(
+                            StructureStatus: "complete",
+                            EnrichmentStatus: "complete",
+                            PersistStage: "done",
+                            Status: "complete"),
+                        CancellationToken.None);
+                }
+
+                await NicheStepRunStatusWriter.SyncAsync(
+                    repo,
+                    persistLogger,
+                    profileId,
+                    slug,
+                    "complete",
+                    definition,
+                    slimEntry,
+                    ct: CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Background step completion persist failed for profile {ProfileId} slug {Slug}",
+                    profileId,
+                    slug);
+            }
+            finally
+            {
+                workerUser.UserId = Guid.Empty;
+            }
+        });
+    }
 
     private Task PushStepEvent(
         Guid profileId,

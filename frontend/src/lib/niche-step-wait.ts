@@ -202,6 +202,38 @@ export async function waitForNicheStepViaSignalR(
           const status = msgStatus(raw)?.toLowerCase();
           if (status === 'running') return;
 
+          if (status === 'complete') {
+            void (async () => {
+              try {
+                const hydrated = await hydrateUntilTerminal(12);
+                if (hydrated) {
+                  finishResolve(hydrated);
+                  return;
+                }
+
+                const fallback = await hydrate();
+                finishResolve({
+                  ...fallback,
+                  stepStatuses: {
+                    ...(fallback.stepStatuses ?? {}),
+                    [slug]: 'complete',
+                  },
+                  stepSummaries: detail
+                    ? {
+                        ...(fallback.stepSummaries ?? {}),
+                        [slug]: detail,
+                      }
+                    : fallback.stepSummaries,
+                });
+              } catch (e) {
+                finishReject(
+                  e instanceof Error ? e : new Error(`Step "${slug}" failed.`),
+                );
+              }
+            })();
+            return;
+          }
+
           if (status === 'error' || status === 'failed') {
             void (async () => {
               try {

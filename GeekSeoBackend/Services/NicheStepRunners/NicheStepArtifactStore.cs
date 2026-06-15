@@ -99,4 +99,19 @@ internal static class NicheStepArtifactStore
 
     public static IReadOnlyList<NicheAnalysisStepLogEntry> ParseSteps(string? stepLogJson) =>
         NicheAnalysisStepLogJson.Parse(stepLogJson);
+
+    /// <summary>
+    /// Step-log PATCHes must not ship megabyte <c>_artifactJson</c> blobs — relational tables are canonical.
+    /// </summary>
+    internal static NicheAnalysisStepLogEntry ForStepLogPersistence(NicheAnalysisStepLogEntry entry)
+    {
+        if (entry.Outputs.Count == 0)
+            return entry;
+
+        var slim = new Dictionary<string, object?>(entry.Outputs, StringComparer.OrdinalIgnoreCase);
+        slim.Remove(ArtifactJsonKey);
+        slim.Remove(ArtifactTypeKey);
+        slim.Remove(ArtifactVersionKey);
+        return entry with { Outputs = slim };
+    }
 }

@@ -89,4 +89,25 @@ public sealed class NicheStepArtifactStoreTests
         Assert.Equal(string.Empty, roundTripped.Crawl.Pages[0].Html);
         Assert.Equal("https://example.com/", roundTripped.Crawl.Pages[0].Url);
     }
+
+    [Fact]
+    public void ForStepLogPersistence_RemovesArtifactPayload()
+    {
+        var entry = NicheStepArtifactStore.WithArtifact(
+            new NicheAnalysisStepLogEntry(
+                6,
+                "site_crawl",
+                "Site crawl",
+                "complete",
+                "saved",
+                new Dictionary<string, object?> { ["pagesCrawled"] = 2 }),
+            "site_crawl",
+            new SampleArtifact("crawl", 2));
+
+        var slim = NicheStepArtifactStore.ForStepLogPersistence(entry);
+
+        Assert.False(slim.Outputs.ContainsKey("_artifactJson"));
+        Assert.False(slim.Outputs.ContainsKey("_artifactType"));
+        Assert.Equal(2, slim.Outputs["pagesCrawled"]);
+    }
 }
