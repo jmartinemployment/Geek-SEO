@@ -17,6 +17,7 @@ import { waitForNicheStepViaSignalR } from '@/lib/niche-step-wait';
 import {
   isNicheStepComplete,
   mergeStepStatuses,
+  stepStatusesFromLog,
 } from '@/lib/niche-step-status';
 
 type Props = {
@@ -423,7 +424,11 @@ export function AnalysisStepBreakdown({
     return details.steps.filter((s) => !grouped.has(s.slug));
   }, [details]);
   const stepDefinitions = details?.stepDefinitions ?? [];
-  const effectiveStepStatuses = mergeStepStatuses(stepStatuses, liveStepStatuses);
+  const effectiveStepStatuses = mergeStepStatuses(
+    stepStatuses,
+    liveStepStatuses,
+    stepStatusesFromLog(details?.steps),
+  );
   const effectiveStepSummaries = { ...(stepSummaries ?? {}), ...(liveStepSummaries ?? {}) };
   const effectiveStepErrors = { ...(stepErrors ?? {}), ...(liveStepErrors ?? {}) };
   const showOutputs = pollIntervalMs === undefined;

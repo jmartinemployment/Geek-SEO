@@ -1,4 +1,4 @@
-import type { StepStatus } from '@/lib/seo-api';
+import type { NicheAnalysisStepLogEntry, StepStatus } from '@/lib/seo-api';
 
 const TERMINAL_STEP_STATUSES = new Set<StepStatus>(['complete', 'error', 'skipped']);
 
@@ -29,6 +29,31 @@ export function mergeStepStatuses(
       merged[slug] = statusRank(status) >= statusRank(existing) ? status : existing;
     }
   }
+  return merged;
+}
+
+/** Build a status map from persisted step-log entries (authoritative when json map is stale). */
+export function stepStatusesFromLog(
+  steps?: NicheAnalysisStepLogEntry[],
+): Record<string, StepStatus> {
+  if (!steps?.length) return {};
+
+  const merged: Record<string, StepStatus> = {};
+  for (const step of steps) {
+    const status = step.status as StepStatus;
+    if (!status) continue;
+    const existing = merged[step.slug];
+    merged[step.slug] = statusRank(status) >= statusRank(existing) ? status : existing;
+  }
+
+  if (merged.site_structure === 'complete') {
+    for (const slug of ['site_crawl', 'internal_links', 'url_patterns'] as const) {
+      if (!merged[slug] || statusRank(merged[slug]) < statusRank('complete')) {
+        merged[slug] = 'complete';
+      }
+    }
+  }
+
   return merged;
 }
 

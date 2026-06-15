@@ -9,6 +9,7 @@ using GeekSeo.Application.Results;
 using GeekSeo.Persistence.Entities;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Infrastructure;
+using GeekSeoBackend.Services.NicheStepRunners;
 
 namespace GeekSeoBackend.HttpClients.Repo;
 
@@ -581,7 +582,7 @@ public sealed class HttpNicheProfileRepository(
             if (jsonDict is not null)
             {
                 foreach (var (slug, status) in jsonDict)
-                    merged[slug] = PreferStatus(merged.GetValueOrDefault(slug), status);
+                    merged[slug] = NicheStepStatusEnricher.PreferStatus(merged.GetValueOrDefault(slug), status);
             }
         }
 
@@ -589,8 +590,14 @@ public sealed class HttpNicheProfileRepository(
         if (runs.IsSuccess && runs.Value is not null)
         {
             foreach (var run in runs.Value)
-                merged[run.StepSlug] = PreferStatus(merged.GetValueOrDefault(run.StepSlug), run.Status);
+                merged[run.StepSlug] = NicheStepStatusEnricher.PreferStatus(
+                    merged.GetValueOrDefault(run.StepSlug),
+                    run.Status);
         }
+
+        var detailsResult = await GetAnalysisDetailsRowAsync(profileId, includeFusion: false, ct);
+        if (detailsResult.IsSuccess && detailsResult.Value is not null)
+            NicheStepStatusEnricher.MergeStepLog(merged, detailsResult.Value.AnalysisStepLog);
 
         if (merged.Count > 0)
             return Result<IReadOnlyDictionary<string, string>>.Success(merged);
@@ -599,22 +606,6 @@ public sealed class HttpNicheProfileRepository(
             return Result<IReadOnlyDictionary<string, string>>.Failure(await ReadFailureAsync(jsonRes, ct));
 
         return Result<IReadOnlyDictionary<string, string>>.Success(merged);
-    }
-
-    private static string PreferStatus(string? existing, string incoming)
-    {
-        if (string.IsNullOrWhiteSpace(existing))
-            return incoming;
-
-        static int Rank(string? status) => status switch
-        {
-            "complete" or "error" or "skipped" => 3,
-            "running" => 2,
-            "pending" => 1,
-            _ => 0,
-        };
-
-        return Rank(incoming) >= Rank(existing) ? incoming : existing;
     }
 
     private static async Task<string> ReadFailureAsync(HttpResponseMessage res, CancellationToken ct)
