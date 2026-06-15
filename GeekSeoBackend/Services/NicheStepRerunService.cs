@@ -68,7 +68,7 @@ public sealed class NicheStepRerunService(
 
             foreach (var dep in definition.Dependencies)
             {
-                if (!statuses.TryGetValue(dep, out var depStatus) || depStatus != "complete")
+                if (!IsDependencyComplete(statuses, dep))
                     return (false, $"Dependency '{dep}' must be complete before running '{slug}'.");
             }
 
@@ -103,9 +103,12 @@ public sealed class NicheStepRerunService(
             await PushStepEvent(profileId, userId, slug, definition, "running", $"Running step: {slug}…", ct);
 
             var entry = await ExecuteStepAsync(profileId, userId, slug, browser, ct);
+            var slimEntry = NicheStepArtifactStore.ForStepLogPersistence(entry);
 
-            // SignalR first — GeekRepository step-log PATCHes can take minutes on bloated profiles.
+            // SignalR + relational step-run first — legacy step-log PATCHes can take minutes on bloated profiles.
             await PushStepEvent(profileId, userId, slug, definition, "complete", entry.Summary, ct);
+            await NicheStepRunStatusWriter.SyncAsync(
+                profileRepo, logger, profileId, slug, "complete", definition, slimEntry, ct: ct);
             ScheduleStepCompletionPersist(profileId, userId, slug, definition, entry);
             return (true, null);
         }
@@ -565,16 +568,6 @@ public sealed class NicheStepRerunService(
                             Status: "complete"),
                         CancellationToken.None);
                 }
-
-                await NicheStepRunStatusWriter.SyncAsync(
-                    repo,
-                    persistLogger,
-                    profileId,
-                    slug,
-                    "complete",
-                    definition,
-                    slimEntry,
-                    ct: CancellationToken.None);
             }
             catch (Exception ex)
             {
@@ -608,4 +601,19 @@ public sealed class NicheStepRerunService(
             definition?.StepNumber,
             TotalSteps,
             ct);
+
+    private static bool IsDependencyComplete(IReadOnlyDictionary<string, string> statuses, string dep)
+    {
+        if (statuses.TryGetValue(dep, out var depStatus)
+            && string.Equals(depStatus, "complete", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Legacy 14-step runs stored combined crawl/structure as site_structure.
+        if (string.Equals(dep, "site_crawl", StringComparison.OrdinalIgnoreCase)
+            && statuses.TryGetValue("site_structure", out var legacy)
+            && string.Equals(legacy, "complete", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    }
 }

@@ -22,7 +22,10 @@ import {
   type AuthorityProgressPoint,
   type StepStatus,
 } from '@/lib/seo-api';
-import { ContentGuardContextBanner } from '@/components/niche-analyzer/ContentGuardContextBanner';
+import {
+  isAnyNicheStepRunning,
+  mergeStepStatuses,
+} from '@/lib/niche-step-status';
 import { AnalysisStepBreakdown } from '@/components/niche-analyzer/AnalysisStepBreakdown';
 import { TopicProfileSection } from '@/components/niche-analyzer/TopicProfileSection';
 import { PillarProvenanceCallout } from '@/components/niche-analyzer/PillarProvenanceCallout';
@@ -67,10 +70,12 @@ export default function NicheAnalyzerPage() {
   const [newProjectLocation, setNewProjectLocation] = useState('');
   const [creatingProject, setCreatingProject] = useState(false);
 
-  const anyStepRunning = Object.values(stepStatuses ?? {}).some((s) => s === 'running');
+  const anyStepRunning = isAnyNicheStepRunning(stepStatuses);
 
   const applyAnalysisStatus = useCallback((status: NicheAnalysisStatus) => {
-    if (status.stepStatuses) setStepStatuses(status.stepStatuses);
+    if (status.stepStatuses) {
+      setStepStatuses((prev) => mergeStepStatuses(prev, status.stepStatuses));
+    }
     if (status.stepSummaries) setStepSummaries(status.stepSummaries);
     if (status.stepErrors) setStepErrors(status.stepErrors);
   }, []);
