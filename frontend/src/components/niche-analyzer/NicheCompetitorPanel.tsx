@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import * as signalR from '@microsoft/signalr';
 import type { NicheAnalysisStatus, NicheCompetitorResult } from '@/lib/seo-api';
-import { analyzeCompetitors, runNicheStep } from '@/lib/seo-api';
+import { analyzeCompetitors, getNicheProfileCompetitors, runNicheStep } from '@/lib/seo-api';
 import { waitForNicheStepViaSignalR } from '@/lib/niche-step-wait';
 
 type Props = {
@@ -52,10 +52,35 @@ export function NicheCompetitorPanel({
   const [serpRerunning, setSerpRerunning] = useState(false);
   const [serpProgress, setSerpProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loadedCompetitors, setLoadedCompetitors] = useState(competitors);
+  const [loadingCompetitors, setLoadingCompetitors] = useState(false);
   const connectionRef = useRef<signalR.HubConnection | null>(null);
 
-  const analyzed = competitors.some((c) => c.competitorAnalyzedAt);
-  const totalPages = competitors.reduce((sum, c) => sum + (c.pagesCrawled ?? 0), 0);
+  useEffect(() => {
+    setLoadedCompetitors(competitors);
+  }, [competitors]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    let cancelled = false;
+    setLoadingCompetitors(true);
+    void getNicheProfileCompetitors(profileId, accessToken)
+      .then((rows) => {
+        if (!cancelled) setLoadedCompetitors(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadedCompetitors(competitors);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingCompetitors(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profileId, accessToken, competitors]);
+
+  const analyzed = loadedCompetitors.some((c) => c.competitorAnalyzedAt);
+  const totalPages = loadedCompetitors.reduce((sum, c) => sum + (c.pagesCrawled ?? 0), 0);
 
   useEffect(() => {
     return () => {
@@ -72,11 +97,14 @@ export function NicheCompetitorPanel({
         profileId,
         slug: 'serp_validation',
         accessToken,
+        timeoutMs: 900_000,
         triggerRun: () => runNicheStep(profileId, 'serp_validation', accessToken),
         onProgress: setSerpProgress,
         onStatus: onStepStatusChange,
       });
       await onCompetitorsUpdated?.();
+      const rows = await getNicheProfileCompetitors(profileId, accessToken);
+      setLoadedCompetitors(rows);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'SERP validation re-run failed');
     } finally {
@@ -88,7 +116,7 @@ export function NicheCompetitorPanel({
   async function handleGetCompetitors() {
     setError(null);
     setAnalyzing(true);
-    setProgress({ done: 0, total: competitors.length, message: 'Starting…' });
+    setProgress({ done: 0, total: loadedCompetitors.length, message: 'Starting…' });
 
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5051';
@@ -120,7 +148,15 @@ export function NicheCompetitorPanel({
     }
   }
 
-  if (competitors.length === 0) {
+  if (loadingCompetitors && loadedCompetitors.length === 0) {
+    return (
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-8 text-center">
+        <p className="text-sm text-[var(--color-text-muted)]">Loading competitors…</p>
+      </div>
+    );
+  }
+
+  if (loadedCompetitors.length === 0) {
     const serpFoundCompetitors = serpSummaryImpliesCompetitors(serpValidationSummary);
     return (
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-8 text-center">
@@ -163,7 +199,7 @@ export function NicheCompetitorPanel({
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-[var(--color-text-muted)]">
-            {competitors.length} competitor{competitors.length !== 1 ? 's' : ''} identified via SERP
+            {loadedCompetitors.length} competitor{loadedCompetitors.length !== 1 ? 's' : ''} identified via SERP
             {totalPages > 0 ? ` · ${totalPages} pages crawled` : ''}
             {analyzed ? ` · analyzed` : ''}
           </p>
@@ -215,11 +251,11 @@ export function NicheCompetitorPanel({
               </tr>
             </thead>
             <tbody>
-              {competitors.map((c) => {
+              {loadedCompetitors.map((c) => {
                 const expanded = expandedDomain === c.domain;
                 const hasCrawlData = c.pagesCrawled > 0 || (c.pillars?.length ?? 0) > 0;
                 return (
-                  <Fragment key={c.domain}>
+                  <Fragment key={c.id}>
                     <tr className="border-t border-[var(--color-border)]">
                       <td className="px-2 py-2">
                         {hasCrawlData ? (

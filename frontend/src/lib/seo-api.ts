@@ -1904,6 +1904,17 @@ export async function runNicheStep(
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
 }
 
+export async function getNicheProfileCompetitors(
+  profileId: string,
+  accessToken?: string | null,
+): Promise<NicheCompetitorResult[]> {
+  const res = await fetch(`${API_URL}/api/seo/niche-analyzer/${profileId}/niche-competitors`, {
+    headers: apiHeaders(accessToken),
+  });
+  if (res.status === 404) return [];
+  return seoJson(res);
+}
+
 export async function analyzeCompetitors(
   profileId: string,
   accessToken?: string | null,

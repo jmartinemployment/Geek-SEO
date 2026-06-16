@@ -1,4 +1,6 @@
-import type { ComponentType } from 'react';
+'use client';
+
+import { useEffect, useRef, useState, type ComponentType } from 'react';
 import Link from 'next/link';
 import {
   BarChart3,
@@ -68,6 +70,58 @@ function SidebarLink({
   );
 }
 
+function SidebarOverflowMenu({ pathname }: { pathname: string }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex size-10 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-sidebar-active)] hover:text-[var(--color-text-primary)]"
+        title="More tools"
+        aria-label="More tools"
+        aria-expanded={open}
+      >
+        <MoreHorizontal className="size-5" />
+      </button>
+      {open ? (
+        <div className="absolute left-full top-0 z-50 ml-2 min-w-44 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-white p-1 shadow-[var(--shadow-card-hover)]">
+          {overflowItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              prefetch={false}
+              onClick={() => setOpen(false)}
+              className="block rounded-md px-3 py-2 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)]"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function AppSidebar({ pathname }: { pathname: string }) {
   return (
     <aside className="fixed inset-y-0 left-0 z-40 flex w-14 flex-col border-r border-[var(--color-border)] bg-[var(--color-bg)]">
@@ -79,27 +133,7 @@ export function AppSidebar({ pathname }: { pathname: string }) {
             isActive={pathname === item.href || pathname.startsWith(`${item.href}/`)}
           />
         ))}
-        <details className="group relative">
-          <summary
-            className="flex size-10 cursor-pointer list-none items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-sidebar-active)] hover:text-[var(--color-text-primary)] [&::-webkit-details-marker]:hidden"
-            title="More"
-            aria-label="More"
-          >
-            <MoreHorizontal className="size-5" />
-          </summary>
-          <div className="absolute left-full top-0 z-50 ml-2 min-w-44 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-white p-1 shadow-[var(--shadow-card-hover)]">
-            {overflowItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                prefetch={false}
-                className="block rounded-md px-3 py-2 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)]"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        </details>
+        <SidebarOverflowMenu pathname={pathname} />
       </div>
       <div className="flex flex-col items-center gap-1 border-t border-[var(--color-border)] px-2 py-3">
         <SidebarLink

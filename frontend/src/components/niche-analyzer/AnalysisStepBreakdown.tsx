@@ -198,6 +198,7 @@ function StepRow({
         profileId,
         slug: stepDefinition.slug,
         accessToken,
+        timeoutMs: stepDefinition.slug === 'serp_validation' ? 900_000 : undefined,
         triggerRun: () => runNicheStep(profileId, stepDefinition.slug, accessToken),
         onProgress: setLiveProgress,
         onStatus: (status) => {

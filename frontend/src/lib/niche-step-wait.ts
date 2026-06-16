@@ -83,7 +83,8 @@ export async function waitForNicheStepViaSignalR(
 ): Promise<NicheAnalysisStatus> {
   const { profileId, slug, accessToken, onProgress, onStatus, triggerRun } = options;
   const timeoutMs =
-    options.timeoutMs ?? (slug === 'site_crawl' ? 300_000 : 120_000);
+    options.timeoutMs ??
+    (slug === 'site_crawl' ? 300_000 : slug === 'serp_validation' ? 900_000 : 120_000);
 
   return new Promise((resolve, reject) => {
     let disposed = false;

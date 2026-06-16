@@ -69,17 +69,21 @@ public sealed class NicheStepRerunService(
             foreach (var dep in definition.Dependencies)
             {
                 if (!IsDependencyComplete(statuses, dep))
-                    return (false, $"Dependency '{dep}' must be complete before running '{slug}'.");
+                    return await FailRerunAsync(
+                        profileId, userId, definition,
+                        $"Dependency '{dep}' must be complete before running '{slug}'.", ct);
             }
 
             sem = stepLock.Get(profileId);
             if (!await sem.WaitAsync(0, ct))
-                return (false, "Another step is already running for this profile.");
+                return await FailRerunAsync(
+                    profileId, userId, definition,
+                    "Another step is already running for this profile.", ct);
             lockHeld = true;
 
             var profileResult = await profileRepo.GetByIdAsync(profileId, ct);
             if (!profileResult.IsSuccess || profileResult.Value is null)
-                return (false, "Profile not found.");
+                return await FailRerunAsync(profileId, userId, definition, "Profile not found.", ct);
             var profileStatus = profileResult.Value.Status;
 
             var downstream = NicheStepCatalog.GetDownstream(slug);
@@ -582,6 +586,17 @@ public sealed class NicheStepRerunService(
                 workerUser.UserId = Guid.Empty;
             }
         });
+    }
+
+    private async Task<(bool Success, string? Error)> FailRerunAsync(
+        Guid profileId,
+        Guid userId,
+        NicheStepDefinition definition,
+        string error,
+        CancellationToken ct)
+    {
+        await PushStepEvent(profileId, userId, definition.Slug, definition, "error", error, ct);
+        return (false, error);
     }
 
     private Task PushStepEvent(

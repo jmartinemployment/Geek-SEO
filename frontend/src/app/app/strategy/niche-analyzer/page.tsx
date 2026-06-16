@@ -546,6 +546,8 @@ export default function NicheAnalyzerPage() {
             onStepStatusChange={applyAnalysisStatus}
             onStepRerun={async () => {
               await refreshStepStatuses(profile.id);
+              const p = await getNicheProfile(profile.id, accessToken);
+              setProfile(p);
             }}
           />
         </div>

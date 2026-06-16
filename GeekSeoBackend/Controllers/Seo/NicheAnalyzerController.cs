@@ -355,6 +355,27 @@ public sealed class NicheAnalyzerController(
         }
     }
 
+    [HttpGet("{profileId:guid}/niche-competitors")]
+    public async Task<IActionResult> GetNicheCompetitors(Guid profileId, CancellationToken ct)
+    {
+        try
+        {
+            user.RequireUserId();
+            var result = await profileRepo.GetCompetitorsAsync(profileId, ct);
+            if (!result.IsSuccess) return StatusCode(500, new { error = result.Error });
+            return Ok(result.Value.Select(MapCompetitor).ToList());
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex) when (GeekDataGatewayExceptions.IsTransientGatewayFailure(ex, ct))
+        {
+            logger.LogWarning(ex, "Transient error fetching niche competitors for profile {ProfileId}", profileId);
+            return StatusCode(503, new { error = "Competitors temporarily unavailable" });
+        }
+    }
+
     [HttpPost("{profileId:guid}/analyze-competitors")]
     public async Task<IActionResult> AnalyzeCompetitors(Guid profileId, CancellationToken ct)
     {
@@ -526,6 +547,18 @@ public sealed class NicheAnalyzerController(
         catch { return null; }
     }
 
+    private static NicheCompetitorResult MapCompetitor(NicheCompetitor c) => new(
+        c.Id, c.Domain, c.SerpPresence, c.EstimatedAuthorityScore,
+        c.PillarsRanking, c.StrengthAssessment, c.Scope,
+        c.PagesCrawled, c.AvgWordCount, c.HasFaqSchema,
+        TryDeserialize<List<string>>(c.ServicesJson),
+        TryDeserialize<List<string>>(c.KnowsAboutJson),
+        TryDeserialize<List<string>>(c.AreaServedJson),
+        TryDeserialize<List<string>>(c.SameAsJson),
+        c.Description, c.BrandName,
+        TryDeserialize<List<CompetitorPillarResult>>(c.PillarsJson),
+        c.CompetitorAnalyzedAt);
+
     private static NicheProfileResult MapToResult(NicheProfile p) => new()
     {
         Id = p.Id,
@@ -586,17 +619,7 @@ public sealed class NicheAnalyzerController(
             LocalPaaQuestions = TryDeserialize<List<PaaQuestionItem>>(pi.LocalPaaQuestionsJson) ?? [],
             LocalRelatedSearches = TryDeserialize<List<string>>(pi.LocalRelatedSearchesJson) ?? [],
         }).ToList(),
-        Competitors = p.Competitors.Select(c => new NicheCompetitorResult(
-            c.Id, c.Domain, c.SerpPresence, c.EstimatedAuthorityScore,
-            c.PillarsRanking, c.StrengthAssessment, c.Scope,
-            c.PagesCrawled, c.AvgWordCount, c.HasFaqSchema,
-            TryDeserialize<List<string>>(c.ServicesJson),
-            TryDeserialize<List<string>>(c.KnowsAboutJson),
-            TryDeserialize<List<string>>(c.AreaServedJson),
-            TryDeserialize<List<string>>(c.SameAsJson),
-            c.Description, c.BrandName,
-            TryDeserialize<List<CompetitorPillarResult>>(c.PillarsJson),
-            c.CompetitorAnalyzedAt)).ToList(),
+        Competitors = p.Competitors.Select(MapCompetitor).ToList(),
         Entities = p.Entities.Select(e => new NicheEntityResult(
             e.Id, e.EntityName, e.EntityType,
             e.MentionFrequency, e.PresentOnDomain, e.AssociatedPillarIds)).ToList(),

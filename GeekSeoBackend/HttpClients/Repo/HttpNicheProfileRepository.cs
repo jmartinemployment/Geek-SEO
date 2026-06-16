@@ -477,6 +477,19 @@ public sealed class HttpNicheProfileRepository(
         return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await res.Content.ReadAsStringAsync(ct));
     }
 
+    public async Task<Result<IReadOnlyList<NicheCompetitor>>> GetCompetitorsAsync(
+        Guid profileId, CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/niche-profiles/{profileId}/competitors?userId={user.UserId}", ct);
+        if (res.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.NoContent)
+            return Result<IReadOnlyList<NicheCompetitor>>.Success([]);
+        if (!res.IsSuccessStatusCode)
+            return Result<IReadOnlyList<NicheCompetitor>>.Failure(await res.Content.ReadAsStringAsync(ct));
+        var value = await res.Content.ReadFromJsonAsync<List<NicheCompetitor>>(Json, ct);
+        return Result<IReadOnlyList<NicheCompetitor>>.Success(value ?? []);
+    }
+
     public async Task<Result> UpdateCompetitorInsightsAsync(NicheCompetitor competitor, CancellationToken ct = default)
     {
         var res = await _http.PatchAsJsonAsync(
