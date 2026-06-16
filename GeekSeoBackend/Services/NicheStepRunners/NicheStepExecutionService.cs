@@ -521,40 +521,20 @@ public sealed class NicheStepExecutionService(
         Guid profileId,
         CancellationToken ct)
     {
-        var fused = await LoadFusionAsync(profileId, ct);
         var profile = await LoadProfileAsync(profileId, ct);
         var steps = await LoadStepLogAsync(profileId, ct);
-        var schema = await NicheStepRelationalLoader.LoadSchemaAsync(profileRepo, profileId, steps, ct);
-        var headings = await NicheStepRelationalLoader.LoadHeadingsAsync(
-            profileRepo,
-            profileId,
-            profile.Domain,
-            steps,
-            ct);
-        var pillars = fused.SelectedPillars
-            .Select(PillarSelector.ToDiscoveredPillar)
-            .Select((p, index) => new NichePillar
-            {
-                Id = Guid.NewGuid(),
-                NicheProfileId = profileId,
-                PillarTopic = p.Name,
-                PillarSlug = p.Slug,
-                PrimaryKeyword = p.Name.ToLowerInvariant(),
-                SearchIntent = p.Intent,
-                Source = p.Source,
-                DisplayOrder = index,
-            })
-            .ToList();
-
-        var rootEntity = rootBuilder.Build(schema, headings, pillars);
-        var audienceType = DetermineAudienceType(pillars, schema);
-        var nicheTags = BuildNicheTags(schema, pillars).ToArray();
-        var message = $"Niche profile: {rootEntity}.";
+        var artifact = await BuildProfileArtifactAsync(profileId, profile.Domain, steps, ct);
+        var message = $"Niche profile: {artifact.PrimaryNiche}.";
 
         return NicheStepArtifactStore.WithArtifact(
-            NicheAnalysisStepLogBuilder.Profile(12, rootEntity, audienceType, nicheTags, message),
+            NicheAnalysisStepLogBuilder.Profile(
+                12,
+                artifact.PrimaryNiche,
+                artifact.AudienceType,
+                artifact.NicheTags,
+                message),
             "profile",
-            new ProfileArtifact(rootEntity, audienceType, nicheTags));
+            artifact);
     }
 
     private async Task<NicheAnalysisStepLogEntry> RunLocalAsync(
@@ -686,10 +666,7 @@ public sealed class NicheStepExecutionService(
             steps,
             "serp_validation",
             "serp_validation");
-        var profileArtifact = NicheStepArtifactStore.GetRequiredArtifact<ProfileArtifact>(
-            steps,
-            "profile",
-            "profile");
+        var profileArtifact = await ResolveProfileArtifactAsync(profileId, steps, ct);
 
         var pillars = profile.Pillars.OrderBy(p => p.DisplayOrder).ToList();
         var authorityScore = scorer.ComputeTopicalAuthorityScore(pillars);
@@ -769,6 +746,62 @@ public sealed class NicheStepExecutionService(
         var now = DateTimeOffset.UtcNow;
         return Task.FromResult(
             NicheAnalysisStepLogBuilder.Complete(16, now, now.AddDays(30), "Analysis complete!"));
+    }
+
+    private async Task<ProfileArtifact> ResolveProfileArtifactAsync(
+        Guid profileId,
+        IReadOnlyList<NicheAnalysisStepLogEntry> steps,
+        CancellationToken ct)
+    {
+        var fromLog = NicheStepArtifactStore.TryGetArtifact<ProfileArtifact>(steps, "profile", "profile");
+        if (fromLog is not null)
+            return fromLog;
+
+        var profile = await LoadProfileAsync(profileId, ct);
+        if (!string.IsNullOrWhiteSpace(profile.PrimaryNiche))
+        {
+            return new ProfileArtifact(
+                profile.PrimaryNiche,
+                string.IsNullOrWhiteSpace(profile.AudienceType) ? "local_service" : profile.AudienceType,
+                profile.NicheTags is { Length: > 0 } ? profile.NicheTags : []);
+        }
+
+        return await BuildProfileArtifactAsync(profileId, profile.Domain, steps, ct);
+    }
+
+    private async Task<ProfileArtifact> BuildProfileArtifactAsync(
+        Guid profileId,
+        string domain,
+        IReadOnlyList<NicheAnalysisStepLogEntry> steps,
+        CancellationToken ct)
+    {
+        var fused = await LoadFusionAsync(profileId, ct);
+        var schema = await NicheStepRelationalLoader.LoadSchemaAsync(profileRepo, profileId, steps, ct);
+        var headings = await NicheStepRelationalLoader.LoadHeadingsAsync(
+            profileRepo,
+            profileId,
+            domain,
+            steps,
+            ct);
+        var pillars = fused.SelectedPillars
+            .Select(PillarSelector.ToDiscoveredPillar)
+            .Select((p, index) => new NichePillar
+            {
+                Id = Guid.NewGuid(),
+                NicheProfileId = profileId,
+                PillarTopic = p.Name,
+                PillarSlug = p.Slug,
+                PrimaryKeyword = p.Name.ToLowerInvariant(),
+                SearchIntent = p.Intent,
+                Source = p.Source,
+                DisplayOrder = index,
+            })
+            .ToList();
+
+        var rootEntity = rootBuilder.Build(schema, headings, pillars);
+        var audienceType = DetermineAudienceType(pillars, schema);
+        var nicheTags = BuildNicheTags(schema, pillars).ToArray();
+        return new ProfileArtifact(rootEntity, audienceType, nicheTags);
     }
 
     private async Task<NicheProfile> LoadProfileAsync(Guid profileId, CancellationToken ct)

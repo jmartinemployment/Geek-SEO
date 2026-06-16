@@ -91,6 +91,26 @@ public sealed class NicheStepArtifactStoreTests
     }
 
     [Fact]
+    public void TryGetArtifact_ReturnsNullAfterStepLogPersistenceSlimming()
+    {
+        var entry = NicheStepArtifactStore.WithArtifact(
+            new NicheAnalysisStepLogEntry(
+                12,
+                "profile",
+                "Niche profile",
+                "complete",
+                "saved",
+                new Dictionary<string, object?>()),
+            "profile",
+            new { PrimaryNiche = "IT support", AudienceType = "local_service", NicheTags = new[] { "msp" } });
+
+        var slim = NicheStepArtifactStore.ForStepLogPersistence(entry);
+
+        Assert.Null(
+            NicheStepArtifactStore.TryGetArtifact<object>([slim], "profile", "profile"));
+    }
+
+    [Fact]
     public void ForStepLogPersistence_RemovesArtifactPayload()
     {
         var entry = NicheStepArtifactStore.WithArtifact(

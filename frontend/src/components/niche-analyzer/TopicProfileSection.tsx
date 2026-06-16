@@ -12,7 +12,6 @@ type Props = {
   profileId: string;
   projectId?: string;
   accessToken?: string | null;
-  pollIntervalMs?: number;
   /** Hide the full candidate matrix (shown in analysis steps instead). */
   showMatrix?: boolean;
 };
@@ -21,12 +20,12 @@ export function TopicProfileSection({
   profileId,
   projectId,
   accessToken,
-  pollIntervalMs,
   showMatrix = false,
 }: Readonly<Props>) {
   const [fusion, setFusion] = useState<SiteTopicProfile | null>(null);
   const [steps, setSteps] = useState<NicheAnalysisStepLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,21 +54,25 @@ export function TopicProfileSection({
 
     void load(true);
 
-    if (!pollIntervalMs || pollIntervalMs <= 0) {
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const id = window.setInterval(() => {
-      void load(false);
-    }, pollIntervalMs);
-
     return () => {
       cancelled = true;
-      window.clearInterval(id);
     };
-  }, [profileId, accessToken, pollIntervalMs]);
+  }, [profileId, accessToken]);
+
+  async function handleRefreshSignals() {
+    setRefreshing(true);
+    try {
+      const data = await getNicheAnalysisDetails(profileId, accessToken);
+      setSteps(data.steps ?? []);
+      if (data.fusionSnapshot && data.fusionSnapshot.allCandidates.length > 0) {
+        setFusion(data.fusionSnapshot);
+      } else {
+        setFusion(null);
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -91,6 +94,18 @@ export function TopicProfileSection({
 
   return (
     <>
+      <div className="mb-2 flex justify-end">
+        <button
+          type="button"
+          onClick={() => {
+            void handleRefreshSignals();
+          }}
+          disabled={refreshing}
+          className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {refreshing ? 'Refreshing…' : 'Refresh signals'}
+        </button>
+      </div>
       <TopicInsightsStack
         fusion={fusion}
         projectId={projectId}
