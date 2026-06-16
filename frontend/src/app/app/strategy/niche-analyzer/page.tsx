@@ -511,8 +511,12 @@ export default function NicheAnalyzerPage() {
               competitors={profile.competitors}
               accessToken={accessToken}
               serpValidationSummary={stepSummaries?.serp_validation}
-              onCompetitorsUpdated={() => {
-                void getNicheProfile(profile.id, accessToken).then(setProfile);
+              anyStepRunning={anyStepRunning}
+              onStepStatusChange={applyAnalysisStatus}
+              onCompetitorsUpdated={async () => {
+                const p = await getNicheProfile(profile.id, accessToken);
+                setProfile(p);
+                await refreshStepStatuses(profile.id);
               }}
             />
           )}

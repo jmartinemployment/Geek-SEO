@@ -2,8 +2,9 @@
 
 import { Fragment, useEffect, useRef, useState } from 'react';
 import * as signalR from '@microsoft/signalr';
-import type { NicheCompetitorResult } from '@/lib/seo-api';
-import { analyzeCompetitors } from '@/lib/seo-api';
+import type { NicheAnalysisStatus, NicheCompetitorResult } from '@/lib/seo-api';
+import { analyzeCompetitors, runNicheStep } from '@/lib/seo-api';
+import { waitForNicheStepViaSignalR } from '@/lib/niche-step-wait';
 
 type Props = {
   profileId: string;
@@ -12,6 +13,8 @@ type Props = {
   onCompetitorsUpdated?: () => void;
   /** Set when SERP validation found competitors but none were persisted (re-run that step). */
   serpValidationSummary?: string | null;
+  anyStepRunning?: boolean;
+  onStepStatusChange?: (status: NicheAnalysisStatus) => void;
 };
 
 type ProgressState = { done: number; total: number; message: string } | null;
@@ -40,10 +43,14 @@ export function NicheCompetitorPanel({
   accessToken,
   onCompetitorsUpdated,
   serpValidationSummary,
+  anyStepRunning = false,
+  onStepStatusChange,
 }: Readonly<Props>) {
   const [expandedDomain, setExpandedDomain] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressState>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [serpRerunning, setSerpRerunning] = useState(false);
+  const [serpProgress, setSerpProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const connectionRef = useRef<signalR.HubConnection | null>(null);
 
@@ -55,6 +62,28 @@ export function NicheCompetitorPanel({
       connectionRef.current?.stop().catch(() => {});
     };
   }, []);
+
+  async function handleRerunSerpValidation() {
+    setError(null);
+    setSerpRerunning(true);
+    setSerpProgress('Starting SERP validation…');
+    try {
+      await waitForNicheStepViaSignalR({
+        profileId,
+        slug: 'serp_validation',
+        accessToken,
+        triggerRun: () => runNicheStep(profileId, 'serp_validation', accessToken),
+        onProgress: setSerpProgress,
+        onStatus: onStepStatusChange,
+      });
+      await onCompetitorsUpdated?.();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'SERP validation re-run failed');
+    } finally {
+      setSerpRerunning(false);
+      setSerpProgress(null);
+    }
+  }
 
   async function handleGetCompetitors() {
     setError(null);
@@ -101,9 +130,23 @@ export function NicheCompetitorPanel({
               SERP validation found competitors, but they were not saved to this profile.
             </p>
             <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-              Open the scan breakdown below and re-run the <strong>SERP validation</strong> step to
-              populate this tab.
+              Re-run SERP validation to populate this tab. This re-queries SERP for your pillars and
+              can take a few minutes.
             </p>
+            {serpProgress ? (
+              <p className="mt-3 text-xs text-[var(--color-text-secondary)]">{serpProgress}</p>
+            ) : null}
+            <button
+              type="button"
+              onClick={handleRerunSerpValidation}
+              disabled={serpRerunning || anyStepRunning}
+              className="mt-4 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {serpRerunning ? 'Re-running SERP validation…' : 'Re-run SERP validation'}
+            </button>
+            {error ? (
+              <p className="mt-3 text-xs text-red-600">{error}</p>
+            ) : null}
           </>
         ) : (
           <p className="text-sm text-[var(--color-text-muted)]">
