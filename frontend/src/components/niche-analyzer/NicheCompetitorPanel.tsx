@@ -10,6 +10,8 @@ type Props = {
   competitors: NicheCompetitorResult[];
   accessToken?: string | null;
   onCompetitorsUpdated?: () => void;
+  /** Set when SERP validation found competitors but none were persisted (re-run that step). */
+  serpValidationSummary?: string | null;
 };
 
 type ProgressState = { done: number; total: number; message: string } | null;
@@ -26,11 +28,18 @@ const SCOPE_COLORS: Record<string, string> = {
   local: 'bg-emerald-100 text-emerald-800',
 };
 
+function serpSummaryImpliesCompetitors(summary: string | null | undefined): boolean {
+  if (!summary) return false;
+  const match = /\b(\d+)\s+competitor/i.exec(summary);
+  return match !== null && Number(match[1]) > 0;
+}
+
 export function NicheCompetitorPanel({
   profileId,
   competitors,
   accessToken,
   onCompetitorsUpdated,
+  serpValidationSummary,
 }: Readonly<Props>) {
   const [expandedDomain, setExpandedDomain] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressState>(null);
@@ -83,9 +92,24 @@ export function NicheCompetitorPanel({
   }
 
   if (competitors.length === 0) {
+    const serpFoundCompetitors = serpSummaryImpliesCompetitors(serpValidationSummary);
     return (
       <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-8 text-center">
-        <p className="text-sm text-[var(--color-text-muted)]">No competitors identified. Run niche analysis first.</p>
+        {serpFoundCompetitors ? (
+          <>
+            <p className="text-sm text-[var(--color-text-primary)]">
+              SERP validation found competitors, but they were not saved to this profile.
+            </p>
+            <p className="mt-2 text-sm text-[var(--color-text-muted)]">
+              Open the scan breakdown below and re-run the <strong>SERP validation</strong> step to
+              populate this tab.
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-[var(--color-text-muted)]">
+            No competitors identified yet. Complete SERP validation during niche analysis first.
+          </p>
+        )}
       </div>
     );
   }

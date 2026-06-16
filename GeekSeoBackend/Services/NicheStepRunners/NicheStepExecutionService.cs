@@ -485,6 +485,18 @@ public sealed class NicheStepExecutionService(
             new NichePhaseStatusPatch(EnrichmentStatus: serp.Skipped ? "skipped" : "complete"),
             ct);
 
+        if (!serp.Skipped && competitors.Count > 0)
+        {
+            var saveCompetitors = await profileRepo.BulkInsertCompetitorsAsync(competitors, ct);
+            if (!saveCompetitors.IsSuccess)
+            {
+                logger.LogWarning(
+                    "Competitors not saved during serp_validation for {ProfileId}: {Error}",
+                    profileId,
+                    saveCompetitors.Error);
+            }
+        }
+
         var message = serp.Skipped
             ? $"SERP validation skipped — {serp.SkipReason ?? "provider unavailable"}."
             : demotedSlugs.Count > 0

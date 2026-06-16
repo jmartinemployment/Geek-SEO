@@ -510,6 +510,7 @@ export default function NicheAnalyzerPage() {
               profileId={profile.id}
               competitors={profile.competitors}
               accessToken={accessToken}
+              serpValidationSummary={stepSummaries?.serp_validation}
               onCompetitorsUpdated={() => {
                 void getNicheProfile(profile.id, accessToken).then(setProfile);
               }}
