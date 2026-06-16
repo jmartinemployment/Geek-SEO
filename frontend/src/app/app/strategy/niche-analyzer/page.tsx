@@ -23,6 +23,7 @@ import {
 } from '@/lib/seo-api';
 import {
   isAnyNicheStepRunning,
+  isNicheStepComplete,
   mergeStepStatuses,
 } from '@/lib/niche-step-status';
 import { useNicheAnalysisSignalR } from '@/hooks/use-niche-analysis-signalr';
@@ -48,6 +49,18 @@ const TAB_LABELS: Record<Tab, string> = {
 
 function isManualWorkflowStatus(status: string | undefined): boolean {
   return status === 'pending' || status === 'processing' || status === 'queued';
+}
+
+function hasPriorAnalysisSnapshot(
+  p: NicheProfileResult,
+  stepStatuses?: Record<string, StepStatus>,
+): boolean {
+  return (
+    (p.totalPillarsIdentified ?? 0) > 0 ||
+    Boolean(p.analyzedAt) ||
+    p.structureStatus === 'complete' ||
+    isNicheStepComplete('merging', stepStatuses)
+  );
 }
 
 export default function NicheAnalyzerPage() {
@@ -193,11 +206,22 @@ export default function NicheAnalyzerPage() {
       }
 
       if (isManualWorkflowStatus(p.status)) {
+        const status = await refreshStepStatuses(p.id);
+        if (hasPriorAnalysisSnapshot(p, status?.stepStatuses)) {
+          setWorkflowProfileId(null);
+          const full = await resolveProfileWithPillars(await getNicheProfile(p.id, accessToken));
+          setProfile(full);
+          await loadAnalytics(
+            full.id,
+            full.structureStatus === 'complete' || (full.totalPillarsIdentified ?? 0) > 0,
+          );
+          return;
+        }
+
         setProfile(null);
         setCoverage([]);
         setGaps([]);
         setWorkflowProfileId(p.id);
-        await refreshStepStatuses(p.id);
         return;
       }
 
@@ -296,8 +320,8 @@ export default function NicheAnalyzerPage() {
   }
 
   const selected = projects.find((p) => p.id === projectId);
-  const showWorkflow = Boolean(workflowProfileId);
-  const showResults = Boolean(profile) && !showWorkflow;
+  const showWorkflowOnly = Boolean(workflowProfileId) && !profile;
+  const showResults = Boolean(profile);
   const hasProject = projects.length > 0 && Boolean(projectId);
 
   if (authLoading) return <main className="p-8 text-sm text-[var(--color-text-muted)]">Loading…</main>;
@@ -326,7 +350,7 @@ export default function NicheAnalyzerPage() {
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
-              {!showWorkflow && !profile ? (
+              {!showWorkflowOnly && !profile ? (
                 <button
                   onClick={handleAnalyze}
                   disabled={!projectId || anyStepRunning || startingAnalysis}
@@ -409,7 +433,7 @@ export default function NicheAnalyzerPage() {
         </div>
       )}
 
-      {showWorkflow && workflowProfileId && (
+      {showWorkflowOnly && workflowProfileId && (
         <div className="mt-6 space-y-4">
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
             <p className="text-sm font-medium text-[var(--color-text-primary)]">
@@ -436,7 +460,7 @@ export default function NicheAnalyzerPage() {
         </div>
       )}
 
-      {!showWorkflow && !profile && hasProject && (
+      {!showWorkflowOnly && !profile && hasProject && (
         <div className="mt-12 rounded-xl border border-dashed border-[var(--color-border)] p-12 text-center">
           <p className="text-lg font-medium text-[var(--color-text-primary)]">No analysis yet</p>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
@@ -548,6 +572,7 @@ export default function NicheAnalyzerPage() {
               await refreshStepStatuses(profile.id);
               const p = await getNicheProfile(profile.id, accessToken);
               setProfile(p);
+              setWorkflowProfileId(null);
             }}
           />
         </div>

@@ -113,7 +113,7 @@ public sealed class NicheStepRerunService(
             await PushStepEvent(profileId, userId, slug, definition, "complete", entry.Summary, ct);
             await NicheStepRunStatusWriter.SyncAsync(
                 profileRepo, logger, profileId, slug, "complete", definition, slimEntry, ct: ct);
-            ScheduleStepCompletionPersist(profileId, userId, slug, definition, entry);
+            ScheduleStepCompletionPersist(profileId, userId, slug, definition, entry, profileStatus);
             return (true, null);
         }
         catch (Exception ex)
@@ -537,10 +537,11 @@ public sealed class NicheStepRerunService(
         Guid userId,
         string slug,
         NicheStepDefinition definition,
-        NicheAnalysisStepLogEntry entry)
+        NicheAnalysisStepLogEntry entry,
+        string profileStatusBeforeRun)
     {
         var slimEntry = NicheStepArtifactStore.ForStepLogPersistence(entry);
-        var overallStatus = slug == "complete" ? "complete" : "processing";
+        var overallStatus = ResolveOverallStatusAfterStep(slug, profileStatusBeforeRun, definition);
 
         _ = Task.Run(async () =>
         {
@@ -586,6 +587,22 @@ public sealed class NicheStepRerunService(
                 workerUser.UserId = Guid.Empty;
             }
         });
+    }
+
+    private static string ResolveOverallStatusAfterStep(
+        string slug,
+        string profileStatusBeforeRun,
+        NicheStepDefinition definition)
+    {
+        if (string.Equals(slug, "complete", StringComparison.OrdinalIgnoreCase))
+            return "complete";
+
+        // Re-running a single step on a finished analysis should not strand the profile in processing.
+        if (string.Equals(profileStatusBeforeRun, "complete", StringComparison.OrdinalIgnoreCase)
+            && !definition.IsTerminal)
+            return "complete";
+
+        return "processing";
     }
 
     private async Task<(bool Success, string? Error)> FailRerunAsync(
