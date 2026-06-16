@@ -11,6 +11,7 @@ public sealed class CompetitorCrawlService(
     ICompetitorPageRepository competitorPages)
 {
     private const int MaxConcurrentCrawls = 3;
+    private const int MaxPersistedFullTextChars = 8_192;
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     public async Task<Result<IReadOnlyList<SeoCompetitorPage>>> EnsureCompetitorPagesAsync(
@@ -48,7 +49,8 @@ public sealed class CompetitorCrawlService(
                 if (!crawled.IsSuccess || crawled.Value is null)
                     return;
 
-                var saved = await competitorPages.UpsertAsync(serpResultId, crawled.Value, ct);
+                var persistedPage = TrimForPersistence(crawled.Value);
+                var saved = await competitorPages.UpsertAsync(serpResultId, persistedPage, ct);
                 if (saved.IsSuccess && saved.Value is not null)
                     lock (results) { results.Add(saved.Value); }
             }
@@ -60,6 +62,14 @@ public sealed class CompetitorCrawlService(
 
         await Task.WhenAll(crawlTasks);
         return Result<IReadOnlyList<SeoCompetitorPage>>.Success(results);
+    }
+
+    private static PageContent TrimForPersistence(PageContent page)
+    {
+        if (page.FullText.Length <= MaxPersistedFullTextChars)
+            return page;
+
+        return page with { FullText = page.FullText[..MaxPersistedFullTextChars] };
     }
 
     public static SerpBenchmarksPayload BenchmarksFromCompetitors(
