@@ -5,6 +5,7 @@ using GeekSeo.Persistence.Entities;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Extensions;
 using GeekSeoBackend.Services;
+using GeekSeoBackend.Services.NicheExtraction;
 using GeekSeoBackend.Services.NicheStepRunners;
 using Microsoft.AspNetCore.Mvc;
 
@@ -126,6 +127,7 @@ public sealed class NicheAnalyzerController(
 
             IReadOnlyDictionary<string, string>? stepSummaries = null;
             IReadOnlyDictionary<string, string>? stepErrors = null;
+            IReadOnlyDictionary<string, string>? stepWarnings = null;
             var stepRunsResult = await profileRepo.GetStepRunsAsync(profileId, ct);
             if (stepRunsResult.IsSuccess && stepRunsResult.Value is { Count: > 0 } runs)
             {
@@ -137,6 +139,10 @@ public sealed class NicheAnalyzerController(
                         string.Equals(r.Status, "error", StringComparison.OrdinalIgnoreCase)
                         && !string.IsNullOrWhiteSpace(r.ErrorMessage))
                     .ToDictionary(r => r.StepSlug, r => r.ErrorMessage!, StringComparer.OrdinalIgnoreCase);
+                stepWarnings = runs
+                    .Select(r => (r.StepSlug, Warning: SerpValidationMessages.TryExtractWarning(r.Summary)))
+                    .Where(x => !string.IsNullOrWhiteSpace(x.Warning))
+                    .ToDictionary(x => x.StepSlug, x => x.Warning!, StringComparer.OrdinalIgnoreCase);
             }
 
             return Ok(new NicheAnalysisStatus(
@@ -153,7 +159,8 @@ public sealed class NicheAnalyzerController(
                 p.PersistStage,
                 stepStatuses,
                 stepSummaries,
-                stepErrors));
+                stepErrors,
+                stepWarnings));
         }
         catch (InvalidOperationException ex)
         {

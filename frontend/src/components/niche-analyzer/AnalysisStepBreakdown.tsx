@@ -28,6 +28,7 @@ type Props = {
   anyStepRunning?: boolean;
   stepSummaries?: Record<string, string>;
   stepErrors?: Record<string, string>;
+  stepWarnings?: Record<string, string>;
   onStepRerun?: () => void | Promise<void>;
   onStepStatusChange?: (status: NicheAnalysisStatus) => void;
 };
@@ -113,6 +114,7 @@ function StepRow({
   anyStepRunning,
   stepSummaries,
   stepErrors,
+  stepWarnings,
   showOutputs,
   profileId,
   accessToken,
@@ -125,6 +127,7 @@ function StepRow({
   anyStepRunning?: boolean;
   stepSummaries?: Record<string, string>;
   stepErrors?: Record<string, string>;
+  stepWarnings?: Record<string, string>;
   showOutputs: boolean;
   profileId: string;
   accessToken?: string | null;
@@ -152,6 +155,7 @@ function StepRow({
     !depsKnown || !depsComplete || anyStepRunning || (rerunning && !isolatedTerminal);
   const visibleStep = showOutputs ? step : undefined;
   const persistedError = stepErrors?.[stepDefinition.slug];
+  const persistedWarning = stepWarnings?.[stepDefinition.slug];
   const persistedSummary = stepSummaries?.[stepDefinition.slug];
 
   const statusLabel = displayStatus === 'running' ? 'in progress'
@@ -232,6 +236,11 @@ function StepRow({
           {rerunError ? (
             <p className="mt-1 text-xs text-red-600">{rerunError}</p>
           ) : null}
+          {persistedWarning ? (
+            <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-900">
+              {persistedWarning}
+            </p>
+          ) : null}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
           <span className={`text-xs uppercase tracking-wide ${statusColor}`}>
@@ -270,6 +279,7 @@ function PhaseSection({
   anyStepRunning,
   stepSummaries,
   stepErrors,
+  stepWarnings,
   showOutputs,
   profileId,
   accessToken,
@@ -284,6 +294,7 @@ function PhaseSection({
   anyStepRunning?: boolean;
   stepSummaries?: Record<string, string>;
   stepErrors?: Record<string, string>;
+  stepWarnings?: Record<string, string>;
   showOutputs: boolean;
   profileId: string;
   accessToken?: string | null;
@@ -325,6 +336,7 @@ function PhaseSection({
               anyStepRunning={anyStepRunning}
               stepSummaries={stepSummaries}
               stepErrors={stepErrors}
+              stepWarnings={stepWarnings}
               showOutputs={showOutputs}
               profileId={profileId}
               accessToken={accessToken}
@@ -347,6 +359,7 @@ export function AnalysisStepBreakdown({
   anyStepRunning,
   stepSummaries,
   stepErrors,
+  stepWarnings,
   onStepRerun,
   onStepStatusChange,
 }: Readonly<Props>) {
@@ -405,6 +418,7 @@ export function AnalysisStepBreakdown({
   );
   const effectiveStepSummaries = { ...(stepSummaries ?? {}) };
   const effectiveStepErrors = { ...(stepErrors ?? {}) };
+  const effectiveStepWarnings = { ...(stepWarnings ?? {}) };
 
   return (
     <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -449,6 +463,7 @@ export function AnalysisStepBreakdown({
                   anyStepRunning={anyStepRunning}
                   stepSummaries={effectiveStepSummaries}
                   stepErrors={effectiveStepErrors}
+                  stepWarnings={effectiveStepWarnings}
                   showOutputs
                   profileId={profileId}
                   accessToken={accessToken}
@@ -478,6 +493,7 @@ export function AnalysisStepBreakdown({
                       anyStepRunning={anyStepRunning}
                       stepSummaries={effectiveStepSummaries}
                       stepErrors={effectiveStepErrors}
+                      stepWarnings={effectiveStepWarnings}
                       showOutputs
                       profileId={profileId}
                       accessToken={accessToken}

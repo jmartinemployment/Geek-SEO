@@ -311,6 +311,14 @@ internal static class NicheAnalysisStepLogBuilder
             ["pillarsDemoted"] = demand.DemotedSlugs.Count,
             ["demotedSample"] = demand.DemotedSlugs.Take(SampleLimit).ToArray(),
             ["competitorCount"] = demand.Competitors.Count,
+            ["localSerpLocation"] = demand.LocalSerpStats?.Location ?? string.Empty,
+            ["localSerpAttempted"] = demand.LocalSerpStats?.Attempted ?? 0,
+            ["localSerpSucceeded"] = demand.LocalSerpStats?.Succeeded ?? 0,
+            ["localSerpFailed"] = demand.LocalSerpStats?.Failed ?? 0,
+            ["localSerpFirstError"] = demand.LocalSerpStats?.FirstError ?? string.Empty,
+            ["localScopedCompetitors"] = demand.Competitors.Count(c =>
+                string.Equals(c.Scope, "local", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(c.Scope, "both", StringComparison.OrdinalIgnoreCase)),
             ["sampleCompetitors"] = demand.Competitors
                 .Take(SampleLimit)
                 .Select(c => $"{c.Domain} ({c.SerpPresence} SERPs)")

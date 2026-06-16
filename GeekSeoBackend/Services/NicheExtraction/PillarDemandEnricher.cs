@@ -15,6 +15,9 @@ public sealed class PillarDemandEnricher(
     ILogger<PillarDemandEnricher> logger)
 {
     private const int MaxConcurrency = 8;
+    /// <summary>When running national + local SERP per pillar, keep below Serper's ~5 req/s cap.</summary>
+    private const int DualSerpConcurrency = 2;
+    private const int SerpRateLimitMaxAttempts = 4;
 
     public async Task<PillarDemandEnrichment> EnrichAsync(
         IReadOnlyList<DiscoveredPillar> pillars,
@@ -42,7 +45,8 @@ public sealed class PillarDemandEnricher(
             keyword.SkipReason,
             serp.SkipReason,
             keywordProvider.ProviderName,
-            serpProvider.ProviderName);
+            serpProvider.ProviderName,
+            serp.LocalStats);
     }
 
     public Task<(IReadOnlyList<PillarKeywordEnrichment> Enrichments, bool Skipped, string? SkipReason)>
@@ -53,8 +57,7 @@ public sealed class PillarDemandEnricher(
             CancellationToken ct = default) =>
         EnrichKeywordsAsync(pillars, location, onProgress, ct);
 
-    public Task<(IReadOnlyList<PillarSerpEnrichment> Validations, bool Skipped, string? SkipReason)>
-        ValidateSerpOnlyAsync(
+    public Task<SerpValidationPhaseResult> ValidateSerpOnlyAsync(
             IReadOnlyList<DiscoveredPillar> pillars,
             string siteDomain,
             string location,
@@ -193,7 +196,7 @@ public sealed class PillarDemandEnricher(
 
     private async Task<(
         (IReadOnlyList<PillarKeywordEnrichment> Enrichments, bool Skipped, string? SkipReason) Keyword,
-        (IReadOnlyList<PillarSerpEnrichment> Validations, bool Skipped, string? SkipReason) Serp)>
+        SerpValidationPhaseResult Serp)>
         RunBothPhasesAsync(
             IReadOnlyList<DiscoveredPillar> targets,
             string siteHost,
@@ -283,10 +286,9 @@ public sealed class PillarDemandEnricher(
         return (ordered, false, null);
     }
 
-    private const string NationalLocation = "United States";
+    internal const string NationalLocation = "United States";
 
-    private async Task<(IReadOnlyList<PillarSerpEnrichment> Validations, bool Skipped, string? SkipReason)>
-        ValidateSerpAsync(
+    private async Task<SerpValidationPhaseResult> ValidateSerpAsync(
             IReadOnlyList<DiscoveredPillar> pillars,
             string siteHost,
             string location,
@@ -300,8 +302,12 @@ public sealed class PillarDemandEnricher(
         var failures = 0;
         var attempted = 0;
         var completed = 0;
+        var localFailures = 0;
+        var localSuccesses = 0;
         string? firstError = null;
-        using var gate = new SemaphoreSlim(MaxConcurrency);
+        string? firstLocalError = null;
+        var concurrency = isLocal ? DualSerpConcurrency : MaxConcurrency;
+        using var gate = new SemaphoreSlim(concurrency);
 
         var tasks = pillars.Select(async pillar =>
         {
@@ -312,13 +318,20 @@ public sealed class PillarDemandEnricher(
                 var keyword = pillar.Name.Trim();
 
                 var nationalRequest = new SerpRequest { Keyword = keyword, Location = NationalLocation, ResultCount = 10 };
-                var nationalTask = serpProvider.GetSerpResultsAsync(nationalRequest, ct);
+                var nationalTask = FetchSerpWithRetryAsync(nationalRequest, ct);
 
                 Result<SerpResult>? localResult = null;
                 if (isLocal)
                 {
                     var localRequest = new SerpRequest { Keyword = keyword, Location = location, ResultCount = 10 };
-                    localResult = await serpProvider.GetSerpResultsAsync(localRequest, ct);
+                    localResult = await FetchSerpWithRetryAsync(localRequest, ct);
+                    if (localResult.IsSuccess && localResult.Value is not null)
+                        Interlocked.Increment(ref localSuccesses);
+                    else
+                    {
+                        Interlocked.Increment(ref localFailures);
+                        firstLocalError ??= localResult.Error;
+                    }
                 }
 
                 var nationalResult = await nationalTask;
@@ -410,17 +423,73 @@ public sealed class PillarDemandEnricher(
             .ToList();
 
         if (ordered.Count == 0)
-            return ([], true, "No pillars to validate.");
+            return new SerpValidationPhaseResult([], true, "No pillars to validate.", null);
+
+        var localStats = SerpValidationMessages.BuildLocalStats(
+            location, attempted, localSuccesses, localFailures, firstLocalError);
 
         if (attempted > 0 && failures == attempted)
         {
             var reason = firstError ?? "SERP provider unavailable.";
-            logger.LogInformation("SERP validation skipped: {Reason}", reason);
-            return (ordered, true, reason);
+            logger.LogWarning("SERP validation skipped: {Reason}", reason);
+            return new SerpValidationPhaseResult(ordered, true, reason, localStats);
         }
 
-        return (ordered, false, null);
+        if (isLocal)
+        {
+            if (localFailures > 0)
+            {
+                logger.LogWarning(
+                    "Local SERP for {Location}: {Failures}/{Attempted} pillar queries failed; {Successes} succeeded. First error: {Error}",
+                    location,
+                    localFailures,
+                    attempted,
+                    localSuccesses,
+                    firstLocalError ?? "(none)");
+            }
+            else
+            {
+                logger.LogInformation(
+                    "Local SERP for {Location}: {Successes}/{Attempted} pillar queries succeeded",
+                    location,
+                    localSuccesses,
+                    attempted);
+            }
+        }
+
+        return new SerpValidationPhaseResult(ordered, false, null, localStats);
     }
+
+    private async Task<Result<SerpResult>> FetchSerpWithRetryAsync(SerpRequest request, CancellationToken ct)
+    {
+        Result<SerpResult>? last = null;
+        for (var attempt = 1; attempt <= SerpRateLimitMaxAttempts; attempt++)
+        {
+            last = await serpProvider.GetSerpResultsAsync(request, ct);
+            if (last.IsSuccess && last.Value is not null)
+                return last;
+
+            if (attempt >= SerpRateLimitMaxAttempts || !IsRateLimited(last.Error))
+                return last;
+
+            var delaySeconds = Math.Pow(2, attempt - 1);
+            logger.LogWarning(
+                "SERP rate limited for {Keyword} @ {Location}; retry {Attempt}/{MaxAttempts} in {DelaySeconds}s",
+                request.Keyword,
+                request.Location,
+                attempt,
+                SerpRateLimitMaxAttempts,
+                delaySeconds);
+            await Task.Delay(TimeSpan.FromSeconds(delaySeconds), ct);
+        }
+
+        return last ?? Result<SerpResult>.Failure("SERP request failed.");
+    }
+
+    internal static bool IsRateLimited(string? error) =>
+        !string.IsNullOrWhiteSpace(error)
+        && (error.Contains("429", StringComparison.Ordinal)
+            || error.Contains("rate limit", StringComparison.OrdinalIgnoreCase));
 
     private static string AssessStrength(int serpPresence) => serpPresence switch
     {
@@ -456,6 +525,12 @@ public sealed class PillarDemandEnricher(
         string.Equals(NormalizeHost(domain), NormalizeHost(siteHost), StringComparison.OrdinalIgnoreCase);
 }
 
+public sealed record SerpValidationPhaseResult(
+    IReadOnlyList<PillarSerpEnrichment> Validations,
+    bool Skipped,
+    string? SkipReason,
+    SerpLocalQueryStats? LocalStats);
+
 public sealed record PillarDemandEnrichment(
     IReadOnlyList<PillarKeywordEnrichment> Keywords,
     IReadOnlyList<PillarSerpEnrichment> SerpValidations,
@@ -467,7 +542,8 @@ public sealed record PillarDemandEnrichment(
     string? KeywordSkipReason,
     string? SerpSkipReason,
     string KeywordProvider,
-    string SerpProvider);
+    string SerpProvider,
+    SerpLocalQueryStats? LocalSerpStats = null);
 
 public sealed record PillarKeywordEnrichment(
     string Slug,

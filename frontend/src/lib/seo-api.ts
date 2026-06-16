@@ -1570,6 +1570,7 @@ export type NicheAnalysisStatus = {
   stepStatuses?: Record<string, StepStatus>;
   stepSummaries?: Record<string, string>;
   stepErrors?: Record<string, string>;
+  stepWarnings?: Record<string, string>;
 };
 
 export type NicheAnalysisStepLogEntry = {

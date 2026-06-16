@@ -79,6 +79,7 @@ export default function NicheAnalyzerPage() {
   const [stepStatuses, setStepStatuses] = useState<Record<string, StepStatus> | undefined>();
   const [stepSummaries, setStepSummaries] = useState<Record<string, string> | undefined>();
   const [stepErrors, setStepErrors] = useState<Record<string, string> | undefined>();
+  const [stepWarnings, setStepWarnings] = useState<Record<string, string> | undefined>();
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectUrl, setNewProjectUrl] = useState('https://');
   const [newProjectLocation, setNewProjectLocation] = useState('');
@@ -92,6 +93,7 @@ export default function NicheAnalyzerPage() {
     }
     if (status.stepSummaries) setStepSummaries(status.stepSummaries);
     if (status.stepErrors) setStepErrors(status.stepErrors);
+    if (status.stepWarnings) setStepWarnings(status.stepWarnings);
   }, []);
 
   const refreshStepStatuses = useCallback(
@@ -122,6 +124,7 @@ export default function NicheAnalyzerPage() {
     setStepStatuses(undefined);
     setStepSummaries(undefined);
     setStepErrors(undefined);
+    setStepWarnings(undefined);
     void loadExisting();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, authReady, accessToken]);
@@ -295,6 +298,7 @@ export default function NicheAnalyzerPage() {
     setStepStatuses(undefined);
     setStepSummaries(undefined);
     setStepErrors(undefined);
+    setStepWarnings(undefined);
     setProfile(null);
     setCoverage([]);
     setGaps([]);
@@ -451,6 +455,7 @@ export default function NicheAnalyzerPage() {
             stepStatuses={stepStatuses}
             stepSummaries={stepSummaries}
             stepErrors={stepErrors}
+            stepWarnings={stepWarnings}
             anyStepRunning={anyStepRunning}
             onStepStatusChange={applyAnalysisStatus}
             onStepRerun={async () => {
@@ -535,6 +540,7 @@ export default function NicheAnalyzerPage() {
               competitors={profile.competitors}
               accessToken={accessToken}
               serpValidationSummary={stepSummaries?.serp_validation}
+              serpLocalWarning={stepWarnings?.serp_validation}
               anyStepRunning={anyStepRunning}
               onStepStatusChange={applyAnalysisStatus}
               onCompetitorsUpdated={async () => {
@@ -566,6 +572,7 @@ export default function NicheAnalyzerPage() {
             stepStatuses={stepStatuses}
             stepSummaries={stepSummaries}
             stepErrors={stepErrors}
+            stepWarnings={stepWarnings}
             anyStepRunning={anyStepRunning}
             onStepStatusChange={applyAnalysisStatus}
             onStepRerun={async () => {

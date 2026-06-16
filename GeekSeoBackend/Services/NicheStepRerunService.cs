@@ -368,9 +368,14 @@ public sealed class NicheStepRerunService(
         var location = await GetLocationAsync(profile.ProjectId, ct);
         var demand = await pillarDemandEnricher.EnrichAsync(merged, profileId, domain, location, null, ct);
         await profileRepo.BulkInsertCompetitorsAsync(demand.Competitors, ct);
-        var msg = demand.SerpSkipped
-            ? $"SERP skipped: {demand.SerpSkipReason}"
-            : $"SERP: {demand.SerpValidations.Count} pillar(s), {demand.Competitors.Count} competitor(s).";
+        var (msg, localWarning) = SerpValidationMessages.Build(
+            demand.SerpValidations,
+            demand.Competitors,
+            demand.SerpSkipped,
+            demand.SerpSkipReason,
+            demand.LocalSerpStats);
+        if (localWarning is not null)
+            logger.LogWarning("SERP re-run local warning for profile {ProfileId}: {Warning}", profileId, localWarning);
         return NicheAnalysisStepLogBuilder.SerpValidation(9, demand, msg);
     }
 

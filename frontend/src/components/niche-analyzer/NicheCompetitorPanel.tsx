@@ -13,6 +13,8 @@ type Props = {
   onCompetitorsUpdated?: () => void;
   /** Set when SERP validation found competitors but none were persisted (re-run that step). */
   serpValidationSummary?: string | null;
+  /** Loud warning when local SERP queries failed or returned no local-scoped competitors. */
+  serpLocalWarning?: string | null;
   anyStepRunning?: boolean;
   onStepStatusChange?: (status: NicheAnalysisStatus) => void;
 };
@@ -31,6 +33,15 @@ const SCOPE_COLORS: Record<string, string> = {
   local: 'bg-emerald-100 text-emerald-800',
 };
 
+function LocalSerpWarningBanner({ message }: { message: string }) {
+  return (
+    <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+      <p className="font-medium">Local SERP issue</p>
+      <p className="mt-1 text-xs leading-relaxed">{message.replace(/^Local SERP issue:\s*/i, '')}</p>
+    </div>
+  );
+}
+
 function serpSummaryImpliesCompetitors(summary: string | null | undefined): boolean {
   if (!summary) return false;
   const match = /\b(\d+)\s+competitor/i.exec(summary);
@@ -43,6 +54,7 @@ export function NicheCompetitorPanel({
   accessToken,
   onCompetitorsUpdated,
   serpValidationSummary,
+  serpLocalWarning,
   anyStepRunning = false,
   onStepStatusChange,
 }: Readonly<Props>) {
@@ -159,7 +171,9 @@ export function NicheCompetitorPanel({
   if (loadedCompetitors.length === 0) {
     const serpFoundCompetitors = serpSummaryImpliesCompetitors(serpValidationSummary);
     return (
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-8 text-center">
+      <div className="space-y-4">
+        {serpLocalWarning ? <LocalSerpWarningBanner message={serpLocalWarning} /> : null}
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-8 text-center">
         {serpFoundCompetitors ? (
           <>
             <p className="text-sm text-[var(--color-text-primary)]">
@@ -189,12 +203,14 @@ export function NicheCompetitorPanel({
             No competitors identified yet. Complete SERP validation during niche analysis first.
           </p>
         )}
+        </div>
       </div>
     );
   }
 
   return (
     <section className="space-y-4">
+      {serpLocalWarning ? <LocalSerpWarningBanner message={serpLocalWarning} /> : null}
       {/* Header + action */}
       <div className="flex items-center justify-between">
         <div>

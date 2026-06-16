@@ -497,11 +497,20 @@ public sealed class NicheStepExecutionService(
             }
         }
 
-        var message = serp.Skipped
-            ? $"SERP validation skipped — {serp.SkipReason ?? "provider unavailable"}."
-            : demotedSlugs.Count > 0
-                ? $"SERP validation: {serp.Validations.Count} pillar(s) checked, {demotedSlugs.Count} demoted, {competitors.Count} competitor(s) found."
-                : $"SERP validation: {serp.Validations.Count} pillar(s) checked, {competitors.Count} competitor(s) found.";
+        var (message, localWarning) = SerpValidationMessages.Build(
+            serp.Validations,
+            competitors,
+            serp.Skipped,
+            serp.SkipReason,
+            serp.LocalStats,
+            demotedSlugs.Count);
+        if (localWarning is not null)
+        {
+            logger.LogWarning(
+                "SERP validation local warning for profile {ProfileId}: {Warning}",
+                profileId,
+                localWarning);
+        }
 
         return NicheStepArtifactStore.WithArtifact(
             NicheAnalysisStepLogBuilder.SerpValidation(
@@ -517,7 +526,8 @@ public sealed class NicheStepExecutionService(
                     "Keyword demand not run in step 10.",
                     serp.SkipReason,
                     "disabled",
-                    provider),
+                    provider,
+                    serp.LocalStats),
                 message),
             "serp_validation",
             new SerpValidationArtifact(
