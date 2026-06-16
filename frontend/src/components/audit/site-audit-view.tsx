@@ -30,9 +30,46 @@ export function SiteAuditView({ initialProjectId }: SiteAuditViewProps) {
   const [projectId, setProjectId] = useState(initialProjectId ?? '');
   const [history, setHistory] = useState<SiteAuditSummary[]>([]);
   const [selected, setSelected] = useState<SiteAuditDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
+  const [historyReadyForProjectId, setHistoryReadyForProjectId] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [refreshingAudit, setRefreshingAudit] = useState(false);
   const [error, setError] = useState<unknown>(null);
+
+  const loading =
+    authLoading ||
+    !projectsLoaded ||
+    (Boolean(projectId) && projectId !== historyReadyForProjectId);
+
+  const loadProjectAudits = useCallback(
+    async (id: string) => {
+      if (!id) {
+        setHistory([]);
+        setSelected(null);
+        setHistoryReadyForProjectId('');
+        return;
+      }
+
+      setHistoryReadyForProjectId(null);
+      try {
+        const audits = await listSiteAudits(id, accessToken);
+        setHistory(audits);
+        if (audits[0]) {
+          const detail = await getSiteAudit(audits[0].id, accessToken);
+          setSelected(detail);
+          setRunning(detail.status === 'running');
+        } else {
+          setSelected(null);
+          setRunning(false);
+        }
+        setHistoryReadyForProjectId(id);
+      } catch (e) {
+        setError(e);
+        setHistoryReadyForProjectId(id);
+      }
+    },
+    [accessToken],
+  );
 
   const loadHistory = useCallback(async () => {
     if (!projectId) return;
@@ -46,45 +83,35 @@ export function SiteAuditView({ initialProjectId }: SiteAuditViewProps) {
     void listProjects(accessToken)
       .then((list) => {
         setProjects(list);
-        if (initialProjectId && list.some((p) => p.id === initialProjectId)) {
-          setProjectId(initialProjectId);
-        } else if (list[0]) {
-          setProjectId(list[0].id);
+        const nextId =
+          initialProjectId && list.some((p) => p.id === initialProjectId)
+            ? initialProjectId
+            : (list[0]?.id ?? '');
+        setProjectId(nextId);
+        if (nextId) {
+          void loadProjectAudits(nextId);
+        } else {
+          setHistoryReadyForProjectId('');
         }
       })
       .catch((e) => setError(e))
-      .finally(() => setLoading(false));
-  }, [accessToken, authLoading, initialProjectId]);
+      .finally(() => setProjectsLoaded(true));
+  }, [accessToken, authLoading, initialProjectId, loadProjectAudits]);
 
-  useEffect(() => {
-    if (!projectId || authLoading) return;
-    setLoading(true);
-    void loadHistory()
-      .then((audits) => {
-        if (audits?.[0]) {
-          return getSiteAudit(audits[0].id, accessToken).then(setSelected);
-        }
-        setSelected(null);
-      })
-      .catch((e) => setError(e))
-      .finally(() => setLoading(false));
-  }, [projectId, authLoading, loadHistory, accessToken]);
-
-  useEffect(() => {
-    if (!running || !selected || selected.status !== 'running') return;
-    const timer = window.setInterval(() => {
-      void getSiteAudit(selected.id, accessToken)
-        .then((detail) => {
-          setSelected(detail);
-          if (detail.status !== 'running') {
-            setRunning(false);
-            void loadHistory();
-          }
-        })
-        .catch(() => {});
-    }, 3000);
-    return () => window.clearInterval(timer);
-  }, [running, selected, accessToken, loadHistory]);
+  async function refreshSelectedAudit() {
+    if (!selected) return;
+    setRefreshingAudit(true);
+    try {
+      const detail = await getSiteAudit(selected.id, accessToken);
+      setSelected(detail);
+      if (detail.status !== 'running') {
+        setRunning(false);
+        await loadHistory();
+      }
+    } finally {
+      setRefreshingAudit(false);
+    }
+  }
 
   async function runAudit() {
     if (!projectId) return;
@@ -128,7 +155,11 @@ export function SiteAuditView({ initialProjectId }: SiteAuditViewProps) {
           <select
             className="mt-1 block min-w-[220px] rounded-lg border border-[var(--color-border)] bg-white px-3 py-2"
             value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
+            onChange={(e) => {
+              const nextId = e.target.value;
+              setProjectId(nextId);
+              void loadProjectAudits(nextId);
+            }}
           >
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
@@ -226,9 +257,21 @@ export function SiteAuditView({ initialProjectId }: SiteAuditViewProps) {
                 </div>
 
                 {selected.status === 'running' ? (
-                  <p className="mt-6 text-sm text-[var(--color-text-secondary)]">
-                    Crawling pages… this refreshes automatically.
-                  </p>
+                  <div className="mt-6 flex items-center gap-3">
+                    <p className="text-sm text-[var(--color-text-secondary)]">
+                      Crawling pages… refresh status when needed.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void refreshSelectedAudit();
+                      }}
+                      disabled={refreshingAudit}
+                      className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {refreshingAudit ? 'Refreshing…' : 'Refresh status'}
+                    </button>
+                  </div>
                 ) : null}
 
                 <ul className="mt-8 space-y-4">

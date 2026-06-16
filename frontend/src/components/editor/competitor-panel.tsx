@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   getCompetitors,
   refreshCompetitorCrawl,
@@ -16,18 +16,11 @@ export function CompetitorPanel({ documentId, accessToken }: CompetitorPanelProp
   const [data, setData] = useState<CompetitorInsights | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [crawling, setCrawling] = useState(false);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     setData(await getCompetitors(documentId, accessToken));
   }, [documentId, accessToken]);
-
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -43,11 +36,6 @@ export function CompetitorPanel({ documentId, accessToken }: CompetitorPanelProp
           try {
             const refreshed = await refreshCompetitorCrawl(documentId, accessToken);
             setData(refreshed);
-            if (refreshed.crawlStatus !== 'complete') {
-              pollRef.current = setInterval(() => {
-                void load().catch(() => undefined);
-              }, 4000);
-            }
           } finally {
             setCrawling(false);
           }
@@ -56,12 +44,19 @@ export function CompetitorPanel({ documentId, accessToken }: CompetitorPanelProp
         setError(e instanceof Error ? e.message : 'Failed to load competitors');
       }
     })();
-    return stopPolling;
-  }, [documentId, accessToken, load, stopPolling]);
+  }, [documentId, accessToken, load]);
 
-  useEffect(() => {
-    if (data?.crawlStatus === 'complete') stopPolling();
-  }, [data?.crawlStatus, stopPolling]);
+  async function refreshCompetitorsNow() {
+    setRefreshing(true);
+    setError(null);
+    try {
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to refresh competitors');
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   if (error) return <p className="text-xs text-red-600">{error}</p>;
   if (!data) return <p className="text-xs text-[var(--color-text-secondary)]">Loading competitors…</p>;
@@ -75,6 +70,23 @@ export function CompetitorPanel({ documentId, accessToken }: CompetitorPanelProp
       {crawling && (
         <p className="mt-2 text-xs text-[var(--color-text-secondary)]">Crawling competitor pages…</p>
       )}
+      {!crawling && data.crawlStatus !== 'complete' ? (
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              void refreshCompetitorsNow();
+            }}
+            disabled={refreshing}
+            className="rounded-md border px-2.5 py-1 text-[11px] font-medium hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {refreshing ? 'Refreshing…' : 'Refresh crawl status'}
+          </button>
+          <span className="text-[11px] text-[var(--color-text-secondary)]">
+            Crawl updates are manual on this panel.
+          </span>
+        </div>
+      ) : null}
       {data.benchmarkQuality === 'low_sample_count' && (
         <p className="mt-2 text-xs text-amber-800">Limited crawl data — refresh SERP to improve benchmarks.</p>
       )}

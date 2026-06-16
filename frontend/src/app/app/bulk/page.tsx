@@ -19,6 +19,7 @@ export default function BulkArticlesPage() {
   const [location, setLocation] = useState('United States');
   const [job, setJob] = useState<BackgroundJobStatus | null>(null);
   const [loading, setLoading] = useState(false);
+  const [refreshingJob, setRefreshingJob] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,17 +33,16 @@ export default function BulkArticlesPage() {
     });
   }, [accessToken, authReady]);
 
-  useEffect(() => {
-    if (!authReady || !job || job.status === 'completed' || job.status === 'failed') return;
-
-    const timer = setInterval(() => {
-      void getJobStatus(job.jobId, accessToken)
-        .then(setJob)
-        .catch(() => undefined);
-    }, 4000);
-
-    return () => clearInterval(timer);
-  }, [job, accessToken, authReady]);
+  async function refreshJobStatusNow() {
+    if (!job) return;
+    setRefreshingJob(true);
+    try {
+      const next = await getJobStatus(job.jobId, accessToken);
+      setJob(next);
+    } finally {
+      setRefreshingJob(false);
+    }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -130,6 +130,23 @@ export default function BulkArticlesPage() {
             {job.status} · {job.progressPercent}% complete
           </p>
           {job.errorMessage ? <p className="mt-2 text-sm text-red-600">{job.errorMessage}</p> : null}
+          {job.status !== 'completed' && job.status !== 'failed' ? (
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  void refreshJobStatusNow();
+                }}
+                disabled={refreshingJob}
+                className="inline-flex rounded-lg border px-3 py-2 text-sm font-medium hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {refreshingJob ? 'Refreshing…' : 'Refresh status'}
+              </button>
+              <span className="text-xs text-[var(--color-text-secondary)]">
+                Status updates are manual on this page.
+              </span>
+            </div>
+          ) : null}
           {job.status === 'completed' && job.resultId ? (
             <Link
               href={`/app/content/${job.resultId}`}
