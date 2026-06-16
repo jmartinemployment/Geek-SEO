@@ -17,6 +17,8 @@ public sealed record SerpResult
     public required IReadOnlyList<SerpOrganicResult> OrganicResults { get; init; }
     public IReadOnlyList<PeopleAlsoAskResult> PeopleAlsoAsk { get; init; } = [];
     public IReadOnlyList<string> RelatedSearches { get; init; } = [];
+    /// <summary>Website domains from Google local pack / Maps places (local competitor discovery).</summary>
+    public IReadOnlyList<string> LocalPlaceDomains { get; init; } = [];
     public string? FeaturedSnippetText { get; init; }
     public required SerpFeatures Features { get; init; }
     public required DateTimeOffset FetchedAt { get; init; }

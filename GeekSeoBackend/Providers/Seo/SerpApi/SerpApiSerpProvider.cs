@@ -2,6 +2,7 @@ using System.Text.Json;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
+using GeekSeoBackend.Providers.Seo;
 
 namespace GeekSeoBackend.Providers.Seo.SerpApi;
 
@@ -68,7 +69,8 @@ public sealed class SerpApiSerpProvider(IHttpClientFactory httpClientFactory) : 
             var paa = ParsePeopleAlsoAsk(root);
             var related = ParseRelatedSearches(root);
             var featuredSnippet = ReadFeaturedSnippet(root);
-            var features = BuildFeatures(root, paa.Count > 0, featuredSnippet);
+            var localPlaceDomains = SerpLocalPlaceParser.FromSerpApiRoot(root);
+            var features = BuildFeatures(root, paa.Count > 0, featuredSnippet, localPlaceDomains.Count > 0);
 
             return Result<SerpResult>.Success(new SerpResult
             {
@@ -77,6 +79,7 @@ public sealed class SerpApiSerpProvider(IHttpClientFactory httpClientFactory) : 
                 OrganicResults = organic,
                 PeopleAlsoAsk = paa,
                 RelatedSearches = related,
+                LocalPlaceDomains = localPlaceDomains,
                 FeaturedSnippetText = featuredSnippet,
                 Features = features,
                 FetchedAt = DateTimeOffset.UtcNow,
@@ -189,7 +192,8 @@ public sealed class SerpApiSerpProvider(IHttpClientFactory httpClientFactory) : 
     private static SerpFeatures BuildFeatures(
         JsonElement root,
         bool hasPaa,
-        string? featuredSnippet)
+        string? featuredSnippet,
+        bool hasLocalPlaces = false)
     {
         var hasFeatured = !string.IsNullOrWhiteSpace(featuredSnippet)
             || root.TryGetProperty("answer_box", out _)
@@ -199,7 +203,8 @@ public sealed class SerpApiSerpProvider(IHttpClientFactory httpClientFactory) : 
         {
             HasFeaturedSnippet = hasFeatured,
             HasPeopleAlsoAsk = hasPaa || root.TryGetProperty("related_questions", out _),
-            HasLocalPack = root.TryGetProperty("local_results", out _)
+            HasLocalPack = hasLocalPlaces
+                || root.TryGetProperty("local_results", out _)
                 || root.TryGetProperty("local_map", out _),
             HasImagePack = root.TryGetProperty("inline_images", out _)
                 || root.TryGetProperty("images_results", out _),

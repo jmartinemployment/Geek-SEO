@@ -1092,6 +1092,30 @@ public sealed class NicheExtractionTests
     }
 
     [Fact]
+    public void PillarDemandEnricher_BuildCompetitors_AssignsLocalScopeFromLocalDomains()
+    {
+        var profileId = Guid.NewGuid();
+        var serp = new List<PillarSerpEnrichment>
+        {
+            new(
+                "managed-it",
+                true,
+                10,
+                false,
+                null,
+                ["national-only.com"],
+                "test",
+                LocalCompetitorDomains: ["local-msp.com"]),
+        };
+
+        var competitors = PillarDemandEnricher.BuildCompetitors(profileId, "geekatyourspot.com", serp);
+
+        Assert.Equal(2, competitors.Count);
+        Assert.Equal("local", competitors.First(c => c.Domain == "local-msp.com").Scope);
+        Assert.Equal("national", competitors.First(c => c.Domain == "national-only.com").Scope);
+    }
+
+    [Fact]
     public void PillarDemandEnricher_PickBestKeywordMatch_PrefersExactThenVolume()
     {
         var suggestions = new List<KeywordResult>

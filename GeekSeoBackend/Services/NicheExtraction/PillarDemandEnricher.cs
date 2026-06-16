@@ -16,8 +16,9 @@ public sealed class PillarDemandEnricher(
 {
     private const int MaxConcurrency = 8;
     /// <summary>When running national + local SERP per pillar, keep below Serper's ~5 req/s cap.</summary>
-    private const int DualSerpConcurrency = 2;
+    private const int DualSerpConcurrency = 1;
     private const int SerpRateLimitMaxAttempts = 4;
+    private const int SerperInterRequestDelayMs = 350;
 
     public async Task<PillarDemandEnrichment> EnrichAsync(
         IReadOnlyList<DiscoveredPillar> pillars,
@@ -318,14 +319,17 @@ public sealed class PillarDemandEnricher(
                 var keyword = pillar.Name.Trim();
 
                 var nationalRequest = new SerpRequest { Keyword = keyword, Location = NationalLocation, ResultCount = 10 };
-                var nationalTask = FetchSerpWithRetryAsync(nationalRequest, ct);
+                var nationalResult = await FetchSerpWithRetryAsync(nationalRequest, ct);
 
                 Result<SerpResult>? localResult = null;
                 if (isLocal)
                 {
+                    if (string.Equals(serpProvider.ProviderName, "serpdev", StringComparison.OrdinalIgnoreCase))
+                        await Task.Delay(SerperInterRequestDelayMs, ct);
+
                     var localRequest = new SerpRequest { Keyword = keyword, Location = location, ResultCount = 10 };
                     localResult = await FetchSerpWithRetryAsync(localRequest, ct);
-                    if (localResult.IsSuccess && localResult.Value is not null)
+                    if (localResult.IsSuccess && localResult.Value is not null && HasLocalSerpSignal(localResult.Value))
                         Interlocked.Increment(ref localSuccesses);
                     else
                     {
@@ -333,8 +337,6 @@ public sealed class PillarDemandEnricher(
                         firstLocalError ??= localResult.Error;
                     }
                 }
-
-                var nationalResult = await nationalTask;
 
                 if (!nationalResult.IsSuccess || nationalResult.Value is null)
                 {
@@ -378,13 +380,7 @@ public sealed class PillarDemandEnricher(
 
                 if (localResult?.IsSuccess == true && localResult.Value is not null)
                 {
-                    var localOrganic = localResult.Value.OrganicResults;
-                    localDomains = localOrganic
-                        .Select(r => DomainFromUrl(r.Url) ?? r.Domain)
-                        .Where(d => !string.IsNullOrWhiteSpace(d) && CompetitorDomainFilter.IsCompetitor(d!))
-                        .Select(d => d!)
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .ToList();
+                    localDomains = CollectLocalCompetitorDomains(localResult.Value);
                     localPaa = localResult.Value.PeopleAlsoAsk.Count > 0 ? localResult.Value.PeopleAlsoAsk : null;
                     localRelated = localResult.Value.RelatedSearches.Count > 0 ? localResult.Value.RelatedSearches : null;
                 }
@@ -490,6 +486,32 @@ public sealed class PillarDemandEnricher(
         !string.IsNullOrWhiteSpace(error)
         && (error.Contains("429", StringComparison.Ordinal)
             || error.Contains("rate limit", StringComparison.OrdinalIgnoreCase));
+
+    private static bool HasLocalSerpSignal(SerpResult result) =>
+        result.OrganicResults.Count > 0 || result.LocalPlaceDomains.Count > 0;
+
+    private static List<string> CollectLocalCompetitorDomains(SerpResult result)
+    {
+        var domains = new List<string>();
+        foreach (var row in result.OrganicResults)
+        {
+            var domain = DomainFromUrl(row.Url) ?? row.Domain;
+            if (string.IsNullOrWhiteSpace(domain) || !CompetitorDomainFilter.IsCompetitor(domain))
+                continue;
+            if (!domains.Contains(domain, StringComparer.OrdinalIgnoreCase))
+                domains.Add(domain);
+        }
+
+        foreach (var domain in result.LocalPlaceDomains)
+        {
+            if (string.IsNullOrWhiteSpace(domain) || !CompetitorDomainFilter.IsCompetitor(domain))
+                continue;
+            if (!domains.Contains(domain, StringComparer.OrdinalIgnoreCase))
+                domains.Add(domain);
+        }
+
+        return domains;
+    }
 
     private static string AssessStrength(int serpPresence) => serpPresence switch
     {

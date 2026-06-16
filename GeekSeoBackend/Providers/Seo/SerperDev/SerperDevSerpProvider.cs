@@ -3,6 +3,7 @@ using System.Text.Json;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
+using GeekSeoBackend.Providers.Seo;
 
 namespace GeekSeoBackend.Providers.Seo.SerperDev;
 
@@ -53,8 +54,92 @@ public sealed class SerperDevSerpProvider(IHttpClientFactory httpClientFactory) 
             if (!response.IsSuccessStatusCode)
                 return Result<SerpResult>.Failure($"Serper.dev HTTP {(int)response.StatusCode}: {Truncate(raw)}");
 
-            return ParseResponse(request, raw);
+            var parsed = ParseResponse(request, raw);
+            if (!parsed.IsSuccess || parsed.Value is null)
+                return parsed;
+
+            if (IsLocalMarket(request.Location))
+            {
+                var placeDomains = await FetchPlaceDomainsAsync(request, ct);
+                if (placeDomains.Count > 0)
+                {
+                    parsed = Result<SerpResult>.Success(parsed.Value with
+                    {
+                        LocalPlaceDomains = MergeDomains(parsed.Value.LocalPlaceDomains, placeDomains),
+                    });
+                }
+            }
+
+            return parsed;
         }
+    }
+
+    private static bool IsLocalMarket(string location) =>
+        !string.IsNullOrWhiteSpace(location)
+        && !location.Equals("United States", StringComparison.OrdinalIgnoreCase);
+
+    private async Task<IReadOnlyList<string>> FetchPlaceDomainsAsync(SerpRequest request, CancellationToken ct)
+    {
+        if (!TryGetApiKey(out var apiKey))
+            return [];
+
+        var body = new
+        {
+            q = request.Keyword,
+            gl = request.CountryCode.ToLowerInvariant(),
+            location = request.Location,
+        };
+
+        var client = httpClientFactory.CreateClient("SerperDev");
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "places")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json"),
+        };
+        httpRequest.Headers.Add("X-API-KEY", apiKey);
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await client.SendAsync(httpRequest, ct);
+        }
+        catch
+        {
+            return [];
+        }
+
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+                return [];
+
+            var raw = await response.Content.ReadAsStringAsync(ct);
+            try
+            {
+                using var doc = JsonDocument.Parse(raw);
+                return SerpLocalPlaceParser.FromSerperRoot(doc.RootElement);
+            }
+            catch
+            {
+                return [];
+            }
+        }
+    }
+
+    private static IReadOnlyList<string> MergeDomains(
+        IReadOnlyList<string> existing,
+        IReadOnlyList<string> additional)
+    {
+        if (existing.Count == 0)
+            return additional;
+
+        var merged = new List<string>(existing);
+        foreach (var domain in additional)
+        {
+            if (!merged.Contains(domain, StringComparer.OrdinalIgnoreCase))
+                merged.Add(domain);
+        }
+
+        return merged;
     }
 
     internal static Result<SerpResult> ParseResponse(SerpRequest request, string raw)
@@ -125,6 +210,11 @@ public sealed class SerperDevSerpProvider(IHttpClientFactory httpClientFactory) 
             if (root.TryGetProperty("knowledgeGraph", out _))
                 features = features with { HasKnowledgePanel = true };
 
+            if (root.TryGetProperty("places", out var placesEl) && placesEl.ValueKind == JsonValueKind.Array && placesEl.GetArrayLength() > 0)
+                features = features with { HasLocalPack = true };
+
+            var localPlaceDomains = SerpLocalPlaceParser.FromSerperRoot(root);
+
             return Result<SerpResult>.Success(new SerpResult
             {
                 Keyword = request.Keyword,
@@ -132,6 +222,7 @@ public sealed class SerperDevSerpProvider(IHttpClientFactory httpClientFactory) 
                 OrganicResults = organic,
                 PeopleAlsoAsk = paa,
                 RelatedSearches = related,
+                LocalPlaceDomains = localPlaceDomains,
                 FeaturedSnippetText = featuredSnippet,
                 Features = features,
                 FetchedAt = DateTimeOffset.UtcNow,

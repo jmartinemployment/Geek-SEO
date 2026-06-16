@@ -28,7 +28,12 @@ public sealed class SerpApiSerpProviderTests
                 "free crm software"
               ],
               "answer_box": { "snippet": "CRM helps manage customers." },
-              "local_results": {},
+              "local_results": [
+                {
+                  "title": "Local CRM Co",
+                  "links": { "website": "https://localcrm.example" }
+                }
+              ],
               "knowledge_graph": {}
             }
             """;
@@ -55,6 +60,8 @@ public sealed class SerpApiSerpProviderTests
         Assert.True(result.Value.Features.HasFeaturedSnippet);
         Assert.True(result.Value.Features.HasLocalPack);
         Assert.True(result.Value.Features.HasKnowledgePanel);
+        Assert.Single(result.Value.LocalPlaceDomains);
+        Assert.Equal("localcrm.example", result.Value.LocalPlaceDomains[0]);
     }
 
     [Fact]
