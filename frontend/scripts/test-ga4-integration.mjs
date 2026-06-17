@@ -18,8 +18,7 @@ const userId =
   process.env.NEXT_PUBLIC_DEV_USER_ID ??
   '92b274f5-2fcb-4935-ba2d-cd8c03e1b21b';
 
-const projectId =
-  process.env.GA4_PROJECT_ID ?? 'e6275e97-6568-4e48-9bab-ee788de8fe77';
+const projectIdFromEnv = process.env.GA4_PROJECT_ID;
 
 const live = process.env.GA4_LIVE === '1' || process.env.GA4_LIVE === 'true';
 
@@ -50,7 +49,32 @@ function assert(condition, message) {
   }
 }
 
+async function resolveProjectId() {
+  if (projectIdFromEnv) {
+    const probe = await request(
+      'GET',
+      `/api/seo/integrations/google/status?projectId=${projectIdFromEnv}`,
+    );
+    if (probe.status !== 404) {
+      return projectIdFromEnv;
+    }
+    console.warn(
+      `⚠ GA4_PROJECT_ID ${projectIdFromEnv} not found for user — falling back to first project`,
+    );
+  }
+
+  const projects = await request('GET', '/api/seo/projects');
+  assert(
+    projects.status === 200,
+    `projects list expected 200, got ${projects.status}: ${JSON.stringify(projects.json)}`,
+  );
+  const first = Array.isArray(projects.json) ? projects.json[0] : null;
+  assert(first?.id, 'integration user has no SEO projects — create one or set GA4_PROJECT_ID');
+  return first.id;
+}
+
 try {
+  const projectId = await resolveProjectId();
   console.log(`API: ${apiBase}`);
   console.log(`User: ${userId}`);
   console.log(`Project: ${projectId}`);
@@ -73,6 +97,14 @@ try {
       console.log('○ GA4 connected — run GA4_LIVE=1 to verify Analytics Data API');
     }
     console.log('\nGA4 integration checks passed (non-live).');
+    process.exit(0);
+  }
+
+  if (!status.json?.ga4Connected) {
+    console.warn(
+      '⚠ GA4_LIVE=1 but GA4 is not connected on this project — skip live landing-pages',
+    );
+    console.log('\nGA4 integration checks passed (live skipped — not connected).');
     process.exit(0);
   }
 

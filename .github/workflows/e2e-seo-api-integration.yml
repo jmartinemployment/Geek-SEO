@@ -63,4 +63,4 @@ jobs:
         env:
           PLAYWRIGHT_API_URL: https://seo-api.geekatyourspot.com
           INTEGRATION_USER_ID: 92b274f5-2fcb-4935-ba2d-cd8c03e1b21b
-          GA4_PROJECT_ID: e6275e97-6568-4e48-9bab-ee788de8fe77
+          GA4_PROJECT_ID: 073892ed-a6ce-4b4b-b37a-864126481823
