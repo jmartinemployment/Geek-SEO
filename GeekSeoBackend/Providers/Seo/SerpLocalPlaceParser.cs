@@ -1,72 +1,110 @@
 using System.Text.Json;
+using GeekSeo.Application.Models.Seo;
 
 namespace GeekSeoBackend.Providers.Seo;
 
 /// <summary>Extract competitor website domains from Google local pack / Maps places JSON.</summary>
 internal static class SerpLocalPlaceParser
 {
-    internal static IReadOnlyList<string> FromSerperRoot(JsonElement root)
+    internal static IReadOnlyList<string> FromSerperRoot(JsonElement root) =>
+        PlacesFromSerperRoot(root).Select(p => p.Domain).ToList();
+
+    internal static IReadOnlyList<string> FromSerpApiRoot(JsonElement root) =>
+        PlacesFromSerpApiRoot(root).Select(p => p.Domain).ToList();
+
+    internal static IReadOnlyList<SerpLocalPlace> PlacesFromSerperRoot(JsonElement root)
     {
         if (!root.TryGetProperty("places", out var places) || places.ValueKind != JsonValueKind.Array)
             return [];
 
-        return DomainsFromPlaceItems(places);
+        return PlacesFromSerperItems(places);
     }
 
-    internal static IReadOnlyList<string> FromSerpApiRoot(JsonElement root)
+    internal static IReadOnlyList<SerpLocalPlace> PlacesFromSerpApiRoot(JsonElement root)
     {
         if (!root.TryGetProperty("local_results", out var local))
             return [];
 
         if (local.ValueKind == JsonValueKind.Array)
-            return DomainsFromSerpApiPlaceItems(local);
+            return PlacesFromSerpApiItems(local);
 
         if (local.TryGetProperty("places", out var places) && places.ValueKind == JsonValueKind.Array)
-            return DomainsFromSerpApiPlaceItems(places);
+            return PlacesFromSerpApiItems(places);
 
         return [];
     }
 
-    private static List<string> DomainsFromPlaceItems(JsonElement places)
+    private static List<SerpLocalPlace> PlacesFromSerperItems(JsonElement places)
     {
-        var domains = new List<string>();
+        var results = new List<SerpLocalPlace>();
         foreach (var item in places.EnumerateArray())
         {
             var website = item.TryGetProperty("website", out var w) ? w.GetString() : null;
-            AddDomain(domains, website);
+            var domain = DomainFromUrl(website);
+            if (string.IsNullOrWhiteSpace(domain))
+                continue;
+
+            if (results.Any(p => string.Equals(p.Domain, domain, StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            var (lat, lon) = ReadCoordinates(item);
+            results.Add(new SerpLocalPlace(domain, lat, lon));
         }
 
-        return domains;
+        return results;
     }
 
-    private static List<string> DomainsFromSerpApiPlaceItems(JsonElement places)
+    private static List<SerpLocalPlace> PlacesFromSerpApiItems(JsonElement places)
     {
-        var domains = new List<string>();
+        var results = new List<SerpLocalPlace>();
         foreach (var item in places.EnumerateArray())
         {
+            string? website = null;
             if (item.TryGetProperty("links", out var links) && links.ValueKind == JsonValueKind.Object)
-            {
-                var website = links.TryGetProperty("website", out var w) ? w.GetString() : null;
-                AddDomain(domains, website);
-            }
+                website = links.TryGetProperty("website", out var w) ? w.GetString() : null;
 
-            var direct = item.TryGetProperty("website", out var site) ? site.GetString() : null;
-            AddDomain(domains, direct);
+            website ??= item.TryGetProperty("website", out var site) ? site.GetString() : null;
+
+            var domain = DomainFromUrl(website);
+            if (string.IsNullOrWhiteSpace(domain))
+                continue;
+
+            if (results.Any(p => string.Equals(p.Domain, domain, StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            var (lat, lon) = ReadCoordinates(item);
+            results.Add(new SerpLocalPlace(domain, lat, lon));
         }
 
-        return domains;
+        return results;
     }
 
-    private static void AddDomain(List<string> domains, string? urlOrDomain)
+    private static (double? Lat, double? Lon) ReadCoordinates(JsonElement item)
     {
-        var domain = DomainFromUrl(urlOrDomain);
-        if (string.IsNullOrWhiteSpace(domain))
-            return;
+        if (item.TryGetProperty("gps_coordinates", out var gps) && gps.ValueKind == JsonValueKind.Object)
+        {
+            var lat = ReadDouble(gps, "latitude") ?? ReadDouble(gps, "lat");
+            var lon = ReadDouble(gps, "longitude") ?? ReadDouble(gps, "lng");
+            if (lat.HasValue && lon.HasValue)
+                return (lat, lon);
+        }
 
-        if (domains.Contains(domain, StringComparer.OrdinalIgnoreCase))
-            return;
+        var directLat = ReadDouble(item, "latitude") ?? ReadDouble(item, "lat");
+        var directLon = ReadDouble(item, "longitude") ?? ReadDouble(item, "lng");
+        return (directLat, directLon);
+    }
 
-        domains.Add(domain);
+    private static double? ReadDouble(JsonElement parent, string propertyName)
+    {
+        if (!parent.TryGetProperty(propertyName, out var value))
+            return null;
+
+        return value.ValueKind switch
+        {
+            JsonValueKind.Number => value.GetDouble(),
+            JsonValueKind.String when double.TryParse(value.GetString(), out var parsed) => parsed,
+            _ => null,
+        };
     }
 
     internal static string? DomainFromUrl(string? urlOrDomain)

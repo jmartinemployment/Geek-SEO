@@ -6,23 +6,25 @@ namespace GeekSeoBackend.Tests;
 public sealed class SerpLocalPlaceParserTests
 {
     [Fact]
-    public void FromSerperRoot_ReadsWebsiteDomains()
+    public void FromSerperRoot_ReadsWebsiteDomainsAndCoordinates()
     {
         const string json = """
             {
               "places": [
-                { "title": "Local MSP", "website": "https://www.acme-it.com" },
+                { "title": "Local MSP", "website": "https://www.acme-it.com", "latitude": 26.46, "longitude": -80.07 },
                 { "title": "No site" },
-                { "title": "Dup", "website": "https://acme-it.com/contact" }
+                { "title": "Dup", "website": "https://acme-it.com/contact", "latitude": 26.46, "longitude": -80.07 }
               ]
             }
             """;
 
         using var doc = JsonDocument.Parse(json);
-        var domains = SerpLocalPlaceParser.FromSerperRoot(doc.RootElement);
+        var places = SerpLocalPlaceParser.PlacesFromSerperRoot(doc.RootElement);
 
-        Assert.Single(domains);
-        Assert.Equal("acme-it.com", domains[0]);
+        Assert.Single(places);
+        Assert.Equal("acme-it.com", places[0].Domain);
+        Assert.Equal(26.46, places[0].Latitude);
+        Assert.Equal(-80.07, places[0].Longitude);
     }
 
     [Fact]

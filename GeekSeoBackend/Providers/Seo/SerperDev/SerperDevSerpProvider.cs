@@ -60,12 +60,14 @@ public sealed class SerperDevSerpProvider(IHttpClientFactory httpClientFactory) 
 
             if (IsLocalMarket(request.Location))
             {
-                var placeDomains = await FetchPlaceDomainsAsync(request, ct);
-                if (placeDomains.Count > 0)
+                var additionalPlaces = await FetchPlacesAsync(request, ct);
+                if (additionalPlaces.Count > 0)
                 {
+                    var mergedPlaces = MergePlaces(parsed.Value.LocalPlaces, additionalPlaces);
                     parsed = Result<SerpResult>.Success(parsed.Value with
                     {
-                        LocalPlaceDomains = MergeDomains(parsed.Value.LocalPlaceDomains, placeDomains),
+                        LocalPlaces = mergedPlaces,
+                        LocalPlaceDomains = DomainsFromPlaces(mergedPlaces),
                     });
                 }
             }
@@ -78,7 +80,7 @@ public sealed class SerperDevSerpProvider(IHttpClientFactory httpClientFactory) 
         !string.IsNullOrWhiteSpace(location)
         && !location.Equals("United States", StringComparison.OrdinalIgnoreCase);
 
-    private async Task<IReadOnlyList<string>> FetchPlaceDomainsAsync(SerpRequest request, CancellationToken ct)
+    private async Task<IReadOnlyList<SerpLocalPlace>> FetchPlacesAsync(SerpRequest request, CancellationToken ct)
     {
         if (!TryGetApiKey(out var apiKey))
             return [];
@@ -116,13 +118,52 @@ public sealed class SerperDevSerpProvider(IHttpClientFactory httpClientFactory) 
             try
             {
                 using var doc = JsonDocument.Parse(raw);
-                return SerpLocalPlaceParser.FromSerperRoot(doc.RootElement);
+                return SerpLocalPlaceParser.PlacesFromSerperRoot(doc.RootElement);
             }
             catch
             {
                 return [];
             }
         }
+    }
+
+    private static IReadOnlyList<string> DomainsFromPlaces(IReadOnlyList<SerpLocalPlace> places)
+    {
+        var domains = new List<string>();
+        foreach (var place in places)
+        {
+            if (domains.Contains(place.Domain, StringComparer.OrdinalIgnoreCase))
+                continue;
+            domains.Add(place.Domain);
+        }
+
+        return domains;
+    }
+
+    private static IReadOnlyList<SerpLocalPlace> MergePlaces(
+        IReadOnlyList<SerpLocalPlace> existing,
+        IReadOnlyList<SerpLocalPlace> additional)
+    {
+        if (existing.Count == 0)
+            return additional;
+
+        var merged = new List<SerpLocalPlace>(existing);
+        foreach (var place in additional)
+        {
+            var index = merged.FindIndex(p =>
+                string.Equals(p.Domain, place.Domain, StringComparison.OrdinalIgnoreCase));
+            if (index < 0)
+            {
+                merged.Add(place);
+                continue;
+            }
+
+            var current = merged[index];
+            if (!current.Latitude.HasValue && place.Latitude.HasValue)
+                merged[index] = place;
+        }
+
+        return merged;
     }
 
     private static IReadOnlyList<string> MergeDomains(
@@ -213,7 +254,7 @@ public sealed class SerperDevSerpProvider(IHttpClientFactory httpClientFactory) 
             if (root.TryGetProperty("places", out var placesEl) && placesEl.ValueKind == JsonValueKind.Array && placesEl.GetArrayLength() > 0)
                 features = features with { HasLocalPack = true };
 
-            var localPlaceDomains = SerpLocalPlaceParser.FromSerperRoot(root);
+            var localPlaces = SerpLocalPlaceParser.PlacesFromSerperRoot(root);
 
             return Result<SerpResult>.Success(new SerpResult
             {
@@ -222,7 +263,8 @@ public sealed class SerperDevSerpProvider(IHttpClientFactory httpClientFactory) 
                 OrganicResults = organic,
                 PeopleAlsoAsk = paa,
                 RelatedSearches = related,
-                LocalPlaceDomains = localPlaceDomains,
+                LocalPlaces = localPlaces,
+                LocalPlaceDomains = DomainsFromPlaces(localPlaces),
                 FeaturedSnippetText = featuredSnippet,
                 Features = features,
                 FetchedAt = DateTimeOffset.UtcNow,

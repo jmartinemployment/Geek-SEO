@@ -3,6 +3,7 @@ using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
 using GeekSeo.Persistence.Entities;
+using GeekSeoBackend.Services.LocalServiceArea;
 
 namespace GeekSeoBackend.Services.NicheExtraction;
 
@@ -25,13 +26,14 @@ public sealed class PillarDemandEnricher(
         Guid profileId,
         string siteDomain,
         string location,
+        LocalServiceAreaContext? serviceArea = null,
         Func<int, int, string, Task>? onProgress = null,
         CancellationToken ct = default)
     {
         var targets = pillars.ToList();
         var siteHost = NormalizeHost(siteDomain);
 
-        var (keyword, serp) = await RunBothPhasesAsync(targets, siteHost, location, onProgress, ct);
+        var (keyword, serp) = await RunBothPhasesAsync(targets, siteHost, location, serviceArea, onProgress, ct);
         var competitors = BuildCompetitors(profileId, siteHost, serp.Validations);
         var demoted = ApplySerpDemotions(pillars, serp.Validations, out var demotedSlugs);
 
@@ -62,12 +64,14 @@ public sealed class PillarDemandEnricher(
             IReadOnlyList<DiscoveredPillar> pillars,
             string siteDomain,
             string location,
+            LocalServiceAreaContext? serviceArea = null,
             Func<int, int, string, Task>? onProgress = null,
             CancellationToken ct = default) =>
         ValidateSerpAsync(
             pillars,
             NormalizeHost(siteDomain),
             location,
+            serviceArea,
             onProgress,
             ct);
 
@@ -202,6 +206,7 @@ public sealed class PillarDemandEnricher(
             IReadOnlyList<DiscoveredPillar> targets,
             string siteHost,
             string location,
+            LocalServiceAreaContext? serviceArea,
             Func<int, int, string, Task>? onProgress,
             CancellationToken ct)
     {
@@ -209,7 +214,7 @@ public sealed class PillarDemandEnricher(
             Enrichments: (IReadOnlyList<PillarKeywordEnrichment>)[],
             Skipped: true,
             SkipReason: (string?)"Keyword vendor disabled — poor signal quality.");
-        var serp = await ValidateSerpAsync(targets, siteHost, location, onProgress, ct);
+        var serp = await ValidateSerpAsync(targets, siteHost, location, serviceArea, onProgress, ct);
         return (keyword, serp);
     }
 
@@ -293,6 +298,7 @@ public sealed class PillarDemandEnricher(
             IReadOnlyList<DiscoveredPillar> pillars,
             string siteHost,
             string location,
+            LocalServiceAreaContext? serviceArea,
             Func<int, int, string, Task>? onProgress,
             CancellationToken ct)
     {
@@ -380,7 +386,7 @@ public sealed class PillarDemandEnricher(
 
                 if (localResult?.IsSuccess == true && localResult.Value is not null)
                 {
-                    localDomains = CollectLocalCompetitorDomains(localResult.Value);
+                    localDomains = CollectLocalCompetitorDomains(localResult.Value, serviceArea);
                     localPaa = localResult.Value.PeopleAlsoAsk.Count > 0 ? localResult.Value.PeopleAlsoAsk : null;
                     localRelated = localResult.Value.RelatedSearches.Count > 0 ? localResult.Value.RelatedSearches : null;
                 }
@@ -488,10 +494,17 @@ public sealed class PillarDemandEnricher(
             || error.Contains("rate limit", StringComparison.OrdinalIgnoreCase));
 
     private static bool HasLocalSerpSignal(SerpResult result) =>
-        result.OrganicResults.Count > 0 || result.LocalPlaceDomains.Count > 0;
+        result.OrganicResults.Count > 0
+        || result.LocalPlaceDomains.Count > 0
+        || result.LocalPlaces.Count > 0;
 
-    private static List<string> CollectLocalCompetitorDomains(SerpResult result)
+    internal static List<string> CollectLocalCompetitorDomains(
+        SerpResult result,
+        LocalServiceAreaContext? serviceArea)
     {
+        if (serviceArea is not null)
+            return CollectRadiusFilteredPlaceDomains(result, serviceArea);
+
         var domains = new List<string>();
         foreach (var row in result.OrganicResults)
         {
@@ -502,15 +515,51 @@ public sealed class PillarDemandEnricher(
                 domains.Add(domain);
         }
 
+        foreach (var place in result.LocalPlaces)
+            AddLocalDomain(domains, place.Domain);
+
         foreach (var domain in result.LocalPlaceDomains)
+            AddLocalDomain(domains, domain);
+
+        return domains;
+    }
+
+    private static List<string> CollectRadiusFilteredPlaceDomains(
+        SerpResult result,
+        LocalServiceAreaContext serviceArea)
+    {
+        var domains = new List<string>();
+        var places = result.LocalPlaces.Count > 0
+            ? result.LocalPlaces
+            : result.LocalPlaceDomains.Select(d => new SerpLocalPlace(d, null, null)).ToList();
+
+        foreach (var place in places)
         {
-            if (string.IsNullOrWhiteSpace(domain) || !CompetitorDomainFilter.IsCompetitor(domain))
+            if (!place.Latitude.HasValue || !place.Longitude.HasValue)
                 continue;
-            if (!domains.Contains(domain, StringComparer.OrdinalIgnoreCase))
-                domains.Add(domain);
+
+            if (!GeoDistance.IsWithinRadiusMiles(
+                    serviceArea.CenterLatitude,
+                    serviceArea.CenterLongitude,
+                    place.Latitude.Value,
+                    place.Longitude.Value,
+                    serviceArea.RadiusMiles))
+            {
+                continue;
+            }
+
+            AddLocalDomain(domains, place.Domain);
         }
 
         return domains;
+    }
+
+    private static void AddLocalDomain(List<string> domains, string? domain)
+    {
+        if (string.IsNullOrWhiteSpace(domain) || !CompetitorDomainFilter.IsCompetitor(domain))
+            return;
+        if (!domains.Contains(domain, StringComparer.OrdinalIgnoreCase))
+            domains.Add(domain);
     }
 
     private static string AssessStrength(int serpPresence) => serpPresence switch

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using GeekSeo.Application.Interfaces;
+using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Services;
 using GeekSeo.Persistence.Entities;
@@ -33,6 +34,7 @@ public sealed class NicheStepRerunService(
     NicheAuthorityScorer scorer,
     NicheRootEntityBuilder rootBuilder,
     NicheStepExecutionService stepExecution,
+    ILocalSerpContextResolver localSerpContextResolver,
     NicheStepLock stepLock,
     NicheAnalysisProgressNotifier progressNotifier,
     IServiceScopeFactory scopeFactory,
@@ -352,8 +354,9 @@ public sealed class NicheStepRerunService(
     {
         var fused = await LoadFusionAsync(profileId);
         var merged = fused.SelectedPillars.Select(PillarSelector.ToDiscoveredPillar).ToList();
-        var location = await GetLocationAsync(profile.ProjectId, ct);
-        var demand = await pillarDemandEnricher.EnrichAsync(merged, profileId, domain, location, null, ct);
+        var localContext = await ResolveLocalSerpContextAsync(profile.ProjectId, ct);
+        var demand = await pillarDemandEnricher.EnrichAsync(
+            merged, profileId, domain, localContext.SerpMarketLocation, localContext.ServiceArea, null, ct);
         var msg = demand.KeywordsSkipped
             ? $"Keywords skipped: {demand.KeywordSkipReason}"
             : $"Keywords: {demand.Keywords.Count(k => k.Enriched)} pillar(s) enriched.";
@@ -365,8 +368,9 @@ public sealed class NicheStepRerunService(
     {
         var fused = await LoadFusionAsync(profileId);
         var merged = fused.SelectedPillars.Select(PillarSelector.ToDiscoveredPillar).ToList();
-        var location = await GetLocationAsync(profile.ProjectId, ct);
-        var demand = await pillarDemandEnricher.EnrichAsync(merged, profileId, domain, location, null, ct);
+        var localContext = await ResolveLocalSerpContextAsync(profile.ProjectId, ct);
+        var demand = await pillarDemandEnricher.EnrichAsync(
+            merged, profileId, domain, localContext.SerpMarketLocation, localContext.ServiceArea, null, ct);
         await profileRepo.BulkInsertCompetitorsAsync(demand.Competitors, ct);
         var (msg, localWarning) = SerpValidationMessages.Build(
             demand.SerpValidations,
@@ -516,10 +520,17 @@ public sealed class NicheStepRerunService(
             .ToList();
     }
 
-    private async Task<string> GetLocationAsync(Guid projectId, CancellationToken ct)
+    private async Task<LocalSerpContext> ResolveLocalSerpContextAsync(Guid projectId, CancellationToken ct)
     {
-        // Try to read from a project repo if available; default to United States
-        return "United States";
+        var resolved = await localSerpContextResolver.ResolveAsync(projectId, ct);
+        if (resolved.IsSuccess && resolved.Value is not null)
+            return resolved.Value;
+
+        logger.LogWarning(
+            "Could not resolve local SERP context for project {ProjectId}: {Error}",
+            projectId,
+            resolved.Error);
+        return new LocalSerpContext(PillarDemandEnricher.NationalLocation, null);
     }
 
     private static List<NichePillar> BuildNichePillarsLight(

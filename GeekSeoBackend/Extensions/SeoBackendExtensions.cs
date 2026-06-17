@@ -10,6 +10,7 @@ using GeekSeoBackend.HttpClients.Repo;
 using GeekSeoBackend.Infrastructure;
 using GeekSeoBackend.Providers.Seo;
 using GeekSeoBackend.Services;
+using GeekSeoBackend.Services.LocalServiceArea;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using SubscriptionService = GeekSeo.Application.Services.Seo.SubscriptionService;
@@ -161,6 +162,17 @@ public static class SeoBackendExtensions
         });
         services.AddHttpClient("PublicScanPsi", client => client.Timeout = TimeSpan.FromSeconds(45));
         services.AddScoped<IPublicSiteScanService, PublicSiteScanService>();
+
+        services.AddHttpClient("GoogleGeocode", client => client.Timeout = TimeSpan.FromSeconds(15));
+        services.AddHttpClient("NominatimGeocode", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("GeekSEO/1.0 (https://seo.geekatyourspot.com)");
+        });
+        services.AddScoped<GoogleGeocodeService>();
+        services.AddScoped<NominatimGeocodeService>();
+        services.AddScoped<IGeocodeService, CompositeGeocodeService>();
+        services.AddScoped<ILocalSerpContextResolver, LocalSerpContextResolver>();
 
         services.AddSignalR();
         services.AddSingleton<Microsoft.AspNetCore.SignalR.IUserIdProvider, Hubs.SubUserIdProvider>();

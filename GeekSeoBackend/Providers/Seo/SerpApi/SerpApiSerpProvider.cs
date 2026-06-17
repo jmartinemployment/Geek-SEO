@@ -69,7 +69,8 @@ public sealed class SerpApiSerpProvider(IHttpClientFactory httpClientFactory) : 
             var paa = ParsePeopleAlsoAsk(root);
             var related = ParseRelatedSearches(root);
             var featuredSnippet = ReadFeaturedSnippet(root);
-            var localPlaceDomains = SerpLocalPlaceParser.FromSerpApiRoot(root);
+            var localPlaces = SerpLocalPlaceParser.PlacesFromSerpApiRoot(root);
+            var localPlaceDomains = localPlaces.Select(p => p.Domain).ToList();
             var features = BuildFeatures(root, paa.Count > 0, featuredSnippet, localPlaceDomains.Count > 0);
 
             return Result<SerpResult>.Success(new SerpResult
@@ -79,6 +80,7 @@ public sealed class SerpApiSerpProvider(IHttpClientFactory httpClientFactory) : 
                 OrganicResults = organic,
                 PeopleAlsoAsk = paa,
                 RelatedSearches = related,
+                LocalPlaces = localPlaces,
                 LocalPlaceDomains = localPlaceDomains,
                 FeaturedSnippetText = featuredSnippet,
                 Features = features,

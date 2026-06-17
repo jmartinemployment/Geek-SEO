@@ -10,7 +10,6 @@ namespace GeekSeoBackend.Services.NicheStepRunners;
 
 public sealed class NicheStepExecutionService(
     INicheProfileRepository profileRepo,
-    IProjectRepository projectRepo,
     NicheAnalysisPersistenceService persistence,
     SchemaOrgExtractor schemaExtractor,
     SitemapExtractor sitemapExtractor,
@@ -22,6 +21,7 @@ public sealed class NicheStepExecutionService(
     UrlPatternExtractor urlPatternExtractor,
     PillarSelector pillarSelector,
     PillarDemandEnricher pillarDemandEnricher,
+    ILocalSerpContextResolver localSerpContextResolver,
     GscQueryExtractor gscQueryExtractor,
     NicheAuthorityScorer scorer,
     NicheRootEntityBuilder rootBuilder,
@@ -433,8 +433,9 @@ public sealed class NicheStepExecutionService(
         var profile = await LoadProfileAsync(profileId, ct);
         var fused = await LoadFusionAsync(profileId, ct);
         var merged = fused.SelectedPillars.Select(PillarSelector.ToDiscoveredPillar).ToList();
-        var location = await GetLocationAsync(profile.ProjectId, ct);
-        var keyword = await pillarDemandEnricher.EnrichKeywordsOnlyAsync(merged, location, null, ct);
+        var localContext = await ResolveLocalSerpContextAsync(profile.ProjectId, ct);
+        var keyword = await pillarDemandEnricher.EnrichKeywordsOnlyAsync(
+            merged, localContext.SerpMarketLocation, null, ct);
         var provider = keyword.Enrichments.FirstOrDefault()?.Error is not null ? "disabled" : "keyword";
         var message = keyword.Skipped
             ? $"Keyword demand skipped — {keyword.SkipReason ?? "provider unavailable"}."
@@ -468,8 +469,14 @@ public sealed class NicheStepExecutionService(
         var profile = await LoadProfileAsync(profileId, ct);
         var fused = await LoadFusionAsync(profileId, ct);
         var merged = fused.SelectedPillars.Select(PillarSelector.ToDiscoveredPillar).ToList();
-        var location = await GetLocationAsync(profile.ProjectId, ct);
-        var serp = await pillarDemandEnricher.ValidateSerpOnlyAsync(merged, domain, location, null, ct);
+        var localContext = await ResolveLocalSerpContextAsync(profile.ProjectId, ct);
+        var serp = await pillarDemandEnricher.ValidateSerpOnlyAsync(
+            merged,
+            domain,
+            localContext.SerpMarketLocation,
+            localContext.ServiceArea,
+            null,
+            ct);
         var provider = serp.Validations.FirstOrDefault()?.Provider ?? "unknown";
         var competitors = PillarDemandEnricher.BuildCompetitors(
             profileId,
@@ -858,12 +865,17 @@ public sealed class NicheStepExecutionService(
         return fusion ?? throw new InvalidOperationException("Fusion snapshot is malformed.");
     }
 
-    private async Task<string> GetLocationAsync(Guid projectId, CancellationToken ct)
+    private async Task<LocalSerpContext> ResolveLocalSerpContextAsync(Guid projectId, CancellationToken ct)
     {
-        var projectResult = await projectRepo.GetByIdAsync(projectId, ct);
-        return projectResult.IsSuccess && !string.IsNullOrWhiteSpace(projectResult.Value?.DefaultLocation)
-            ? projectResult.Value.DefaultLocation
-            : "United States";
+        var resolved = await localSerpContextResolver.ResolveAsync(projectId, ct);
+        if (resolved.IsSuccess && resolved.Value is not null)
+            return resolved.Value;
+
+        logger.LogWarning(
+            "Could not resolve local SERP context for project {ProjectId}: {Error}",
+            projectId,
+            resolved.Error);
+        return new LocalSerpContext(PillarDemandEnricher.NationalLocation, null);
     }
 
     private async Task TrySaveFusionSnapshotAsync(

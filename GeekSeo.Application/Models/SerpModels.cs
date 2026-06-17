@@ -19,6 +19,8 @@ public sealed record SerpResult
     public IReadOnlyList<string> RelatedSearches { get; init; } = [];
     /// <summary>Website domains from Google local pack / Maps places (local competitor discovery).</summary>
     public IReadOnlyList<string> LocalPlaceDomains { get; init; } = [];
+    /// <summary>Local pack entries with optional coordinates for service-radius filtering.</summary>
+    public IReadOnlyList<SerpLocalPlace> LocalPlaces { get; init; } = [];
     public string? FeaturedSnippetText { get; init; }
     public required SerpFeatures Features { get; init; }
     public required DateTimeOffset FetchedAt { get; init; }
