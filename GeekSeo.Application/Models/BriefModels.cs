@@ -13,6 +13,8 @@ public sealed record ContentBrief
     public IReadOnlyList<string> CompetitorHeadingHighlights { get; init; } = [];
     public IReadOnlyList<string> CompetitorSchemaTypes { get; init; } = [];
     public IReadOnlyList<string> PeopleAlsoAsk { get; init; } = [];
+    /// <summary>Exactly five topic FAQs for the closing section and FAQPage schema.</summary>
+    public IReadOnlyList<string> ClosingFaqQuestions { get; init; } = [];
     public WritingMethodologySpec Methodology { get; init; } = WritingMethodologySpec.FourPhase;
     public IReadOnlyList<DirectAnswerBlockSpec> DirectAnswerBlocks { get; init; } = [];
     public IReadOnlyList<string> TechnicalEvidenceRequirements { get; init; } = [];

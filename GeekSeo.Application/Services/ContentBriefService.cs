@@ -72,6 +72,8 @@ public sealed class ContentBriefService(
         var competitorPages = await TryGetCompetitorPagesAsync(serpRow.Value, benchmarks.OrganicResults, ct);
         var competitorHeadingHighlights = ExtractCompetitorHeadingHighlights(competitorPages);
         var competitorSchemaTypes = ExtractCompetitorSchemaTypes(competitorPages);
+        var paaQuestions = paa.Select(p => p.Question).Where(q => q.Length > 0).ToList();
+        var closingFaqQuestions = ContentWritingRules.BuildClosingFaqQuestions(keyword, paaQuestions, gapTopics);
 
         return Result<ContentBrief>.Success(new ContentBrief
         {
@@ -85,7 +87,8 @@ public sealed class ContentBriefService(
             CompetitorDomains = competitorDomains,
             CompetitorHeadingHighlights = competitorHeadingHighlights,
             CompetitorSchemaTypes = competitorSchemaTypes,
-            PeopleAlsoAsk = paa.Select(p => p.Question).Where(q => q.Length > 0).ToList(),
+            PeopleAlsoAsk = paaQuestions,
+            ClosingFaqQuestions = closingFaqQuestions,
             Methodology = WritingMethodologySpec.FourPhase,
             DirectAnswerBlocks =
             [
@@ -110,6 +113,7 @@ public sealed class ContentBriefService(
             [
                 "Verify software versions and code logic before publication.",
                 "Confirm direct-answer blocks are factual and concise.",
+                $"Confirm the closing FAQ section contains exactly {ContentWritingRules.ClosingFaqCount} answered questions.",
                 "Check local references against the target service area.",
             ],
             NicheContext = new NicheContextSpec
@@ -120,7 +124,7 @@ public sealed class ContentBriefService(
             },
             SerpIntelligence = new SerpIntelligenceSnapshot
             {
-                PeopleAlsoAsk = paa.Select(p => p.Question).Where(q => q.Length > 0).ToList(),
+                PeopleAlsoAsk = paaQuestions,
                 RelatedSearches = related,
                 FeatureFlags = ExtractSerpFeatureFlags(serpRow.Value.SerpFeaturesJson),
                 FeaturedSnippet = string.IsNullOrWhiteSpace(serpRow.Value.FeaturedSnippet)
@@ -210,7 +214,7 @@ public sealed class ContentBriefService(
             $"How to choose {keyword}",
             "Frequently asked questions",
         };
-        list.AddRange(paa.Take(3).Select(p => p.Question));
+        list.AddRange(paa.Take(ContentWritingRules.ClosingFaqCount).Select(p => p.Question));
         return list.Distinct(StringComparer.OrdinalIgnoreCase).Take(8).ToList();
     }
 

@@ -364,6 +364,7 @@ export type ContentBrief = {
   competitorHeadingHighlights: string[];
   competitorSchemaTypes: string[];
   peopleAlsoAsk: string[];
+  closingFaqQuestions: string[];
   methodology: {
     name: string;
     phases: string[];

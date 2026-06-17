@@ -6,7 +6,8 @@ namespace GeekSeo.Application.Services.Seo;
 public static class ArticlePromptBuilder
 {
     public static string BuildOutlineSystemPrompt() =>
-        "You are an SEO content strategist. Output a detailed article outline as HTML using h2 and h3 only. No preamble.";
+        $"You are an SEO content strategist. Output a detailed article outline as HTML using h2 and h3 only. " +
+        $"Always end with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> and exactly {ContentWritingRules.ClosingFaqCount} <h3> FAQ questions (no answers in the outline). No preamble.";
 
     public static string BuildOutlineUserPrompt(WritingOutlineRequest request)
     {
@@ -28,6 +29,7 @@ public static class ArticlePromptBuilder
 
         if (brief.PeopleAlsoAsk.Count > 0)
             builder.AppendLine($"PAA questions: {string.Join("; ", brief.PeopleAlsoAsk)}");
+        AppendClosingFaqInstructions(builder, brief);
         if (brief.SerpIntelligence.RelatedSearches.Count > 0)
             builder.AppendLine($"Related searches: {string.Join("; ", brief.SerpIntelligence.RelatedSearches)}");
         if (!string.IsNullOrWhiteSpace(brief.SerpIntelligence.FeaturedSnippet))
@@ -41,7 +43,8 @@ public static class ArticlePromptBuilder
     }
 
     public static string BuildDraftSystemPrompt() =>
-        "You write SEO articles in HTML (h1 once, multiple h2/h3, paragraphs). Natural tone. No markdown fences.";
+        $"You write SEO articles in HTML (h1 once, multiple h2/h3, paragraphs). Natural tone. No markdown fences. " +
+        $"Always close with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> containing exactly {ContentWritingRules.ClosingFaqCount} topic FAQs as <h3> + <p> pairs.";
 
     public static string BuildDraftUserPrompt(WritingDraftRequest request)
     {
@@ -107,6 +110,8 @@ public static class ArticlePromptBuilder
         if (brief.CompetitorSchemaTypes.Count > 0)
             builder.AppendLine($"Competitor schema signals observed: {string.Join(", ", brief.CompetitorSchemaTypes)}");
 
+        AppendClosingFaqInstructions(builder, brief);
+
         if (brief.ReviewChecklist.Count > 0)
         {
             builder.AppendLine();
@@ -116,5 +121,20 @@ public static class ArticlePromptBuilder
         }
 
         return builder.ToString().Trim();
+    }
+
+    private static void AppendClosingFaqInstructions(StringBuilder builder, ContentBrief brief)
+    {
+        var questions = brief.ClosingFaqQuestions.Count > 0
+            ? brief.ClosingFaqQuestions
+            : ContentWritingRules.BuildClosingFaqQuestions(brief.Keyword, brief.PeopleAlsoAsk, brief.NicheContext.GapTopics);
+
+        builder.AppendLine();
+        builder.AppendLine(
+            $"Closing FAQ section (required): end the article with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> " +
+            $"followed by exactly {ContentWritingRules.ClosingFaqCount} Q&A pairs. Each question is an <h3>; each answer is a concise <p> (2-4 sentences).");
+        builder.AppendLine("Use these questions in order:");
+        for (var i = 0; i < questions.Count; i++)
+            builder.AppendLine($"{i + 1}. {questions[i]}");
     }
 }

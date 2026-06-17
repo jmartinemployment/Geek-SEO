@@ -165,6 +165,8 @@ public sealed class ContentWritingPromptingTests
         Assert.Contains("West Palm Beach, FL", result.Value.GeoAnchorNodes);
         Assert.Equal("TechArticle", result.Value.SchemaBlueprint.PrimaryType);
         Assert.Contains("FAQPage", result.Value.SchemaBlueprint.AdditionalTypes);
+        Assert.Equal(5, result.Value.ClosingFaqQuestions.Count);
+        Assert.Contains("Zapier QuickBooks integration cost", result.Value.ClosingFaqQuestions[0], StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Zapier", result.Value.SchemaBlueprint.SoftwareEntities);
         Assert.Contains("QuickBooks", result.Value.SchemaBlueprint.SoftwareEntities);
         Assert.Contains(
@@ -190,6 +192,14 @@ public sealed class ContentWritingPromptingTests
             PeopleAlsoAsk =
             [
                 "How much does Zapier QuickBooks integration cost?",
+            ],
+            ClosingFaqQuestions =
+            [
+                "How much does Zapier QuickBooks integration cost?",
+                "What is Zapier QuickBooks integration?",
+                "How long does Zapier QuickBooks integration take?",
+                "What are the benefits of Zapier QuickBooks integration?",
+                "Who should use Zapier QuickBooks integration?",
             ],
             AuthorOrganizationName = "Geek @ Your Spot",
             AuthorOrganizationUrl = "https://geekatyourspot.com",
@@ -262,6 +272,51 @@ public sealed class ContentWritingPromptingTests
         Assert.Contains("Palm Beach County", prompt);
         Assert.Contains("JSON-LD", prompt);
         Assert.Contains("FAQPage", prompt);
+        Assert.Contains("exactly 5", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Frequently Asked Questions", prompt);
+    }
+
+    [Fact]
+    public void ArticlePromptBuilder_BuildOutlineUserPrompt_RequiresClosingFaqSection()
+    {
+        var brief = new ContentBrief
+        {
+            Keyword = "quickbooks automation consultant",
+            Location = "Palm Beach County, FL",
+            TargetWordCount = 1600,
+            ClosingFaqQuestions =
+            [
+                "What is quickbooks automation?",
+                "How much does quickbooks automation cost?",
+                "How long does implementation take?",
+                "What are the benefits?",
+                "Who should hire a consultant?",
+            ],
+        };
+
+        var systemPrompt = ArticlePromptBuilder.BuildOutlineSystemPrompt();
+        var userPrompt = ArticlePromptBuilder.BuildOutlineUserPrompt(new WritingOutlineRequest
+        {
+            Keyword = brief.Keyword,
+            Brief = brief,
+        });
+
+        Assert.Contains("exactly 5", systemPrompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Frequently Asked Questions", systemPrompt);
+        Assert.Contains("Closing FAQ section", userPrompt);
+        Assert.Contains("1. What is quickbooks automation?", userPrompt);
+    }
+
+    [Fact]
+    public void ContentWritingRules_BuildClosingFaqQuestions_ReturnsExactlyFive()
+    {
+        var questions = ContentWritingRules.BuildClosingFaqQuestions(
+            "zapier quickbooks integration",
+            ["How much does Zapier QuickBooks integration cost?"],
+            ["Zapier error handling"]);
+
+        Assert.Equal(5, questions.Count);
+        Assert.Contains(questions, q => q.Contains("Zapier QuickBooks", StringComparison.OrdinalIgnoreCase));
     }
 
     private sealed class FakeProjectRepository(SeoProject project) : IProjectRepository

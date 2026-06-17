@@ -58,15 +58,16 @@ public static class ArticleSchemaBuilder
             }));
         }
 
+        var faqQuestions = ResolveFaqQuestions(brief);
         if (brief.SchemaBlueprint.AdditionalTypes.Contains("FAQPage", StringComparer.OrdinalIgnoreCase)
-            && brief.PeopleAlsoAsk.Count > 0)
+            && faqQuestions.Count > 0)
         {
-            var answers = ExtractFaqAnswers(articleHtml, brief.PeopleAlsoAsk);
+            var answers = ExtractFaqAnswers(articleHtml, faqQuestions);
             scripts.Add(BuildScript(new Dictionary<string, object?>
             {
                 ["@context"] = "https://schema.org",
                 ["@type"] = "FAQPage",
-                ["mainEntity"] = brief.PeopleAlsoAsk.Select(question => new Dictionary<string, object?>
+                ["mainEntity"] = faqQuestions.Select(question => new Dictionary<string, object?>
                 {
                     ["@type"] = "Question",
                     ["name"] = question,
@@ -80,6 +81,17 @@ public static class ArticleSchemaBuilder
         }
 
         return scripts;
+    }
+
+    private static IReadOnlyList<string> ResolveFaqQuestions(ContentBrief brief)
+    {
+        if (brief.ClosingFaqQuestions.Count > 0)
+            return brief.ClosingFaqQuestions.Take(ContentWritingRules.ClosingFaqCount).ToList();
+
+        return ContentWritingRules
+            .BuildClosingFaqQuestions(brief.Keyword, brief.PeopleAlsoAsk, brief.NicheContext.GapTopics)
+            .Take(ContentWritingRules.ClosingFaqCount)
+            .ToList();
     }
 
     private static string BuildScript(object payload) =>
