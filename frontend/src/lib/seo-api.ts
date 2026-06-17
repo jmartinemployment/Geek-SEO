@@ -37,8 +37,10 @@ export type SeoContentDocument = {
   id: string;
   projectId: string;
   userId: string;
+  urlResearchId?: string | null;
   title: string;
   contentHtml: string;
+  featuredImageUrl?: string | null;
   targetKeyword: string;
   targetLocation?: string;
   seoScore: number;
@@ -146,6 +148,7 @@ export async function createContent(
     title?: string;
     targetKeyword?: string;
     targetLocation?: string;
+    urlResearchId?: string;
   },
   accessToken?: string | null,
 ): Promise<SeoContentDocument> {
@@ -213,6 +216,54 @@ export async function updateContentStatus(
   });
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<SeoContentDocument>;
+}
+
+export async function attachUrlResearch(
+  documentId: string,
+  urlResearchId: string,
+  accessToken?: string | null,
+): Promise<SeoContentDocument> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/url-research`, {
+    method: 'PATCH',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify({ urlResearchId }),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<SeoContentDocument>;
+}
+
+export async function draftContentFromResearch(
+  documentId: string,
+  accessToken?: string | null,
+): Promise<WritingTextResult> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/draft`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<WritingTextResult>;
+}
+
+export type FeaturedImageResult = {
+  dataUrl: string;
+  prompt: string;
+  mimeType: string;
+};
+
+export async function generateFeaturedImage(
+  documentId: string,
+  options?: { regenerate?: boolean },
+  accessToken?: string | null,
+): Promise<FeaturedImageResult> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/featured-image`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify({ regenerate: options?.regenerate ?? false }),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<FeaturedImageResult>;
 }
 
 export function getApiUrl(): string {
@@ -475,6 +526,31 @@ export async function generateDraft(
   });
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<WritingTextResult>;
+}
+
+/** Legacy keyword path — brief and outline run internally; not exposed in Content Writing UI. */
+export async function draftFromKeyword(
+  body: { projectId: string; keyword: string; location?: string; title?: string },
+  accessToken?: string | null,
+): Promise<WritingTextResult> {
+  const brief = await generateBrief(
+    { projectId: body.projectId, keyword: body.keyword, location: body.location },
+    accessToken,
+  );
+  const outline = await generateOutline(
+    { keyword: body.keyword, brief, title: body.title },
+    accessToken,
+  );
+  return generateDraft(
+    {
+      keyword: body.keyword,
+      brief,
+      outline: outline.content,
+      targetWordCount: brief.targetWordCount,
+      title: body.title,
+    },
+    accessToken,
+  );
 }
 
 export async function humanizeContent(
@@ -1578,33 +1654,31 @@ export async function getRankHistory(
   return seoJson<RankHistoryPoint[]>(res);
 }
 
-// ─── URL Analyzer (SERP research pack) ───────────────────────────────────────
+// ─── Page URL research (async analyze + SignalR progress) ───────────────────
 
-export type SerpResearchPackMeta = {
-  keyword: string;
-  location: string;
-  language: string;
-  researchedAt: string;
-  searchEngine: string;
-  device: string;
-  dataQuality: 'live' | 'partial' | 'unavailable' | string;
-  notes: string[];
+export type UrlResearchSummary = {
+  id: string;
+  projectId: string;
+  sourceUrl: string;
+  derivedKeyword: string;
+  status: string;
+  dataQuality?: string | null;
+  researchedAt?: string | null;
+  createdAt: string;
 };
 
-export type SerpResearchPack = {
-  meta: SerpResearchPackMeta;
-  intent: { primary: string; justification: string };
-  paf: {
-    type: string;
-    format: string;
-    text: string;
-    sourceUrl: string;
-    beatStrategy: string;
-  };
-  paa: Array<{ question: string; serpAnswerPreview: string; depth: number }>;
-  pasf: string[];
-  serpFeatures: string[];
-  organic: Array<{
+export type UrlResearchFull = UrlResearchSummary & {
+  searchLocation: string;
+  businessContext?: string;
+  errorMessage?: string | null;
+  dataQualityNotes?: string | null;
+  intentPrimary: string;
+  intentJustification: string;
+  medianWordCountTop5: number;
+  medianTitleLengthTop10: number;
+  medianH2CountTop5: number;
+  dominantContentFormat: string;
+  organicResults?: Array<{
     position: number;
     url: string;
     domain: string;
@@ -1612,47 +1686,65 @@ export type SerpResearchPack = {
     snippet: string;
     contentType: string;
   }>;
-  competitorOutlines: Array<{
+  peopleAlsoAsk?: Array<{ question: string; serpAnswerPreview: string; depth: number }>;
+  relatedSearches?: Array<{ searchText: string }>;
+  competitors?: Array<{
     url: string;
     position: number;
     h1: string;
-    headings: Array<{ level: number; text: string }>;
     estimatedWordCount: number;
-    schemaTypes: string[];
+    headings?: Array<{ level: number; text: string }>;
   }>;
-  benchmarks: {
-    medianWordCountTop5: number;
-    medianTitleLengthTop10: number;
-    dominantContentFormat: string;
-  };
-  recommendedTerms: string[];
-  closingFaqQuestions: Array<{ question: string; source: string }>;
-  directAnswerBlock: { instruction: string; mustBeatPaf: boolean };
-  methodologyHints: Array<{
-    movement: number;
-    label: string;
+  recommendedTerms?: Array<{ term: string }>;
+  closingFaqs?: Array<{ question: string; source: string }>;
+  sectionHints?: Array<{
     suggestedH2: string;
+    label: string;
     subtopicsFromSerp: string[];
   }>;
 };
 
-export async function runUrlAnalyzerResearch(
-  body: {
-    keyword: string;
-    location?: string;
-    language?: string;
-    businessContext?: string;
-    competitorUrls?: string[];
-  },
+export type UrlResearchAnalyzeResponse = {
+  urlResearchId: string;
+  status: string;
+};
+
+export async function analyzeUrlResearch(
+  body: { projectId: string; pageUrl: string },
   accessToken?: string | null,
-): Promise<SerpResearchPack> {
-  const res = await fetch(`${API_URL}/api/seo/url-analyzer/research`, {
+): Promise<UrlResearchAnalyzeResponse> {
+  const res = await fetch(`${API_URL}/api/seo/url-research/analyze`, {
     method: 'POST',
     headers: apiHeaders(accessToken),
     body: JSON.stringify(body),
     cache: 'no-store',
   });
-  return seoJson<SerpResearchPack>(res);
+  return seoJson<UrlResearchAnalyzeResponse>(res);
+}
+
+export async function getUrlResearch(
+  id: string,
+  accessToken?: string | null,
+): Promise<UrlResearchFull> {
+  const res = await fetch(`${API_URL}/api/seo/url-research/${id}`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  return seoJson<UrlResearchFull>(res);
+}
+
+export async function listUrlResearch(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<UrlResearchSummary[]> {
+  const res = await fetch(
+    `${API_URL}/api/seo/url-research?projectId=${encodeURIComponent(projectId)}`,
+    {
+      headers: apiHeaders(accessToken),
+      cache: 'no-store',
+    },
+  );
+  return seoJson<UrlResearchSummary[]>(res);
 }
 
 // ─── Niche Analyzer (legacy API — UI removed) ────────────────────────────────

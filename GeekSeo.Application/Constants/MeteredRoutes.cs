@@ -18,6 +18,7 @@ public static class MeteredRoutes
         ("GET", "/api/seo/serp/deep", "deep_serp"),
         ("POST", "/api/seo/plagiarism/check", "plagiarism_check"),
         ("POST", "/api/seo/topical-map/generate", "topical_map_refresh"),
+        ("POST", "/api/seo/url-research/analyze", UsageFeatures.UrlResearchAnalyze),
     ];
 
     public static string? GetFeatureKey(string method, string path)

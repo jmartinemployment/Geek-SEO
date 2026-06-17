@@ -308,12 +308,13 @@ public sealed class ContentWritingPromptingTests
             Title = "QuickBooks Automation Consultant",
         });
 
-        Assert.Contains("Business Objectives", prompt);
-        Assert.Contains("Data Quality Assessment", prompt);
-        Assert.Contains("Pilot Implementation Strategy", prompt);
-        Assert.Contains("Methodology weave", prompt);
-        Assert.Contains("Movement", prompt);
-        Assert.Contains("Methodology weave", prompt);
+        Assert.Contains("Article body structure", prompt);
+        Assert.Contains("business outcomes or ROI", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("data readiness", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("pilot plan", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Four Phase Methodology", prompt);
+        Assert.DoesNotContain("Movement 1 —", prompt);
+        Assert.DoesNotContain("<p><strong>Movement", prompt);
         Assert.Contains("sanitized code", prompt, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Palm Beach County", prompt);
         Assert.Contains("JSON-LD", prompt);
@@ -349,8 +350,8 @@ public sealed class ContentWritingPromptingTests
 
         Assert.Contains("exactly 5", systemPrompt, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Frequently Asked Questions", systemPrompt);
-        Assert.Contains("body movements", systemPrompt, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Movement", systemPrompt);
+        Assert.Contains("four body sections", systemPrompt, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Movement", systemPrompt);
         Assert.Contains("Closing FAQ section", userPrompt);
         Assert.Contains("1. What is quickbooks automation?", userPrompt);
     }

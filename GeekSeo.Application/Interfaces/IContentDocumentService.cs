@@ -12,5 +12,7 @@ public interface IContentDocumentService
     Task<Result<SeoContentDocument>> CreateAsync(Guid userId, CreateContentDocumentRequest request, CancellationToken ct = default);
     Task<Result<SeoContentDocument>> UpdateContentAsync(Guid userId, Guid documentId, UpdateContentRequest request, CancellationToken ct = default);
     Task<Result<SeoContentDocument>> UpdateStatusAsync(Guid userId, Guid documentId, string status, CancellationToken ct = default);
+    Task<Result<SeoContentDocument>> AttachUrlResearchAsync(
+        Guid userId, Guid documentId, Guid urlResearchId, CancellationToken ct = default);
     Task<Result> DeleteAsync(Guid userId, Guid documentId, CancellationToken ct = default);
 }

@@ -11,6 +11,7 @@ import {
 import { ContentEditor, type ContentEditorHandle } from '@/components/editor/content-editor';
 import { EditorAiToolbar } from '@/components/editor/editor-ai-toolbar';
 import { ScoreSidebar } from '@/components/editor/score-sidebar';
+import { ReviewFeaturedImage } from '@/components/content-writing/review-featured-image';
 import { useContentScoring, type ScoreSuggestion } from '@/hooks/useContentScoring';
 import {
   applyScoreSuggestion,
@@ -25,6 +26,7 @@ const DEFAULT_DRAFT_HTML = '<h1>Article title</h1><p>Start writing your article.
 
 type ReviewWorkspaceContextValue = {
   doc: SeoContentDocument;
+  accessToken: string | null;
   html: string;
   setHtml: (value: string) => void;
   saving: boolean;
@@ -46,6 +48,7 @@ type ReviewWorkspaceContextValue = {
   copyRenderedHtml: () => void;
   scheduleScore: (nextHtml: string, nextKeyword: string) => void;
   notifyKeywordChanged: ReturnType<typeof useContentScoring>['notifyKeywordChanged'];
+  setFeaturedImageUrl: (featuredImageUrl: string) => void;
 };
 
 const ReviewWorkspaceContext = createContext<ReviewWorkspaceContextValue | null>(null);
@@ -184,7 +187,10 @@ export function ReviewWorkspaceProvider({
     }
   }
 
+  const isResearchBacked = Boolean(doc.urlResearchId);
+
   function refreshSerp() {
+    if (isResearchBacked) return;
     void deleteSerpCache(keyword, location, accessToken)
       .then(() => notifyKeywordChanged(html, keyword, location))
       .catch(onError);
@@ -200,8 +206,13 @@ export function ReviewWorkspaceProvider({
       .catch(onError);
   }
 
+  function setFeaturedImageUrl(featuredImageUrl: string) {
+    onDocumentChange({ ...doc, featuredImageUrl });
+  }
+
   const value: ReviewWorkspaceContextValue = {
     doc,
+    accessToken,
     html,
     setHtml,
     saving,
@@ -223,6 +234,7 @@ export function ReviewWorkspaceProvider({
     copyRenderedHtml,
     scheduleScore,
     notifyKeywordChanged,
+    setFeaturedImageUrl,
   };
 
   return (
@@ -234,6 +246,7 @@ export function ReviewWorkspaceProvider({
 
 export function ReviewScoreLeft({ keyword }: { keyword: string }) {
   const {
+    doc,
     scoreUpdate,
     pendingReason,
     benchmarkRefreshing,
@@ -252,6 +265,7 @@ export function ReviewScoreLeft({ keyword }: { keyword: string }) {
       scoreError={scoreError}
       connected={connected}
       onRefreshSerp={refreshSerp}
+      serpRefreshEnabled={!doc.urlResearchId}
     />
   );
 }
@@ -264,6 +278,7 @@ export function ReviewScoreRight({
   statusMessage: string | null;
 }) {
   const {
+    doc,
     scoreUpdate,
     pendingReason,
     benchmarkRefreshing,
@@ -291,6 +306,7 @@ export function ReviewScoreRight({
         applyingSuggestionId={applyingSuggestionId}
         onApplySuggestion={handleApplySuggestion}
         onRefreshSerp={refreshSerp}
+        serpRefreshEnabled={!doc.urlResearchId}
         onCopyHtml={copyRenderedHtml}
       />
 
@@ -319,6 +335,8 @@ export function ReviewScoreRight({
         ) : null}
         {copyHint ? <p className="text-xs text-emerald-700">{copyHint}</p> : null}
       </div>
+
+      <ReviewFeaturedImage />
     </>
   );
 }
@@ -354,6 +372,7 @@ export function ReviewEditorPane({
   } = useReviewWorkspace();
 
   const keywordRef = useRef(keyword);
+  const isResearchBacked = Boolean(doc.urlResearchId);
 
   return (
     <section className="rounded-xl border bg-white shadow-sm">
@@ -383,16 +402,23 @@ export function ReviewEditorPane({
       </header>
 
       <div className="space-y-4 p-5">
+        {isResearchBacked ? (
+          <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-[var(--color-text-secondary)]">
+            Keyword and location come from attached page research and cannot be changed here.
+          </p>
+        ) : null}
+
         <div className="grid max-w-lg gap-4 sm:grid-cols-2">
           <label className="text-sm font-medium text-[var(--color-text-primary)] sm:col-span-2">
             Target keyword
             <input
-              className="mt-1 block w-full rounded-lg border border-[var(--color-border-strong)] px-3 py-2 shadow-sm"
+              className="mt-1 block w-full rounded-lg border border-[var(--color-border-strong)] px-3 py-2 shadow-sm disabled:bg-[var(--color-surface-muted)]"
               value={keyword}
+              readOnly={isResearchBacked}
               onChange={(event) => setKeyword(event.target.value)}
               onBlur={() => {
                 void save(html, keyword, title, location);
-                if (keyword !== keywordRef.current) {
+                if (!isResearchBacked && keyword !== keywordRef.current) {
                   keywordRef.current = keyword;
                   void notifyKeywordChanged(html, keyword, location);
                 }
@@ -402,12 +428,15 @@ export function ReviewEditorPane({
           <label className="text-sm font-medium text-[var(--color-text-primary)] sm:col-span-2">
             Location
             <input
-              className="mt-1 block w-full rounded-lg border border-[var(--color-border-strong)] px-3 py-2 shadow-sm"
+              className="mt-1 block w-full rounded-lg border border-[var(--color-border-strong)] px-3 py-2 shadow-sm disabled:bg-[var(--color-surface-muted)]"
               value={location}
+              readOnly={isResearchBacked}
               onChange={(event) => setLocation(event.target.value)}
               onBlur={() => {
                 void save(html, keyword, title, location);
-                void notifyKeywordChanged(html, keyword, location);
+                if (!isResearchBacked) {
+                  void notifyKeywordChanged(html, keyword, location);
+                }
               }}
             />
           </label>

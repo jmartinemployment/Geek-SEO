@@ -41,6 +41,8 @@ export type ScoreUpdate = {
   serpFeatures: { feature: string; actionText: string }[];
   eeatAdvisories: { code: string; actionText: string }[];
   benchmarkQuality: string;
+  researchedAt?: string | null;
+  scoreContextNote?: string | null;
   timestamp: string;
 };
 

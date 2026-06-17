@@ -19,7 +19,8 @@ public sealed class SeoContentScoringHub(IContentScoringService scoring, IHttpCo
             return;
 
         if (!groupName.StartsWith("niche-", StringComparison.Ordinal)
-            && !groupName.StartsWith("doc:", StringComparison.Ordinal))
+            && !groupName.StartsWith("doc:", StringComparison.Ordinal)
+            && !groupName.StartsWith("url-research-", StringComparison.Ordinal))
             return;
 
         await Groups.AddToGroupAsync(Context.ConnectionId, groupName);

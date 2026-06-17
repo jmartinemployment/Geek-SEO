@@ -2,13 +2,12 @@ namespace GeekSeo.Application.Models.Seo;
 
 public sealed record UrlAnalyzerResearchRequest
 {
-    public required string Keyword { get; init; }
+    /// <summary>When set, the page is crawled to derive the search keyword.</summary>
+    public string? Url { get; init; }
+    /// <summary>When set, SERP research runs for this keyword (no source-page crawl).</summary>
+    public string? Keyword { get; init; }
     public string Location { get; init; } = "United States";
     public string Language { get; init; } = "en";
-    /// <summary>2–4 sentences; intent filtering only — not used to fill SERP fields.</summary>
-    public string? BusinessContext { get; init; }
-    /// <summary>Optional fallback URLs when top-10 organic is blocked.</summary>
-    public IReadOnlyList<string>? CompetitorUrls { get; init; }
 }
 
 public sealed record SerpResearchPack
@@ -21,6 +20,7 @@ public sealed record SerpResearchPack
     public required IReadOnlyList<string> SerpFeatures { get; init; }
     public required IReadOnlyList<SerpResearchOrganicItem> Organic { get; init; }
     public required IReadOnlyList<SerpResearchCompetitorOutline> CompetitorOutlines { get; init; }
+    public required IReadOnlyList<SerpResearchHeading> SourceHeadings { get; init; }
     public required SerpResearchBenchmarks Benchmarks { get; init; }
     public required IReadOnlyList<string> RecommendedTerms { get; init; }
     public required IReadOnlyList<SerpResearchClosingFaqItem> ClosingFaqQuestions { get; init; }
@@ -30,6 +30,8 @@ public sealed record SerpResearchPack
 
 public sealed record SerpResearchPackMeta
 {
+    public required string SourceUrl { get; init; }
+    /// <summary>Search query derived from the source page (title, H1, or URL slug).</summary>
     public required string Keyword { get; init; }
     public required string Location { get; init; }
     public string Language { get; init; } = "en";
@@ -38,6 +40,8 @@ public sealed record SerpResearchPackMeta
     public string Device { get; init; } = "desktop";
     /// <summary>live | partial | unavailable</summary>
     public required string DataQuality { get; init; }
+    /// <summary>2–4 sentences derived from the source page; intent filtering only.</summary>
+    public string BusinessContext { get; init; } = "";
     public IReadOnlyList<string> Notes { get; init; } = [];
 }
 

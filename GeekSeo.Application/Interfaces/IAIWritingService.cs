@@ -17,6 +17,9 @@ public interface IAIWritingService
     Task<Result<WritingTextResult>> GenerateDraftAsync(
         Guid userId, WritingDraftRequest request, CancellationToken ct = default);
 
+    Task<Result<WritingTextResult>> GenerateDraftFromResearchAsync(
+        Guid userId, ResearchDraftRequest request, CancellationToken ct = default);
+
     Task<Result<WritingTextResult>> HumanizeAsync(
         Guid userId, HumanizeRequest request, CancellationToken ct = default);
 

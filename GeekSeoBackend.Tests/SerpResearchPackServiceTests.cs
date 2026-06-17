@@ -18,16 +18,20 @@ public sealed class SerpResearchPackServiceTests
         var service = new SerpResearchPackService(
             new StubSerpProvider(serp),
             new StubSerpCacheRepository(),
+            new StubCrawlerProvider(),
             new CompetitorCrawlService(new StubCrawlerProvider(), new StubCompetitorPageRepository()));
 
         var result = await service.BuildAsync(Guid.NewGuid(), new UrlAnalyzerResearchRequest
         {
-            Keyword = "QuickBooks automation",
+            Url = "https://example.com/quickbooks-automation",
             Location = "United States",
         });
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
+        Assert.Equal("https://example.com/quickbooks-automation", result.Value!.Meta.SourceUrl);
+        Assert.Equal("QuickBooks automation guide", result.Value.Meta.Keyword);
+        Assert.Contains("Example", result.Value.Meta.BusinessContext, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(5, result.Value!.ClosingFaqQuestions.Count);
         Assert.Equal("live", result.Value.Meta.DataQuality);
         Assert.True(result.Value.Paa.Count >= 2);
@@ -41,11 +45,12 @@ public sealed class SerpResearchPackServiceTests
         var service = new SerpResearchPackService(
             new StubSerpProvider(null, "SERP provider unavailable"),
             new StubSerpCacheRepository(),
+            new StubCrawlerProvider(),
             new CompetitorCrawlService(new StubCrawlerProvider(), new StubCompetitorPageRepository()));
 
         var result = await service.BuildAsync(Guid.NewGuid(), new UrlAnalyzerResearchRequest
         {
-            Keyword = "test keyword",
+            Url = "https://example.com/test-page",
         });
 
         Assert.False(result.IsSuccess);
@@ -117,6 +122,7 @@ public sealed class SerpResearchPackServiceTests
                 Url = url,
                 FullText = "Sample competitor page content about QuickBooks automation workflows.",
                 MetaTitle = "QuickBooks automation guide",
+                MetaDescription = "We help small businesses automate QuickBooks workflows and integrations.",
                 WordCount = 1500,
                 Headings =
                 [

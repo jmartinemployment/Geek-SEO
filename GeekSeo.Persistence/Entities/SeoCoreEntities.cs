@@ -28,8 +28,11 @@ public sealed class SeoContentDocument
     public Guid Id { get; set; }
     public Guid ProjectId { get; set; }
     public Guid UserId { get; set; }
+    public Guid? UrlResearchId { get; set; }
     public string Title { get; set; } = "Untitled Document";
     public string ContentHtml { get; set; } = string.Empty;
+    /// <summary>Data URL or HTTPS URL for the article hero / OG image.</summary>
+    public string? FeaturedImageUrl { get; set; }
     public string TargetKeyword { get; set; } = string.Empty;
     public string TargetLocation { get; set; } = "United States";
     public int SeoScore { get; set; }
@@ -45,6 +48,7 @@ public sealed class SeoContentDocument
     public DateTimeOffset UpdatedAt { get; set; }
 
     public SeoProject? Project { get; set; }
+    public SeoUrlResearch? UrlResearch { get; set; }
 }
 
 public sealed class SeoKeywordCluster

@@ -19,7 +19,7 @@ public static class ScoreSuggestionApplicator
             "title_keyword" => ApplyTitleKeyword(contentHtml, keyword, avgTitleLength),
             "meta_description" => ApplyMetaDescription(contentHtml, keyword, plainText),
             "geo_citations" => ApplyExternalCitations(contentHtml, organicResults),
-            "geo_structure" => ApplyFaqStructure(contentHtml, keyword),
+            "geo_structure" => AppendClosingFaq(contentHtml, keyword, []),
             _ => null,
         };
     }
@@ -51,14 +51,46 @@ public static class ScoreSuggestionApplicator
     {
         var body = string.IsNullOrWhiteSpace(plainText) ? keyword : plainText.Trim();
         body = Regex.Replace(body, @"\s+", " ");
+
+        if (!string.IsNullOrWhiteSpace(keyword)
+            && body.StartsWith(keyword, StringComparison.OrdinalIgnoreCase))
+        {
+            body = body[keyword.Length..].TrimStart(' ', '—', '-', ':');
+        }
+
         if (body.Length > 130)
             body = body[..130].TrimEnd();
+
+        if (string.IsNullOrWhiteSpace(body))
+            body = keyword;
 
         var meta = body.Contains(keyword, StringComparison.OrdinalIgnoreCase)
             ? body
             : $"{keyword} — {body}";
 
         return meta.Length > 160 ? meta[..157].TrimEnd() + "…" : meta;
+    }
+
+    public static string AppendClosingFaq(
+        string html,
+        string keyword,
+        IEnumerable<string> serpPaaQuestions)
+    {
+        if (ArticleClosingFaqEnricher.HasClosingFaqSection(html))
+            return html;
+
+        var questions = ContentWritingRules.BuildClosingFaqQuestions(keyword, serpPaaQuestions, null);
+        var builder = new System.Text.StringBuilder(html.TrimEnd());
+        if (builder.Length > 0)
+            builder.Append('\n');
+        builder.Append("<h2>").Append(ContentWritingRules.ClosingFaqHeading).Append("</h2>\n");
+        foreach (var question in questions)
+        {
+            builder.Append("<h3>").Append(WebUtility.HtmlEncode(question)).Append("</h3>\n");
+            builder.Append("<p>Expand this answer in the editor.</p>\n");
+        }
+
+        return builder.ToString().TrimEnd();
     }
 
     private static string ApplyTitleKeyword(string html, string keyword, int avgTitleLength)
@@ -135,27 +167,6 @@ public static class ScoreSuggestionApplicator
                 "Could not append the FAQ block automatically. Add it manually in the editor.",
             _ => "Could not apply this change automatically.",
         };
-
-    private static string ApplyFaqStructure(string html, string keyword)
-    {
-        if (ArticleClosingFaqEnricher.HasClosingFaqSection(html))
-            return html;
-
-        var topic = string.IsNullOrWhiteSpace(keyword) ? "this topic" : keyword;
-        var block = $"""
-            <h2>Frequently asked questions</h2>
-            <h3>What is {WebUtility.HtmlEncode(topic)}?</h3>
-            <p>Add a concise definition here so readers and AI models can extract a direct answer.</p>
-            <h3>Why does {WebUtility.HtmlEncode(topic)} matter?</h3>
-            <p>Explain the main benefit or outcome in one or two short sentences.</p>
-            <ul>
-            <li>Key point one</li>
-            <li>Key point two</li>
-            </ul>
-            """;
-
-        return html.TrimEnd() + "\n" + block;
-    }
 
     private static string ExtractTagInner(string html, string tag)
     {

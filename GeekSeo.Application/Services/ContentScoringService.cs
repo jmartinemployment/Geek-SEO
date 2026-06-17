@@ -2,6 +2,7 @@ using System.Text.Json;
 using GeekSeo.Persistence.Entities;
 using GeekSeo.Application.Infrastructure;
 using GeekSeo.Application.Interfaces.Seo;
+using GeekSeo.Application.Mapping;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
 
@@ -10,6 +11,7 @@ namespace GeekSeo.Application.Services.Seo;
 public sealed class ContentScoringService(
     IContentDocumentService documents,
     IContentDocumentRepository documentRepo,
+    IUrlResearchRepository urlResearch,
     ISerpCacheRepository serpCache,
     ISerpProvider serpProvider,
     CompetitorCrawlService competitorCrawl,
@@ -109,7 +111,9 @@ public sealed class ContentScoringService(
         const string languageCode = "en";
         var baseHtml = string.IsNullOrWhiteSpace(contentHtml) ? doc.ContentHtml : contentHtml;
 
-        var benchmarkResult = await ResolveBenchmarksAsync(keyword, location, languageCode, ct);
+        var benchmarkResult = ResearchBackedWriteGate.IsResearchBacked(doc)
+            ? await ResolveBenchmarksFromResearchAsync(doc.UrlResearchId!.Value, ct)
+            : await ResolveBenchmarksAsync(keyword, location, languageCode, ct);
         if (!benchmarkResult.IsSuccess)
             return Result<ApplySuggestionResult>.Failure(benchmarkResult.Error ?? "Benchmark error");
         if (benchmarkResult.Value?.PendingReason is not null)
@@ -197,8 +201,23 @@ public sealed class ContentScoringService(
 
         var doc = access.Value;
         var keyword = string.IsNullOrWhiteSpace(targetKeyword) ? doc.TargetKeyword : targetKeyword;
+
+        var enrichedHtml = ContentAutoEnricher.Enrich(contentHtml, keyword, out var enriched);
+        if (enriched)
+        {
+            await documents.UpdateContentAsync(
+                userId,
+                documentId,
+                new UpdateContentRequest { ContentHtml = enrichedHtml },
+                ct);
+            contentHtml = enrichedHtml;
+        }
+
         var location = string.IsNullOrWhiteSpace(doc.TargetLocation) ? "United States" : doc.TargetLocation;
         const string languageCode = "en";
+
+        if (invalidateCache && ResearchBackedWriteGate.IsResearchBacked(doc))
+            return Result<ContentScoreHubResult>.Failure(ResearchBackedWriteGate.ForbidLiveSerp("keyword change").Error);
 
         if (invalidateCache)
         {
@@ -207,7 +226,9 @@ public sealed class ContentScoringService(
                 return Result<ContentScoreHubResult>.Failure(deleted.Error ?? "Failed to invalidate SERP cache");
         }
 
-        var benchmarkResult = await ResolveBenchmarksAsync(keyword, location, languageCode, ct);
+        var benchmarkResult = ResearchBackedWriteGate.IsResearchBacked(doc)
+            ? await ResolveBenchmarksFromResearchAsync(doc.UrlResearchId!.Value, ct)
+            : await ResolveBenchmarksAsync(keyword, location, languageCode, ct);
         if (!benchmarkResult.IsSuccess)
             return Result<ContentScoreHubResult>.Failure(benchmarkResult.Error ?? "Benchmark error");
         if (benchmarkResult.Value?.PendingReason is not null)
@@ -215,12 +236,16 @@ public sealed class ContentScoringService(
 
         var benchmarks = benchmarkResult.Value!.Benchmarks;
         var serpFeatures = benchmarkResult.Value.SerpFeatures;
+        var coverageTerms = benchmarkResult.Value.CoverageTerms;
+        var researchedAt = benchmarkResult.Value.ResearchedAt;
 
         var plainText = richText.ExtractPlainText(contentHtml);
         var wordCount = richText.CountWords(contentHtml);
         var titleTag = ExtractMeta(contentHtml, "title") ?? richText.ExtractPlainText(ExtractTag(contentHtml, "h1"));
 
-        var termScore = ScoreTermCoverage(plainText, keyword);
+        var termScore = coverageTerms is { Count: > 0 }
+            ? ScoreTermCoverage(plainText, coverageTerms)
+            : ScoreTermCoverage(plainText, keyword);
         var wordScore = ScoreWordCount(wordCount, benchmarks.AvgWordCount);
         var titleScore = ScoreTitle(titleTag, keyword, benchmarks.AvgTitleLength);
         var headingScore = ScoreHeadings(contentHtml);
@@ -238,7 +263,8 @@ public sealed class ContentScoringService(
             termScore,
             titleScore,
             metaScore,
-            keyword);
+            keyword,
+            coverageTerms);
 
         var geo = GeoScoringCalculator.Calculate(
             plainText,
@@ -269,6 +295,10 @@ public sealed class ContentScoringService(
             GeoGrade = geo.Grade,
             GeoComponents = geo.Components,
             BenchmarkQuality = benchmarks.BenchmarkQuality,
+            ResearchedAt = researchedAt,
+            ScoreContextNote = researchedAt is not null
+                ? "Score reflects frozen page research. Term coverage checks recommended SERP terms."
+                : null,
             Timestamp = DateTimeOffset.UtcNow,
         };
 
@@ -276,6 +306,35 @@ public sealed class ContentScoringService(
         await documentRepo.UpdateScoreAsync(documentId, total, componentsJson, ct);
 
         return Result<ContentScoreHubResult>.Success(new ContentScoreHubResult { ScoreUpdate = update });
+    }
+
+    private async Task<Result<BenchmarkResolution>> ResolveBenchmarksFromResearchAsync(
+        Guid urlResearchId, CancellationToken ct)
+    {
+        var row = await urlResearch.GetFullAsync(urlResearchId, ct);
+        if (!row.IsSuccess || row.Value is null)
+            return Result<BenchmarkResolution>.Failure(row.Error ?? "Page research not found");
+
+        if (!string.Equals(row.Value.Status, "completed", StringComparison.OrdinalIgnoreCase))
+            return Result<BenchmarkResolution>.Failure("Page research is not complete yet.");
+
+        var context = WritingResearchContextMapper.FromEntity(row.Value);
+        var coverageTerms = context.RecommendedTerms
+            .OrderBy(t => t.DisplayOrder)
+            .Select(t => t.Term)
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (coverageTerms.Count == 0 && !string.IsNullOrWhiteSpace(context.DerivedKeyword))
+            coverageTerms = context.DerivedKeyword.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+
+        return Result<BenchmarkResolution>.Success(new BenchmarkResolution
+        {
+            Benchmarks = WritingResearchBenchmarkResolver.ToBenchmarks(context),
+            SerpFeatures = WritingResearchBenchmarkResolver.ToSerpFeatures(context),
+            CoverageTerms = coverageTerms,
+            ResearchedAt = context.ResearchedAt ?? row.Value.ResearchedAt,
+        });
     }
 
     private async Task<Result<BenchmarkResolution>> ResolveBenchmarksAsync(
@@ -358,6 +417,8 @@ public sealed class ContentScoringService(
         public SerpBenchmarksPayload Benchmarks { get; init; } = new();
         public SerpFeatures SerpFeatures { get; init; } = new();
         public string? PendingReason { get; init; }
+        public IReadOnlyList<string> CoverageTerms { get; init; } = [];
+        public DateTimeOffset? ResearchedAt { get; init; }
     }
 
     private static int ScoreReadability(string plainText)
@@ -380,14 +441,25 @@ public sealed class ContentScoringService(
         };
     }
 
-    private static int ScoreTermCoverage(string plainText, string keyword)
+    private static int ScoreTermCoverage(string plainText, string keyword) =>
+        ScoreTermCoverage(plainText, keyword.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+
+    private static int ScoreTermCoverage(string plainText, IReadOnlyList<string> terms)
     {
-        if (string.IsNullOrWhiteSpace(keyword))
+        if (terms.Count == 0)
             return 0;
+
         var lower = plainText.ToLowerInvariant();
-        var terms = keyword.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var found = terms.Count(t => lower.Contains(t, StringComparison.Ordinal));
-        return (int)Math.Round((double)found / terms.Length * 35);
+        var normalized = terms
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t.ToLowerInvariant())
+            .Distinct()
+            .ToList();
+        if (normalized.Count == 0)
+            return 0;
+
+        var found = normalized.Count(t => lower.Contains(t, StringComparison.Ordinal));
+        return (int)Math.Round((double)found / normalized.Count * 35);
     }
 
     private static int ScoreWordCount(int wordCount, int target) =>
@@ -440,7 +512,8 @@ public sealed class ContentScoringService(
         int termScore,
         int titleScore,
         int metaScore,
-        string keyword)
+        string keyword,
+        IReadOnlyList<string>? coverageTerms = null)
     {
         var list = new List<ScoreSuggestion>();
         if (wordCount < targetWords)
@@ -458,13 +531,16 @@ public sealed class ContentScoringService(
         }
         if (termScore < 30)
         {
+            var termHint = coverageTerms is { Count: > 0 }
+                ? string.Join(", ", coverageTerms.Take(6))
+                : keyword;
             list.Add(new ScoreSuggestion
             {
                 Id = "term_coverage",
                 Component = "termCoverage",
                 PointValue = 35 - termScore,
-                ActionText = $"Use the phrase \"{keyword}\" and related terms more naturally in the body.",
-                ProposedChange = $"Work “{keyword}” into an opening paragraph and one H2 section without keyword stuffing.",
+                ActionText = $"Use \"{keyword}\" and related terms ({termHint}) more naturally in the body.",
+                ProposedChange = $"Work the target phrase and recommended terms into an opening paragraph and one H2 section without keyword stuffing.",
                 ApplyMode = "ai",
             });
         }
@@ -484,7 +560,7 @@ public sealed class ContentScoringService(
                 ApplyMode = "deterministic",
             });
         }
-        if (metaScore < 8)
+        if (metaScore < 8 && !ContentAutoEnricher.HasMetaDescription(contentHtml))
         {
             var proposedMeta = ScoreSuggestionApplicator.ProposeMetaDescription(plainText, keyword);
             list.Add(new ScoreSuggestion

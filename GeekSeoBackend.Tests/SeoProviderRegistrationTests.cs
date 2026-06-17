@@ -17,16 +17,19 @@ namespace GeekSeoBackend.Tests;
 
 public sealed class SeoProviderRegistrationTests
 {
+    private const string SerpCacheDaysEnv = VendorPersistenceSettings.SerpCacheDaysEnv;
+    private const string KeywordCacheDaysEnv = VendorPersistenceSettings.KeywordCacheDaysEnv;
+
     [Fact]
     public void AddSeoDataProviders_with_defaults_registers_database_wrapped_providers()
     {
-        using var env = EnvScope.For(new Dictionary<string, string?>
+        using var env = EnvScope.For(WithDefaultVendorCache(new Dictionary<string, string?>
         {
             [SeoProviderRegistration.SerpProviderEnv] = null,
             [SeoProviderRegistration.KeywordProviderEnv] = null,
             [SeoProviderRegistration.RankSnapshotProviderEnv] = null,
             [SeoProviderRegistration.SerpProviderFallbackEnv] = null,
-        });
+        }));
 
         var services = CreateServiceCollection();
         services.AddSeoDataProviders();
@@ -48,11 +51,11 @@ public sealed class SeoProviderRegistrationTests
     [Fact]
     public void AddSeoDataProviders_serpapi_without_api_key_fails_at_startup()
     {
-        using var env = EnvScope.For(new Dictionary<string, string?>
+        using var env = EnvScope.For(WithDefaultVendorCache(new Dictionary<string, string?>
         {
             [SeoProviderRegistration.SerpProviderEnv] = "serpapi",
             [SeoProviderRegistration.SerpApiKeyEnv] = null,
-        });
+        }));
 
         var services = new ServiceCollection();
         var ex = Assert.Throws<InvalidOperationException>(() => services.AddSeoDataProviders());
@@ -62,13 +65,13 @@ public sealed class SeoProviderRegistrationTests
     [Fact]
     public void AddSeoDataProviders_serpapi_with_key_registers_serpapi_implementations()
     {
-        using var env = EnvScope.For(new Dictionary<string, string?>
+        using var env = EnvScope.For(WithDefaultVendorCache(new Dictionary<string, string?>
         {
             [SeoProviderRegistration.SerpProviderEnv] = "serpapi",
             [SeoProviderRegistration.RankSnapshotProviderEnv] = "serpapi",
             [SeoProviderRegistration.SerpApiKeyEnv] = "test-key",
             [SeoProviderRegistration.SerpProviderFallbackEnv] = null,
-        });
+        }));
 
         var services = CreateServiceCollection();
         services.AddSeoDataProviders();
@@ -82,14 +85,14 @@ public sealed class SeoProviderRegistrationTests
     [Fact]
     public void AddSeoDataProviders_serpapi_with_fallback_registers_fallback_wrapper()
     {
-        using var env = EnvScope.For(new Dictionary<string, string?>
+        using var env = EnvScope.For(WithDefaultVendorCache(new Dictionary<string, string?>
         {
             [SeoProviderRegistration.SerpProviderEnv] = "serpapi",
             [SeoProviderRegistration.SerpApiKeyEnv] = "test-key",
             [SeoProviderRegistration.SerpProviderFallbackEnv] = "dataforseo",
             ["DATAFORSEO_LOGIN"] = "user",
             ["DATAFORSEO_PASSWORD"] = "pass",
-        });
+        }));
 
         var services = CreateServiceCollection();
         services.AddSeoDataProviders();

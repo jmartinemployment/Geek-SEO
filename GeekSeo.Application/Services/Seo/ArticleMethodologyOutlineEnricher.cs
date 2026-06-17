@@ -16,8 +16,7 @@ public static partial class ArticleMethodologyOutlineEnricher
 
     public static bool HasRequiredBodySections(string html, WritingMethodologySpec methodology) =>
         methodology.PhaseDefinitions.Count == 0
-        || (CountBodyH2Sections(html) >= methodology.PhaseDefinitions.Count
-            && ArticleMethodologyScaffold.HasVisibleMethodologyMovements(html, methodology));
+        || ArticleMethodologyScaffold.HasRequiredBodyStructure(html, methodology);
 
     public static async Task<string> EnsureMethodologyOutlineAsync(
         string outline,
@@ -29,7 +28,7 @@ public static partial class ArticleMethodologyOutlineEnricher
         if (HasRequiredBodySections(outline, methodology))
             return outline;
 
-        outline = ArticleMethodologyScaffold.EnsureVisibleMovements(
+        outline = ArticleMethodologyScaffold.EnsureBodySections(
             outline,
             brief.Keyword,
             methodology);
@@ -52,7 +51,7 @@ public static partial class ArticleMethodologyOutlineEnricher
             return outline;
 
         var bodySections = AiHtmlSanitizer.ToHtmlFragment(response.Value.Content).Trim();
-        bodySections = ArticleMethodologyScaffold.EnsureVisibleMovements(
+        bodySections = ArticleMethodologyScaffold.EnsureBodySections(
             bodySections,
             brief.Keyword,
             methodology);

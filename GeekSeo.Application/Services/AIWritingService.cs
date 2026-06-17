@@ -152,10 +152,11 @@ public sealed partial class AIWritingService(
             return draftResult;
 
         var withMethodology = request.Brief is not null
-            ? ArticleMethodologyDraftEnricher.EnsureMethodologyDraft(
+            ? ArticleMethodologyScaffold.SanitizeDraft(
                 draftResult.Value.Content,
-                request.Brief)
-            : draftResult.Value.Content;
+                request.Brief.Keyword,
+                request.Brief.Methodology)
+            : ArticleMethodologyScaffold.StripMovementLabels(draftResult.Value.Content);
 
         var enriched = await ArticleClosingFaqEnricher.EnsureClosingFaqDraftAsync(
             withMethodology,
@@ -163,7 +164,46 @@ public sealed partial class AIWritingService(
             ai,
             ct);
 
-        return Result<WritingTextResult>.Success(new WritingTextResult { Content = enriched });
+        return Result<WritingTextResult>.Success(new WritingTextResult
+        {
+            Content = ArticleMethodologyScaffold.StripMovementLabels(enriched),
+        });
+    }
+
+    public async Task<Result<WritingTextResult>> GenerateDraftFromResearchAsync(
+        Guid userId, ResearchDraftRequest request, CancellationToken ct = default)
+    {
+        _ = userId;
+        if (request.Research is null)
+            return Result<WritingTextResult>.Failure("Research context is required");
+
+        var response = await ai.CompleteAsync(new AIRequest
+        {
+            SystemPrompt = ArticlePromptBuilder.BuildResearchDraftSystemPrompt(),
+            UserPrompt = ArticlePromptBuilder.BuildResearchDraftUserPrompt(request),
+            MaxTokens = 8192,
+            Temperature = 0.7,
+        }, ct);
+
+        var draftResult = ToWritingResult(response);
+        if (!draftResult.IsSuccess || draftResult.Value is null)
+            return draftResult;
+
+        var sanitized = ArticleMethodologyScaffold.SanitizeDraft(
+            draftResult.Value.Content,
+            request.Research.DerivedKeyword,
+            WritingMethodologySpec.FourPhase);
+
+        var enriched = await ArticleClosingFaqEnricher.EnsureClosingFaqDraftAsync(
+            sanitized,
+            request.Research,
+            ai,
+            ct);
+
+        return Result<WritingTextResult>.Success(new WritingTextResult
+        {
+            Content = ArticleMethodologyScaffold.StripMovementLabels(enriched),
+        });
     }
 
     public async Task<Result<WritingTextResult>> HumanizeAsync(

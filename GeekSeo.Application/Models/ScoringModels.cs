@@ -18,6 +18,8 @@ public sealed record ScoreUpdateMessage
     public string? GeoGrade { get; init; }
     public object? GeoComponents { get; init; }
     public string BenchmarkQuality { get; init; } = "good";
+    public DateTimeOffset? ResearchedAt { get; init; }
+    public string? ScoreContextNote { get; init; }
     public required DateTimeOffset Timestamp { get; init; }
 }
 

@@ -15,14 +15,6 @@ public static class SerpFeatureGuidanceBuilder
                 ActionText = "Featured snippet detected — add a 40–60 word direct answer in a paragraph immediately after your first H2.",
             });
         }
-        if (features.HasPeopleAlsoAsk)
-        {
-            list.Add(new SerpFeatureGuidance
-            {
-                Feature = "people_also_ask",
-                ActionText = "People Also Ask is present — add H2 questions that match PAA topics and answer each in 2–3 sentences.",
-            });
-        }
         if (features.HasLocalPack)
         {
             list.Add(new SerpFeatureGuidance

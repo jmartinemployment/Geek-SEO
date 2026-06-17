@@ -28,6 +28,7 @@ public sealed record CreateContentDocumentRequest
     public string Title { get; init; } = "Untitled Document";
     public string TargetKeyword { get; init; } = string.Empty;
     public string TargetLocation { get; init; } = "United States";
+    public Guid? UrlResearchId { get; init; }
 }
 
 public sealed record UpdateContentRequest

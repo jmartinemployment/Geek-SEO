@@ -29,6 +29,7 @@ export type ScoreSidebarProps = {
   scoreError: string | null;
   connected: boolean;
   onRefreshSerp: () => void;
+  serpRefreshEnabled?: boolean;
   onCopyHtml?: () => void;
   onApplySuggestion?: (suggestion: ScoreSuggestion) => Promise<void>;
   applyingSuggestionId?: string | null;
@@ -43,6 +44,7 @@ export function ScoreSidebar({
   scoreError,
   connected,
   onRefreshSerp,
+  serpRefreshEnabled = true,
   onCopyHtml,
   onApplySuggestion,
   applyingSuggestionId,
@@ -58,6 +60,7 @@ export function ScoreSidebar({
           scoreError={scoreError}
           connected={connected}
           onRefreshSerp={onRefreshSerp}
+          serpRefreshEnabled={serpRefreshEnabled}
         />
         <ScoreActionsColumn
           keyword={keyword}
@@ -83,6 +86,7 @@ export function ScoreSidebar({
         scoreError={scoreError}
         connected={connected}
         onRefreshSerp={onRefreshSerp}
+        serpRefreshEnabled={serpRefreshEnabled}
       />
     );
   }
@@ -110,6 +114,7 @@ function ScoreMetricsColumn({
   scoreError,
   connected,
   onRefreshSerp,
+  serpRefreshEnabled = true,
 }: Omit<ScoreSidebarProps, 'placement' | 'onCopyHtml' | 'onApplySuggestion' | 'applyingSuggestionId'> & {
   compact?: boolean;
 }) {
@@ -133,13 +138,27 @@ function ScoreMetricsColumn({
         </div>
       </div>
 
-      <button
-        type="button"
-        className="mt-2 text-[10px] text-[var(--color-text-secondary)] underline hover:text-[var(--color-text-primary)] xl:text-xs"
-        onClick={onRefreshSerp}
-      >
-        Refresh SERP
-      </button>
+      {serpRefreshEnabled ? (
+        <button
+          type="button"
+          className="mt-2 text-[10px] text-[var(--color-text-secondary)] underline hover:text-[var(--color-text-primary)] xl:text-xs"
+          onClick={onRefreshSerp}
+        >
+          Refresh SERP
+        </button>
+      ) : (
+        <p className="mt-2 text-[10px] text-[var(--color-text-secondary)] xl:text-xs">
+          Score uses frozen page research — live SERP refresh is disabled.
+        </p>
+      )}
+
+      {scoreUpdate?.scoreContextNote ? (
+        <p className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-[10px] text-[var(--color-text-secondary)] xl:text-xs">
+          {scoreUpdate.researchedAt
+            ? `${scoreUpdate.scoreContextNote} Captured ${new Date(scoreUpdate.researchedAt).toLocaleString()}.`
+            : scoreUpdate.scoreContextNote}
+        </p>
+      ) : null}
 
       {scoreError ? <p className={`mt-2 text-red-600 ${compact ? 'text-xs' : 'text-sm'}`}>{scoreError}</p> : null}
 

@@ -10,6 +10,7 @@ namespace GeekSeo.Application.Services.Seo;
 public sealed class SerpResearchPackService(
     ISerpProvider serpProvider,
     ISerpCacheRepository serpCache,
+    ICrawlerProvider crawler,
     CompetitorCrawlService competitorCrawl) : ISerpResearchPackService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -20,16 +21,33 @@ public sealed class SerpResearchPackService(
         CancellationToken ct = default)
     {
         _ = userId;
-        var keyword = request.Keyword.Trim();
-        if (string.IsNullOrWhiteSpace(keyword))
-            return Result<SerpResearchPack>.Failure("Keyword is required");
+        var sourceUrl = UrlPageKeywordResolver.NormalizeUrl(request.Url);
+        if (!Uri.TryCreate(sourceUrl, UriKind.Absolute, out _))
+            return Result<SerpResearchPack>.Failure("A valid url is required");
 
         var location = string.IsNullOrWhiteSpace(request.Location) ? "United States" : request.Location.Trim();
         var language = string.IsNullOrWhiteSpace(request.Language) ? "en" : request.Language.Trim();
         var notes = new List<string>();
 
-        if (!string.IsNullOrWhiteSpace(request.BusinessContext))
-            notes.Add("Business context supplied for intent filtering only; SERP fields are live vendor data.");
+        var pageCrawl = await crawler.CrawlPageAsync(sourceUrl, ct);
+        if (!pageCrawl.IsSuccess || pageCrawl.Value is null)
+        {
+            return Result<SerpResearchPack>.Failure(
+                pageCrawl.Error ?? "Could not crawl the URL to derive a search keyword.");
+        }
+
+        var keyword = UrlPageKeywordResolver.Derive(pageCrawl.Value, sourceUrl);
+        if (string.IsNullOrWhiteSpace(keyword))
+        {
+            return Result<SerpResearchPack>.Failure(
+                "Could not derive a search keyword from the page title, H1, or URL slug.");
+        }
+
+        notes.Add($"Search keyword derived from page: \"{keyword}\".");
+
+        var businessContext = UrlPageBusinessContextResolver.Derive(pageCrawl.Value, sourceUrl);
+        if (!string.IsNullOrWhiteSpace(businessContext))
+            notes.Add("Business context derived from source page for intent filtering only.");
 
         var serpRow = await EnsureSerpAsync(keyword, location, language, notes, ct);
         if (!serpRow.IsSuccess)
@@ -38,7 +56,7 @@ public sealed class SerpResearchPackService(
         if (serpRow.Value is null)
         {
             return Result<SerpResearchPack>.Failure(
-                "Live SERP results are unavailable. Configure SERP_PROVIDER credentials or supply optional competitor URLs.");
+                "Live SERP results are unavailable. Configure SERP_PROVIDER credentials.");
         }
 
         var serp = SerpResultStore.FromDbRow(serpRow.Value);
@@ -71,10 +89,14 @@ public sealed class SerpResearchPackService(
         var dataQuality = ResolveDataQuality(serp, crawledTop5, notes);
 
         var organic = serp.OrganicResults.Take(10).Select(MapOrganic).ToList();
-        var competitorOutlines = BuildCompetitorOutlines(serp.OrganicResults, crawledPages, request.CompetitorUrls);
+        var competitorOutlines = BuildCompetitorOutlines(serp.OrganicResults, crawledPages);
+        var sourceHeadings = pageCrawl.Value.Headings
+            .Where(h => h.Level is 2 or 3 && !string.IsNullOrWhiteSpace(h.Text))
+            .Select(h => new SerpResearchHeading { Level = h.Level, Text = h.Text.Trim() })
+            .ToList();
         var recommendedTerms = BuildRecommendedTerms(keyword, serp);
         var closingFaq = BuildClosingFaq(keyword, serp);
-        var intent = InferIntent(keyword, serp, organic);
+        var intent = InferIntent(keyword, serp, organic, businessContext);
         var paf = BuildPaf(serp);
         var serpFeatures = BuildSerpFeatureList(serp);
         var medianWordCount = MedianWordCountTop5(crawledTop5, refinedBenchmarks.AvgWordCount);
@@ -85,11 +107,13 @@ public sealed class SerpResearchPackService(
         {
             Meta = new SerpResearchPackMeta
             {
+                SourceUrl = sourceUrl,
                 Keyword = keyword,
                 Location = location,
                 Language = language,
                 ResearchedAt = DateTimeOffset.UtcNow.ToString("O"),
                 DataQuality = dataQuality,
+                BusinessContext = businessContext,
                 Notes = notes,
             },
             Intent = intent,
@@ -104,6 +128,7 @@ public sealed class SerpResearchPackService(
             SerpFeatures = serpFeatures,
             Organic = organic,
             CompetitorOutlines = competitorOutlines,
+            SourceHeadings = sourceHeadings,
             Benchmarks = new SerpResearchBenchmarks
             {
                 MedianWordCountTop5 = medianWordCount,
@@ -212,41 +237,14 @@ public sealed class SerpResearchPackService(
 
     private static IReadOnlyList<SerpResearchCompetitorOutline> BuildCompetitorOutlines(
         IReadOnlyList<SerpOrganicResult> organic,
-        IReadOnlyList<SeoCompetitorPage> crawled,
-        IReadOnlyList<string>? fallbackUrls)
+        IReadOnlyList<SeoCompetitorPage> crawled)
     {
-        var outlines = new List<SerpResearchCompetitorOutline>();
-        foreach (var row in organic.Take(5))
+        return organic.Take(5).Select(row =>
         {
             var page = crawled.FirstOrDefault(c =>
                 string.Equals(c.Url, row.Url, StringComparison.OrdinalIgnoreCase));
-            outlines.Add(MapCompetitorOutline(row, page));
-        }
-
-        if (outlines.Count >= 3 || fallbackUrls is null || fallbackUrls.Count == 0)
-            return outlines;
-
-        var position = outlines.Count + 1;
-        foreach (var url in fallbackUrls.Take(5))
-        {
-            if (string.IsNullOrWhiteSpace(url))
-                continue;
-
-            if (outlines.Any(o => string.Equals(o.Url, url, StringComparison.OrdinalIgnoreCase)))
-                continue;
-
-            outlines.Add(new SerpResearchCompetitorOutline
-            {
-                Url = url.Trim(),
-                Position = position++,
-                H1 = "",
-                Headings = [],
-                EstimatedWordCount = 0,
-                SchemaTypes = [],
-            });
-        }
-
-        return outlines;
+            return MapCompetitorOutline(row, page);
+        }).ToList();
     }
 
     private static SerpResearchCompetitorOutline MapCompetitorOutline(
@@ -402,9 +400,11 @@ public sealed class SerpResearchPackService(
     private static SerpResearchIntent InferIntent(
         string keyword,
         SerpResult serp,
-        IReadOnlyList<SerpResearchOrganicItem> organic)
+        IReadOnlyList<SerpResearchOrganicItem> organic,
+        string businessContext)
     {
         var lower = keyword.ToLowerInvariant();
+        var contextLower = businessContext.ToLowerInvariant();
         var serviceCount = organic.Count(o => o.ContentType is "service" or "product");
         var guideCount = organic.Count(o => o.ContentType is "guide" or "other");
         var forumCount = organic.Count(o => o.ContentType is "forum");
@@ -412,16 +412,20 @@ public sealed class SerpResearchPackService(
         string primary;
         string justification;
 
-        if (serp.Features.HasLocalPack || lower.Contains("near me", StringComparison.Ordinal))
+        if (serp.Features.HasLocalPack || lower.Contains("near me", StringComparison.Ordinal)
+            || contextLower.Contains("service area", StringComparison.Ordinal)
+            || contextLower.Contains("locally", StringComparison.Ordinal))
         {
             primary = "local";
-            justification = "SERP includes local pack signals or near-me query language.";
+            justification = "SERP includes local pack signals, near-me query language, or local business page context.";
         }
         else if (lower.Contains("buy", StringComparison.Ordinal) || lower.Contains("price", StringComparison.Ordinal)
-            || lower.Contains("cost", StringComparison.Ordinal) || serviceCount >= 4)
+            || lower.Contains("cost", StringComparison.Ordinal) || serviceCount >= 4
+            || contextLower.Contains("pricing", StringComparison.Ordinal)
+            || contextLower.Contains("consulting", StringComparison.Ordinal))
         {
             primary = "commercial";
-            justification = "Query or SERP mix skews toward pricing, services, or purchase evaluation.";
+            justification = "Query, SERP mix, or page context skews toward pricing, services, or purchase evaluation.";
         }
         else if (lower.Contains("hire", StringComparison.Ordinal) || lower.Contains("book", StringComparison.Ordinal))
         {
@@ -605,9 +609,7 @@ public sealed class SerpResearchPackService(
             var phase = phases[i];
             var suggestedH2 = h2Pool.ElementAtOrDefault(i);
             if (string.IsNullOrWhiteSpace(suggestedH2))
-            {
-                suggestedH2 = $"{phase.Label}: {keyword}";
-            }
+                suggestedH2 = ArticleMethodologyScaffold.SuggestTopicHeading(keyword, phase);
 
             var subtopics = paaPool
                 .Skip(i * 2)

@@ -60,7 +60,8 @@ public sealed class ContentWritingRenderTests
 
         var service = new ArticleRenderService(
             new FakeContentDocumentService(document),
-            new FakeContentBriefService(brief));
+            new FakeContentBriefService(brief),
+            new FakeUrlResearchService());
 
         var result = await service.RenderAsync(userId, document.Id);
 
@@ -132,6 +133,10 @@ public sealed class ContentWritingRenderTests
                 Status = status,
             }));
 
+        public Task<Result<SeoContentDocument>> AttachUrlResearchAsync(
+            Guid userId, Guid documentId, Guid urlResearchId, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
         public Task<Result> DeleteAsync(Guid userId, Guid documentId, CancellationToken ct = default) =>
             throw new NotSupportedException();
     }
@@ -140,6 +145,24 @@ public sealed class ContentWritingRenderTests
     {
         public Task<Result<ContentBrief>> GenerateBriefAsync(Guid userId, GenerateBriefRequest request, CancellationToken ct = default) =>
             Task.FromResult(Result<ContentBrief>.Success(brief));
+    }
+
+    private sealed class FakeUrlResearchService : IUrlResearchService
+    {
+        public Task<Result<SeoUrlResearch>> CreateQueuedAsync(Guid userId, CreateUrlResearchQueuedRequest request, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result<SeoUrlResearch>> GetFullAsync(Guid userId, Guid urlResearchId, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result<IReadOnlyList<UrlResearchSummary>>> ListSummaryByProjectAsync(Guid userId, Guid projectId, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result<SeoUrlResearch>> PersistFullAsync(Guid userId, Guid urlResearchId, UrlResearchFullWrite body, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result<SeoUrlResearch>> UpdateStatusAsync(Guid userId, Guid urlResearchId, UrlResearchStatusPatch patch, CancellationToken ct = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakeProjectRepository(Guid projectId, Guid userId) : IProjectRepository

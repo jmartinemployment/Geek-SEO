@@ -7,19 +7,32 @@ namespace GeekSeo.Application.Services.Seo;
 
 public static partial class ArticleMethodologyScaffold
 {
-    public static string BuildMovementLabelHtml(int movementNumber, string phaseLabel) =>
-        $"<p><strong>Movement {movementNumber} — {WebUtility.HtmlEncode(phaseLabel)}</strong></p>";
+    public static string StripMovementLabels(string html)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+            return html;
 
-    public static bool HasVisibleMethodologyMovements(string html, WritingMethodologySpec methodology)
+        var result = html;
+        result = MovementLabelParagraphRegex().Replace(result, string.Empty);
+        result = MovementLabelHeadingRegex().Replace(result, string.Empty);
+        result = MovementLabelPlainParagraphRegex().Replace(result, string.Empty);
+        result = MovementLabelStrongRegex().Replace(result, string.Empty);
+        result = EmptyParagraphRegex().Replace(result, string.Empty);
+        return result.Trim();
+    }
+
+    public static string SanitizeDraft(string html, string keyword, WritingMethodologySpec methodology)
+    {
+        html = StripMovementLabels(html);
+        return EnsureBodySections(html, keyword, methodology);
+    }
+
+    public static bool HasRequiredBodyStructure(string html, WritingMethodologySpec methodology)
     {
         if (methodology.PhaseDefinitions.Count == 0)
             return true;
 
-        var body = ExtractBodyBeforeFaq(html);
-        return methodology.PhaseDefinitions.All(phase =>
-            body.Contains(phase.Label, StringComparison.OrdinalIgnoreCase)
-            && MovementLabelRegex().IsMatch(body)
-            && body.Contains($"Movement ", StringComparison.Ordinal));
+        return CountBodyH2Sections(html) >= methodology.PhaseDefinitions.Count;
     }
 
     public static string BuildDeterministicBodySections(string keyword, WritingMethodologySpec methodology)
@@ -28,7 +41,6 @@ public static partial class ArticleMethodologyScaffold
         for (var i = 0; i < methodology.PhaseDefinitions.Count; i++)
         {
             var phase = methodology.PhaseDefinitions[i];
-            builder.AppendLine(BuildMovementLabelHtml(i + 1, phase.Label));
             builder.AppendLine($"<h2>{WebUtility.HtmlEncode(SuggestTopicHeading(keyword, phase))}</h2>");
             builder.AppendLine("<h3>Key points to cover</h3>");
             builder.AppendLine("<h3>Decisions for this phase</h3>");
@@ -37,18 +49,19 @@ public static partial class ArticleMethodologyScaffold
         return builder.ToString().TrimEnd();
     }
 
-    public static string EnsureVisibleMovements(
+    public static string EnsureBodySections(
         string html,
         string keyword,
         WritingMethodologySpec methodology)
     {
-        if (methodology.PhaseDefinitions.Count == 0 || HasVisibleMethodologyMovements(html, methodology))
+        html = StripMovementLabels(html);
+        if (methodology.PhaseDefinitions.Count == 0 || HasRequiredBodyStructure(html, methodology))
             return html;
 
-        return InjectMovementLabels(html, keyword, methodology);
+        return EnsureBodySectionHeadings(html, keyword, methodology);
     }
 
-    public static string InjectMovementLabels(string html, string keyword, WritingMethodologySpec methodology)
+    private static string EnsureBodySectionHeadings(string html, string keyword, WritingMethodologySpec methodology)
     {
         var phases = methodology.PhaseDefinitions;
         if (phases.Count == 0)
@@ -60,22 +73,6 @@ public static partial class ArticleMethodologyScaffold
 
         if (CountBodyH2Sections(body) < phases.Count)
             body = BuildDeterministicBodySections(keyword, methodology);
-        else
-        {
-            var matches = H2Regex().Matches(body).Cast<Match>().Take(phases.Count).ToList();
-            for (var i = matches.Count - 1; i >= 0; i--)
-            {
-                var phase = phases[i];
-                var prefix = body[..matches[i].Index];
-                if (prefix.Contains(phase.Label, StringComparison.OrdinalIgnoreCase)
-                    && MovementLabelRegex().IsMatch(prefix))
-                {
-                    continue;
-                }
-
-                body = body.Insert(matches[i].Index, BuildMovementLabelHtml(i + 1, phase.Label) + "\n");
-            }
-        }
 
         return body.TrimEnd() + (string.IsNullOrWhiteSpace(tail) ? string.Empty : "\n" + tail.Trim());
     }
@@ -83,7 +80,7 @@ public static partial class ArticleMethodologyScaffold
     public static int CountBodyH2Sections(string html) =>
         H2Regex().Matches(ExtractBodyBeforeFaq(html)).Count;
 
-    private static string SuggestTopicHeading(string keyword, MethodologyPhaseDefinition phase)
+    public static string SuggestTopicHeading(string keyword, MethodologyPhaseDefinition phase)
     {
         var topic = string.IsNullOrWhiteSpace(keyword) ? "this topic" : keyword.Trim();
         var family = phase.HeadingFamilies.FirstOrDefault() ?? phase.Label;
@@ -129,6 +126,18 @@ public static partial class ArticleMethodologyScaffold
     [GeneratedRegex("<h2[^>]*>\\s*[^<]*faq[^<]*</h2>", RegexOptions.IgnoreCase)]
     private static partial Regex FaqHeadingRegex();
 
-    [GeneratedRegex(@"Movement\s+\d+\s*—", RegexOptions.IgnoreCase)]
-    private static partial Regex MovementLabelRegex();
+    [GeneratedRegex(@"<p>\s*<strong>\s*Movement\s+\d+\s*[—–-][^<]*</strong>\s*</p>\s*", RegexOptions.IgnoreCase)]
+    private static partial Regex MovementLabelParagraphRegex();
+
+    [GeneratedRegex(@"<h([1-6])\b[^>]*>\s*Movement\s+\d+\s*[—–-][^<]*</h\1>\s*", RegexOptions.IgnoreCase)]
+    private static partial Regex MovementLabelHeadingRegex();
+
+    [GeneratedRegex(@"<p\b[^>]*>\s*Movement\s+\d+\s*[—–-][^<]*</p>\s*", RegexOptions.IgnoreCase)]
+    private static partial Regex MovementLabelPlainParagraphRegex();
+
+    [GeneratedRegex(@"<strong>\s*Movement\s+\d+\s*[—–-][^<]*</strong>\s*", RegexOptions.IgnoreCase)]
+    private static partial Regex MovementLabelStrongRegex();
+
+    [GeneratedRegex(@"<p\b[^>]*>\s*</p>\s*", RegexOptions.IgnoreCase)]
+    private static partial Regex EmptyParagraphRegex();
 }

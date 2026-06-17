@@ -12,30 +12,25 @@ import {
 } from '@/components/content-writing/review-workspace-context';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import {
+  attachUrlResearch,
   createContent,
-  generateBrief,
-  generateDraft,
-  generateOutline,
-  getContent,
+  draftContentFromResearch,
+  draftFromKeyword,
+  generateFeaturedImage,
   listProjects,
+  listUrlResearch,
   updateContent,
   updateContentStatus,
-  type ContentBrief,
   type SeoContentDocument,
   type SeoProject,
+  type UrlResearchSummary,
 } from '@/lib/seo-api';
 
 const DEFAULT_LOCATION = 'United States';
 const DEFAULT_DRAFT_HTML = '<h1>Article title</h1><p>Start writing your article.</p>';
 
-type Stage = 'brief' | 'outline' | 'draft' | 'review';
-
-function stepLabel(stage: Stage): string {
-  if (stage === 'brief') return 'Step 1 of 4';
-  if (stage === 'outline') return 'Step 2 of 4';
-  if (stage === 'draft') return 'Step 3 of 4';
-  return 'Step 4 of 4';
-}
+type Stage = 'setup' | 'review';
+type WritingPath = 'research' | 'keyword';
 
 function ContentWritingPageInner() {
   const { accessToken, isLoading: authLoading } = useAuth();
@@ -45,20 +40,38 @@ function ContentWritingPageInner() {
   const initialProjectId = searchParams.get('projectId') ?? '';
   const initialLocation = searchParams.get('location') ?? DEFAULT_LOCATION;
   const initialDocumentId = searchParams.get('documentId') ?? '';
+  const initialUrlResearchId = searchParams.get('urlResearchId') ?? '';
 
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [projectId, setProjectId] = useState(initialProjectId);
   const [title, setTitle] = useState(initialTitle || initialKeyword || 'New article');
   const [keyword, setKeyword] = useState(initialKeyword);
   const [location, setLocation] = useState(initialLocation);
-  const [brief, setBrief] = useState<ContentBrief | null>(null);
-  const [outline, setOutline] = useState('');
   const [doc, setDoc] = useState<SeoContentDocument | null>(null);
-  const [stage, setStage] = useState<Stage>('brief');
+  const [stage, setStage] = useState<Stage>('setup');
+  const [writingPath, setWritingPath] = useState<WritingPath>(
+    initialUrlResearchId ? 'research' : 'keyword',
+  );
+  const [selectedResearchId, setSelectedResearchId] = useState(initialUrlResearchId);
+  const [researchRows, setResearchRows] = useState<UrlResearchSummary[]>([]);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [generateFeaturedImageWithDraft, setGenerateFeaturedImageWithDraft] = useState(true);
   const [documentLoading, setDocumentLoading] = useState(!!initialDocumentId);
+
+  const isResearchDoc = Boolean(doc?.urlResearchId);
+  const useResearchPath = isResearchDoc || writingPath === 'research';
+
+  const completedResearch = useMemo(
+    () => researchRows.filter((row) => row.status === 'completed'),
+    [researchRows],
+  );
+
+  const selectedResearch = useMemo(
+    () => completedResearch.find((row) => row.id === selectedResearchId) ?? null,
+    [completedResearch, selectedResearchId],
+  );
 
   useEffect(() => {
     if (authLoading) return;
@@ -100,6 +113,10 @@ function ContentWritingPageInner() {
         setKeyword(loaded.targetKeyword);
         setLocation(loaded.targetLocation || DEFAULT_LOCATION);
         setProjectId(loaded.projectId);
+        if (loaded.urlResearchId) {
+          setWritingPath('research');
+          setSelectedResearchId(loaded.urlResearchId);
+        }
         setStage('review');
       } catch (loadError) {
         if (!cancelled) setError(loadError);
@@ -113,6 +130,52 @@ function ContentWritingPageInner() {
       cancelled = true;
     };
   }, [initialDocumentId, accessToken, authLoading]);
+
+  useEffect(() => {
+    if (!projectId || !useResearchPath || authLoading) return;
+    let cancelled = false;
+
+    async function loadResearch() {
+      try {
+        const rows = await listUrlResearch(projectId, accessToken);
+        if (cancelled) return;
+        setResearchRows(rows);
+        const preferredId =
+          selectedResearchId ||
+          initialUrlResearchId ||
+          rows.find((row) => row.status === 'completed')?.id ||
+          '';
+        if (!selectedResearchId && preferredId) {
+          setSelectedResearchId(preferredId);
+        }
+        const picked = rows.find((row) => row.id === (selectedResearchId || preferredId));
+        if (picked?.derivedKeyword && !initialKeyword) {
+          setKeyword(picked.derivedKeyword);
+          if (!initialTitle) setTitle(picked.derivedKeyword);
+        }
+        if (rows.some((row) => row.status === 'completed') && !initialUrlResearchId && !isResearchDoc) {
+          setWritingPath('research');
+        }
+      } catch (loadError) {
+        if (!cancelled) setError(loadError);
+      }
+    }
+
+    void loadResearch();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    accessToken,
+    authLoading,
+    initialKeyword,
+    initialTitle,
+    initialUrlResearchId,
+    isResearchDoc,
+    projectId,
+    selectedResearchId,
+    useResearchPath,
+  ]);
 
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === projectId) ?? null,
@@ -175,6 +238,18 @@ function ContentWritingPageInner() {
     return saved;
   }
 
+  async function finalizeDraftDocument(saved: SeoContentDocument): Promise<SeoContentDocument> {
+    await updateContentStatus(saved.id, 'awaiting_review', accessToken);
+    let nextDoc = { ...saved, status: 'awaiting_review' };
+    if (generateFeaturedImageWithDraft) {
+      const image = await generateFeaturedImage(saved.id, {}, accessToken);
+      nextDoc = { ...nextDoc, featuredImageUrl: image.dataUrl };
+    }
+    setDoc(nextDoc);
+    setStage('review');
+    return nextDoc;
+  }
+
   if (authLoading || documentLoading) {
     return <main className="mx-auto max-w-5xl p-8 text-[var(--color-text-secondary)]">Loading…</main>;
   }
@@ -195,59 +270,98 @@ function ContentWritingPageInner() {
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">Content Writing</h1>
               <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-                Brief, outline, draft, edit, review, and publish from one workspace.
+                {useResearchPath
+                  ? 'Attach saved page research, then generate a draft in one step.'
+                  : 'Generate a draft from a target keyword — SERP research runs in the background.'}
               </p>
             </div>
             {selectedProject ? (
-              <Link
-                href={`/app/projects/${selectedProject.id}`}
-                className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-              >
-                Project documents
-              </Link>
+              <div className="flex flex-col items-end gap-1 text-sm">
+                <Link
+                  href={`/projects/${selectedProject.id}/url-analyzer`}
+                  className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                >
+                  URL Analyzer
+                </Link>
+                <Link
+                  href={`/content-writing?projectId=${selectedProject.id}`}
+                  className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                >
+                  Project documents
+                </Link>
+              </div>
             ) : null}
           </div>
 
           {error ? <SeoErrorBanner error={error} /> : null}
 
           {!inReview ? (
-            <>
-              <section className="rounded-xl border bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h2 className="font-semibold">Article setup</h2>
-                    <p className="text-sm text-[var(--color-text-secondary)]">
-                      Start from stable project and SERP inputs. Optional niche context is additive only.
-                    </p>
-                  </div>
-                  <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-1 text-xs font-medium text-[var(--color-text-secondary)]">
-                    {stepLabel(stage)}
-                  </span>
+            <section className="rounded-xl border bg-white p-5 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-semibold">Article setup</h2>
+                  <p className="text-sm text-[var(--color-text-secondary)]">
+                    {useResearchPath
+                      ? 'Recommended — uses frozen SERP data from URL Analyzer (no live SERP at draft time).'
+                      : 'Fallback when you have not analyzed a page URL yet. Uses live SERP at draft time.'}
+                  </p>
                 </div>
+                <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-1 text-xs font-medium text-[var(--color-text-secondary)]">
+                  {useResearchPath ? 'Page research → draft' : 'Keyword → draft'}
+                </span>
+              </div>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <label className="text-sm font-medium text-[var(--color-text-primary)]">
-                    Project
-                    <select
-                      className="mt-1 block w-full rounded-lg border border-[var(--color-border-strong)] px-3 py-2"
-                      value={projectId}
-                      onChange={(event) => {
-                        setProjectId(event.target.value);
-                        const nextProject = projects.find((project) => project.id === event.target.value);
-                        if (nextProject && !searchParams.get('location')) {
-                          setLocation(nextProject.defaultLocation || DEFAULT_LOCATION);
-                        }
-                      }}
-                    >
-                      <option value="">Select a project</option>
-                      {projects.map((project) => (
-                        <option key={project.id} value={project.id}>
-                          {project.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+              {!isResearchDoc ? (
+                <div className="mt-4 flex gap-2">
+                  <button
+                    type="button"
+                    className={`rounded-lg px-3 py-1.5 text-sm ${
+                      writingPath === 'research'
+                        ? 'bg-[var(--color-accent)] text-white'
+                        : 'border hover:bg-[var(--color-surface-muted)]'
+                    }`}
+                    onClick={() => setWritingPath('research')}
+                  >
+                    Page research
+                  </button>
+                  <button
+                    type="button"
+                    className={`rounded-lg px-3 py-1.5 text-sm ${
+                      writingPath === 'keyword'
+                        ? 'bg-[var(--color-accent)] text-white'
+                        : 'border hover:bg-[var(--color-surface-muted)]'
+                    }`}
+                    onClick={() => setWritingPath('keyword')}
+                  >
+                    Keyword only
+                  </button>
+                </div>
+              ) : null}
 
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <label className="text-sm font-medium text-[var(--color-text-primary)]">
+                  Project
+                  <select
+                    className="mt-1 block w-full rounded-lg border border-[var(--color-border-strong)] px-3 py-2"
+                    value={projectId}
+                    onChange={(event) => {
+                      setProjectId(event.target.value);
+                      const nextProject = projects.find((project) => project.id === event.target.value);
+                      if (nextProject && !searchParams.get('location')) {
+                        setLocation(nextProject.defaultLocation || DEFAULT_LOCATION);
+                      }
+                    }}
+                  >
+                    <option value="">Select a project</option>
+                    {projects.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {!useResearchPath ? (
                   <label className="text-sm font-medium text-[var(--color-text-primary)]">
                     Location
                     <input
@@ -256,16 +370,45 @@ function ContentWritingPageInner() {
                       onChange={(event) => setLocation(event.target.value)}
                     />
                   </label>
+                ) : null}
 
+                <label className="text-sm font-medium text-[var(--color-text-primary)] md:col-span-2">
+                  Working title
+                  <input
+                    className="mt-1 block w-full rounded-lg border border-[var(--color-border-strong)] px-3 py-2"
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                  />
+                </label>
+
+                {useResearchPath ? (
                   <label className="text-sm font-medium text-[var(--color-text-primary)] md:col-span-2">
-                    Working title
-                    <input
+                    Page research
+                    <select
                       className="mt-1 block w-full rounded-lg border border-[var(--color-border-strong)] px-3 py-2"
-                      value={title}
-                      onChange={(event) => setTitle(event.target.value)}
-                    />
+                      value={selectedResearchId}
+                      onChange={(event) => {
+                        const nextId = event.target.value;
+                        setSelectedResearchId(nextId);
+                        const row = completedResearch.find((item) => item.id === nextId);
+                        if (row?.derivedKeyword) {
+                          setKeyword(row.derivedKeyword);
+                          if (!initialTitle && !initialKeyword) {
+                            setTitle(row.derivedKeyword);
+                          }
+                        }
+                      }}
+                      disabled={isResearchDoc}
+                    >
+                      <option value="">Select completed research</option>
+                      {completedResearch.map((row) => (
+                        <option key={row.id} value={row.id}>
+                          {row.derivedKeyword} — {row.sourceUrl}
+                        </option>
+                      ))}
+                    </select>
                   </label>
-
+                ) : (
                   <label className="text-sm font-medium text-[var(--color-text-primary)] md:col-span-2">
                     Target keyword
                     <input
@@ -275,95 +418,121 @@ function ContentWritingPageInner() {
                       placeholder="e.g. zapier quickbooks integration"
                     />
                   </label>
-                </div>
+                )}
+              </div>
 
+              <label className="mt-4 flex items-center gap-2 text-sm text-[var(--color-text-primary)]">
+                <input
+                  type="checkbox"
+                  checked={generateFeaturedImageWithDraft}
+                  onChange={(event) => setGenerateFeaturedImageWithDraft(event.target.checked)}
+                />
+                Generate featured image with draft (OpenAI)
+              </label>
+
+              {useResearchPath ? (
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    disabled={!projectId || !selectedResearchId || !!loadingAction}
+                    className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                    onClick={() =>
+                      void run('research-draft', async () => {
+                        if (!selectedResearchId) {
+                          throw new Error('Attach page research from URL Analyzer first.');
+                        }
+                        let workingDoc = doc;
+                        if (!workingDoc) {
+                          workingDoc = await createContent(
+                            {
+                              projectId,
+                              title,
+                              targetKeyword: keyword || selectedResearch?.derivedKeyword || '',
+                              targetLocation: location,
+                              urlResearchId: selectedResearchId,
+                            },
+                            accessToken,
+                          );
+                          setDoc(workingDoc);
+                        } else if (!workingDoc.urlResearchId) {
+                          workingDoc = await attachUrlResearch(
+                            workingDoc.id,
+                            selectedResearchId,
+                            accessToken,
+                          );
+                          setDoc(workingDoc);
+                        } else if (workingDoc.urlResearchId !== selectedResearchId) {
+                          throw new Error('This document is already linked to different page research.');
+                        }
+
+                        const result = await draftContentFromResearch(workingDoc.id, accessToken);
+                        const saved = await updateContent(
+                          workingDoc.id,
+                          {
+                            contentHtml: result.content || DEFAULT_DRAFT_HTML,
+                            title,
+                            targetKeyword: keyword,
+                            targetLocation: location,
+                          },
+                          accessToken,
+                        );
+                        await finalizeDraftDocument(saved);
+                      })
+                    }
+                  >
+                    {loadingAction === 'research-draft' ? 'Drafting from research…' : 'Generate draft'}
+                  </button>
+                  {!selectedResearchId ? (
+                    <Link
+                      href={projectId ? `/projects/${projectId}/url-analyzer` : '/url-analyzer'}
+                      className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-[var(--color-surface-muted)]"
+                    >
+                      Analyze a page first
+                    </Link>
+                  ) : null}
+                </div>
+              ) : (
                 <div className="mt-5 flex flex-wrap gap-3">
                   <button
                     type="button"
                     disabled={!projectId || !keyword.trim() || !!loadingAction}
                     className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                     onClick={() =>
-                      void run('brief', async () => {
-                        const nextBrief = await generateBrief({ projectId, keyword, location }, accessToken);
-                        setBrief(nextBrief);
-                        setOutline('');
-                        setStage('outline');
-                      })
-                    }
-                  >
-                    {loadingAction === 'brief' ? 'Generating brief…' : 'Generate brief'}
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={!brief || !!loadingAction}
-                    className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
-                    onClick={() =>
-                      void run('outline', async () => {
-                        if (!brief) return;
-                        const result = await generateOutline({ keyword, brief, title }, accessToken);
-                        setOutline(result.content);
-                        setStage('draft');
-                      })
-                    }
-                  >
-                    {loadingAction === 'outline' ? 'Building outline…' : 'Generate outline'}
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={!brief || !outline.trim() || !!loadingAction}
-                    className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
-                    onClick={() =>
-                      void run('draft', async () => {
-                        if (!brief) return;
-                        const result = await generateDraft(
-                          {
-                            keyword,
-                            brief,
-                            outline,
-                            targetWordCount: brief.targetWordCount,
-                            title,
-                          },
+                      void run('keyword-draft', async () => {
+                        const result = await draftFromKeyword(
+                          { projectId, keyword, location, title },
                           accessToken,
                         );
                         const saved = await ensureDocument(result.content || DEFAULT_DRAFT_HTML);
-                        await updateContentStatus(saved.id, 'awaiting_review', accessToken);
-                        setDoc({ ...saved, status: 'awaiting_review' });
-                        setStage('review');
+                        await finalizeDraftDocument(saved);
                       })
                     }
                   >
-                    {loadingAction === 'draft' ? 'Drafting article…' : 'Generate draft'}
+                    {loadingAction === 'keyword-draft'
+                      ? 'Researching SERP and drafting…'
+                      : 'Generate draft'}
                   </button>
                 </div>
+              )}
 
-                {selectedProject ? (
-                  <p className="mt-3 text-xs text-[var(--color-text-secondary)]">
-                    Project URL: {selectedProject.url}
-                  </p>
-                ) : null}
-              </section>
-
-              {brief ? (
-                <section className="rounded-xl border bg-white p-5 shadow-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h2 className="font-semibold">Outline</h2>
-                      <p className="text-sm text-[var(--color-text-secondary)]">
-                        Edit the generated structure before drafting.
-                      </p>
-                    </div>
-                  </div>
-                  <textarea
-                    className="mt-4 min-h-[220px] w-full rounded-lg border border-[var(--color-border-strong)] px-3 py-2 font-mono text-sm"
-                    value={outline}
-                    onChange={(event) => setOutline(event.target.value)}
-                    placeholder="<h2>Business Objectives</h2>"
-                  />
-                </section>
+              {selectedProject ? (
+                <p className="mt-3 text-xs text-[var(--color-text-secondary)]">
+                  Project URL: {selectedProject.url}
+                </p>
               ) : null}
-            </>
+
+              {useResearchPath && selectedResearch?.dataQuality === 'partial' ? (
+                <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  This research is partial — you can still draft, but some SERP signals may be missing.
+                </p>
+              ) : null}
+
+              {!useResearchPath ? (
+                <p className="mt-3 text-xs text-[var(--color-text-secondary)]">
+                  For better benchmarks and frozen scoring, analyze the target page in URL Analyzer first.
+                </p>
+              ) : null}
+            </section>
           ) : (
             <ReviewEditorPane
               title={title}

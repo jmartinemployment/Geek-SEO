@@ -83,6 +83,28 @@ public static class ArticleSchemaBuilder
         return scripts;
     }
 
+    public static IReadOnlyList<string> BuildScripts(WritingResearchContext research, string title, string articleHtml)
+    {
+        var brief = new ContentBrief
+        {
+            Keyword = research.DerivedKeyword,
+            Location = research.SearchLocation,
+            ClosingFaqQuestions = research.ClosingFaqs
+                .OrderBy(f => f.DisplayOrder)
+                .Select(f => f.Question)
+                .Take(ContentWritingRules.ClosingFaqCount)
+                .ToList(),
+            PeopleAlsoAsk = research.PeopleAlsoAsk.Select(p => p.Question).ToList(),
+            SchemaBlueprint = new SchemaBlueprint
+            {
+                PrimaryType = "TechArticle",
+                AdditionalTypes = ["FAQPage"],
+            },
+        };
+
+        return BuildScripts(brief, title, articleHtml);
+    }
+
     private static IReadOnlyList<string> ResolveFaqQuestions(ContentBrief brief)
     {
         if (brief.ClosingFaqQuestions.Count > 0)

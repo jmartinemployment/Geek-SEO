@@ -12,11 +12,12 @@ public sealed class ArticleMethodologyPromptTests
             "quickbooks automation consultant",
             WritingMethodologySpec.FourPhase);
 
-        Assert.Contains("Business Objectives", text);
+        Assert.Contains("Section 1 intent:", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("business outcomes or ROI", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("pilot plan", text, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Movement 1 — Business Objectives", text);
-        Assert.Contains("<p><strong>Movement", text);
+        Assert.Contains("Heading families", text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Movement 1 —", text);
+        Assert.DoesNotContain("<p><strong>Movement", text);
     }
 
     [Fact]
@@ -28,7 +29,7 @@ public sealed class ArticleMethodologyPromptTests
             "<h2>Weak section</h2>",
             ["How to connect QuickBooks"]);
 
-        Assert.Contains("Output only the four methodology body sections", text);
+        Assert.Contains("Output only the four body sections", text);
         Assert.Contains("zapier quickbooks integration", text);
         Assert.Contains("How to connect QuickBooks", text);
     }
@@ -58,7 +59,7 @@ public sealed class ArticleMethodologyOutlineEnricherTests
     }
 
     [Fact]
-    public void HasRequiredBodySections_ReturnsFalseWhenH2sExistButMovementLabelsMissing()
+    public void HasRequiredBodySections_ReturnsTrueWhenFourBodyH2sPresent()
     {
         var html =
             "<h2>Why automation matters</h2>" +
@@ -66,42 +67,74 @@ public sealed class ArticleMethodologyOutlineEnricherTests
             "<h2>Tooling</h2>" +
             "<h2>Pilot plan</h2>";
 
-        Assert.False(ArticleMethodologyOutlineEnricher.HasRequiredBodySections(html, WritingMethodologySpec.FourPhase));
+        Assert.True(ArticleMethodologyOutlineEnricher.HasRequiredBodySections(html, WritingMethodologySpec.FourPhase));
     }
 }
 
 public sealed class ArticleMethodologyScaffoldTests
 {
     [Fact]
-    public void InjectMovementLabels_AddsVisibleMovementLinesBeforeH2s()
+    public void StripMovementLabels_RemovesInternalLabels()
     {
         var html =
+            "<p><strong>Movement 1 — Business Objectives</strong></p>" +
             "<h2>Why automation matters</h2><p>Body</p>" +
-            "<h2>Data readiness</h2>" +
-            "<h2>Tooling</h2>" +
-            "<h2>Pilot plan</h2>";
+            "<p><strong>Movement 2 — Data Quality Assessment</strong></p>" +
+            "<h2>Data readiness</h2>";
 
-        var result = ArticleMethodologyScaffold.InjectMovementLabels(
-            html,
-            "quickbooks automation",
-            WritingMethodologySpec.FourPhase);
+        var result = ArticleMethodologyScaffold.StripMovementLabels(html);
 
-        Assert.Contains("Movement 1 — Business Objectives", result);
-        Assert.Contains("Movement 4 — Pilot Implementation Strategy", result);
-        Assert.True(ArticleMethodologyScaffold.HasVisibleMethodologyMovements(result, WritingMethodologySpec.FourPhase));
+        Assert.DoesNotContain("Movement 1", result);
+        Assert.DoesNotContain("Movement 2", result);
+        Assert.Contains("<h2>Why automation matters</h2>", result);
     }
 
     [Fact]
-    public void BuildDeterministicBodySections_IncludesAllFourMovements()
+    public void StripMovementLabels_RemovesMovementHeadingsAndKeepsReaderFacingH2s()
+    {
+        var html =
+            "<h2>Movement 1 — Business Objectives</h2>" +
+            "<h2>Defining Goals and Success Metrics for Bookkeeping Automation</h2><p>Intro</p>" +
+            "<h2>Movement 2 — Data Quality Assessment</h2>" +
+            "<h2>Movement 3 — Tech Selection</h2>" +
+            "<h2>Choosing the Right Automated Data Entry Software</h2><p>Tools</p>" +
+            "<h2>Movement 4 — Pilot Implementation Strategy</h2>" +
+            "<h2>Rolling Out Automated Bookkeeping in Phases</h2><p>Pilot</p>";
+
+        var result = ArticleMethodologyScaffold.StripMovementLabels(html);
+
+        Assert.DoesNotContain("Movement", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Defining Goals and Success Metrics", result);
+        Assert.Contains("Choosing the Right Automated Data Entry Software", result);
+        Assert.Contains("Rolling Out Automated Bookkeeping in Phases", result);
+    }
+
+    [Fact]
+    public void SanitizeDraft_StripsMovementLabelsBeforeStructureRepair()
+    {
+        var html =
+            "<h1>Bookkeeping automation</h1>" +
+            "<h2>Movement 1 — Business Objectives</h2>" +
+            "<h2>Only one real section</h2><p>Body</p>";
+
+        var result = ArticleMethodologyScaffold.SanitizeDraft(
+            html,
+            "bookkeeping automation",
+            WritingMethodologySpec.FourPhase);
+
+        Assert.DoesNotContain("Movement", result, StringComparison.OrdinalIgnoreCase);
+        Assert.True(ArticleMethodologyOutlineEnricher.HasRequiredBodySections(result, WritingMethodologySpec.FourPhase));
+    }
+
+    [Fact]
+    public void BuildDeterministicBodySections_IncludesFourTopicHeadings()
     {
         var html = ArticleMethodologyScaffold.BuildDeterministicBodySections(
             "zapier quickbooks integration",
             WritingMethodologySpec.FourPhase);
 
-        Assert.Contains("Movement 1 — Business Objectives", html);
-        Assert.Contains("Movement 2 — Data Quality Assessment", html);
-        Assert.Contains("Movement 3 — Tech Selection", html);
-        Assert.Contains("Movement 4 — Pilot Implementation Strategy", html);
+        Assert.DoesNotContain("Movement 1", html);
+        Assert.Contains("<h2>", html);
         Assert.Equal(4, ArticleMethodologyOutlineEnricher.CountBodyH2Sections(html));
     }
 }

@@ -50,6 +50,26 @@ public sealed class HttpContentDocumentRepository(IHttpClientFactory factory, IC
         return await ReadOneAsync(response, ct);
     }
 
+    public async Task<Result<SeoContentDocument>> AttachUrlResearchAsync(
+        Guid documentId, Guid urlResearchId, CancellationToken ct = default)
+    {
+        var response = await _http.PatchAsJsonAsync(
+            $"api/seo/internal/content/{documentId}/url-research?userId={user.UserId}",
+            new AttachUrlResearchRequest { UrlResearchId = urlResearchId },
+            ct);
+        return await ReadOneAsync(response, ct);
+    }
+
+    public async Task<Result<SeoContentDocument>> UpdateFeaturedImageAsync(
+        Guid documentId, string featuredImageUrl, CancellationToken ct = default)
+    {
+        var response = await _http.PatchAsJsonAsync(
+            $"api/seo/internal/content/{documentId}/featured-image?userId={user.UserId}",
+            new { featuredImageUrl },
+            ct);
+        return await ReadOneAsync(response, ct);
+    }
+
     public async Task<Result> UpdateScoreAsync(
         Guid documentId, int score, string scoreComponentsJson, CancellationToken ct = default)
     {

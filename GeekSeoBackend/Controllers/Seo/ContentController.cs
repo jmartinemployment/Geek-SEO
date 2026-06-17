@@ -11,6 +11,8 @@ namespace GeekSeoBackend.Controllers.Seo;
 [Route("api/seo/content")]
 public sealed class ContentController(
     IContentDocumentService content,
+    IContentResearchWritingService researchWriting,
+    IContentFeaturedImageService featuredImages,
     IArticleRenderService renderer,
     ICompetitorInsightsService competitors,
     IContentScoringService scoring,
@@ -60,6 +62,34 @@ public sealed class ContentController(
     {
         var result = await content.UpdateStatusAsync(user.RequireUserId(), id, body.Status, ct);
         return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
+    }
+
+    [HttpPatch("{id:guid}/url-research")]
+    public async Task<IActionResult> AttachUrlResearch(Guid id, [FromBody] AttachUrlResearchRequest request, CancellationToken ct)
+    {
+        var result = await researchWriting.AttachResearchAsync(user.RequireUserId(), id, request, ct);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
+    }
+
+    [HttpPost("{id:guid}/draft")]
+    public async Task<IActionResult> DraftFromResearch(Guid id, CancellationToken ct)
+    {
+        var result = await researchWriting.DraftFromResearchAsync(user.RequireUserId(), id, ct);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
+    }
+
+    [HttpPost("{id:guid}/featured-image")]
+    public async Task<IActionResult> GenerateFeaturedImage(
+        Guid id,
+        [FromBody] GenerateFeaturedImageRequest? request,
+        CancellationToken ct)
+    {
+        var result = await featuredImages.GenerateForDocumentAsync(
+            user.RequireUserId(),
+            id,
+            request ?? new GenerateFeaturedImageRequest(),
+            ct);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
     }
 
     [HttpDelete("{id:guid}")]

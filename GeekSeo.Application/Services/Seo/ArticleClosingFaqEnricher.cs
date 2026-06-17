@@ -44,13 +44,36 @@ public static partial class ArticleClosingFaqEnricher
             return html;
 
         var questions = ResolveQuestions(brief);
+        return await EnsureClosingFaqDraftCoreAsync(html, brief.Keyword, questions, ai, ct);
+    }
+
+    public static async Task<string> EnsureClosingFaqDraftAsync(
+        string html,
+        WritingResearchContext research,
+        IAIProvider ai,
+        CancellationToken ct = default)
+    {
+        if (HasClosingFaqSection(html))
+            return html;
+
+        var questions = ResolveQuestions(research);
+        return await EnsureClosingFaqDraftCoreAsync(html, research.DerivedKeyword, questions, ai, ct);
+    }
+
+    private static async Task<string> EnsureClosingFaqDraftCoreAsync(
+        string html,
+        string keyword,
+        IReadOnlyList<string> questions,
+        IAIProvider ai,
+        CancellationToken ct)
+    {
         var response = await ai.CompleteAsync(new AIRequest
         {
             SystemPrompt =
                 $"Write ONLY the closing FAQ section in HTML. Start with <h2>{ContentWritingRules.ClosingFaqHeading}</h2>. " +
                 $"Use exactly {ContentWritingRules.ClosingFaqCount} questions as <h3> elements with a concise <p> answer (2-4 sentences) under each. No markdown fences.",
             UserPrompt =
-                $"Keyword: {brief.Keyword}\n" +
+                $"Keyword: {keyword}\n" +
                 "Answer these questions in order:\n" +
                 string.Join('\n', questions.Select((question, index) => $"{index + 1}. {question}")),
             MaxTokens = 2048,
@@ -66,6 +89,14 @@ public static partial class ArticleClosingFaqEnricher
 
         return html.TrimEnd() + "\n" + faqHtml.Trim();
     }
+
+    private static IReadOnlyList<string> ResolveQuestions(WritingResearchContext research) =>
+        research.ClosingFaqs.Count > 0
+            ? research.ClosingFaqs.OrderBy(f => f.DisplayOrder).Select(f => f.Question).ToList()
+            : ContentWritingRules.BuildClosingFaqQuestions(
+                research.DerivedKeyword,
+                research.PeopleAlsoAsk.Select(p => p.Question).ToList(),
+                []);
 
     private static IReadOnlyList<string> ResolveQuestions(ContentBrief brief) =>
         brief.ClosingFaqQuestions.Count > 0

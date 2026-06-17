@@ -42,6 +42,7 @@ builder.Services.AddGeekSeoBackend(builder.Configuration, playwrightHolder);
 builder.Services.AddHostedService<FullArticleJobWorker>();
 builder.Services.AddHostedService<BulkArticleJobWorker>();
 builder.Services.AddHostedService<NicheAnalysisJobWorker>();
+builder.Services.AddHostedService<UrlResearchJobWorker>();
 builder.Services.AddHostedService<NicheEnrichmentJobWorker>();
 builder.Services.AddHostedService<SeoMaintenanceWorker>();
 

@@ -65,6 +65,16 @@ public partial class SeoDbContext : DbContext
     public DbSet<NicheProfileUrlPatternTopic> NicheProfileUrlPatternTopics => Set<NicheProfileUrlPatternTopic>();
     public DbSet<NicheProfileSiteCrawlMeta> NicheProfileSiteCrawlMetaRows => Set<NicheProfileSiteCrawlMeta>();
     public DbSet<NicheTopicCandidateEvidence> NicheTopicCandidateEvidenceRows => Set<NicheTopicCandidateEvidence>();
+    public DbSet<SeoUrlResearch> UrlResearch => Set<SeoUrlResearch>();
+    public DbSet<SeoUrlResearchOrganic> UrlResearchOrganic => Set<SeoUrlResearchOrganic>();
+    public DbSet<SeoUrlResearchPaa> UrlResearchPaa => Set<SeoUrlResearchPaa>();
+    public DbSet<SeoUrlResearchPasf> UrlResearchPasf => Set<SeoUrlResearchPasf>();
+    public DbSet<SeoUrlResearchCompetitor> UrlResearchCompetitors => Set<SeoUrlResearchCompetitor>();
+    public DbSet<SeoUrlResearchCompetitorHeading> UrlResearchCompetitorHeadings => Set<SeoUrlResearchCompetitorHeading>();
+    public DbSet<SeoUrlResearchSourceHeading> UrlResearchSourceHeadings => Set<SeoUrlResearchSourceHeading>();
+    public DbSet<SeoUrlResearchTerm> UrlResearchTerms => Set<SeoUrlResearchTerm>();
+    public DbSet<SeoUrlResearchClosingFaq> UrlResearchClosingFaqs => Set<SeoUrlResearchClosingFaq>();
+    public DbSet<SeoUrlResearchSectionHint> UrlResearchSectionHints => Set<SeoUrlResearchSectionHint>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

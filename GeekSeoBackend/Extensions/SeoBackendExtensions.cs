@@ -31,6 +31,7 @@ public static class SeoBackendExtensions
         services.AddSingleton<FullArticleJobChannel>();
         services.AddSingleton<BulkArticleJobChannel>();
         services.AddSingleton<NicheAnalysisJobChannel>();
+        services.AddSingleton<UrlResearchJobChannel>();
 
         // Persistence via GeekAPI → GeekRepository (dumb data pipe)
         services.AddScoped<IProjectRepository, HttpProjectRepository>();
@@ -57,6 +58,8 @@ public static class SeoBackendExtensions
 
         services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<IContentDocumentService, ContentDocumentService>();
+        services.AddScoped<IContentResearchWritingService, ContentResearchWritingService>();
+        services.AddScoped<IContentFeaturedImageService, ContentFeaturedImageService>();
         services.AddScoped<IBackgroundJobService, BackgroundJobService>();
         services.AddScoped<SubscriptionService>();
         services.AddScoped<ISubscriptionService, FullAccessSubscriptionService>();
@@ -66,8 +69,10 @@ public static class SeoBackendExtensions
         services.AddScoped<IRichTextProvider, HtmlRichTextProvider>();
         services.AddSeoDataProviders();
         services.AddHttpClient("Anthropic", client => client.BaseAddress = new Uri("https://api.anthropic.com"));
+        services.AddHttpClient("OpenAI", client => client.BaseAddress = new Uri("https://api.openai.com/"));
         services.AddHttpClient("WordPress");
         services.AddScoped<IAIProvider, ClaudeProvider>();
+        services.AddScoped<IOpenAIImageGenerator, OpenAIImageGenerator>();
         services.AddScoped<IWordPressProvider, WordPressRestProvider>();
 
         if (playwrightHolder?.Browser is not null)
@@ -86,6 +91,10 @@ public static class SeoBackendExtensions
         services.AddScoped<IBrandVoiceService, BrandVoiceService>();
         services.AddScoped<ISerpAnalysisService, SerpAnalysisService>();
         services.AddScoped<ISerpResearchPackService, SerpResearchPackService>();
+        services.AddScoped<IUrlResearchRepository, HttpUrlResearchRepository>();
+        services.AddScoped<IUrlResearchService, UrlResearchService>();
+        services.AddScoped<UrlResearchAnalyzeService>();
+        services.AddScoped<IUrlResearchAnalyzeRunner>(sp => sp.GetRequiredService<UrlResearchAnalyzeService>());
         services.AddScoped<IInternalLinkService, InternalLinkService>();
         services.AddScoped<ISiteAuditService, SiteAuditService>();
         services.AddScoped<IPlagiarismService, PlagiarismService>();
@@ -133,6 +142,8 @@ public static class SeoBackendExtensions
         services.AddScoped<NicheAnalyzerService>();
         services.AddScoped<CompetitorAnalysisService>();
         services.AddScoped<NicheAnalysisProgressNotifier>();
+        services.AddScoped<IUrlResearchProgressNotifier, UrlResearchProgressNotifier>();
+        services.AddScoped<UrlResearchJobProcessor>();
         services.AddScoped<NicheStepRerunService>();
         services.AddSingleton<NicheStepLock>();
         services.AddScoped<NicheAnalysisBackgroundJob>();

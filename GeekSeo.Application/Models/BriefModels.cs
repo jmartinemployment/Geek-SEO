@@ -159,4 +159,5 @@ public sealed record RenderedArticleResult
     public required string RenderedHtml { get; init; }
     public IReadOnlyList<string> SchemaScripts { get; init; } = [];
     public IReadOnlyList<string> SchemaTypes { get; init; } = [];
+    public string? FeaturedImageUrl { get; init; }
 }

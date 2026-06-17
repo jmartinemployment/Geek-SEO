@@ -8,6 +8,7 @@ namespace GeekSeo.Application.Services.Seo;
 
 public sealed class CompetitorInsightsService(
     IContentDocumentService documents,
+    IUrlResearchRepository urlResearch,
     ISerpCacheRepository serpCache,
     ISerpProvider serpProvider,
     CompetitorCrawlService competitorCrawl,
@@ -29,6 +30,12 @@ public sealed class CompetitorInsightsService(
         var doc = await documents.GetAsync(userId, documentId, ct);
         if (!doc.IsSuccess || doc.Value is null)
             return Result<CompetitorInsightsResult>.Failure(doc.Error ?? "Document not found");
+
+        if (crawlIfMissing && ResearchBackedWriteGate.IsResearchBacked(doc.Value))
+            return Result<CompetitorInsightsResult>.Failure(ResearchBackedWriteGate.ForbidLiveSerp("competitor crawl refresh").Error);
+
+        if (ResearchBackedWriteGate.IsResearchBacked(doc.Value))
+            return await BuildInsightsFromResearchAsync(doc.Value, ct);
 
         var keyword = doc.Value.TargetKeyword;
         var location = string.IsNullOrWhiteSpace(doc.Value.TargetLocation)
@@ -99,6 +106,40 @@ public sealed class CompetitorInsightsService(
             CrawlStatus = crawlStatus,
         });
     }
+
+    private async Task<Result<CompetitorInsightsResult>> BuildInsightsFromResearchAsync(
+        SeoContentDocument doc, CancellationToken ct)
+    {
+        var row = await urlResearch.GetFullAsync(doc.UrlResearchId!.Value, ct);
+        if (!row.IsSuccess || row.Value is null)
+            return Result<CompetitorInsightsResult>.Failure(row.Error ?? "Page research not found");
+
+        var research = row.Value;
+        var pages = research.Competitors
+            .OrderBy(c => c.Position)
+            .Select(c => new CompetitorPageInsight
+            {
+                Url = c.Url,
+                Domain = TryGetDomain(c.Url),
+                Position = c.Position,
+                WordCount = c.EstimatedWordCount,
+                MetaTitle = string.IsNullOrWhiteSpace(c.H1) ? null : c.H1,
+                CrawledAt = research.ResearchedAt,
+            })
+            .ToList();
+
+        return Result<CompetitorInsightsResult>.Success(new CompetitorInsightsResult
+        {
+            Keyword = research.DerivedKeyword,
+            Location = research.SearchLocation,
+            Pages = pages,
+            BenchmarkQuality = research.DataQuality == "full" ? "good" : "low_sample_count",
+            CrawlStatus = "complete",
+        });
+    }
+
+    private static string? TryGetDomain(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host : null;
 
     private async Task<Result<SeoSerpResult?>> EnsureSerpCacheAsync(
         string keyword, string location, string languageCode, CancellationToken ct)
