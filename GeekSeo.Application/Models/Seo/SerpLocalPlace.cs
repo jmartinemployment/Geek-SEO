@@ -4,4 +4,5 @@ namespace GeekSeo.Application.Models.Seo;
 public sealed record SerpLocalPlace(
     string Domain,
     double? Latitude,
-    double? Longitude);
+    double? Longitude,
+    string? Address = null);

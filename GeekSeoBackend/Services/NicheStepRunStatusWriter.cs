@@ -26,7 +26,7 @@ internal static class NicheStepRunStatusWriter
 
         var patch = status switch
         {
-            "running" => new NicheProfileStepRunStatusPatch("running", HeartbeatAt: now),
+            "running" => new NicheProfileStepRunStatusPatch("running", HeartbeatAt: now, Summary: string.Empty),
             "complete" => new NicheProfileStepRunStatusPatch(
                 "complete",
                 CompletedAt: now,
@@ -53,7 +53,7 @@ internal static class NicheStepRunStatusWriter
                 HeartbeatAt: status == "running" ? now : null,
                 CompletedAt: status is "complete" or "error" ? now : null,
                 ErrorMessage: errorMessage,
-                Summary: entry?.Summary),
+                Summary: status == "running" ? string.Empty : entry?.Summary),
             ct);
         if (!upsert.IsSuccess)
         {

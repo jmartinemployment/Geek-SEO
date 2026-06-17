@@ -28,6 +28,24 @@ public sealed class SerpLocalPlaceParserTests
     }
 
     [Fact]
+    public void FromSerperRoot_ReadsLinkFieldAsWebsite()
+    {
+        const string json = """
+            {
+              "places": [
+                { "title": "Local MSP", "link": "https://www.acme-it.com", "latitude": 26.46, "longitude": -80.07 }
+              ]
+            }
+            """;
+
+        using var doc = JsonDocument.Parse(json);
+        var places = SerpLocalPlaceParser.PlacesFromSerperRoot(doc.RootElement);
+
+        Assert.Single(places);
+        Assert.Equal("acme-it.com", places[0].Domain);
+    }
+
+    [Fact]
     public void FromSerpApiRoot_ReadsLinksWebsite()
     {
         const string json = """

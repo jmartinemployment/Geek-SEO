@@ -91,9 +91,9 @@ export default function NicheAnalyzerPage() {
     if (status.stepStatuses) {
       setStepStatuses((prev) => mergeStepStatuses(prev, status.stepStatuses));
     }
-    if (status.stepSummaries) setStepSummaries(status.stepSummaries);
-    if (status.stepErrors) setStepErrors(status.stepErrors);
-    if (status.stepWarnings) setStepWarnings(status.stepWarnings);
+    setStepSummaries(status.stepSummaries ?? {});
+    setStepErrors(status.stepErrors ?? {});
+    setStepWarnings(status.stepWarnings ?? {});
   }, []);
 
   const refreshStepStatuses = useCallback(
@@ -541,6 +541,7 @@ export default function NicheAnalyzerPage() {
               accessToken={accessToken}
               serpValidationSummary={stepSummaries?.serp_validation}
               serpLocalWarning={stepWarnings?.serp_validation}
+              serpStepStatus={stepStatuses?.serp_validation}
               anyStepRunning={anyStepRunning}
               onStepStatusChange={applyAnalysisStatus}
               onCompetitorsUpdated={async () => {

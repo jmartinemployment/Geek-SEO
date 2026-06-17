@@ -87,8 +87,9 @@ internal static class SerpValidationMessages
 
         if (localScoped == 0)
         {
-            var warning =
-                $"{WarningPrefix} Local SERP ran ({localStats.Succeeded}/{localStats.Attempted} pillars) but no competitors have local scope — organic local results may match national listings only.";
+            var warning = localStats.Succeeded > 0
+                ? $"{WarningPrefix} Local SERP returned results for {localStats.Succeeded}/{localStats.Attempted} pillars but none mapped to competitors within your service radius — check Business Address, radius, and that Maps listings include websites."
+                : $"{WarningPrefix} Local SERP ran ({localStats.Attempted} pillars) but no competitors have local scope.";
             return ($"{baseMsg} {warning}", warning);
         }
 

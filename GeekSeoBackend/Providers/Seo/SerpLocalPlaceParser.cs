@@ -40,6 +40,7 @@ internal static class SerpLocalPlaceParser
         foreach (var item in places.EnumerateArray())
         {
             var website = item.TryGetProperty("website", out var w) ? w.GetString() : null;
+            website ??= item.TryGetProperty("link", out var link) ? link.GetString() : null;
             var domain = DomainFromUrl(website);
             if (string.IsNullOrWhiteSpace(domain))
                 continue;
@@ -47,8 +48,9 @@ internal static class SerpLocalPlaceParser
             if (results.Any(p => string.Equals(p.Domain, domain, StringComparison.OrdinalIgnoreCase)))
                 continue;
 
+            var address = item.TryGetProperty("address", out var addr) ? addr.GetString() : null;
             var (lat, lon) = ReadCoordinates(item);
-            results.Add(new SerpLocalPlace(domain, lat, lon));
+            results.Add(new SerpLocalPlace(domain, lat, lon, address));
         }
 
         return results;
@@ -64,6 +66,7 @@ internal static class SerpLocalPlaceParser
                 website = links.TryGetProperty("website", out var w) ? w.GetString() : null;
 
             website ??= item.TryGetProperty("website", out var site) ? site.GetString() : null;
+            website ??= item.TryGetProperty("link", out var link) ? link.GetString() : null;
 
             var domain = DomainFromUrl(website);
             if (string.IsNullOrWhiteSpace(domain))
@@ -72,8 +75,9 @@ internal static class SerpLocalPlaceParser
             if (results.Any(p => string.Equals(p.Domain, domain, StringComparison.OrdinalIgnoreCase)))
                 continue;
 
+            var address = item.TryGetProperty("address", out var addr) ? addr.GetString() : null;
             var (lat, lon) = ReadCoordinates(item);
-            results.Add(new SerpLocalPlace(domain, lat, lon));
+            results.Add(new SerpLocalPlace(domain, lat, lon, address));
         }
 
         return results;

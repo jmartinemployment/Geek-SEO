@@ -14,6 +14,6 @@ public sealed class BriefsController(IContentBriefService briefs, ICurrentUserCo
     public async Task<IActionResult> Generate([FromBody] GenerateBriefRequest request, CancellationToken ct)
     {
         var result = await briefs.GenerateBriefAsync(user.RequireUserId(), request, ct);
-        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
     }
 }

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using GeekSeo.Application.Configuration;
 using GeekSeo.Application.Interfaces;
 using GeekSeo.Persistence.Entities;
 using GeekSeo.Application.Interfaces.Seo;
@@ -36,7 +37,12 @@ public sealed class ContentBriefService(
         if (!project.IsSuccess || project.Value is null || project.Value.UserId != userId)
             return Result<ContentBrief>.Failure("Access denied");
 
+        if (request.ProjectId == Guid.Empty)
+            return Result<ContentBrief>.Failure("Project is required");
+
         var keyword = request.Keyword.Trim();
+        if (string.IsNullOrWhiteSpace(keyword))
+            return Result<ContentBrief>.Failure("Keyword is required");
         var location = string.IsNullOrWhiteSpace(request.Location)
             ? project.Value.DefaultLocation
             : request.Location;
@@ -141,10 +147,7 @@ public sealed class ContentBriefService(
         string keyword, string location, string languageCode, CancellationToken ct)
     {
         var cache = await serpCache.GetAsync(keyword, location, languageCode, ct);
-        if (!cache.IsSuccess)
-            return Result<SeoSerpResult?>.Failure(cache.Error ?? "SERP cache error");
-
-        if (cache.Value is not null && cache.Value.ExpiresAt > DateTimeOffset.UtcNow)
+        if (cache.IsSuccess && cache.Value is not null && cache.Value.ExpiresAt > DateTimeOffset.UtcNow)
             return Result<SeoSerpResult?>.Success(cache.Value);
 
         var fetch = await serpProvider.GetSerpResultsAsync(new SerpRequest
@@ -156,13 +159,16 @@ public sealed class ContentBriefService(
         }, ct);
 
         if (!fetch.IsSuccess || fetch.Value is null)
-            return Result<SeoSerpResult?>.Failure(fetch.Error ?? "SERP fetch failed");
+            return Result<SeoSerpResult?>.Failure(NormalizeSerpError(fetch.Error));
 
         var benchmarks = SerpBenchmarkCalculator.FromSerp(fetch.Value);
         var upserted = await serpCache.UpsertAsync(keyword, location, languageCode, fetch.Value, benchmarks, ct);
-        return upserted.IsSuccess
-            ? Result<SeoSerpResult?>.Success(upserted.Value)
-            : Result<SeoSerpResult?>.Failure(upserted.Error ?? "SERP upsert failed");
+        if (upserted.IsSuccess && upserted.Value is not null)
+            return Result<SeoSerpResult?>.Success(upserted.Value);
+
+        // Live SERP succeeded but cache write failed (e.g. gateway auth). Still generate the brief.
+        return Result<SeoSerpResult?>.Success(
+            SerpResultStore.ToEphemeralRow(fetch.Value, benchmarks, languageCode, VendorPersistenceSettings.SerpRetentionDays));
     }
 
     private async Task<IReadOnlyList<string>> BuildRecommendedTermsAsync(
@@ -394,5 +400,20 @@ public sealed class ContentBriefService(
         {
             return [];
         }
+    }
+
+    private static string NormalizeSerpError(string? error)
+    {
+        if (string.IsNullOrWhiteSpace(error))
+            return "SERP fetch failed";
+
+        if (error.Contains("SERPER_DEV_API_KEY", StringComparison.OrdinalIgnoreCase))
+            return "SERP provider is not configured (SERPER_DEV_API_KEY missing).";
+
+        if (error.Contains("SERPAPI", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("SERP_API", StringComparison.OrdinalIgnoreCase))
+            return "SERP provider is not configured (SERPAPI_API_KEY missing).";
+
+        return error.Length > 240 ? error[..240] : error;
     }
 }

@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState } from 'react';
 import * as signalR from '@microsoft/signalr';
-import type { NicheAnalysisStatus, NicheCompetitorResult } from '@/lib/seo-api';
+import type { NicheAnalysisStatus, NicheCompetitorResult, StepStatus } from '@/lib/seo-api';
 import { analyzeCompetitors, getNicheProfileCompetitors, runNicheStep } from '@/lib/seo-api';
 import { waitForNicheStepViaSignalR } from '@/lib/niche-step-wait';
 
@@ -15,6 +15,7 @@ type Props = {
   serpValidationSummary?: string | null;
   /** Loud warning when local SERP queries failed or returned no local-scoped competitors. */
   serpLocalWarning?: string | null;
+  serpStepStatus?: StepStatus;
   anyStepRunning?: boolean;
   onStepStatusChange?: (status: NicheAnalysisStatus) => void;
 };
@@ -56,6 +57,7 @@ export function NicheCompetitorPanel({
   serpValidationSummary,
   serpLocalWarning,
   anyStepRunning = false,
+  serpStepStatus,
   onStepStatusChange,
 }: Readonly<Props>) {
   const [expandedDomain, setExpandedDomain] = useState<string | null>(null);
@@ -93,6 +95,8 @@ export function NicheCompetitorPanel({
 
   const analyzed = loadedCompetitors.some((c) => c.competitorAnalyzedAt);
   const totalPages = loadedCompetitors.reduce((sum, c) => sum + (c.pagesCrawled ?? 0), 0);
+  const showLocalSerpWarning =
+    Boolean(serpLocalWarning) && serpStepStatus !== 'running' && !serpRerunning;
 
   useEffect(() => {
     return () => {
@@ -172,7 +176,9 @@ export function NicheCompetitorPanel({
     const serpFoundCompetitors = serpSummaryImpliesCompetitors(serpValidationSummary);
     return (
       <div className="space-y-4">
-        {serpLocalWarning ? <LocalSerpWarningBanner message={serpLocalWarning} /> : null}
+        {showLocalSerpWarning && serpLocalWarning ? (
+          <LocalSerpWarningBanner message={serpLocalWarning} />
+        ) : null}
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-8 text-center">
         {serpFoundCompetitors ? (
           <>
@@ -210,7 +216,9 @@ export function NicheCompetitorPanel({
 
   return (
     <section className="space-y-4">
-      {serpLocalWarning ? <LocalSerpWarningBanner message={serpLocalWarning} /> : null}
+      {showLocalSerpWarning && serpLocalWarning ? (
+        <LocalSerpWarningBanner message={serpLocalWarning} />
+      ) : null}
       {/* Header + action */}
       <div className="flex items-center justify-between">
         <div>

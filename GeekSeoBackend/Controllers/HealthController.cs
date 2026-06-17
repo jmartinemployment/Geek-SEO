@@ -80,6 +80,7 @@ public sealed class HealthController(
             {
                 dataforseo = providerConfig.DataForSeoCredentialsConfigured,
                 serpapi = providerConfig.SerpApiKeyConfigured,
+                serperDev = providerConfig.SerperDevApiKeyConfigured,
             },
         });
     }

@@ -69,4 +69,22 @@ public sealed class NichePersistenceTests
         Assert.Equal("low confidence", rows[1].ExclusionReason);
         Assert.Equal(profileId, rows[0].NicheProfileId);
     }
+
+    [Fact]
+    public void CompetitorBulkInsertMapper_PreservesScope()
+    {
+        var dto = new NicheCompetitorBulkInsert(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "delray-it.com",
+            2,
+            30m,
+            2,
+            "strong",
+            "local");
+
+        var entity = NicheBulkInsertMapper.ToEntity(dto);
+
+        Assert.Equal("local", entity.Scope);
+    }
 }

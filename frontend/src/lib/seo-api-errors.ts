@@ -48,7 +48,12 @@ export async function parseSeoApiErrorResponse(res: Response): Promise<SeoApiErr
   const text = await res.text();
   if (text) {
     try {
-      body = JSON.parse(text) as SeoGateErrorBody;
+      const parsed: unknown = JSON.parse(text);
+      if (typeof parsed === 'string') {
+        body = { error: parsed };
+      } else if (parsed && typeof parsed === 'object') {
+        body = parsed as SeoGateErrorBody;
+      }
     } catch {
       body = { error: text };
     }

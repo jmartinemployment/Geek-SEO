@@ -123,6 +123,18 @@ public static class NicheBulkInsertMapper
             EstimatedAuthorityScore = dto.EstimatedAuthorityScore,
             PillarsRanking = dto.PillarsRanking,
             StrengthAssessment = dto.StrengthAssessment,
+            Scope = dto.Scope,
+            PagesCrawled = dto.PagesCrawled,
+            AvgWordCount = dto.AvgWordCount,
+            HasFaqSchema = dto.HasFaqSchema,
+            ServicesJson = dto.ServicesJson,
+            KnowsAboutJson = dto.KnowsAboutJson,
+            AreaServedJson = dto.AreaServedJson,
+            SameAsJson = dto.SameAsJson,
+            Description = dto.Description,
+            BrandName = dto.BrandName,
+            PillarsJson = dto.PillarsJson,
+            CompetitorAnalyzedAt = dto.CompetitorAnalyzedAt,
         };
 
     public static NicheEntityBulkInsert ToBulkInsert(NicheEntity entity) =>

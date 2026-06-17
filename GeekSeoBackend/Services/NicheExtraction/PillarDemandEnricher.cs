@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
@@ -13,6 +14,7 @@ namespace GeekSeoBackend.Services.NicheExtraction;
 public sealed class PillarDemandEnricher(
     IKeywordProvider keywordProvider,
     ISerpProvider serpProvider,
+    IGeocodeService geocodeService,
     ILogger<PillarDemandEnricher> logger)
 {
     private const int MaxConcurrency = 8;
@@ -320,6 +322,7 @@ public sealed class PillarDemandEnricher(
                 ? DualSerpConcurrency
                 : MaxConcurrency;
         using var gate = new SemaphoreSlim(concurrency);
+        var geocodeCache = new Dictionary<string, GeoCoordinate?>(StringComparer.OrdinalIgnoreCase);
 
         var tasks = pillars.Select(async pillar =>
         {
@@ -333,6 +336,7 @@ public sealed class PillarDemandEnricher(
                 var nationalResult = await FetchSerpWithRetryAsync(nationalRequest, ct);
 
                 Result<SerpResult>? localResult = null;
+                List<string>? localDomains = null;
                 if (isLocal)
                 {
                     var usePlacesOnly = serviceArea is not null
@@ -357,15 +361,20 @@ public sealed class PillarDemandEnricher(
                             localResult = fallbackResult;
                     }
 
-                    if (localResult.IsSuccess && localResult.Value is not null && HasLocalSerpSignal(localResult.Value))
-                        Interlocked.Increment(ref localSuccesses);
-                    else if (!localResult.IsSuccess || localResult.Value is null)
+                    if (!localResult.IsSuccess || localResult.Value is null)
                     {
                         Interlocked.Increment(ref localApiFailures);
-                        firstLocalError ??= localResult.Error;
+                        firstLocalError ??= localResult.Error ?? "Local SERP request failed.";
                     }
                     else
-                        Interlocked.Increment(ref localEmpty);
+                    {
+                        localDomains = await CollectLocalCompetitorDomainsAsync(
+                            localResult.Value, serviceArea, geocodeCache, ct);
+                        if (localDomains.Count > 0)
+                            Interlocked.Increment(ref localSuccesses);
+                        else
+                            Interlocked.Increment(ref localEmpty);
+                    }
                 }
 
                 if (!nationalResult.IsSuccess || nationalResult.Value is null)
@@ -404,13 +413,13 @@ public sealed class PillarDemandEnricher(
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                List<string>? localDomains = null;
                 IReadOnlyList<PeopleAlsoAskResult>? localPaa = null;
                 IReadOnlyList<string>? localRelated = null;
 
                 if (localResult?.IsSuccess == true && localResult.Value is not null)
                 {
-                    localDomains = CollectLocalCompetitorDomains(localResult.Value, serviceArea);
+                    localDomains ??= await CollectLocalCompetitorDomainsAsync(
+                        localResult.Value, serviceArea, geocodeCache, ct);
                     localPaa = localResult.Value.PeopleAlsoAsk.Count > 0 ? localResult.Value.PeopleAlsoAsk : null;
                     localRelated = localResult.Value.RelatedSearches.Count > 0 ? localResult.Value.RelatedSearches : null;
                 }
@@ -534,11 +543,25 @@ public sealed class PillarDemandEnricher(
 
     internal static List<string> CollectLocalCompetitorDomains(
         SerpResult result,
-        LocalServiceAreaContext? serviceArea)
-    {
-        if (serviceArea is not null)
-            return CollectRadiusFilteredPlaceDomains(result, serviceArea);
+        LocalServiceAreaContext? serviceArea) =>
+        serviceArea is not null
+            ? CollectRadiusFilteredPlaceDomains(result, serviceArea)
+            : CollectOpenMarketLocalDomains(result);
 
+    internal async Task<List<string>> CollectLocalCompetitorDomainsAsync(
+        SerpResult result,
+        LocalServiceAreaContext? serviceArea,
+        Dictionary<string, GeoCoordinate?> geocodeCache,
+        CancellationToken ct)
+    {
+        if (serviceArea is null)
+            return CollectOpenMarketLocalDomains(result);
+
+        return await CollectRadiusFilteredPlaceDomainsAsync(result, serviceArea, geocodeCache, ct);
+    }
+
+    private static List<string> CollectOpenMarketLocalDomains(SerpResult result)
+    {
         var domains = new List<string>();
         foreach (var row in result.OrganicResults)
         {
@@ -563,11 +586,7 @@ public sealed class PillarDemandEnricher(
         LocalServiceAreaContext serviceArea)
     {
         var domains = new List<string>();
-        var places = result.LocalPlaces.Count > 0
-            ? result.LocalPlaces
-            : result.LocalPlaceDomains.Select(d => new SerpLocalPlace(d, null, null)).ToList();
-
-        foreach (var place in places)
+        foreach (var place in ResolvePlaces(result))
         {
             if (!place.Latitude.HasValue || !place.Longitude.HasValue)
                 continue;
@@ -587,6 +606,58 @@ public sealed class PillarDemandEnricher(
 
         return domains;
     }
+
+    private async Task<List<string>> CollectRadiusFilteredPlaceDomainsAsync(
+        SerpResult result,
+        LocalServiceAreaContext serviceArea,
+        Dictionary<string, GeoCoordinate?> geocodeCache,
+        CancellationToken ct)
+    {
+        var domains = new List<string>();
+        foreach (var place in ResolvePlaces(result))
+        {
+            var lat = place.Latitude;
+            var lon = place.Longitude;
+
+            if ((!lat.HasValue || !lon.HasValue) && !string.IsNullOrWhiteSpace(place.Address))
+            {
+                if (!geocodeCache.TryGetValue(place.Address, out var cached))
+                {
+                    var geo = await geocodeService.GeocodeAsync(place.Address, ct);
+                    cached = geo.IsSuccess ? geo.Value : null;
+                    geocodeCache[place.Address] = cached;
+                }
+
+                if (cached is not null)
+                {
+                    lat = cached.Latitude;
+                    lon = cached.Longitude;
+                }
+            }
+
+            if (!lat.HasValue || !lon.HasValue)
+                continue;
+
+            if (!GeoDistance.IsWithinRadiusMiles(
+                    serviceArea.CenterLatitude,
+                    serviceArea.CenterLongitude,
+                    lat.Value,
+                    lon.Value,
+                    serviceArea.RadiusMiles))
+            {
+                continue;
+            }
+
+            AddLocalDomain(domains, place.Domain);
+        }
+
+        return domains;
+    }
+
+    private static IReadOnlyList<SerpLocalPlace> ResolvePlaces(SerpResult result) =>
+        result.LocalPlaces.Count > 0
+            ? result.LocalPlaces
+            : result.LocalPlaceDomains.Select(d => new SerpLocalPlace(d, null, null)).ToList();
 
     private static void AddLocalDomain(List<string> domains, string? domain)
     {

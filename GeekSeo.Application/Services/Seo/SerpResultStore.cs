@@ -42,4 +42,27 @@ public static class SerpResultStore
             FetchedAt = row.FetchedAt,
         };
     }
+
+    public static SeoSerpResult ToEphemeralRow(
+        SerpResult serp,
+        SerpBenchmarksPayload benchmarks,
+        string languageCode,
+        int retentionDays)
+    {
+        var fetchedAt = serp.FetchedAt == default ? DateTimeOffset.UtcNow : serp.FetchedAt;
+        return new SeoSerpResult
+        {
+            Id = Guid.NewGuid(),
+            Keyword = serp.Keyword,
+            Location = serp.Location,
+            LanguageCode = languageCode,
+            ResultsJson = JsonSerializer.Serialize(benchmarks, JsonOptions),
+            PeopleAlsoAskJson = JsonSerializer.Serialize(serp.PeopleAlsoAsk, JsonOptions),
+            RelatedSearchesJson = JsonSerializer.Serialize(serp.RelatedSearches, JsonOptions),
+            FeaturedSnippet = serp.FeaturedSnippetText,
+            SerpFeaturesJson = JsonSerializer.Serialize(serp.Features, JsonOptions),
+            FetchedAt = fetchedAt,
+            ExpiresAt = fetchedAt.AddDays(Math.Max(1, retentionDays)),
+        };
+    }
 }

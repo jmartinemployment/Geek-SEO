@@ -308,6 +308,95 @@ public sealed class ContentWritingPromptingTests
     }
 
     [Fact]
+    public async Task GenerateBriefAsync_SucceedsWhenSerpCacheUpsertFails()
+    {
+        var userId = Guid.NewGuid();
+        var projectId = Guid.NewGuid();
+        var keyword = "managed it services";
+        var location = "West Palm Beach, FL";
+
+        var project = new SeoProject
+        {
+            Id = projectId,
+            UserId = userId,
+            Name = "Geek @ Your Spot",
+            Url = "https://geekatyourspot.com",
+            DefaultLocation = location,
+        };
+
+        var liveSerp = new SerpResult
+        {
+            Keyword = keyword,
+            Location = location,
+            OrganicResults =
+            [
+                new SerpOrganicResult
+                {
+                    Position = 1,
+                    Url = "https://example.com/managed-it",
+                    Title = "Managed IT Services",
+                    Snippet = "Managed IT support for South Florida businesses.",
+                    Domain = "example.com",
+                },
+            ],
+            PeopleAlsoAsk =
+            [
+                new PeopleAlsoAskResult { Question = "What is managed IT?", Answer = "Outsourced IT operations." },
+            ],
+            RelatedSearches = ["managed it pricing"],
+            FetchedAt = DateTimeOffset.UtcNow,
+        };
+
+        var service = new ContentBriefService(
+            new FakeProjectRepository(project),
+            new FailingUpsertSerpCacheRepository(),
+            new FakeSerpProvider(liveSerp),
+            new FakeAiProvider("[\"managed services\",\"IT support\"]"),
+            new FakeNicheProfileRepository(null),
+            new FakeNicheAnalyticsRepository([]),
+            new CompetitorCrawlService(new FakeCrawlerProvider(), new FakeCompetitorPageRepository(Guid.NewGuid(), [])));
+
+        var result = await service.GenerateBriefAsync(userId, new GenerateBriefRequest
+        {
+            ProjectId = projectId,
+            Keyword = keyword,
+            Location = location,
+        });
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.NotNull(result.Value);
+        Assert.Equal(5, result.Value!.ClosingFaqQuestions.Count);
+    }
+
+    private sealed class FailingUpsertSerpCacheRepository : ISerpCacheRepository
+    {
+        public Task<Result<SeoSerpResult?>> GetAsync(string keyword, string location, string languageCode, CancellationToken ct = default) =>
+            Task.FromResult(Result<SeoSerpResult?>.Success(null));
+
+        public Task<Result<SeoSerpResult>> UpsertAsync(
+            string keyword,
+            string location,
+            string languageCode,
+            SerpResult serp,
+            SerpBenchmarksPayload benchmarks,
+            CancellationToken ct = default) =>
+            Task.FromResult(Result<SeoSerpResult>.Failure("cache upsert unauthorized"));
+
+        public Task<Result> DeleteAsync(string keyword, string location, string languageCode, CancellationToken ct = default) =>
+            Task.FromResult(Result.Success());
+    }
+
+    private sealed class FakeSerpProvider(SerpResult? serp = null) : ISerpProvider
+    {
+        public string ProviderName => "fake";
+
+        public Task<Result<SerpResult>> GetSerpResultsAsync(SerpRequest request, CancellationToken ct = default) =>
+            serp is null
+                ? throw new NotSupportedException()
+                : Task.FromResult(Result<SerpResult>.Success(serp));
+    }
+
+    [Fact]
     public void ContentWritingRules_BuildClosingFaqQuestions_ReturnsExactlyFive()
     {
         var questions = ContentWritingRules.BuildClosingFaqQuestions(
@@ -352,15 +441,8 @@ public sealed class ContentWritingPromptingTests
             throw new NotSupportedException();
     }
 
-    private sealed class FakeSerpProvider : ISerpProvider
-    {
-        public string ProviderName => "fake";
-
-        public Task<Result<SerpResult>> GetSerpResultsAsync(SerpRequest request, CancellationToken ct = default) =>
-            throw new NotSupportedException();
-    }
-
-    private sealed class FakeAiProvider(string content) : IAIProvider
+    [Fact]
+    public void ContentWritingRules_BuildClosingFaqQuestions_ReturnsExactlyFive()
     {
         public string ProviderName => "fake";
 
