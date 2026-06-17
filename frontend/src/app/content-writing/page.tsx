@@ -183,29 +183,6 @@ function ContentWritingPageInner() {
     <div className="w-full max-w-none">
       <div className="grid min-h-[calc(100vh-8rem)] grid-cols-12 gap-4">
         <div className="col-span-2 sticky top-4 max-h-[calc(100vh-5rem)] min-w-0 space-y-4 self-start overflow-y-auto">
-          {!inReview ? (
-            <section className="rounded-xl border bg-white p-5 shadow-sm">
-              <h2 className="font-semibold">Workflow</h2>
-              <p className="mt-1 text-xs font-medium text-[var(--color-text-secondary)]">{stepLabel(stage)}</p>
-              <ol className="mt-3 space-y-2 text-sm text-[var(--color-text-secondary)]">
-                <li className={stage === 'brief' ? 'font-medium text-[var(--color-text-primary)]' : undefined}>
-                  1. Generate a structured brief from project + SERP context.
-                </li>
-                <li className={stage === 'outline' ? 'font-medium text-[var(--color-text-primary)]' : undefined}>
-                  2. Turn the brief into an outline you can edit.
-                </li>
-                <li className={stage === 'draft' ? 'font-medium text-[var(--color-text-primary)]' : undefined}>
-                  3. Draft the article and persist it as a document.
-                </li>
-                <li>4. Review, score, approve, and copy rendered HTML from this page.</li>
-              </ol>
-            </section>
-          ) : (
-            <section className="rounded-lg border bg-white px-3 py-2 text-xs text-[var(--color-text-secondary)] shadow-sm">
-              <span className="font-medium text-[var(--color-text-primary)]">Step 4 of 4</span> — Review &amp; score
-            </section>
-          )}
-
           {inReview ? (
             <div className="min-w-0 rounded-xl border bg-white shadow-sm">
               <ReviewScoreLeft keyword={keyword} />
@@ -484,22 +461,10 @@ function ContentWritingPageInner() {
         </div>
 
         <aside className="col-span-2 sticky top-4 max-h-[calc(100vh-5rem)] min-w-0 space-y-4 self-start overflow-y-auto">
-          {brief ? (
-            <>
-              <section className="rounded-xl border bg-white p-5 shadow-sm">
-                <h2 className="font-semibold">Schema blueprint</h2>
-                <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-                  Primary type: {brief.schemaBlueprint.primaryType}
-                </p>
-                <InfoList title="Additional types" items={brief.schemaBlueprint.additionalTypes} compact />
-                <InfoList title="Software entities" items={brief.schemaBlueprint.softwareEntities} compact />
-              </section>
-              {!inReview ? (
-                <section className="rounded-xl border bg-white p-5 shadow-sm">
-                  <InfoList title="Review checklist" items={brief.reviewChecklist} />
-                </section>
-              ) : null}
-            </>
+          {brief && !inReview ? (
+            <section className="rounded-xl border bg-white p-5 shadow-sm">
+              <InfoList title="Review checklist" items={brief.reviewChecklist} />
+            </section>
           ) : null}
 
           {inReview ? (
