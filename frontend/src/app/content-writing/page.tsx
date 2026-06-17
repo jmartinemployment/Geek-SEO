@@ -349,89 +349,6 @@ function ContentWritingPageInner() {
                 <section className="rounded-xl border bg-white p-5 shadow-sm">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <h2 className="font-semibold">Brief</h2>
-                      <p className="text-sm text-[var(--color-text-secondary)]">
-                        {brief.methodology.name} · {brief.location} · ~{brief.targetWordCount} words
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-1 text-xs font-medium text-[var(--color-text-secondary)]">
-                      {brief.schemaBlueprint.primaryType}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                    <div className="rounded-lg border bg-[var(--color-surface-muted)] p-4">
-                      <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                        Methodology movements
-                      </h3>
-                      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                        Four topic-native H2 sections in this order. Corporate labels are intent guides, not required headings.
-                      </p>
-                      <ol className="mt-3 space-y-3">
-                        {(brief.methodology.phaseDefinitions?.length
-                          ? brief.methodology.phaseDefinitions
-                          : brief.methodology.phases.map((label, index) => ({
-                              id: `phase-${index + 1}`,
-                              label,
-                              intent: '',
-                              headingFamilies: [] as string[],
-                            }))
-                        ).map((phase, index) => (
-                          <li key={phase.id} className="text-sm">
-                            <p className="font-medium text-[var(--color-text-primary)]">
-                              {index + 1}. {phase.label}
-                            </p>
-                            {phase.intent ? (
-                              <p className="mt-1 text-[var(--color-text-secondary)]">{phase.intent}</p>
-                            ) : null}
-                            {phase.headingFamilies.length > 0 ? (
-                              <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                                Heading ideas: {phase.headingFamilies.join(', ')}
-                              </p>
-                            ) : null}
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
-                    <InfoList title="Recommended terms" items={brief.recommendedTerms} />
-                    <InfoList title="Movement heading hints" items={brief.suggestedHeadings} />
-                    <InfoList title="Competitor heading patterns" items={brief.competitorHeadingHighlights} />
-                    <InfoList title="Geo anchor nodes" items={brief.geoAnchorNodes} />
-                    <InfoList title="Competitor domains" items={brief.competitorDomains} />
-                    <InfoList title="Competitor schema signals" items={brief.competitorSchemaTypes} />
-                    <InfoList title="Related searches" items={brief.serpIntelligence.relatedSearches} />
-                    <InfoList title="SERP features" items={brief.serpIntelligence.featureFlags} />
-                  </div>
-
-                  {brief.nicheContext.primaryNiche || brief.nicheContext.matchedPillar ? (
-                    <div className="mt-4 rounded-lg border bg-[var(--color-surface-muted)] p-4 text-sm">
-                      <p className="font-medium text-[var(--color-text-primary)]">Optional niche context</p>
-                      <p className="mt-1 text-[var(--color-text-secondary)]">
-                        {brief.nicheContext.primaryNiche || 'No primary niche available'}
-                      </p>
-                      {brief.nicheContext.matchedPillar ? (
-                        <p className="mt-2 text-[var(--color-text-primary)]">
-                          Matched pillar: {brief.nicheContext.matchedPillar}
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  {brief.serpIntelligence.featuredSnippet ? (
-                    <div className="mt-4 rounded-lg border bg-[var(--color-surface-muted)] p-4 text-sm">
-                      <p className="font-medium text-[var(--color-text-primary)]">Featured snippet target</p>
-                      <p className="mt-1 text-[var(--color-text-secondary)]">
-                        {brief.serpIntelligence.featuredSnippet}
-                      </p>
-                    </div>
-                  ) : null}
-                </section>
-              ) : null}
-
-              {brief ? (
-                <section className="rounded-xl border bg-white p-5 shadow-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
                       <h2 className="font-semibold">Outline</h2>
                       <p className="text-sm text-[var(--color-text-secondary)]">
                         Edit the generated structure before drafting.
@@ -505,32 +422,5 @@ export default function ContentWritingPage() {
     >
       <ContentWritingPageInner />
     </Suspense>
-  );
-}
-
-function InfoList({
-  title,
-  items,
-  compact = false,
-}: {
-  title: string;
-  items: string[];
-  compact?: boolean;
-}) {
-  if (items.length === 0) return null;
-
-  return (
-    <div>
-      <h3 className="font-medium text-sm">{title}</h3>
-      <ul
-        className={`mt-2 ${compact ? 'space-y-1 text-xs' : 'space-y-1.5 text-sm'} text-[var(--color-text-primary)]`}
-      >
-        {items.map((item) => (
-          <li key={`${title}-${item}`} className="rounded-md bg-[var(--color-surface-muted)] px-2 py-1">
-            {item}
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
