@@ -7,7 +7,10 @@ public sealed record SerpLocalQueryStats(
     string Location,
     int Attempted,
     int Succeeded,
+    /// <summary>HTTP/provider failures (429, timeouts, etc.).</summary>
     int Failed,
+    /// <summary>Successful queries that returned no local pack or places.</summary>
+    int Empty,
     string? FirstError);
 
 internal static class SerpValidationMessages
@@ -18,7 +21,8 @@ internal static class SerpValidationMessages
         string location,
         int attempted,
         int localSuccesses,
-        int localFailures,
+        int localApiFailures,
+        int localEmpty,
         string? firstLocalError)
     {
         var isLocalMarket = !string.IsNullOrWhiteSpace(location)
@@ -26,7 +30,7 @@ internal static class SerpValidationMessages
         if (!isLocalMarket || attempted == 0)
             return null;
 
-        return new SerpLocalQueryStats(location, attempted, localSuccesses, localFailures, firstLocalError);
+        return new SerpLocalQueryStats(location, attempted, localSuccesses, localApiFailures, localEmpty, firstLocalError);
     }
 
     internal static (string Summary, string? Warning) Build(
@@ -65,6 +69,13 @@ internal static class SerpValidationMessages
             var warning =
                 $"{WarningPrefix} Local query failed for {localStats.Failed}/{localStats.Attempted} pillars ({localStats.Location}). {detail}. Competitors below may be US-only until you re-run Step 11.";
             return ($"{baseMsg} {warning}", warning);
+        }
+
+        if (localStats.Empty > 0)
+        {
+            var note =
+                $"Local SERP: {localStats.Succeeded}/{localStats.Attempted} pillars returned local results for {localStats.Location}; {localStats.Empty} had no local pack (normal for some topics).";
+            return ($"{baseMsg} {note}", null);
         }
 
         if (localStats.Succeeded == 0)

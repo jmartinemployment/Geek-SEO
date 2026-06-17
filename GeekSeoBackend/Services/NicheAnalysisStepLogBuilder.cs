@@ -315,6 +315,7 @@ internal static class NicheAnalysisStepLogBuilder
             ["localSerpAttempted"] = demand.LocalSerpStats?.Attempted ?? 0,
             ["localSerpSucceeded"] = demand.LocalSerpStats?.Succeeded ?? 0,
             ["localSerpFailed"] = demand.LocalSerpStats?.Failed ?? 0,
+            ["localSerpEmpty"] = demand.LocalSerpStats?.Empty ?? 0,
             ["localSerpFirstError"] = demand.LocalSerpStats?.FirstError ?? string.Empty,
             ["localScopedCompetitors"] = demand.Competitors.Count(c =>
                 string.Equals(c.Scope, "local", StringComparison.OrdinalIgnoreCase)

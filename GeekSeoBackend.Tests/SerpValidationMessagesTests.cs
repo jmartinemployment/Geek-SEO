@@ -8,7 +8,7 @@ public sealed class SerpValidationMessagesTests
     [Fact]
     public void Build_EmitsWarningWhenLocalQueriesFail()
     {
-        var localStats = new SerpLocalQueryStats("Delray Beach, Florida, United States", 57, 0, 57, "Serper.dev HTTP 429");
+        var localStats = new SerpLocalQueryStats("Delray Beach, Florida, United States", 57, 0, 57, 0, "Serper.dev HTTP 429");
         var competitors = new List<NicheCompetitor>
         {
             new() { Domain = "example.com", Scope = "national", SerpPresence = 2 },
@@ -25,6 +25,27 @@ public sealed class SerpValidationMessagesTests
         Assert.NotNull(warning);
         Assert.Contains("57/57", warning);
         Assert.Contains("429", warning);
+    }
+
+    [Fact]
+    public void Build_NoWarningWhenLocalQueriesReturnEmpty()
+    {
+        var localStats = new SerpLocalQueryStats("Delray Beach, Florida, United States", 57, 43, 0, 14, null);
+        var competitors = new List<NicheCompetitor>
+        {
+            new() { Domain = "example.com", Scope = "local", SerpPresence = 2 },
+        };
+
+        var (summary, warning) = SerpValidationMessages.Build(
+            [],
+            competitors,
+            skipped: false,
+            skipReason: null,
+            localStats);
+
+        Assert.Contains("43/57 pillars returned local results", summary);
+        Assert.Contains("14 had no local pack", summary);
+        Assert.Null(warning);
     }
 
     [Fact]

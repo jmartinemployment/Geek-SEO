@@ -25,60 +25,23 @@ public sealed class SerperDevSerpProvider(IHttpClientFactory httpClientFactory) 
         if (request.PlacesOnly)
             return await FetchPlacesAsSerpResultAsync(request, ct);
 
-        await SerperRateGate.WaitAsync(ct);
-
-        var body = new
-        {
-            q = request.Keyword,
-            gl = request.CountryCode.ToLowerInvariant(),
-            hl = request.LanguageCode.ToLowerInvariant(),
-            location = request.Location,
-            num = Math.Clamp(request.ResultCount, 1, 100),
-        };
-
-        var client = httpClientFactory.CreateClient("SerperDev");
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "search")
-        {
-            Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json"),
-        };
-        httpRequest.Headers.Add("X-API-KEY", Environment.GetEnvironmentVariable("SERPER_DEV_API_KEY")!);
-
-        HttpResponseMessage response;
-        try
-        {
-            response = await client.SendAsync(httpRequest, ct);
-        }
-        catch (Exception ex)
-        {
-            return Result<SerpResult>.Failure($"Serper.dev request failed: {ex.Message}");
-        }
-
-        using (response)
-        {
-            var raw = await response.Content.ReadAsStringAsync(ct);
-            if (!response.IsSuccessStatusCode)
-                return Result<SerpResult>.Failure($"Serper.dev HTTP {(int)response.StatusCode}: {Truncate(raw)}");
-
-            var parsed = ParseResponse(request, raw);
-            if (!parsed.IsSuccess || parsed.Value is null)
-                return parsed;
-
-            if (IsLocalMarket(request.Location) && ShouldSupplementPlaces(parsed.Value))
-            {
-                var placesResult = await FetchPlacesAsync(request, ct);
-                if (placesResult.IsSuccess && placesResult.Value is { Count: > 0 })
-                {
-                    var mergedPlaces = MergePlaces(parsed.Value.LocalPlaces, placesResult.Value);
-                    parsed = Result<SerpResult>.Success(parsed.Value with
-                    {
-                        LocalPlaces = mergedPlaces,
-                        LocalPlaceDomains = DomainsFromPlaces(mergedPlaces),
-                    });
-                }
-            }
-
+        var parsed = await SerperRateGate.RunAsync(() => ExecuteSearchAsync(request, ct), ct);
+        if (!parsed.IsSuccess || parsed.Value is null)
             return parsed;
-        }
+
+        if (!IsLocalMarket(request.Location) || !ShouldSupplementPlaces(parsed.Value))
+            return parsed;
+
+        var placesResult = await FetchPlacesAsync(request, ct);
+        if (!placesResult.IsSuccess || placesResult.Value is not { Count: > 0 })
+            return parsed;
+
+        var mergedPlaces = MergePlaces(parsed.Value.LocalPlaces, placesResult.Value);
+        return Result<SerpResult>.Success(parsed.Value with
+        {
+            LocalPlaces = mergedPlaces,
+            LocalPlaceDomains = DomainsFromPlaces(mergedPlaces),
+        });
     }
 
     private static bool IsLocalMarket(string location) =>
@@ -110,11 +73,56 @@ public sealed class SerperDevSerpProvider(IHttpClientFactory httpClientFactory) 
 
     private async Task<Result<IReadOnlyList<SerpLocalPlace>>> FetchPlacesAsync(SerpRequest request, CancellationToken ct)
     {
-        if (!TryGetApiKey(out var apiKey))
+        if (!TryGetApiKey(out _))
             return Result<IReadOnlyList<SerpLocalPlace>>.Failure("SERPER_DEV_API_KEY must be set.");
 
-        await SerperRateGate.WaitAsync(ct);
+        return await SerperRateGate.RunAsync(() => ExecutePlacesAsync(request, ct), ct);
+    }
 
+    private async Task<Result<SerpResult>> ExecuteSearchAsync(SerpRequest request, CancellationToken ct)
+    {
+        var body = new
+        {
+            q = request.Keyword,
+            gl = request.CountryCode.ToLowerInvariant(),
+            hl = request.LanguageCode.ToLowerInvariant(),
+            location = request.Location,
+            num = Math.Clamp(request.ResultCount, 1, 100),
+        };
+
+        var client = httpClientFactory.CreateClient("SerperDev");
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "search")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json"),
+        };
+        httpRequest.Headers.Add("X-API-KEY", Environment.GetEnvironmentVariable("SERPER_DEV_API_KEY")!);
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await client.SendAsync(httpRequest, ct);
+        }
+        catch (Exception ex)
+        {
+            return Result<SerpResult>.Failure($"Serper.dev request failed: {ex.Message}");
+        }
+
+        using (response)
+        {
+            var raw = await response.Content.ReadAsStringAsync(ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                if ((int)response.StatusCode == 429)
+                    SerperRateGate.PenalizeForRateLimit();
+                return Result<SerpResult>.Failure($"Serper.dev HTTP {(int)response.StatusCode}: {Truncate(raw)}");
+            }
+
+            return ParseResponse(request, raw);
+        }
+    }
+
+    private async Task<Result<IReadOnlyList<SerpLocalPlace>>> ExecutePlacesAsync(SerpRequest request, CancellationToken ct)
+    {
         var body = new
         {
             q = request.Keyword,
@@ -127,7 +135,7 @@ public sealed class SerperDevSerpProvider(IHttpClientFactory httpClientFactory) 
         {
             Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json"),
         };
-        httpRequest.Headers.Add("X-API-KEY", apiKey);
+        httpRequest.Headers.Add("X-API-KEY", Environment.GetEnvironmentVariable("SERPER_DEV_API_KEY")!);
 
         HttpResponseMessage response;
         try
@@ -143,8 +151,12 @@ public sealed class SerperDevSerpProvider(IHttpClientFactory httpClientFactory) 
         {
             var raw = await response.Content.ReadAsStringAsync(ct);
             if (!response.IsSuccessStatusCode)
+            {
+                if ((int)response.StatusCode == 429)
+                    SerperRateGate.PenalizeForRateLimit();
                 return Result<IReadOnlyList<SerpLocalPlace>>.Failure(
                     $"Serper.dev HTTP {(int)response.StatusCode}: {Truncate(raw)}");
+            }
 
             try
             {

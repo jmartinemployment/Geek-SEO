@@ -308,11 +308,17 @@ public sealed class PillarDemandEnricher(
         var failures = 0;
         var attempted = 0;
         var completed = 0;
-        var localFailures = 0;
+        var localApiFailures = 0;
+        var localEmpty = 0;
         var localSuccesses = 0;
         string? firstError = null;
         string? firstLocalError = null;
-        var concurrency = isLocal ? DualSerpConcurrency : MaxConcurrency;
+        var usesSerperDev = string.Equals(serpProvider.ProviderName, "serpdev", StringComparison.OrdinalIgnoreCase);
+        var concurrency = usesSerperDev
+            ? 1
+            : isLocal
+                ? DualSerpConcurrency
+                : MaxConcurrency;
         using var gate = new SemaphoreSlim(concurrency);
 
         var tasks = pillars.Select(async pillar =>
@@ -340,13 +346,26 @@ public sealed class PillarDemandEnricher(
                         PlacesOnly = usePlacesOnly,
                     };
                     localResult = await FetchSerpWithRetryAsync(localRequest, ct);
+                    if (usePlacesOnly
+                        && localResult.IsSuccess
+                        && localResult.Value is not null
+                        && !HasLocalSerpSignal(localResult.Value))
+                    {
+                        var fallbackRequest = localRequest with { PlacesOnly = false };
+                        var fallbackResult = await FetchSerpWithRetryAsync(fallbackRequest, ct);
+                        if (fallbackResult.IsSuccess && fallbackResult.Value is not null)
+                            localResult = fallbackResult;
+                    }
+
                     if (localResult.IsSuccess && localResult.Value is not null && HasLocalSerpSignal(localResult.Value))
                         Interlocked.Increment(ref localSuccesses);
-                    else
+                    else if (!localResult.IsSuccess || localResult.Value is null)
                     {
-                        Interlocked.Increment(ref localFailures);
+                        Interlocked.Increment(ref localApiFailures);
                         firstLocalError ??= localResult.Error;
                     }
+                    else
+                        Interlocked.Increment(ref localEmpty);
                 }
 
                 if (!nationalResult.IsSuccess || nationalResult.Value is null)
@@ -433,7 +452,7 @@ public sealed class PillarDemandEnricher(
             return new SerpValidationPhaseResult([], true, "No pillars to validate.", null);
 
         var localStats = SerpValidationMessages.BuildLocalStats(
-            location, attempted, localSuccesses, localFailures, firstLocalError);
+            location, attempted, localSuccesses, localApiFailures, localEmpty, firstLocalError);
 
         if (attempted > 0 && failures == attempted)
         {
@@ -444,15 +463,25 @@ public sealed class PillarDemandEnricher(
 
         if (isLocal)
         {
-            if (localFailures > 0)
+            if (localApiFailures > 0)
             {
                 logger.LogWarning(
-                    "Local SERP for {Location}: {Failures}/{Attempted} pillar queries failed; {Successes} succeeded. First error: {Error}",
+                    "Local SERP for {Location}: {Failures}/{Attempted} pillar queries failed; {Successes} succeeded; {Empty} empty. First error: {Error}",
                     location,
-                    localFailures,
+                    localApiFailures,
                     attempted,
                     localSuccesses,
+                    localEmpty,
                     firstLocalError ?? "(none)");
+            }
+            else if (localEmpty > 0)
+            {
+                logger.LogInformation(
+                    "Local SERP for {Location}: {Successes}/{Attempted} with local results; {Empty} pillars had no local pack",
+                    location,
+                    localSuccesses,
+                    attempted,
+                    localEmpty);
             }
             else
             {
@@ -479,7 +508,7 @@ public sealed class PillarDemandEnricher(
             if (attempt >= SerpRateLimitMaxAttempts || !IsRateLimited(last.Error))
                 return last;
 
-            var delaySeconds = Math.Pow(2, attempt - 1);
+            var delaySeconds = Math.Min(30, 3 * Math.Pow(2, attempt - 1));
             logger.LogWarning(
                 "SERP rate limited for {Keyword} @ {Location}; retry {Attempt}/{MaxAttempts} in {DelaySeconds}s",
                 request.Keyword,

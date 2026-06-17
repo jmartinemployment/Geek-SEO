@@ -14,6 +14,9 @@ public sealed class DatabaseBackedSerpProvider(ISerpProvider inner, ISerpCacheRe
 
     public async Task<Result<SerpResult>> GetSerpResultsAsync(SerpRequest request, CancellationToken ct = default)
     {
+        if (request.PlacesOnly)
+            return await inner.GetSerpResultsAsync(request, ct);
+
         var keyword = request.Keyword.Trim();
         var location = request.Location.Trim();
         var languageCode = string.IsNullOrWhiteSpace(request.LanguageCode) ? "en" : request.LanguageCode.Trim();
