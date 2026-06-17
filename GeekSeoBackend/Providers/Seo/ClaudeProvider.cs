@@ -64,7 +64,7 @@ public sealed class ClaudeProvider(IHttpClientFactory httpClientFactory) : IAIPr
             return envModel.Trim();
 
         return string.IsNullOrWhiteSpace(requestedModel)
-            ? AnthropicModels.DefaultSonnet
+            ? AnthropicModels.Default
             : requestedModel;
     }
 }

@@ -30,6 +30,7 @@ dotnet run
 | `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | Interim — live SERP/keywords until [`GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](../plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md) Phase A+ |
 | `SERPAPI_API_KEY` | Interim primary SERP per Geek Data Plane (when Phase A shipped) |
 | `ANTHROPIC_API_KEY` | Term extraction + AI writing |
+| `ANTHROPIC_MODEL` | Optional; default `claude-haiku-4-5-20251001` (testing). Use `claude-sonnet-4-6` for production drafts |
 | `GOOGLE_PSI_API_KEY` | Optional — PageSpeed scores on `GET /api/public/scan` (homepage free scan) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Google OAuth for GSC + GA4 integration endpoints |
 

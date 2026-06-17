@@ -17,6 +17,13 @@ public sealed class ContentWritingPromptingTests
     };
 
     [Fact]
+    public void AnthropicModels_Default_IsHaikuForCostEffectiveTesting()
+    {
+        Assert.Equal(AnthropicModels.DefaultHaiku, AnthropicModels.Default);
+        Assert.Equal("claude-haiku-4-5-20251001", AnthropicModels.Default);
+    }
+
+    [Fact]
     public void AnthropicModels_DefaultSonnet_IsCurrentSonnetId()
     {
         Assert.Equal("claude-sonnet-4-6", AnthropicModels.DefaultSonnet);
