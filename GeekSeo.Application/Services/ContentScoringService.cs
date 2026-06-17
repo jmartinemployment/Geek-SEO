@@ -89,6 +89,92 @@ public sealed class ContentScoringService(
         });
     }
 
+    public async Task<Result<ApplySuggestionResult>> ApplySuggestionAsync(
+        Guid userId,
+        Guid documentId,
+        string suggestionId,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(suggestionId))
+            return Result<ApplySuggestionResult>.Failure("Suggestion id is required");
+
+        var access = await documents.EnsureAccessAsync(userId, documentId, ct);
+        if (!access.IsSuccess || access.Value is null)
+            return Result<ApplySuggestionResult>.Failure(access.Error ?? "Access denied");
+
+        var doc = access.Value;
+        var keyword = doc.TargetKeyword;
+        var location = string.IsNullOrWhiteSpace(doc.TargetLocation) ? "United States" : doc.TargetLocation;
+        const string languageCode = "en";
+
+        var benchmarkResult = await ResolveBenchmarksAsync(keyword, location, languageCode, ct);
+        if (!benchmarkResult.IsSuccess)
+            return Result<ApplySuggestionResult>.Failure(benchmarkResult.Error ?? "Benchmark error");
+        if (benchmarkResult.Value?.PendingReason is not null)
+            return Result<ApplySuggestionResult>.Failure("Benchmarks are still loading. Try again shortly.");
+
+        var benchmarks = benchmarkResult.Value!.Benchmarks;
+        var plainText = richText.ExtractPlainText(doc.ContentHtml);
+        var current = await ScoreAsync(userId, documentId, doc.ContentHtml, keyword, invalidateCache: false, ct);
+        if (!current.IsSuccess || current.Value?.ScoreUpdate is null)
+            return Result<ApplySuggestionResult>.Failure(current.Error ?? "Could not score document");
+
+        var suggestion = current.Value.ScoreUpdate.Suggestions
+            .FirstOrDefault(s => string.Equals(s.Id, suggestionId, StringComparison.Ordinal));
+        if (suggestion is null)
+            return Result<ApplySuggestionResult>.Failure("Suggestion is no longer available. Refresh the score.");
+
+        string patchedHtml;
+        if (string.Equals(suggestion.ApplyMode, "deterministic", StringComparison.Ordinal))
+        {
+            patchedHtml = ScoreSuggestionApplicator.TryApplyDeterministic(
+                suggestion.Id,
+                doc.ContentHtml,
+                keyword,
+                benchmarks.AvgTitleLength,
+                plainText,
+                benchmarks.OrganicResults) ?? doc.ContentHtml;
+
+            if (string.Equals(patchedHtml, doc.ContentHtml, StringComparison.Ordinal))
+                return Result<ApplySuggestionResult>.Failure("Could not apply this change automatically.");
+        }
+        else if (string.Equals(suggestion.ApplyMode, "ai", StringComparison.Ordinal))
+        {
+            var optimized = await ai.CompleteAsync(new AIRequest
+            {
+                SystemPrompt =
+                    "You optimize SEO HTML articles. Apply exactly one requested change while preserving meaning. Return improved HTML only (h1/h2/h3/p/ul/li/a). No markdown fences.",
+                UserPrompt =
+                    $"Keyword: {keyword}\nChange to apply: {suggestion.ProposedChange}\nContext: {suggestion.ActionText}\n\nHTML:\n{doc.ContentHtml}",
+                MaxTokens = 8192,
+                Temperature = 0.5,
+            }, ct);
+
+            if (!optimized.IsSuccess || optimized.Value is null)
+                return Result<ApplySuggestionResult>.Failure(optimized.Error ?? "Could not apply change with AI");
+
+            patchedHtml = AiHtmlSanitizer.ToHtmlFragment(optimized.Value.Content);
+        }
+        else
+        {
+            return Result<ApplySuggestionResult>.Failure("This suggestion must be applied manually in the editor.");
+        }
+
+        await documents.UpdateContentAsync(
+            userId,
+            documentId,
+            new UpdateContentRequest { ContentHtml = patchedHtml },
+            ct);
+
+        var after = await ScoreAsync(userId, documentId, patchedHtml, keyword, invalidateCache: false, ct);
+        return Result<ApplySuggestionResult>.Success(new ApplySuggestionResult
+        {
+            ContentHtml = patchedHtml,
+            AppliedChange = suggestion.ProposedChange,
+            ScoreUpdate = after.Value?.ScoreUpdate,
+        });
+    }
+
     private async Task<Result<ContentScoreHubResult>> ScoreAsync(
         Guid userId,
         Guid documentId,
@@ -135,9 +221,24 @@ public sealed class ContentScoringService(
 
         var total = termScore + wordScore + headingScore + titleScore + metaScore + readabilityScore;
         var grade = ScoreToGrade(total);
-        var suggestions = BuildSuggestions(wordCount, benchmarks.AvgWordCount, termScore, titleScore, keyword);
+        var suggestions = BuildSuggestions(
+            contentHtml,
+            plainText,
+            wordCount,
+            benchmarks.AvgWordCount,
+            benchmarks.AvgTitleLength,
+            termScore,
+            titleScore,
+            metaScore,
+            keyword);
 
-        var geo = GeoScoringCalculator.Calculate(plainText, contentHtml, wordCount, benchmarks.AvgWordCount);
+        var geo = GeoScoringCalculator.Calculate(
+            plainText,
+            contentHtml,
+            wordCount,
+            benchmarks.AvgWordCount,
+            keyword,
+            benchmarks.OrganicResults);
         var allSuggestions = suggestions.Concat(geo.Suggestions).OrderByDescending(s => s.PointValue).ToList();
 
         var update = new ScoreUpdateMessage
@@ -323,37 +424,83 @@ public sealed class ContentScoringService(
     }
 
     private static List<ScoreSuggestion> BuildSuggestions(
-        int wordCount, int targetWords, int termScore, int titleScore, string keyword)
+        string contentHtml,
+        string plainText,
+        int wordCount,
+        int targetWords,
+        int avgTitleLength,
+        int termScore,
+        int titleScore,
+        int metaScore,
+        string keyword)
     {
         var list = new List<ScoreSuggestion>();
         if (wordCount < targetWords)
         {
+            var gap = targetWords - wordCount;
             list.Add(new ScoreSuggestion
             {
+                Id = "word_count",
                 Component = "wordCount",
                 PointValue = 20 - ScoreWordCount(wordCount, targetWords),
-                ActionText = $"Add about {targetWords - wordCount} words to match competitor length (~{targetWords}).",
+                ActionText = $"Add about {gap} words to match competitor length (~{targetWords}).",
+                ProposedChange = $"Expand the draft by ~{gap} words with another subsection and supporting examples.",
+                ApplyMode = "ai",
             });
         }
         if (termScore < 30)
         {
             list.Add(new ScoreSuggestion
             {
+                Id = "term_coverage",
                 Component = "termCoverage",
                 PointValue = 35 - termScore,
                 ActionText = $"Use the phrase \"{keyword}\" and related terms more naturally in the body.",
+                ProposedChange = $"Work “{keyword}” into an opening paragraph and one H2 section without keyword stuffing.",
+                ApplyMode = "ai",
             });
         }
         if (titleScore < 8)
         {
+            var currentTitle = ExtractTagInnerStatic(contentHtml, "h1");
+            var proposedTitle = ScoreSuggestionApplicator.ProposeTitle(currentTitle, keyword, avgTitleLength);
             list.Add(new ScoreSuggestion
             {
+                Id = "title_keyword",
                 Component = "titleTag",
                 PointValue = 10 - titleScore,
                 ActionText = "Include the target keyword in the title and keep length near 55 characters.",
+                ProposedChange = string.IsNullOrWhiteSpace(currentTitle)
+                    ? $"Set the H1 to “{proposedTitle}” ({proposedTitle.Length} characters)."
+                    : $"Change the H1 from “{currentTitle}” to “{proposedTitle}” ({proposedTitle.Length} characters).",
+                ApplyMode = "deterministic",
+            });
+        }
+        if (metaScore < 8)
+        {
+            var proposedMeta = ScoreSuggestionApplicator.ProposeMetaDescription(plainText, keyword);
+            list.Add(new ScoreSuggestion
+            {
+                Id = "meta_description",
+                Component = "metaDescription",
+                PointValue = 10 - metaScore,
+                ActionText = "Add a meta description between 120–160 characters that includes the keyword.",
+                ProposedChange = $"Insert meta description: “{proposedMeta}” ({proposedMeta.Length} characters).",
+                ApplyMode = "deterministic",
             });
         }
         return list.OrderByDescending(s => s.PointValue).ToList();
+    }
+
+    private static string ExtractTagInnerStatic(string html, string tag)
+    {
+        var open = $"<{tag}";
+        var idx = html.IndexOf(open, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0)
+            return string.Empty;
+        var closeStart = html.IndexOf('>', idx);
+        var closeEnd = html.IndexOf($"</{tag}>", closeStart, StringComparison.OrdinalIgnoreCase);
+        return closeEnd > closeStart ? html[(closeStart + 1)..closeEnd].Trim() : string.Empty;
     }
 
     private static string ScoreToGrade(int score) => score switch

@@ -29,6 +29,8 @@ type ScoreSidebarProps = {
   connected: boolean;
   onRefreshSerp: () => void;
   onCopyHtml?: () => void;
+  onApplySuggestion?: (suggestionId: string) => Promise<void>;
+  applyingSuggestionId?: string | null;
 };
 
 export function ScoreSidebar({
@@ -40,6 +42,8 @@ export function ScoreSidebar({
   connected,
   onRefreshSerp,
   onCopyHtml,
+  onApplySuggestion,
+  applyingSuggestionId,
 }: ScoreSidebarProps) {
   const loading = benchmarkRefreshing || Boolean(pendingReason);
   const score = scoreUpdate?.score ?? 0;
@@ -151,18 +155,35 @@ export function ScoreSidebar({
 
           {scoreUpdate.suggestions.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold">Top suggestions</h3>
+              <h3 className="text-sm font-semibold">Proposed changes</h3>
               <ul className="mt-2 space-y-2 text-sm">
                 {[...scoreUpdate.suggestions]
                   .sort((a, b) => b.pointValue - a.pointValue)
                   .slice(0, 5)
-                  .map((s, index) => (
+                  .map((s) => (
                     <li
-                      key={`${s.component}-${index}`}
+                      key={s.id}
                       className="rounded-lg border border-[var(--color-border)] bg-white p-3 shadow-sm"
                     >
-                      <span className="text-xs font-medium text-emerald-700">+{s.pointValue} pts</span>
-                      <p className="mt-1 text-[var(--color-text-primary)]">{s.actionText}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="shrink-0 text-xs font-medium text-emerald-700">+{s.pointValue} pts</span>
+                        {s.applyMode !== 'none' && onApplySuggestion ? (
+                          <button
+                            type="button"
+                            disabled={applyingSuggestionId === s.id}
+                            className="shrink-0 rounded-md border border-[var(--color-border-strong)] bg-white px-2 py-0.5 text-[11px] font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
+                            onClick={() => void onApplySuggestion(s.id)}
+                          >
+                            {applyingSuggestionId === s.id
+                              ? 'Applying…'
+                              : s.applyMode === 'ai'
+                                ? 'Apply with AI'
+                                : 'Apply'}
+                          </button>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 font-medium text-[var(--color-text-primary)]">{s.proposedChange}</p>
+                      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{s.actionText}</p>
                     </li>
                   ))}
               </ul>

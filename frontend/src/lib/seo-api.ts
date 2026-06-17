@@ -416,6 +416,11 @@ export type AutoOptimizeResult = {
   changesApplied: string[];
 };
 
+export type ApplySuggestionResult = {
+  contentHtml: string;
+  appliedChange: string;
+};
+
 export type AiDetectionResult = {
   aiProbability: number;
   summary: string;
@@ -502,6 +507,20 @@ export async function autoOptimizeContent(
   });
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<AutoOptimizeResult>;
+}
+
+export async function applyScoreSuggestion(
+  documentId: string,
+  suggestionId: string,
+  accessToken?: string | null,
+): Promise<ApplySuggestionResult> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/apply-suggestion`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify({ suggestionId }),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<ApplySuggestionResult>;
 }
 
 export async function publishToWordPress(

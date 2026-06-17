@@ -33,6 +33,12 @@ public static class MeteredRoutes
             return "auto_optimize";
         }
 
+        if (upperMethod == "POST"
+            && path.Contains("/apply-suggestion", StringComparison.OrdinalIgnoreCase))
+        {
+            return "auto_optimize";
+        }
+
         foreach (var (routeMethod, prefix, feature) in ExactPrefixes)
         {
             if (!string.Equals(routeMethod, upperMethod, StringComparison.Ordinal))

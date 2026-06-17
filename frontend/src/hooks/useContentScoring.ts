@@ -14,9 +14,12 @@ export type ScoreComponents = {
 };
 
 export type ScoreSuggestion = {
+  id: string;
   component: string;
   pointValue: number;
   actionText: string;
+  proposedChange: string;
+  applyMode: 'deterministic' | 'ai' | 'none';
 };
 
 export type GeoScoreComponents = {

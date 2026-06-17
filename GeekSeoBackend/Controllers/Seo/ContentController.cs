@@ -89,6 +89,13 @@ public sealed class ContentController(
         var result = await scoring.AutoOptimizeAsync(user.RequireUserId(), id, ct);
         return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
     }
+
+    [HttpPost("{id:guid}/apply-suggestion")]
+    public async Task<IActionResult> ApplySuggestion(Guid id, [FromBody] ApplySuggestionRequest request, CancellationToken ct)
+    {
+        var result = await scoring.ApplySuggestionAsync(user.RequireUserId(), id, request.SuggestionId, ct);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
+    }
 }
 
 public sealed record UpdateDocumentStatusBody

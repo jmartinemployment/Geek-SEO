@@ -10,6 +10,7 @@ import { ScoreSidebar } from '@/components/editor/score-sidebar';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import { useContentScoring } from '@/hooks/useContentScoring';
 import {
+  applyScoreSuggestion,
   createContent,
   deleteSerpCache,
   generateBrief,
@@ -463,6 +464,7 @@ function ReviewWorkspace({
   const [copyHint, setCopyHint] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [statusUpdating, setStatusUpdating] = useState<string | null>(null);
+  const [applyingSuggestionId, setApplyingSuggestionId] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const keywordRef = useRef(keyword);
   const initialScoreSentRef = useRef(false);
@@ -530,6 +532,20 @@ function ReviewWorkspace({
       onError(statusError);
     } finally {
       setStatusUpdating(null);
+    }
+  }
+
+  async function handleApplySuggestion(suggestionId: string) {
+    setApplyingSuggestionId(suggestionId);
+    try {
+      onError(null);
+      const result = await applyScoreSuggestion(doc.id, suggestionId, accessToken);
+      setHtml(result.contentHtml);
+      await save(result.contentHtml, keyword, title, location);
+    } catch (applyError) {
+      onError(applyError);
+    } finally {
+      setApplyingSuggestionId(null);
     }
   }
 
@@ -624,6 +640,8 @@ function ReviewWorkspace({
             benchmarkRefreshing={benchmarkRefreshing}
             scoreError={scoreError}
             connected={connected}
+            applyingSuggestionId={applyingSuggestionId}
+            onApplySuggestion={handleApplySuggestion}
             onRefreshSerp={() => {
               void deleteSerpCache(keyword, location, accessToken).then(() => {
                 void notifyKeywordChanged(html, keyword, location);

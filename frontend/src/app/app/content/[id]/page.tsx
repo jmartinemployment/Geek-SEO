@@ -13,6 +13,7 @@ import { ScoreSidebar } from '@/components/editor/score-sidebar';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import { useContentScoring } from '@/hooks/useContentScoring';
 import {
+  applyScoreSuggestion,
   deleteSerpCache,
   getContent,
   updateContent,
@@ -35,6 +36,7 @@ export default function ContentEditorPage() {
   const [saving, setSaving] = useState(false);
   const [copyHint, setCopyHint] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [applyingSuggestionId, setApplyingSuggestionId] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialScoreSentRef = useRef(false);
   const editorRef = useRef<ContentEditorHandle>(null);
@@ -115,6 +117,19 @@ export default function ContentEditorPage() {
   function applyEditorHtml(nextHtml: string) {
     setHtml(nextHtml);
     void save(nextHtml, keyword, title);
+  }
+
+  async function handleApplySuggestion(suggestionId: string) {
+    setApplyingSuggestionId(suggestionId);
+    try {
+      setError(null);
+      const result = await applyScoreSuggestion(documentId, suggestionId, accessToken);
+      applyEditorHtml(result.contentHtml);
+    } catch (e) {
+      setError(e);
+    } finally {
+      setApplyingSuggestionId(null);
+    }
   }
 
   function insertInternalLink(href: string, anchorText: string) {
@@ -210,6 +225,8 @@ export default function ContentEditorPage() {
           scoreError={scoreError}
           connected={connected}
           onRefreshSerp={() => void refreshSerp()}
+          applyingSuggestionId={applyingSuggestionId}
+          onApplySuggestion={handleApplySuggestion}
           onCopyHtml={() => {
             void navigator.clipboard.writeText(html).then(() => {
               setCopyHint('HTML copied');

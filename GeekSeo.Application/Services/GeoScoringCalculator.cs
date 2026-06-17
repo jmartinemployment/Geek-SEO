@@ -12,8 +12,15 @@ public static class GeoScoringCalculator
         public required IReadOnlyList<ScoreSuggestion> Suggestions { get; init; }
     }
 
-    public static GeoScoreResult Calculate(string plainText, string contentHtml, int wordCount, int benchmarkWordCount)
+    public static GeoScoreResult Calculate(
+        string plainText,
+        string contentHtml,
+        int wordCount,
+        int benchmarkWordCount,
+        string keyword = "",
+        IReadOnlyList<SerpOrganicResult>? organicResults = null)
     {
+        organicResults ??= [];
         var authority = ScoreAuthority(plainText, contentHtml);
         var readability = ScoreGeoReadability(plainText);
         var structure = ScoreStructure(contentHtml);
@@ -21,7 +28,8 @@ public static class GeoScoringCalculator
         var depth = ScoreDepth(wordCount, benchmarkWordCount);
 
         var total = authority + readability + structure + citations + depth;
-        var suggestions = BuildSuggestions(authority, readability, structure, citations, depth);
+        var suggestions = BuildSuggestions(
+            authority, readability, structure, citations, depth, contentHtml, keyword, organicResults);
 
         return new GeoScoreResult
         {
@@ -113,52 +121,86 @@ public static class GeoScoringCalculator
         };
     }
 
-    private static List<ScoreSuggestion> BuildSuggestions(int authority, int readability, int structure, int citations, int depth)
+    private static List<ScoreSuggestion> BuildSuggestions(
+        int authority,
+        int readability,
+        int structure,
+        int citations,
+        int depth,
+        string contentHtml,
+        string keyword,
+        IReadOnlyList<SerpOrganicResult> organicResults)
     {
         var list = new List<ScoreSuggestion>();
         if (authority < 14)
         {
             list.Add(new ScoreSuggestion
             {
+                Id = "geo_authority",
                 Component = "geo",
                 PointValue = 20 - authority,
                 ActionText = "Add expert quotes, credentials, or Article schema to improve AI citation trust.",
+                ProposedChange = "Insert an expert quote, credential line, or schema.org Article markup in the draft.",
+                ApplyMode = "ai",
             });
         }
         if (readability < 14)
         {
             list.Add(new ScoreSuggestion
             {
+                Id = "geo_readability",
                 Component = "geo",
                 PointValue = 20 - readability,
                 ActionText = "Use shorter sentences and direct definitions so AI models can extract clear answers.",
+                ProposedChange = "Rewrite long sentences into shorter, definition-first paragraphs.",
+                ApplyMode = "ai",
             });
         }
         if (structure < 14)
         {
             list.Add(new ScoreSuggestion
             {
+                Id = "geo_structure",
                 Component = "geo",
                 PointValue = 20 - structure,
                 ActionText = "Add FAQ-style H2/H3 headings and bullet lists for snippet-friendly structure.",
+                ProposedChange = string.IsNullOrWhiteSpace(keyword)
+                    ? "Append an FAQ block with question-style H3 headings and a bullet list."
+                    : $"Append an FAQ block for “{keyword}” with question-style H3 headings and a bullet list.",
+                ApplyMode = "deterministic",
             });
         }
         if (citations < 10)
         {
+            var sourceLabels = organicResults
+                .Where(r => !string.IsNullOrWhiteSpace(r.Domain))
+                .Select(r => r.Domain!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(3)
+                .ToList();
+            var sourceHint = sourceLabels.Count > 0
+                ? string.Join(", ", sourceLabels)
+                : "authoritative external sites";
             list.Add(new ScoreSuggestion
             {
+                Id = "geo_citations",
                 Component = "geo",
                 PointValue = 20 - citations,
                 ActionText = "Link to 2–3 authoritative external sources to strengthen citation signals.",
+                ProposedChange = $"Add a Sources section linking to {sourceHint}.",
+                ApplyMode = sourceLabels.Count > 0 ? "deterministic" : "ai",
             });
         }
         if (depth < 14)
         {
             list.Add(new ScoreSuggestion
             {
+                Id = "geo_depth",
                 Component = "geo",
                 PointValue = 20 - depth,
                 ActionText = "Expand subtopic coverage to match competitor depth for AI answer completeness.",
+                ProposedChange = "Expand body copy with another subsection that answers a related follow-up question.",
+                ApplyMode = "ai",
             });
         }
 

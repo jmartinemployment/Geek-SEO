@@ -15,4 +15,7 @@ public interface IContentScoringService
 
     Task<Result<AutoOptimizeResult>> AutoOptimizeAsync(
         Guid userId, Guid documentId, CancellationToken ct = default);
+
+    Task<Result<ApplySuggestionResult>> ApplySuggestionAsync(
+        Guid userId, Guid documentId, string suggestionId, CancellationToken ct = default);
 }

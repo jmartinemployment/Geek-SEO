@@ -23,9 +23,25 @@ public sealed record ScoreUpdateMessage
 
 public sealed record ScoreSuggestion
 {
+    public required string Id { get; init; }
     public required string Component { get; init; }
     public required int PointValue { get; init; }
     public required string ActionText { get; init; }
+    public required string ProposedChange { get; init; }
+    /// <summary>deterministic | ai | none</summary>
+    public required string ApplyMode { get; init; }
+}
+
+public sealed record ApplySuggestionRequest
+{
+    public required string SuggestionId { get; init; }
+}
+
+public sealed record ApplySuggestionResult
+{
+    public required string ContentHtml { get; init; }
+    public required string AppliedChange { get; init; }
+    public ScoreUpdateMessage? ScoreUpdate { get; init; }
 }
 
 public sealed record SerpFeatureGuidance
