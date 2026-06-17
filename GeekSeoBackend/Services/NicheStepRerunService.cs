@@ -575,6 +575,7 @@ public sealed class NicheStepRerunService(
                     slug,
                     definition.StepNumber,
                     TotalSteps,
+                    errorMessage: string.Empty,
                     stepLogEntry: slimEntry,
                     ct: CancellationToken.None);
 
@@ -618,7 +619,9 @@ public sealed class NicheStepRerunService(
             && !definition.IsTerminal)
             return "complete";
 
-        return "processing";
+        // Manual step re-runs must not leave the profile in processing — the maintenance worker
+        // treats stale processing as a failed crawl and surfaces a misleading timeout on reload.
+        return "pending";
     }
 
     private async Task<(bool Success, string? Error)> FailRerunAsync(

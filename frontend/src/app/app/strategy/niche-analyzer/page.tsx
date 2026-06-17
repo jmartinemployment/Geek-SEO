@@ -193,12 +193,26 @@ export default function NicheAnalyzerPage() {
       if (p.status === 'failed') {
         const status = await getNicheAnalysisStatus(p.id, accessToken);
         applyAnalysisStatus(status);
+        const hasStepErrors =
+          status.stepErrors && Object.keys(status.stepErrors).length > 0;
+        const hasSnapshot = hasPriorAnalysisSnapshot(p, status.stepStatuses);
+
+        // Stale profile-level failed (maintenance timeout) while step data is still valid.
+        if (hasSnapshot && !hasStepErrors) {
+          setWorkflowProfileId(null);
+          const full = await resolveProfileWithPillars(await getNicheProfile(p.id, accessToken));
+          setProfile(full);
+          await loadAnalytics(full.id, isStructureComplete(full));
+          setError(null);
+          return;
+        }
+
         setWorkflowProfileId(p.id);
         setProfile(null);
         setCoverage([]);
         setGaps([]);
         // Step-level failures belong on the step row — not a page-level dead end.
-        if (status.stepErrors && Object.keys(status.stepErrors).length > 0) {
+        if (hasStepErrors) {
           setError(null);
         } else {
           setError(
