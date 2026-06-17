@@ -186,7 +186,7 @@ export function TopicalMapWorkspace({
         { projectId, title: topic.name, targetKeyword: keyword },
         accessToken,
       );
-      window.location.href = `/app/content/${doc.id}`;
+      window.location.href = `/content-writing?documentId=${doc.id}`;
     } catch (err) {
       setError(err);
       setCreatingId(null);

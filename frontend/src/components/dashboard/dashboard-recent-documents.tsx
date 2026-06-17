@@ -28,7 +28,7 @@ export function DashboardRecentDocuments({ documents }: { documents: RecentDocum
               </EmptyHeader>
               <EmptyContent>
                 <Link
-                  href="/app/content-writing"
+                  href="/content-writing"
                   className="inline-flex h-9 items-center rounded-[var(--radius-button)] bg-[var(--color-accent)] px-5 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover)]"
                 >
                   Start content writing
@@ -41,7 +41,7 @@ export function DashboardRecentDocuments({ documents }: { documents: RecentDocum
                 <li key={document.id}>
                   {index > 0 ? <Separator className="my-0" /> : null}
                   <Link
-                    href={`/app/content/${document.id}`}
+                    href={`/content-writing?documentId=${document.id}`}
                     className="flex items-center justify-between gap-4 py-3 transition-colors hover:bg-[var(--color-surface-muted)]"
                   >
                     <div className="min-w-0">

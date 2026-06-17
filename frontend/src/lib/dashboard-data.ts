@@ -101,7 +101,7 @@ function buildCopilotSuggestions(
           id: doc.id,
           title: `"${doc.title || 'Untitled'}" scores ${doc.seoScore}%`,
           detail: `Improve structure and topic coverage for "${doc.targetKeyword || 'your target keyword'}".`,
-          href: `/app/content/${doc.id}`,
+          href: `/content-writing?documentId=${doc.id}`,
         }));
 
   const merged = [

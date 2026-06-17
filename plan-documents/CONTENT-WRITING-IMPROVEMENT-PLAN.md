@@ -1,7 +1,7 @@
 # Content Writing Improvement Plan
 
 **Status:** Proposed (June 2026)  
-**Owner:** Content Writing product surface — `/app/content-writing`  
+**Owner:** Content Writing product surface — `/content-writing`  
 **Out of scope:** Niche Analyzer reliability, site-wide pillar discovery, topical map
 
 **Related:** [`content-writing-prompt.md`](./content-writing-prompt.md), [`SERP-RESEARCH-AGENT-PROMPT.md`](./SERP-RESEARCH-AGENT-PROMPT.md), [`CONTENT-WRITER-FEATURES.md`](./CONTENT-WRITER-FEATURES.md)
@@ -20,7 +20,7 @@ Content Writing wins when every article is shaped by **PAA**, **PASF**, and **PA
 
 | Piece | Status | Gap |
 |-------|--------|-----|
-| `/app/content-writing` | Shipped — brief → outline → draft → review | Uses `generateBrief`, not the richer research pack |
+| `/content-writing` | Shipped — brief → outline → draft → review | Uses `generateBrief`, not the richer research pack |
 | `SerpResearchPackService` + `/app/strategy/url-analyzer` | Shipped — PAA, PASF, PAF, outlines, intent | **Disconnected** from content-writing workflow |
 | `ContentBriefService` | Shipped | Still calls `INicheProfileRepository` + gap topics for FAQ backfill |
 | `ArticlePromptBuilder` + enrichers | Shipped | Methodology H2s are rubric-driven; pack `methodologyHints` unused |

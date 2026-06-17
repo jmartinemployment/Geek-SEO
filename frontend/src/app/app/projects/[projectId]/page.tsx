@@ -59,7 +59,7 @@ function ProjectDocumentsPageInner() {
         { projectId, title, targetKeyword: keyword },
         accessToken,
       );
-      router.push(`/app/content/${doc.id}`);
+      router.push(`/content-writing?documentId=${doc.id}`);
     } catch (err) {
       setError(err);
       setCreating(false);
@@ -157,7 +157,7 @@ function ProjectDocumentsPageInner() {
         <ul className="mt-8 space-y-3">
           {documents.map((d) => (
             <li key={d.id} className="rounded-xl border bg-white p-4 shadow-sm">
-              <Link href={`/app/content/${d.id}`} className="font-medium hover:underline">
+              <Link href={`/content-writing?documentId=${d.id}`} className="font-medium hover:underline">
                 {d.title}
               </Link>
               <p className="mt-1 text-sm text-[var(--color-text-secondary)]">

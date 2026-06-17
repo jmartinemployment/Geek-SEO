@@ -5,8 +5,23 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/app/projects/:projectId',
-        destination: '/app/content?projectId=:projectId',
+        destination: '/content-writing?projectId=:projectId',
         permanent: false,
+      },
+      {
+        source: '/app/content-writing',
+        destination: '/content-writing',
+        permanent: true,
+      },
+      {
+        source: '/app/content/:id',
+        destination: '/content-writing?documentId=:id',
+        permanent: true,
+      },
+      {
+        source: '/app/content',
+        destination: '/content-writing',
+        permanent: true,
       },
       {
         source: '/app/strategy/url-analyzer',

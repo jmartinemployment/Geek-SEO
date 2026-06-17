@@ -80,7 +80,7 @@ function SiteRow({ project }: { project: ProjectWithDocuments }) {
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="accent">{project.name}</Badge>
             <Link
-              href={`/app/content?projectId=${project.id}`}
+              href={`/content-writing?projectId=${project.id}`}
               className="inline-flex h-8 items-center rounded-[var(--radius-button)] border border-[var(--color-border-strong)] bg-white px-3 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)]"
             >
               Open content

@@ -27,7 +27,7 @@ const primaryItems: SidebarItem[] = [
   { href: '/app/dashboard', label: 'Home', icon: LayoutDashboard },
   { href: '/app/strategy/topical-map', label: 'Topical Map', icon: Map },
   { href: '/url-analyzer', label: 'URL Analyzer', icon: Compass },
-  { href: '/app/content', label: 'Content Documents', icon: FileText },
+  { href: '/content-writing', label: 'Content Writing', icon: Globe },
   { href: '/app/keywords', label: 'Keyword Research', icon: Search },
   { href: '/app/cannibalization', label: 'Cannibalization', icon: TrendingUp },
   { href: '/app/audit', label: 'Site Audit', icon: ShieldCheck },
@@ -35,7 +35,6 @@ const primaryItems: SidebarItem[] = [
 ];
 
 const overflowItems: SidebarItem[] = [
-  { href: '/app/content-writing', label: 'Content Writing', icon: Globe },
   { href: '/app/bulk', label: 'Bulk articles', icon: FileText },
   { href: '/app/calendar', label: 'Content calendar', icon: FileText },
   { href: '/app/serp', label: 'Deep SERP', icon: Search },

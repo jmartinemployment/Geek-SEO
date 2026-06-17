@@ -94,7 +94,7 @@ export default function ContentCalendarPage() {
           </p>
         </div>
         <Link
-          href="/app/content-writing"
+          href="/content-writing"
           className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm text-white hover:bg-[var(--color-accent-hover)]"
         >
           New article
@@ -109,7 +109,7 @@ export default function ContentCalendarPage() {
           <p className="text-sm text-[var(--color-text-secondary)]">No content yet. Start with the content writing workspace or a project.</p>
           <div className="mt-4 flex justify-center gap-3">
             <Link
-              href="/app/content-writing"
+              href="/content-writing"
               className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm text-white hover:bg-[var(--color-accent-hover)]"
             >
               Content Writing
@@ -167,7 +167,7 @@ export default function ContentCalendarPage() {
                       } ${movingId === card.id ? 'pointer-events-none opacity-60' : 'cursor-grab active:cursor-grabbing'}`}
                     >
                       <Link
-                        href={`/app/content/${card.id}`}
+                        href={`/content-writing?documentId=${card.id}`}
                         className="block text-sm font-medium text-[var(--color-text-primary)] hover:underline"
                         onClick={(e) => e.stopPropagation()}
                       >

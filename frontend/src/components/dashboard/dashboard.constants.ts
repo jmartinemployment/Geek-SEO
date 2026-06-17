@@ -12,7 +12,7 @@ export const FEATURE_MODULES: FeatureModule[] = [
     id: 'content',
     title: 'Content Optimizer',
     description: 'Score and improve content against real competitors',
-    href: '/app/content',
+    href: '/content-writing',
     iconBg: '#E0F2FE',
     iconColor: '#0369A1',
   },

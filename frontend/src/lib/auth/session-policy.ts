@@ -17,12 +17,16 @@ export function isAuthenticated(accessToken: string | null, devUserId?: string |
   return Boolean(accessToken) || Boolean(devUserId);
 }
 
+export function isProtectedAppRoute(pathname: string): boolean {
+  return pathname.startsWith('/app') || pathname.startsWith('/content-writing');
+}
+
 export function requiresAppAuth(
   pathname: string,
   hasRefreshCookie: boolean,
   devUserId?: string | null,
 ): boolean {
-  if (!pathname.startsWith('/app')) return false;
+  if (!isProtectedAppRoute(pathname)) return false;
   if (devUserId) return false;
   return !hasRefreshCookie;
 }

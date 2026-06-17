@@ -72,7 +72,7 @@ export default function ContentPlannerPage() {
         { projectId, title: keyword, targetKeyword: keyword, targetLocation: location },
         accessToken,
       );
-      window.location.href = `/app/content/${doc.id}`;
+      window.location.href = `/content-writing?documentId=${doc.id}`;
     } catch (err) {
       setActionMsg(err instanceof Error ? err.message : 'Could not create document');
     }
@@ -203,7 +203,7 @@ export default function ContentPlannerPage() {
                           AI article
                         </button>
                         <Link
-                          href={`/app/content-writing?projectId=${projectId}&keyword=${encodeURIComponent(kw)}`}
+                          href={`/content-writing?projectId=${projectId}&keyword=${encodeURIComponent(kw)}`}
                           className="rounded border px-2 py-1 text-xs hover:bg-[var(--color-surface-muted)]"
                         >
                           Write

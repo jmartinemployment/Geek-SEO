@@ -149,14 +149,14 @@ export default function BulkArticlesPage() {
           ) : null}
           {job.status === 'completed' && job.resultId ? (
             <Link
-              href={`/app/content/${job.resultId}`}
+              href={`/content-writing?documentId=${job.resultId}`}
               className="mt-4 inline-flex rounded-lg border px-3 py-2 text-sm font-medium hover:bg-slate-50"
             >
               Open last document →
             </Link>
           ) : null}
           <Link
-            href="/app/content"
+            href="/content-writing"
             className="mt-4 ml-3 inline-flex text-sm text-[var(--color-brand)] hover:underline"
           >
             View all content

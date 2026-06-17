@@ -15,5 +15,5 @@ export default async function NewBriefPage({ searchParams }: NewBriefPageProps) 
   if (projectId) query.set('projectId', projectId);
   if (location) query.set('location', location);
 
-  redirect(`/app/content-writing${query.size > 0 ? `?${query.toString()}` : ''}`);
+  redirect(`/content-writing${query.size > 0 ? `?${query.toString()}` : ''}`);
 }

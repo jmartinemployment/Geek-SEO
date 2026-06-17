@@ -28,6 +28,8 @@ describe('session-policy', () => {
     expect(requiresAppAuth('/app/dashboard', false, null)).toBe(true);
     expect(requiresAppAuth('/app/dashboard', true, null)).toBe(false);
     expect(requiresAppAuth('/app/dashboard', false, 'dev-user')).toBe(false);
+    expect(requiresAppAuth('/content-writing', false, null)).toBe(true);
+    expect(requiresAppAuth('/content-writing', true, null)).toBe(false);
     expect(requiresAppAuth('/pricing', false, null)).toBe(false);
   });
 });

@@ -126,7 +126,7 @@ export default function KeywordResearchPage() {
       )}
 
       <p className="mt-8 text-sm text-[var(--color-text-secondary)]">
-        <Link href="/app/content-writing" className="underline hover:text-[var(--color-text-primary)]">
+        <Link href="/content-writing" className="underline hover:text-[var(--color-text-primary)]">
           Use Content Writing
         </Link>{' '}
         to turn a keyword into a scored article.

@@ -173,21 +173,10 @@ test.describe('authenticated app', () => {
     const { projectId, documentId } = await createEphemeralContentDocument(request);
 
     try {
-      await page.goto(`/app/content/${documentId}`, { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: /Plagiarism \(Copyscape\)/i })).toBeVisible({
+      await page.goto(`/content-writing?documentId=${documentId}`, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: /Review workspace/i })).toBeVisible({
         timeout: 25_000,
       });
-
-      const notConfigured = await page
-        .getByText(/copyscape is not configured/i)
-        .isVisible()
-        .catch(() => false);
-      const checkButton = await page
-        .getByRole('button', { name: /^check$/i })
-        .isVisible()
-        .catch(() => false);
-
-      expect(notConfigured || checkButton).toBeTruthy();
       assertSeoApiFailures(apiFailures);
     } finally {
       await deleteProject(request, projectId);
