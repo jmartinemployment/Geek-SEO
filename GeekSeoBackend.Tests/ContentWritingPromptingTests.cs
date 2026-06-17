@@ -344,6 +344,7 @@ public sealed class ContentWritingPromptingTests
                 new PeopleAlsoAskResult { Question = "What is managed IT?", Answer = "Outsourced IT operations." },
             ],
             RelatedSearches = ["managed it pricing"],
+            Features = new SerpFeatures(),
             FetchedAt = DateTimeOffset.UtcNow,
         };
 
@@ -441,8 +442,7 @@ public sealed class ContentWritingPromptingTests
             throw new NotSupportedException();
     }
 
-    [Fact]
-    public void ContentWritingRules_BuildClosingFaqQuestions_ReturnsExactlyFive()
+    private sealed class FakeAiProvider(string content) : IAIProvider
     {
         public string ProviderName => "fake";
 

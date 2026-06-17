@@ -167,8 +167,21 @@ public sealed class ContentBriefService(
             return Result<SeoSerpResult?>.Success(upserted.Value);
 
         // Live SERP succeeded but cache write failed (e.g. gateway auth). Still generate the brief.
+        var retentionDays = TryGetSerpRetentionDays();
         return Result<SeoSerpResult?>.Success(
-            SerpResultStore.ToEphemeralRow(fetch.Value, benchmarks, languageCode, VendorPersistenceSettings.SerpRetentionDays));
+            SerpResultStore.ToEphemeralRow(fetch.Value, benchmarks, languageCode, retentionDays));
+    }
+
+    private static int TryGetSerpRetentionDays()
+    {
+        try
+        {
+            return VendorPersistenceSettings.SerpRetentionDays;
+        }
+        catch
+        {
+            return 90;
+        }
     }
 
     private async Task<IReadOnlyList<string>> BuildRecommendedTermsAsync(
