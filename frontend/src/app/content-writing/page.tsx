@@ -461,12 +461,6 @@ function ContentWritingPageInner() {
         </div>
 
         <aside className="col-span-2 sticky top-4 max-h-[calc(100vh-5rem)] min-w-0 space-y-4 self-start overflow-y-auto">
-          {brief && !inReview ? (
-            <section className="rounded-xl border bg-white p-5 shadow-sm">
-              <InfoList title="Review checklist" items={brief.reviewChecklist} />
-            </section>
-          ) : null}
-
           {inReview ? (
             <div className="min-w-0 rounded-xl border bg-white shadow-sm">
               <ReviewScoreRight keyword={keyword} statusMessage={statusMessage} />
