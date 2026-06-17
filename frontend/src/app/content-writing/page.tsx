@@ -180,36 +180,40 @@ function ContentWritingPageInner() {
   }
 
   const grid = (
-    <main className="w-full max-w-none -mx-4 px-4 py-6 md:-mx-10 md:px-10">
-      <div className="grid min-h-[calc(100vh-8rem)] grid-cols-1 gap-6 xl:grid-cols-12">
-        <div className="order-2 space-y-6 xl:order-1 xl:col-span-2 xl:sticky xl:top-4 xl:self-start">
-          <section className="rounded-xl border bg-white p-5 shadow-sm">
-            <h2 className="font-semibold">Workflow</h2>
-            <p className="mt-1 text-xs font-medium text-[var(--color-text-secondary)]">{stepLabel(stage)}</p>
-            <ol className="mt-3 space-y-2 text-sm text-[var(--color-text-secondary)]">
-              <li className={stage === 'brief' ? 'font-medium text-[var(--color-text-primary)]' : undefined}>
-                1. Generate a structured brief from project + SERP context.
-              </li>
-              <li className={stage === 'outline' ? 'font-medium text-[var(--color-text-primary)]' : undefined}>
-                2. Turn the brief into an outline you can edit.
-              </li>
-              <li className={stage === 'draft' ? 'font-medium text-[var(--color-text-primary)]' : undefined}>
-                3. Draft the article and persist it as a document.
-              </li>
-              <li className={inReview ? 'font-medium text-[var(--color-text-primary)]' : undefined}>
-                4. Review, score, approve, and copy rendered HTML from this page.
-              </li>
-            </ol>
-          </section>
+    <div className="w-full max-w-none">
+      <div className="grid min-h-[calc(100vh-8rem)] grid-cols-12 gap-4">
+        <div className="col-span-2 sticky top-4 max-h-[calc(100vh-5rem)] min-w-0 space-y-4 self-start overflow-y-auto">
+          {!inReview ? (
+            <section className="rounded-xl border bg-white p-5 shadow-sm">
+              <h2 className="font-semibold">Workflow</h2>
+              <p className="mt-1 text-xs font-medium text-[var(--color-text-secondary)]">{stepLabel(stage)}</p>
+              <ol className="mt-3 space-y-2 text-sm text-[var(--color-text-secondary)]">
+                <li className={stage === 'brief' ? 'font-medium text-[var(--color-text-primary)]' : undefined}>
+                  1. Generate a structured brief from project + SERP context.
+                </li>
+                <li className={stage === 'outline' ? 'font-medium text-[var(--color-text-primary)]' : undefined}>
+                  2. Turn the brief into an outline you can edit.
+                </li>
+                <li className={stage === 'draft' ? 'font-medium text-[var(--color-text-primary)]' : undefined}>
+                  3. Draft the article and persist it as a document.
+                </li>
+                <li>4. Review, score, approve, and copy rendered HTML from this page.</li>
+              </ol>
+            </section>
+          ) : (
+            <section className="rounded-lg border bg-white px-3 py-2 text-xs text-[var(--color-text-secondary)] shadow-sm">
+              <span className="font-medium text-[var(--color-text-primary)]">Step 4 of 4</span> — Review &amp; score
+            </section>
+          )}
 
           {inReview ? (
-            <section className="hidden rounded-xl border bg-white shadow-sm xl:block">
+            <div className="min-w-0 rounded-xl border bg-white shadow-sm">
               <ReviewScoreLeft keyword={keyword} />
-            </section>
+            </div>
           ) : null}
         </div>
 
-        <div className="order-1 min-w-0 space-y-6 xl:order-2 xl:col-span-8">
+        <div className="col-span-8 min-w-0 space-y-6">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">Content Writing</h1>
@@ -479,7 +483,7 @@ function ContentWritingPageInner() {
           )}
         </div>
 
-        <aside className="order-3 space-y-6 xl:col-span-2 xl:sticky xl:top-4 xl:self-start">
+        <aside className="col-span-2 sticky top-4 max-h-[calc(100vh-5rem)] min-w-0 space-y-4 self-start overflow-y-auto">
           {brief ? (
             <>
               <section className="rounded-xl border bg-white p-5 shadow-sm">
@@ -490,31 +494,22 @@ function ContentWritingPageInner() {
                 <InfoList title="Additional types" items={brief.schemaBlueprint.additionalTypes} compact />
                 <InfoList title="Software entities" items={brief.schemaBlueprint.softwareEntities} compact />
               </section>
-              <section className="rounded-xl border bg-white p-5 shadow-sm xl:hidden">
-                <InfoList title="Review checklist" items={brief.reviewChecklist} />
-              </section>
+              {!inReview ? (
+                <section className="rounded-xl border bg-white p-5 shadow-sm">
+                  <InfoList title="Review checklist" items={brief.reviewChecklist} />
+                </section>
+              ) : null}
             </>
-          ) : null}
-
-          {brief && !inReview ? (
-            <section className="hidden rounded-xl border bg-white p-5 shadow-sm xl:block">
-              <InfoList title="Review checklist" items={brief.reviewChecklist} />
-            </section>
           ) : null}
 
           {inReview ? (
-            <>
-              <section className="rounded-xl border bg-white shadow-sm xl:hidden">
-                <ReviewScoreLeft keyword={keyword} />
-              </section>
-              <section className="rounded-xl border bg-white shadow-sm">
-                <ReviewScoreRight keyword={keyword} statusMessage={statusMessage} />
-              </section>
-            </>
+            <div className="min-w-0 rounded-xl border bg-white shadow-sm">
+              <ReviewScoreRight keyword={keyword} statusMessage={statusMessage} />
+            </div>
           ) : null}
         </aside>
       </div>
-    </main>
+    </div>
   );
 
   if (doc && inReview) {
