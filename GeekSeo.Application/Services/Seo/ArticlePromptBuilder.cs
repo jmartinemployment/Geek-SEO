@@ -7,9 +7,9 @@ public static class ArticlePromptBuilder
 {
     public static string BuildOutlineSystemPrompt() =>
         $"You are an SEO content strategist. Output a detailed article outline as HTML using h2 and h3 only. " +
-        $"Before the closing FAQ, include exactly four body <h2> sections (one per methodology movement, in order). " +
-        "Each body h2 must be topic-specific for the keyword. Do not copy corporate phase labels as h2 text unless they read naturally. " +
-        "Place <!-- methodology:{phase-id} --> immediately before each body h2. " +
+        $"Before the closing FAQ, include exactly four body movements in order. " +
+        "Each movement must start with <p><strong>Movement {{n}} — {{Phase Label}}</strong></p> followed by one topic-specific <h2>. " +
+        "The phase label belongs in the movement line, not in the h2 text. " +
         $"Always end with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> and exactly {ContentWritingRules.ClosingFaqCount} <h3> FAQ questions (no answers in the outline). No preamble. No h1.";
 
     public static string BuildOutlineUserPrompt(WritingOutlineRequest request)
@@ -49,7 +49,8 @@ public static class ArticlePromptBuilder
 
     public static string BuildDraftSystemPrompt() =>
         $"You write SEO articles in HTML (h1 once, multiple h2/h3, paragraphs). Natural tone. No markdown fences. " +
-        "Follow the outline's h2 headings and methodology phase order. Fulfill each phase intent with topic-native prose; do not rename h2s to corporate phase labels. " +
+        "Preserve every <p><strong>Movement N — …</strong></p> label from the outline in the draft. " +
+        "Expand each movement with paragraphs that fulfill its intent. Keep the movement label, then the outline h2, then body copy. " +
         $"Always close with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> containing exactly {ContentWritingRules.ClosingFaqCount} topic FAQs as <h3> + <p> pairs.";
 
     public static string BuildDraftUserPrompt(WritingDraftRequest request)

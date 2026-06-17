@@ -12,12 +12,11 @@ public sealed class ArticleMethodologyPromptTests
             "quickbooks automation consultant",
             WritingMethodologySpec.FourPhase);
 
-        Assert.Contains("business-objectives", text);
         Assert.Contains("Business Objectives", text);
         Assert.Contains("business outcomes or ROI", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("pilot plan", text, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Do NOT copy the corporate phase labels", text);
-        Assert.Contains("<!-- methodology:business-objectives -->", text);
+        Assert.Contains("Movement 1 — Business Objectives", text);
+        Assert.Contains("<p><strong>Movement", text);
     }
 
     [Fact]
@@ -56,5 +55,53 @@ public sealed class ArticleMethodologyOutlineEnricherTests
     {
         var html = "<h2>Only one section</h2>";
         Assert.False(ArticleMethodologyOutlineEnricher.HasRequiredBodySections(html, WritingMethodologySpec.FourPhase));
+    }
+
+    [Fact]
+    public void HasRequiredBodySections_ReturnsFalseWhenH2sExistButMovementLabelsMissing()
+    {
+        var html =
+            "<h2>Why automation matters</h2>" +
+            "<h2>Data readiness</h2>" +
+            "<h2>Tooling</h2>" +
+            "<h2>Pilot plan</h2>";
+
+        Assert.False(ArticleMethodologyOutlineEnricher.HasRequiredBodySections(html, WritingMethodologySpec.FourPhase));
+    }
+}
+
+public sealed class ArticleMethodologyScaffoldTests
+{
+    [Fact]
+    public void InjectMovementLabels_AddsVisibleMovementLinesBeforeH2s()
+    {
+        var html =
+            "<h2>Why automation matters</h2><p>Body</p>" +
+            "<h2>Data readiness</h2>" +
+            "<h2>Tooling</h2>" +
+            "<h2>Pilot plan</h2>";
+
+        var result = ArticleMethodologyScaffold.InjectMovementLabels(
+            html,
+            "quickbooks automation",
+            WritingMethodologySpec.FourPhase);
+
+        Assert.Contains("Movement 1 — Business Objectives", result);
+        Assert.Contains("Movement 4 — Pilot Implementation Strategy", result);
+        Assert.True(ArticleMethodologyScaffold.HasVisibleMethodologyMovements(result, WritingMethodologySpec.FourPhase));
+    }
+
+    [Fact]
+    public void BuildDeterministicBodySections_IncludesAllFourMovements()
+    {
+        var html = ArticleMethodologyScaffold.BuildDeterministicBodySections(
+            "zapier quickbooks integration",
+            WritingMethodologySpec.FourPhase);
+
+        Assert.Contains("Movement 1 — Business Objectives", html);
+        Assert.Contains("Movement 2 — Data Quality Assessment", html);
+        Assert.Contains("Movement 3 — Tech Selection", html);
+        Assert.Contains("Movement 4 — Pilot Implementation Strategy", html);
+        Assert.Equal(4, ArticleMethodologyOutlineEnricher.CountBodyH2Sections(html));
     }
 }

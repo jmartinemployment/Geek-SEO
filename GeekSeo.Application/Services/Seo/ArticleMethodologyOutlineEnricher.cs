@@ -16,7 +16,8 @@ public static partial class ArticleMethodologyOutlineEnricher
 
     public static bool HasRequiredBodySections(string html, WritingMethodologySpec methodology) =>
         methodology.PhaseDefinitions.Count == 0
-        || CountBodyH2Sections(html) >= methodology.PhaseDefinitions.Count;
+        || (CountBodyH2Sections(html) >= methodology.PhaseDefinitions.Count
+            && ArticleMethodologyScaffold.HasVisibleMethodologyMovements(html, methodology));
 
     public static async Task<string> EnsureMethodologyOutlineAsync(
         string outline,
@@ -25,6 +26,13 @@ public static partial class ArticleMethodologyOutlineEnricher
         CancellationToken ct = default)
     {
         var methodology = brief.Methodology;
+        if (HasRequiredBodySections(outline, methodology))
+            return outline;
+
+        outline = ArticleMethodologyScaffold.EnsureVisibleMovements(
+            outline,
+            brief.Keyword,
+            methodology);
         if (HasRequiredBodySections(outline, methodology))
             return outline;
 
@@ -44,8 +52,17 @@ public static partial class ArticleMethodologyOutlineEnricher
             return outline;
 
         var bodySections = AiHtmlSanitizer.ToHtmlFragment(response.Value.Content).Trim();
+        bodySections = ArticleMethodologyScaffold.EnsureVisibleMovements(
+            bodySections,
+            brief.Keyword,
+            methodology);
+
         if (CountBodyH2Sections(bodySections) < methodology.PhaseDefinitions.Count)
-            return outline;
+        {
+            bodySections = ArticleMethodologyScaffold.BuildDeterministicBodySections(
+                brief.Keyword,
+                methodology);
+        }
 
         var (_, faqTail) = SplitAtFaq(outline);
         if (!string.IsNullOrWhiteSpace(faqTail))

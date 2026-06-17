@@ -599,8 +599,8 @@ function ReviewWorkspace({
         </div>
       </div>
 
-      <div className="grid min-h-[800px] grid-cols-1 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)_minmax(0,3fr)]">
-        <div className="order-2 border-t xl:order-1 xl:border-t-0 xl:border-r">
+      <div className="grid min-h-[800px] grid-cols-1 xl:grid-cols-12">
+        <div className="order-2 border-t xl:order-1 xl:col-span-2 xl:border-t-0 xl:border-r">
           <ScoreSidebar
             placement="left"
             keyword={keyword}
@@ -617,7 +617,7 @@ function ReviewWorkspace({
           />
         </div>
 
-        <div className="order-1 min-w-0 xl:order-2">
+        <div className="order-1 min-w-0 xl:order-2 xl:col-span-8">
           <header className="flex items-center gap-4 border-b bg-white px-5 py-4">
             <input
               className="flex-1 rounded-lg border border-transparent bg-transparent text-lg font-semibold outline-none focus:border-[var(--color-border-strong)] focus:bg-white focus:px-2"
@@ -683,7 +683,7 @@ function ReviewWorkspace({
           </div>
         </div>
 
-        <div className="order-3 border-t xl:border-t-0 xl:border-l">
+        <div className="order-3 border-t xl:col-span-2 xl:border-t-0 xl:border-l">
           <ScoreSidebar
             placement="right"
             keyword={keyword}
@@ -710,12 +710,12 @@ function ReviewWorkspace({
             }}
           />
 
-          <div className="space-y-3 border-t px-5 py-5 xl:px-6">
-            <h3 className="text-sm font-semibold">Review gate</h3>
+          <div className="space-y-3 border-t px-3 py-4 xl:px-4">
+            <h3 className="text-xs font-semibold xl:text-sm">Review gate</h3>
             <button
               type="button"
               disabled={!!statusUpdating}
-              className="w-full rounded-lg border px-3 py-2 text-sm font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
+              className="w-full rounded-lg border px-2 py-1.5 text-xs font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50 xl:px-3 xl:py-2 xl:text-sm"
               onClick={() => void changeStatus('awaiting_review')}
             >
               {statusUpdating === 'awaiting_review' ? 'Updating…' : 'Mark awaiting review'}
@@ -723,7 +723,7 @@ function ReviewWorkspace({
             <button
               type="button"
               disabled={!!statusUpdating}
-              className="w-full rounded-lg border px-3 py-2 text-sm font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
+              className="w-full rounded-lg border px-2 py-1.5 text-xs font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50 xl:px-3 xl:py-2 xl:text-sm"
               onClick={() => void changeStatus('approved_for_publish')}
             >
               {statusUpdating === 'approved_for_publish' ? 'Updating…' : 'Approve for publish'}

@@ -75,6 +75,7 @@ export function ScoreSidebar({
   if (placement === 'left') {
     return (
       <ScoreMetricsColumn
+        compact
         keyword={keyword}
         scoreUpdate={scoreUpdate}
         pendingReason={pendingReason}
@@ -88,6 +89,7 @@ export function ScoreSidebar({
 
   return (
     <ScoreActionsColumn
+      compact
       keyword={keyword}
       scoreUpdate={scoreUpdate}
       pendingReason={pendingReason}
@@ -100,6 +102,7 @@ export function ScoreSidebar({
 }
 
 function ScoreMetricsColumn({
+  compact = false,
   keyword,
   scoreUpdate,
   pendingReason,
@@ -107,15 +110,19 @@ function ScoreMetricsColumn({
   scoreError,
   connected,
   onRefreshSerp,
-}: Omit<ScoreSidebarProps, 'placement' | 'onCopyHtml' | 'onApplySuggestion' | 'applyingSuggestionId'>) {
+}: Omit<ScoreSidebarProps, 'placement' | 'onCopyHtml' | 'onApplySuggestion' | 'applyingSuggestionId'> & {
+  compact?: boolean;
+}) {
   const loading = benchmarkRefreshing || Boolean(pendingReason);
   const score = scoreUpdate?.score ?? 0;
   const ringOffset = 283 - (283 * score) / 100;
+  const ringSize = compact ? 'h-14 w-14' : 'h-24 w-24';
 
   return (
-    <aside className="min-w-0 bg-[var(--color-bg)] p-5 xl:p-6">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold tracking-tight">Content score</h2>
+    <aside className={`min-w-0 bg-[var(--color-bg)] ${compact ? 'p-3 xl:p-4' : 'p-5 xl:p-6'}`}>
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className={`font-semibold tracking-tight ${compact ? 'text-sm' : 'text-lg'}`}>Content score</h2>
         <span
           className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
             connected ? 'bg-emerald-100 text-emerald-800' : 'bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)]'
@@ -123,41 +130,44 @@ function ScoreMetricsColumn({
         >
           {connected ? 'Live' : 'Offline'}
         </span>
+        </div>
       </div>
 
       <button
         type="button"
-        className="mt-3 text-xs text-[var(--color-text-secondary)] underline hover:text-[var(--color-text-primary)]"
+        className="mt-2 text-[10px] text-[var(--color-text-secondary)] underline hover:text-[var(--color-text-primary)] xl:text-xs"
         onClick={onRefreshSerp}
       >
-        Refresh SERP benchmarks
+        Refresh SERP
       </button>
 
-      {scoreError ? <p className="mt-2 text-sm text-red-600">{scoreError}</p> : null}
+      {scoreError ? <p className={`mt-2 text-red-600 ${compact ? 'text-xs' : 'text-sm'}`}>{scoreError}</p> : null}
 
       {loading ? (
-        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50/80 p-3 text-sm text-amber-900">
+        <div className={`mt-3 rounded-lg border border-amber-200 bg-amber-50/80 text-amber-900 ${compact ? 'p-2 text-xs' : 'p-3 text-sm'}`}>
           <p className="font-medium">Building benchmarks…</p>
-          <p className="mt-1 text-xs">
-            {pendingReason ??
-              (keyword
-                ? `Analyzing top results for “${keyword}”. First load can take 20–30 seconds.`
-                : 'Set a target keyword to fetch SERP data.')}
-          </p>
+          {!compact ? (
+            <p className="mt-1 text-xs">
+              {pendingReason ??
+                (keyword
+                  ? `Analyzing top results for “${keyword}”. First load can take 20–30 seconds.`
+                  : 'Set a target keyword to fetch SERP data.')}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
       {scoreUpdate?.benchmarkQuality === 'low_sample_count' ? (
-        <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
-          Fewer than 3 competitor pages crawled — word-count targets use SERP snippets.
+        <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[10px] text-amber-900 xl:text-xs">
+          Low competitor sample — targets use SERP snippets.
         </p>
       ) : null}
 
       {scoreUpdate ? (
-        <div className="mt-6 space-y-6">
-          <div className="flex items-center gap-5">
-            <div className="relative h-24 w-24 shrink-0">
-              <svg className="h-24 w-24 -rotate-90" viewBox="0 0 100 100" aria-hidden>
+        <div className={`${compact ? 'mt-4 space-y-4' : 'mt-6 space-y-6'}`}>
+          <div className={compact ? 'flex flex-col items-center gap-2' : 'flex items-center gap-5'}>
+            <div className={`relative shrink-0 ${ringSize}`}>
+              <svg className={`${ringSize} -rotate-90`} viewBox="0 0 100 100" aria-hidden>
                 <circle
                   cx="50"
                   cy="50"
@@ -181,19 +191,21 @@ function ScoreMetricsColumn({
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold tabular-nums text-[var(--color-metric-blue)]">{scoreUpdate.score}</span>
+                <span className={`font-bold tabular-nums text-[var(--color-metric-blue)] ${compact ? 'text-lg' : 'text-2xl'}`}>{scoreUpdate.score}</span>
                 <span className="text-[10px] text-[var(--color-text-secondary)]">/ 100</span>
               </div>
             </div>
-            <div>
-              <span className="inline-block rounded-lg bg-[var(--color-accent)] px-3 py-1 text-lg font-semibold text-white">
+            <div className={compact ? 'text-center' : undefined}>
+              <span className={`inline-block rounded-lg bg-[var(--color-accent)] font-semibold text-white ${compact ? 'px-2 py-0.5 text-sm' : 'px-3 py-1 text-lg'}`}>
                 {scoreUpdate.grade}
               </span>
-              <p className="mt-2 text-xs text-[var(--color-text-secondary)]">Transparent 6-component score</p>
+              {!compact ? (
+                <p className="mt-2 text-xs text-[var(--color-text-secondary)]">Transparent 6-component score</p>
+              ) : null}
             </div>
           </div>
 
-          <ul className="space-y-2 text-sm">
+          <ul className={`space-y-2 ${compact ? 'text-xs' : 'text-sm'}`}>
             {Object.entries(scoreUpdate.components).map(([key, value]) => {
               const meta = COMPONENT_META[key] ?? { label: key, max: 100 };
               const pct = Math.min(100, Math.round((value / meta.max) * 100));
@@ -217,7 +229,7 @@ function ScoreMetricsColumn({
           </ul>
 
           {scoreUpdate.geoScore != null && scoreUpdate.geoComponents ? (
-            <GeoScoreBlock scoreUpdate={scoreUpdate} />
+            <GeoScoreBlock scoreUpdate={scoreUpdate} compact={compact} />
           ) : null}
         </div>
       ) : (
@@ -233,14 +245,15 @@ function ScoreMetricsColumn({
   );
 }
 
-function GeoScoreBlock({ scoreUpdate }: { scoreUpdate: ScoreUpdate }) {
+function GeoScoreBlock({ scoreUpdate, compact = false }: { scoreUpdate: ScoreUpdate; compact?: boolean }) {
   if (scoreUpdate.geoScore == null || !scoreUpdate.geoComponents) return null;
+  const ringSize = compact ? 'h-12 w-12' : 'h-16 w-16';
 
   return (
-    <div className="rounded-xl border border-purple-100 bg-purple-50/40 p-4">
-      <div className="flex items-center gap-4">
-        <div className="relative h-16 w-16 shrink-0">
-          <svg className="h-16 w-16 -rotate-90" viewBox="0 0 100 100" aria-hidden>
+    <div className={`rounded-xl border border-purple-100 bg-purple-50/40 ${compact ? 'p-3' : 'p-4'}`}>
+      <div className={compact ? 'flex flex-col items-center gap-2' : 'flex items-center gap-4'}>
+        <div className={`relative shrink-0 ${ringSize}`}>
+          <svg className={`${ringSize} -rotate-90`} viewBox="0 0 100 100" aria-hidden>
             <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="8" className="text-purple-100" />
             <circle
               cx="50"
@@ -256,17 +269,17 @@ function GeoScoreBlock({ scoreUpdate }: { scoreUpdate: ScoreUpdate }) {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-lg font-bold tabular-nums text-purple-900">{scoreUpdate.geoScore}</span>
+            <span className={`font-bold tabular-nums text-purple-900 ${compact ? 'text-sm' : 'text-lg'}`}>{scoreUpdate.geoScore}</span>
           </div>
         </div>
-        <div>
-          <h3 className="text-sm font-semibold text-purple-950">GEO score</h3>
-          <span className="mt-1 inline-block rounded-lg bg-purple-600 px-2 py-0.5 text-sm font-semibold text-white">
+        <div className={compact ? 'text-center' : undefined}>
+          <h3 className={`font-semibold text-purple-950 ${compact ? 'text-xs' : 'text-sm'}`}>GEO score</h3>
+          <span className={`mt-1 inline-block rounded-lg bg-purple-600 font-semibold text-white ${compact ? 'px-1.5 py-0.5 text-xs' : 'px-2 py-0.5 text-sm'}`}>
             {scoreUpdate.geoGrade ?? '—'}
           </span>
         </div>
       </div>
-      <ul className="mt-4 space-y-2 text-sm">
+      <ul className={`mt-3 space-y-2 ${compact ? 'text-xs' : 'text-sm'}`}>
         {Object.entries(scoreUpdate.geoComponents).map(([key, value]) => {
           const meta = GEO_COMPONENT_META[key] ?? { label: key, max: 20 };
           const pct = Math.min(100, Math.round((value / meta.max) * 100));
@@ -290,6 +303,7 @@ function GeoScoreBlock({ scoreUpdate }: { scoreUpdate: ScoreUpdate }) {
 }
 
 function ScoreActionsColumn({
+  compact = false,
   keyword,
   scoreUpdate,
   pendingReason,
@@ -306,37 +320,39 @@ function ScoreActionsColumn({
   | 'onApplySuggestion'
   | 'applyingSuggestionId'
   | 'onCopyHtml'
->) {
+> & { compact?: boolean }) {
   const loading = benchmarkRefreshing || Boolean(pendingReason);
 
   return (
-    <aside className="min-w-0 bg-[var(--color-bg)] p-5 xl:p-6">
-      <h2 className="text-lg font-semibold tracking-tight">Insights &amp; actions</h2>
-      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-        Proposed fixes, advisories, and export tools.
-      </p>
+    <aside className={`min-w-0 bg-[var(--color-bg)] ${compact ? 'p-3 xl:p-4' : 'p-5 xl:p-6'}`}>
+      <h2 className={`font-semibold tracking-tight ${compact ? 'text-sm' : 'text-lg'}`}>Insights</h2>
+      {!compact ? (
+        <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+          Proposed fixes, advisories, and export tools.
+        </p>
+      ) : null}
 
       {scoreUpdate ? (
-        <div className="mt-6 space-y-5">
+        <div className={`${compact ? 'mt-4 space-y-4' : 'mt-6 space-y-5'}`}>
           {scoreUpdate.suggestions.length > 0 ? (
             <div>
-              <h3 className="text-sm font-semibold">Proposed changes</h3>
-              <ul className="mt-2 space-y-2 text-sm">
+              <h3 className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>Proposed changes</h3>
+              <ul className={`mt-2 space-y-2 ${compact ? 'text-xs' : 'text-sm'}`}>
                 {[...scoreUpdate.suggestions]
                   .sort((a, b) => b.pointValue - a.pointValue)
                   .slice(0, 5)
                   .map((s) => (
                     <li
                       key={s.id}
-                      className="rounded-lg border border-[var(--color-border)] bg-white p-3 shadow-sm"
+                      className={`rounded-lg border border-[var(--color-border)] bg-white shadow-sm ${compact ? 'p-2' : 'p-3'}`}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="shrink-0 text-xs font-medium text-emerald-700">+{s.pointValue} pts</span>
+                      <div className="flex flex-col gap-2">
+                        <span className="text-xs font-medium text-emerald-700">+{s.pointValue} pts</span>
                         {s.applyMode !== 'none' && onApplySuggestion ? (
                           <button
                             type="button"
                             disabled={applyingSuggestionId === s.id}
-                            className="shrink-0 rounded-md border border-[var(--color-border-strong)] bg-white px-2 py-0.5 text-[11px] font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
+                            className="w-full rounded-md border border-[var(--color-border-strong)] bg-white px-2 py-1 text-[10px] font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50 xl:text-[11px]"
                             onClick={() => void onApplySuggestion(s)}
                           >
                             {applyingSuggestionId === s.id
@@ -347,8 +363,10 @@ function ScoreActionsColumn({
                           </button>
                         ) : null}
                       </div>
-                      <p className="mt-1 font-medium text-[var(--color-text-primary)]">{s.proposedChange}</p>
-                      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{s.actionText}</p>
+                      <p className={`mt-1 font-medium text-[var(--color-text-primary)] ${compact ? 'text-xs leading-snug' : ''}`}>{s.proposedChange}</p>
+                      {!compact ? (
+                        <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{s.actionText}</p>
+                      ) : null}
                     </li>
                   ))}
               </ul>
@@ -357,8 +375,8 @@ function ScoreActionsColumn({
 
           {scoreUpdate.eeatAdvisories.length > 0 ? (
             <div>
-              <h3 className="text-sm font-semibold">E-E-A-T advisories</h3>
-              <ul className="mt-2 space-y-2 text-sm">
+              <h3 className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>E-E-A-T</h3>
+              <ul className={`mt-2 space-y-2 ${compact ? 'text-[11px]' : 'text-sm'}`}>
                 {scoreUpdate.eeatAdvisories.map((a) => (
                   <li key={a.code} className="rounded-lg border border-amber-100 bg-amber-50/90 p-2 text-[var(--color-text-primary)]">
                     {a.actionText}
@@ -370,8 +388,8 @@ function ScoreActionsColumn({
 
           {scoreUpdate.serpFeatures.length > 0 ? (
             <div>
-              <h3 className="text-sm font-semibold">SERP features</h3>
-              <ul className="mt-2 space-y-1.5 text-sm text-[var(--color-text-primary)]">
+              <h3 className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>SERP</h3>
+              <ul className={`mt-2 space-y-1.5 text-[var(--color-text-primary)] ${compact ? 'text-[11px]' : 'text-sm'}`}>
                 {scoreUpdate.serpFeatures.map((f) => (
                   <li key={f.feature} className="rounded-lg border bg-white px-2 py-1.5">
                     {f.actionText}
@@ -389,24 +407,28 @@ function ScoreActionsColumn({
         )
       )}
 
-      <div className="mt-8 border-t pt-4">
-        <h3 className="text-sm font-semibold">Export</h3>
-        <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Copy HTML for any CMS.</p>
+      <div className={`border-t pt-4 ${compact ? 'mt-4' : 'mt-8'}`}>
+        <h3 className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>Export</h3>
+        {!compact ? (
+          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Copy HTML for any CMS.</p>
+        ) : null}
         {onCopyHtml ? (
           <button
             type="button"
-            className="mt-3 w-full rounded-lg border bg-white px-3 py-2 text-sm font-medium hover:bg-[var(--color-surface-muted)]"
+            className={`mt-2 w-full rounded-lg border bg-white font-medium hover:bg-[var(--color-surface-muted)] ${compact ? 'px-2 py-1.5 text-xs' : 'mt-3 px-3 py-2 text-sm'}`}
             onClick={onCopyHtml}
           >
             Copy HTML
           </button>
         ) : null}
-        <Link
-          href="/pricing"
-          className="mt-3 block text-center text-xs text-[var(--color-text-secondary)] underline hover:text-[var(--color-text-primary)]"
-        >
-          Plans &amp; limits
-        </Link>
+        {!compact ? (
+          <Link
+            href="/pricing"
+            className="mt-3 block text-center text-xs text-[var(--color-text-secondary)] underline hover:text-[var(--color-text-primary)]"
+          >
+            Plans &amp; limits
+          </Link>
+        ) : null}
       </div>
     </aside>
   );

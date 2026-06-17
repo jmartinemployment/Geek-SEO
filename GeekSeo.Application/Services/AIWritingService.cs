@@ -151,8 +151,14 @@ public sealed partial class AIWritingService(
         if (!draftResult.IsSuccess || draftResult.Value is null)
             return draftResult;
 
+        var withMethodology = request.Brief is not null
+            ? ArticleMethodologyDraftEnricher.EnsureMethodologyDraft(
+                draftResult.Value.Content,
+                request.Brief)
+            : draftResult.Value.Content;
+
         var enriched = await ArticleClosingFaqEnricher.EnsureClosingFaqDraftAsync(
-            draftResult.Value.Content,
+            withMethodology,
             request.Brief,
             ai,
             ct);

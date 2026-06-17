@@ -11,19 +11,19 @@ public static class ArticleMethodologyPrompt
         builder.AppendLine("Methodology weave (required body structure):");
         builder.AppendLine(
             $"Write the article body as {methodology.PhaseDefinitions.Count} movements in the order below. " +
-            "Each movement gets one topic-specific <h2> for this keyword. " +
-            "Do NOT copy the corporate phase labels as H2 text unless they read naturally for this topic.");
+            "Each movement must include a visible label line immediately before its <h2>, using this exact format: " +
+            "<p><strong>Movement {n} — {Phase Label}</strong></p>. " +
+            "Then add one topic-specific <h2> for the keyword (do not use the corporate phase label as the h2 text).");
         builder.AppendLine();
 
         for (var i = 0; i < methodology.PhaseDefinitions.Count; i++)
         {
             var phase = methodology.PhaseDefinitions[i];
-            builder.AppendLine($"Movement {i + 1} — {phase.Label} (id: {phase.Id})");
-            builder.AppendLine($"Intent: {phase.Intent}");
+            builder.AppendLine(
+                $"Example: <p><strong>Movement {i + 1} — {phase.Label}</strong></p> then <h2>{{topic-specific heading}}</h2>.");
+            builder.AppendLine($"Intent for this movement: {phase.Intent}");
             builder.AppendLine(
                 $"Heading families (adapt for \"{keyword}\"): {string.Join(", ", phase.HeadingFamilies)}");
-            builder.AppendLine(
-                $"Place <!-- methodology:{phase.Id} --> immediately before this movement's <h2>.");
             builder.AppendLine();
         }
 
@@ -33,9 +33,9 @@ public static class ArticleMethodologyPrompt
     }
 
     public static string BuildOutlineRepairSystemPrompt() =>
-        "You are an SEO content strategist. Output HTML only: exactly four body sections as h2 + optional h3 sub-points. " +
-        "Each section must include <!-- methodology:{phase-id} --> immediately before its h2. " +
-        "Use topic-specific h2 text for the keyword. Do not copy corporate phase labels verbatim unless natural. " +
+        "You are an SEO content strategist. Output HTML only: exactly four body sections. " +
+        "Each section must start with <p><strong>Movement {n} — {Phase Label}</strong></p> then a topic-specific <h2> and optional <h3> sub-points. " +
+        "Use the corporate phase labels in the movement line only, not as the h2 text. " +
         "No FAQ section. No preamble. No h1. No markdown fences.";
 
     public static string BuildOutlineRepairUserPrompt(

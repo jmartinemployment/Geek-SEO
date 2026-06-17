@@ -312,7 +312,8 @@ public sealed class ContentWritingPromptingTests
         Assert.Contains("Data Quality Assessment", prompt);
         Assert.Contains("Pilot Implementation Strategy", prompt);
         Assert.Contains("Methodology weave", prompt);
-        Assert.Contains("topic-specific", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Movement", prompt);
+        Assert.Contains("Methodology weave", prompt);
         Assert.Contains("sanitized code", prompt, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Palm Beach County", prompt);
         Assert.Contains("JSON-LD", prompt);
@@ -348,8 +349,8 @@ public sealed class ContentWritingPromptingTests
 
         Assert.Contains("exactly 5", systemPrompt, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Frequently Asked Questions", systemPrompt);
-        Assert.Contains("methodology movement", systemPrompt, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("topic-specific", systemPrompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("body movements", systemPrompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Movement", systemPrompt);
         Assert.Contains("Closing FAQ section", userPrompt);
         Assert.Contains("1. What is quickbooks automation?", userPrompt);
     }
