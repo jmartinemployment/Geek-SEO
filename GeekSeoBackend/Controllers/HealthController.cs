@@ -1,6 +1,8 @@
 using System.Text.Json;
+using GeekSeo.Application.Models.Seo;
 using GeekSeoBackend.Extensions;
 using GeekSeoBackend.Infrastructure;
+using GeekSeoBackend.Providers.Seo;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GeekSeoBackend.Controllers;
@@ -82,6 +84,7 @@ public sealed class HealthController(
                 serpapi = providerConfig.SerpApiKeyConfigured,
                 serperDev = providerConfig.SerperDevApiKeyConfigured,
                 anthropic = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")),
+                anthropicModel = ClaudeProvider.ResolveModel(AnthropicModels.DefaultSonnet),
             },
         });
     }

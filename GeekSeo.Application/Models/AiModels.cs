@@ -1,10 +1,16 @@
 namespace GeekSeo.Application.Models.Seo;
 
+public static class AnthropicModels
+{
+    /// <summary>Default Sonnet for writing, scoring, and brief enrichment. Retired 2026-06-15: claude-sonnet-4-20250514.</summary>
+    public const string DefaultSonnet = "claude-sonnet-4-6";
+}
+
 public sealed record AIRequest
 {
     public required string SystemPrompt { get; init; }
     public required string UserPrompt { get; init; }
-    public string Model { get; init; } = "claude-sonnet-4-20250514";
+    public string Model { get; init; } = AnthropicModels.DefaultSonnet;
     public int MaxTokens { get; init; } = 4096;
     public double Temperature { get; init; } = 0.7;
 }

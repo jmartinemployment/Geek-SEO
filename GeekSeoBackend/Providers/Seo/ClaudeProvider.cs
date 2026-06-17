@@ -23,9 +23,11 @@ public sealed class ClaudeProvider(IHttpClientFactory httpClientFactory) : IAIPr
         client.DefaultRequestHeaders.Add("x-api-key", apiKey);
         client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
 
+        var model = ResolveModel(request.Model);
+
         var body = new
         {
-            model = request.Model,
+            model,
             max_tokens = request.MaxTokens,
             temperature = request.Temperature,
             system = request.SystemPrompt,
@@ -40,7 +42,7 @@ public sealed class ClaudeProvider(IHttpClientFactory httpClientFactory) : IAIPr
         using var doc = JsonDocument.Parse(raw);
         var root = doc.RootElement;
         var content = root.GetProperty("content")[0].GetProperty("text").GetString() ?? string.Empty;
-        var model = root.GetProperty("model").GetString() ?? request.Model;
+        var responseModel = root.GetProperty("model").GetString() ?? model;
         var inputTokens = root.GetProperty("usage").GetProperty("input_tokens").GetInt32();
         var outputTokens = root.GetProperty("usage").GetProperty("output_tokens").GetInt32();
         var stop = root.GetProperty("stop_reason").GetString() ?? "end_turn";
@@ -48,10 +50,21 @@ public sealed class ClaudeProvider(IHttpClientFactory httpClientFactory) : IAIPr
         return Result<AIResponse>.Success(new AIResponse
         {
             Content = content,
-            Model = model,
+            Model = responseModel,
             InputTokens = inputTokens,
             OutputTokens = outputTokens,
             StopReason = stop,
         });
+    }
+
+    internal static string ResolveModel(string? requestedModel)
+    {
+        var envModel = Environment.GetEnvironmentVariable("ANTHROPIC_MODEL");
+        if (!string.IsNullOrWhiteSpace(envModel))
+            return envModel.Trim();
+
+        return string.IsNullOrWhiteSpace(requestedModel)
+            ? AnthropicModels.DefaultSonnet
+            : requestedModel;
     }
 }

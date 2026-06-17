@@ -17,6 +17,13 @@ public sealed class ContentWritingPromptingTests
     };
 
     [Fact]
+    public void AnthropicModels_DefaultSonnet_IsCurrentSonnetId()
+    {
+        Assert.Equal("claude-sonnet-4-6", AnthropicModels.DefaultSonnet);
+        Assert.DoesNotContain("20250514", AnthropicModels.DefaultSonnet);
+    }
+
+    [Fact]
     public void WritingOutlineRequest_DeserializesBriefRoundTripFromFrontendPayload()
     {
         var brief = new ContentBrief
