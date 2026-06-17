@@ -1,8 +1,6 @@
 import {
   getDashboardOverview,
-  getLatestNicheProfile,
   getTopicalMap,
-  type NicheProfileResult,
   type SeoContentDocument,
   type SeoProject,
   type TopicalMapResult,
@@ -63,28 +61,12 @@ export function buildTopicalMapCopilotSuggestions(
   }));
 }
 
-function buildNicheCopilotSuggestion(
-  project: SeoProject,
-  profile: NicheProfileResult | null,
-  hasTopicalRecommendations: boolean,
-): CopilotSuggestion | null {
-  if (!profile || profile.status !== 'complete') {
-    return {
-      id: `niche-run-${project.id}`,
-      title: `Analyze ${project.name}'s content topics`,
-      detail:
-        'Scan your site to see which subjects you cover well and which need new or updated pages.',
-      href: '/app/strategy/niche-analyzer',
-    };
-  }
-
-  if (hasTopicalRecommendations || profile.pillarsGap <= 0) return null;
-
+function buildUrlAnalyzerCopilotSuggestion(project: SeoProject): CopilotSuggestion {
   return {
-    id: `niche-gaps-${project.id}`,
-    title: `${profile.pillarsGap} topic${profile.pillarsGap === 1 ? '' : 's'} missing on ${project.name}`,
-    detail: `Your site is "${profile.primaryNiche}" — open the topical map to plan articles for uncovered topics.`,
-    href: `/app/strategy/topical-map?projectId=${encodeURIComponent(project.id)}&mode=niche&autogen=1`,
+    id: `url-analyzer-${project.id}`,
+    title: `Research SERP for ${project.name}`,
+    detail: 'Run keyword-level SERP research (PAA, PASF, competitor outlines) for your next article.',
+    href: '/url-analyzer',
   };
 }
 
@@ -165,16 +147,9 @@ async function loadPrimaryCopilotInputs(
   const project = projects[0];
 
   try {
-    const [profile, map] = await Promise.all([
-      getLatestNicheProfile(project.id, accessToken),
-      getTopicalMap(project.id, accessToken).catch(() => null),
-    ]);
+    const map = await getTopicalMap(project.id, accessToken).catch(() => null);
     const topicalSuggestions = buildTopicalMapCopilotSuggestions(project, map);
-    const nicheSuggestion = buildNicheCopilotSuggestion(
-      project,
-      profile,
-      topicalSuggestions.length > 0,
-    );
+    const nicheSuggestion = buildUrlAnalyzerCopilotSuggestion(project);
     return { nicheSuggestion, topicalSuggestions };
   } catch {
     return { nicheSuggestion: null, topicalSuggestions: [] };

@@ -85,6 +85,7 @@ public static class SeoBackendExtensions
         services.AddScoped<IWordPressPublishService, WordPressPublishService>();
         services.AddScoped<IBrandVoiceService, BrandVoiceService>();
         services.AddScoped<ISerpAnalysisService, SerpAnalysisService>();
+        services.AddScoped<ISerpResearchPackService, SerpResearchPackService>();
         services.AddScoped<IInternalLinkService, InternalLinkService>();
         services.AddScoped<ISiteAuditService, SiteAuditService>();
         services.AddScoped<IPlagiarismService, PlagiarismService>();

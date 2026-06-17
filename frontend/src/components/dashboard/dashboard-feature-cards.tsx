@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 const moduleIcons = {
   content: PenLine,
   'topical-map': Map,
-  'niche-analyzer': Compass,
+  'url-analyzer': Compass,
   keywords: Search,
   rankings: BarChart3,
   audit: ShieldCheck,

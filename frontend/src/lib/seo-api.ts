@@ -1578,7 +1578,84 @@ export async function getRankHistory(
   return seoJson<RankHistoryPoint[]>(res);
 }
 
-// ─── Niche Analyzer ──────────────────────────────────────────────────────────
+// ─── URL Analyzer (SERP research pack) ───────────────────────────────────────
+
+export type SerpResearchPackMeta = {
+  keyword: string;
+  location: string;
+  language: string;
+  researchedAt: string;
+  searchEngine: string;
+  device: string;
+  dataQuality: 'live' | 'partial' | 'unavailable' | string;
+  notes: string[];
+};
+
+export type SerpResearchPack = {
+  meta: SerpResearchPackMeta;
+  intent: { primary: string; justification: string };
+  paf: {
+    type: string;
+    format: string;
+    text: string;
+    sourceUrl: string;
+    beatStrategy: string;
+  };
+  paa: Array<{ question: string; serpAnswerPreview: string; depth: number }>;
+  pasf: string[];
+  serpFeatures: string[];
+  organic: Array<{
+    position: number;
+    url: string;
+    domain: string;
+    title: string;
+    snippet: string;
+    contentType: string;
+  }>;
+  competitorOutlines: Array<{
+    url: string;
+    position: number;
+    h1: string;
+    headings: Array<{ level: number; text: string }>;
+    estimatedWordCount: number;
+    schemaTypes: string[];
+  }>;
+  benchmarks: {
+    medianWordCountTop5: number;
+    medianTitleLengthTop10: number;
+    dominantContentFormat: string;
+  };
+  recommendedTerms: string[];
+  closingFaqQuestions: Array<{ question: string; source: string }>;
+  directAnswerBlock: { instruction: string; mustBeatPaf: boolean };
+  methodologyHints: Array<{
+    movement: number;
+    label: string;
+    suggestedH2: string;
+    subtopicsFromSerp: string[];
+  }>;
+};
+
+export async function runUrlAnalyzerResearch(
+  body: {
+    keyword: string;
+    location?: string;
+    language?: string;
+    businessContext?: string;
+    competitorUrls?: string[];
+  },
+  accessToken?: string | null,
+): Promise<SerpResearchPack> {
+  const res = await fetch(`${API_URL}/api/seo/url-analyzer/research`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+    cache: 'no-store',
+  });
+  return seoJson<SerpResearchPack>(res);
+}
+
+// ─── Niche Analyzer (legacy API — UI removed) ────────────────────────────────
 
 export type StepStatus = 'pending' | 'running' | 'complete' | 'skipped' | 'error';
 

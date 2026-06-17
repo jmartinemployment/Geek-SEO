@@ -44,7 +44,7 @@ export function NicheStrategyContextBanner({ projectId, accessToken }: Readonly<
           choose whether to refresh an existing page or write something new.
         </p>
         <Link
-          href="/app/strategy/niche-analyzer"
+          href="/url-analyzer"
           className="mt-3 inline-block text-sm font-medium text-[var(--color-accent)] hover:underline"
         >
           Open niche analyzer
@@ -71,7 +71,7 @@ export function NicheStrategyContextBanner({ projectId, accessToken }: Readonly<
       </div>
       <div className="flex flex-wrap gap-2">
         <Link
-          href="/app/strategy/niche-analyzer"
+          href="/url-analyzer"
           className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs font-medium hover:bg-[var(--color-surface-muted)]"
         >
           View analysis

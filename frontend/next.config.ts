@@ -8,6 +8,16 @@ const nextConfig: NextConfig = {
         destination: '/app/content?projectId=:projectId',
         permanent: false,
       },
+      {
+        source: '/app/strategy/url-analyzer',
+        destination: '/url-analyzer',
+        permanent: true,
+      },
+      {
+        source: '/app/strategy/niche-analyzer',
+        destination: '/url-analyzer',
+        permanent: true,
+      },
     ];
   },
 };
