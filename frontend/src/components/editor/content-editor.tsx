@@ -20,7 +20,7 @@ export const ContentEditor = forwardRef<ContentEditorHandle, ContentEditorProps>
   function ContentEditor({ html, onChange, placeholder = 'Write your article…' }, ref) {
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({ link: false }),
       Link.configure({ openOnClick: false }),
       Placeholder.configure({ placeholder }),
     ],

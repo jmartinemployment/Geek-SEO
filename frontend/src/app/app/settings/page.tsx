@@ -17,7 +17,7 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Integrations</CardTitle>
-          <CardDescription>Google Search Console, GA4, and WordPress are configured per project.</CardDescription>
+          <CardDescription>Google Search Console and GA4 are configured per project.</CardDescription>
         </CardHeader>
         <CardContent>
           <Link href="/app/projects" className="text-sm font-semibold text-[var(--color-accent)]">

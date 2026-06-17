@@ -16,9 +16,7 @@ import {
   generateDraft,
   generateOutline,
   getRenderedContentHtml,
-  getWordPressStatus,
   listProjects,
-  publishToWordPress,
   updateContent,
   updateContentStatus,
   type ContentBrief,
@@ -50,8 +48,7 @@ function ContentWritingPageInner() {
   const [stage, setStage] = useState<Stage>('brief');
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
-  const [publishMessage, setPublishMessage] = useState<string | null>(null);
-  const [wordpressConnected, setWordpressConnected] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -79,23 +76,6 @@ function ContentWritingPageInner() {
     };
   }, [accessToken, authLoading, projectId, searchParams]);
 
-  useEffect(() => {
-    if (!doc) return;
-
-    let cancelled = false;
-    void getWordPressStatus(doc.projectId, accessToken)
-      .then((status) => {
-        if (!cancelled) setWordpressConnected(status.connected);
-      })
-      .catch(() => {
-        if (!cancelled) setWordpressConnected(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accessToken, doc]);
-
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === projectId) ?? null,
     [projectId, projects],
@@ -104,7 +84,7 @@ function ContentWritingPageInner() {
   async function run(action: string, fn: () => Promise<void>) {
     setLoadingAction(action);
     setError(null);
-    setPublishMessage(null);
+    setStatusMessage(null);
     try {
       await fn();
     } catch (runError) {
@@ -404,11 +384,10 @@ function ContentWritingPageInner() {
               setKeyword={setKeyword}
               location={location}
               setLocation={setLocation}
-              wordpressConnected={wordpressConnected}
               onDocumentChange={setDoc}
               onError={setError}
-              publishMessage={publishMessage}
-              setPublishMessage={setPublishMessage}
+              statusMessage={statusMessage}
+              setStatusMessage={setStatusMessage}
             />
           ) : null}
         </div>
@@ -420,7 +399,7 @@ function ContentWritingPageInner() {
               <li>1. Generate a structured brief from project + SERP context.</li>
               <li>2. Turn the brief into an outline you can edit.</li>
               <li>3. Draft the article and persist it as a document.</li>
-              <li>4. Review, score, approve, and publish from this page.</li>
+              <li>4. Review, score, approve, and copy rendered HTML from this page.</li>
             </ol>
           </section>
 
@@ -461,11 +440,10 @@ function ReviewWorkspace({
   setKeyword,
   location,
   setLocation,
-  wordpressConnected,
   onDocumentChange,
   onError,
-  publishMessage,
-  setPublishMessage,
+  statusMessage,
+  setStatusMessage,
 }: {
   doc: SeoContentDocument;
   accessToken: string | null;
@@ -475,11 +453,10 @@ function ReviewWorkspace({
   setKeyword: (value: string) => void;
   location: string;
   setLocation: (value: string) => void;
-  wordpressConnected: boolean;
   onDocumentChange: (value: SeoContentDocument) => void;
   onError: (value: unknown) => void;
-  publishMessage: string | null;
-  setPublishMessage: (value: string | null) => void;
+  statusMessage: string | null;
+  setStatusMessage: (value: string | null) => void;
 }) {
   const [html, setHtml] = useState(doc.contentHtml || DEFAULT_DRAFT_HTML);
   const [saving, setSaving] = useState(false);
@@ -542,9 +519,9 @@ function ReviewWorkspace({
     try {
       const updated = await updateContentStatus(doc.id, nextStatus, accessToken);
       onDocumentChange(updated);
-      setPublishMessage(
+      setStatusMessage(
         nextStatus === 'approved_for_publish'
-          ? 'Approved for publish.'
+          ? 'Approved for publish. Copy rendered HTML from the sidebar when ready.'
           : nextStatus === 'awaiting_review'
             ? 'Marked as awaiting review.'
             : `Status updated to ${nextStatus}.`,
@@ -556,20 +533,6 @@ function ReviewWorkspace({
     }
   }
 
-  async function publish() {
-    try {
-      setPublishMessage(null);
-      const result = await publishToWordPress(doc.id, { postStatus: 'draft' }, accessToken);
-      const updated = await updateContentStatus(doc.id, 'published', accessToken);
-      onDocumentChange(updated);
-      setPublishMessage(`WordPress draft created: ${result.url}`);
-    } catch (publishError) {
-      onError(publishError);
-    }
-  }
-
-  const canPublish = doc.status === 'approved_for_publish';
-
   return (
     <div className="rounded-xl border bg-white shadow-sm">
       <div className="border-b px-5 py-4">
@@ -577,7 +540,7 @@ function ReviewWorkspace({
           <div>
             <h2 className="font-semibold">Review workspace</h2>
             <p className="text-sm text-[var(--color-text-secondary)]">
-              Edit the draft, review score, then approve for publish.
+              Edit the draft, review score, then approve and export HTML.
             </p>
           </div>
           <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-1 text-xs font-medium text-[var(--color-text-secondary)]">
@@ -695,26 +658,9 @@ function ReviewWorkspace({
             >
               {statusUpdating === 'approved_for_publish' ? 'Updating…' : 'Approve for publish'}
             </button>
-            <button
-              type="button"
-              disabled={!wordpressConnected || !canPublish}
-              className="w-full rounded-lg bg-[var(--color-accent)] px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-              onClick={() => void publish()}
-            >
-              Publish to WordPress draft
-            </button>
-            {!wordpressConnected ? (
-              <p className="text-xs text-[var(--color-text-secondary)]">
-                WordPress is not connected for this project.
-              </p>
-            ) : !canPublish ? (
-              <p className="text-xs text-[var(--color-text-secondary)]">
-                Approve the draft before publishing.
-              </p>
-            ) : null}
-            {publishMessage ? (
+            {statusMessage ? (
               <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                {publishMessage}
+                {statusMessage}
               </p>
             ) : null}
             {copyHint ? <p className="text-xs text-emerald-700">{copyHint}</p> : null}
