@@ -37,27 +37,27 @@ public sealed class WritingController(
     public async Task<IActionResult> Outline([FromBody] WritingOutlineRequest request, CancellationToken ct)
     {
         var result = await writing.GenerateOutlineAsync(user.RequireUserId(), request, ct);
-        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
     }
 
     [HttpPost("draft")]
     public async Task<IActionResult> Draft([FromBody] WritingDraftRequest request, CancellationToken ct)
     {
         var result = await writing.GenerateDraftAsync(user.RequireUserId(), request, ct);
-        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
     }
 
     [HttpPost("humanize")]
     public async Task<IActionResult> Humanize([FromBody] HumanizeRequest request, CancellationToken ct)
     {
         var result = await writing.HumanizeAsync(user.RequireUserId(), request, ct);
-        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
     }
 
     [HttpPost("detect")]
     public async Task<IActionResult> Detect([FromBody] DetectAiRequest request, CancellationToken ct)
     {
         var result = await writing.DetectAsync(user.RequireUserId(), request, ct);
-        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
     }
 }

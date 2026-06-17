@@ -43,6 +43,24 @@ export function formatSeoApiErrorMessage(status: number, body: SeoGateErrorBody)
   return body.error ?? `Request failed (${status})`;
 }
 
+function extractValidationMessage(parsed: Record<string, unknown>): string | undefined {
+  const errors = parsed.errors;
+  if (!errors || typeof errors !== 'object') return undefined;
+
+  const messages: string[] = [];
+  for (const value of Object.values(errors as Record<string, unknown>)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === 'string' && item.trim()) messages.push(item);
+      }
+    } else if (typeof value === 'string' && value.trim()) {
+      messages.push(value);
+    }
+  }
+
+  return messages.length > 0 ? messages.join(' ') : undefined;
+}
+
 export async function parseSeoApiErrorResponse(res: Response): Promise<SeoApiError> {
   let body: SeoGateErrorBody = {};
   const text = await res.text();
@@ -52,7 +70,14 @@ export async function parseSeoApiErrorResponse(res: Response): Promise<SeoApiErr
       if (typeof parsed === 'string') {
         body = { error: parsed };
       } else if (parsed && typeof parsed === 'object') {
-        body = parsed as SeoGateErrorBody;
+        const record = parsed as Record<string, unknown>;
+        const validation = extractValidationMessage(record);
+        const title = typeof record.title === 'string' ? record.title : undefined;
+        const explicitError = typeof record.error === 'string' ? record.error : undefined;
+        body = {
+          ...(parsed as SeoGateErrorBody),
+          error: explicitError ?? validation ?? title,
+        };
       }
     } catch {
       body = { error: text };

@@ -106,6 +106,11 @@ public sealed partial class AIWritingService(
         Guid userId, WritingOutlineRequest request, CancellationToken ct = default)
     {
         _ = userId;
+        if (string.IsNullOrWhiteSpace(request.Keyword))
+            return Result<WritingTextResult>.Failure("Keyword is required");
+        if (request.Brief is null)
+            return Result<WritingTextResult>.Failure("Brief is required — generate a brief first");
+
         var response = await ai.CompleteAsync(new AIRequest
         {
             SystemPrompt = ArticlePromptBuilder.BuildOutlineSystemPrompt(),

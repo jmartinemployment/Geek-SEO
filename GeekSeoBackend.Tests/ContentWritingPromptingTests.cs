@@ -13,7 +13,38 @@ public sealed class ContentWritingPromptingTests
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
     };
+
+    [Fact]
+    public void WritingOutlineRequest_DeserializesBriefRoundTripFromFrontendPayload()
+    {
+        var brief = new ContentBrief
+        {
+            Keyword = "managed it services",
+            Location = "West Palm Beach, FL",
+            TargetWordCount = 1800,
+            Methodology = WritingMethodologySpec.FourPhase,
+            DirectAnswerBlocks =
+            [
+                new DirectAnswerBlockSpec("Direct answer", "Open with a concise definition."),
+            ],
+            ClosingFaqQuestions = ["Q1?", "Q2?", "Q3?", "Q4?", "Q5?"],
+            SchemaBlueprint = new SchemaBlueprint { PrimaryType = "TechArticle" },
+        };
+
+        var json = JsonSerializer.Serialize(
+            new { keyword = brief.Keyword, brief, title = "Managed IT" },
+            JsonOptions);
+        var request = JsonSerializer.Deserialize<WritingOutlineRequest>(json, JsonOptions);
+
+        Assert.NotNull(request);
+        Assert.Equal(brief.Keyword, request!.Keyword);
+        Assert.NotNull(request.Brief);
+        Assert.Equal("Four Phase Methodology", request.Brief.Methodology.Name);
+        Assert.Single(request.Brief.DirectAnswerBlocks);
+        Assert.Equal(5, request.Brief.ClosingFaqQuestions.Count);
+    }
 
     [Fact]
     public async Task GenerateBriefAsync_EnrichesBriefFromNicheAnalyzerContext()
