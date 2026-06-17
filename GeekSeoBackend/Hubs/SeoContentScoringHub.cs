@@ -1,11 +1,15 @@
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
-using Microsoft.AspNetCore.Authorization;
+using GeekSeoBackend.Auth;
 using Microsoft.AspNetCore.SignalR;
 
 namespace GeekSeoBackend.Hubs;
 
-public sealed class SeoContentScoringHub(IContentScoringService scoring, IHttpContextAccessor httpContext) : Hub
+public sealed class SeoContentScoringHub(
+    IContentScoringService scoring,
+    IHttpContextAccessor httpContext,
+    WorkerUserContext workerUser,
+    ILogger<SeoContentScoringHub> logger) : Hub
 {
     public async Task JoinDocument(string documentId)
     {
@@ -38,22 +42,25 @@ public sealed class SeoContentScoringHub(IContentScoringService scoring, IHttpCo
             return;
         }
 
-        var result = await scoring.ProcessContentChangedAsync(userId, docId, contentHtml, targetKeyword);
-
-        if (!result.IsSuccess)
+        await RunAsUserAsync(userId, async () =>
         {
-            await Clients.Caller.SendAsync("ScoreError", new { message = result.Error });
-            return;
-        }
+            var result = await scoring.ProcessContentChangedAsync(userId, docId, contentHtml, targetKeyword);
 
-        if (result.Value?.PendingReason is not null)
-        {
-            await Clients.Caller.SendAsync("ScorePending", new { reason = result.Value.PendingReason });
-            return;
-        }
+            if (!result.IsSuccess)
+            {
+                await Clients.Caller.SendAsync("ScoreError", new { message = result.Error });
+                return;
+            }
 
-        if (result.Value?.ScoreUpdate is not null)
-            await Clients.Group($"doc:{documentId}").SendAsync("ScoreUpdate", result.Value.ScoreUpdate);
+            if (result.Value?.PendingReason is not null)
+            {
+                await Clients.Caller.SendAsync("ScorePending", new { reason = result.Value.PendingReason });
+                return;
+            }
+
+            if (result.Value?.ScoreUpdate is not null)
+                await Clients.Group($"doc:{documentId}").SendAsync("ScoreUpdate", result.Value.ScoreUpdate);
+        });
     }
 
     public async Task KeywordChanged(
@@ -72,25 +79,47 @@ public sealed class SeoContentScoringHub(IContentScoringService scoring, IHttpCo
             return;
         }
 
-        await Clients.Caller.SendAsync("BenchmarkRefreshing", new { keyword = newKeyword, location });
-
-        var result = await scoring.ProcessKeywordChangedAsync(
-            userId, docId, contentHtml, newKeyword, location);
-
-        if (!result.IsSuccess)
+        await RunAsUserAsync(userId, async () =>
         {
-            await Clients.Caller.SendAsync("ScoreError", new { message = result.Error });
-            return;
-        }
+            await Clients.Caller.SendAsync("BenchmarkRefreshing", new { keyword = newKeyword, location });
 
-        if (result.Value?.PendingReason is not null)
+            var result = await scoring.ProcessKeywordChangedAsync(
+                userId, docId, contentHtml, newKeyword, location);
+
+            if (!result.IsSuccess)
+            {
+                await Clients.Caller.SendAsync("ScoreError", new { message = result.Error });
+                return;
+            }
+
+            if (result.Value?.PendingReason is not null)
+            {
+                await Clients.Caller.SendAsync("ScorePending", new { reason = result.Value.PendingReason });
+                return;
+            }
+
+            if (result.Value?.ScoreUpdate is not null)
+                await Clients.Group($"doc:{documentId}").SendAsync("ScoreUpdate", result.Value.ScoreUpdate);
+        });
+    }
+
+    private async Task RunAsUserAsync(Guid userId, Func<Task> action)
+    {
+        var previous = workerUser.UserId;
+        workerUser.SetUserId(userId);
+        try
         {
-            await Clients.Caller.SendAsync("ScorePending", new { reason = result.Value.PendingReason });
-            return;
+            await action();
         }
-
-        if (result.Value?.ScoreUpdate is not null)
-            await Clients.Group($"doc:{documentId}").SendAsync("ScoreUpdate", result.Value.ScoreUpdate);
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Scoring hub failed for user {UserId}", userId);
+            await Clients.Caller.SendAsync("ScoreError", new { message = "Scoring failed. Please try again." });
+        }
+        finally
+        {
+            workerUser.SetUserId(previous);
+        }
     }
 
     private Guid GetUserId()

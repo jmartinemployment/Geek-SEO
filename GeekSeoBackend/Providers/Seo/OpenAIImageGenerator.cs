@@ -28,7 +28,6 @@ public sealed class OpenAIImageGenerator(IHttpClientFactory httpClientFactory) :
             Size = DefaultSize,
             Quality = "high",
             N = 1,
-            ResponseFormat = "b64_json",
             OutputFormat = "webp",
         });
 
@@ -66,9 +65,6 @@ public sealed class OpenAIImageGenerator(IHttpClientFactory httpClientFactory) :
 
         [JsonPropertyName("n")]
         public required int N { get; init; }
-
-        [JsonPropertyName("response_format")]
-        public required string ResponseFormat { get; init; }
 
         [JsonPropertyName("output_format")]
         public required string OutputFormat { get; init; }
