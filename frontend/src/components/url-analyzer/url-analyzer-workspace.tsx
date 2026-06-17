@@ -143,12 +143,14 @@ export function UrlAnalyzerWorkspace({ accessToken, initialProjectId = '' }: Url
   useEffect(() => {
     if (!activeId || !projectId) return;
 
+    const researchId = activeId;
+    const pid = projectId;
     let cancelled = false;
     let unsubscribe: (() => void) | null = null;
 
     async function trackActiveResearch() {
       try {
-        const row = await getUrlResearch(activeId, accessToken);
+        const row = await getUrlResearch(researchId, accessToken);
         if (cancelled) return;
         setDetail(row);
         setLiveStatus(row.status);
@@ -160,21 +162,21 @@ export function UrlAnalyzerWorkspace({ accessToken, initialProjectId = '' }: Url
         }
 
         unsubscribe = await subscribeUrlResearchProgress({
-          urlResearchId: activeId,
-          projectId,
+          urlResearchId: researchId,
+          projectId: pid,
           accessToken,
           onStatus: (status, message) => {
             if (cancelled) return;
             setLiveStatus(status);
             if (message) setLiveMessage(message);
             setDetail((prev) =>
-              prev && prev.id === activeId ? { ...prev, status } : prev,
+              prev && prev.id === researchId ? { ...prev, status } : prev,
             );
           },
           onTerminal: () => {
             void (async () => {
               try {
-                const full = await getUrlResearch(activeId, accessToken);
+                const full = await getUrlResearch(researchId, accessToken);
                 if (cancelled) return;
                 setDetail(full);
                 setLiveStatus(full.status);

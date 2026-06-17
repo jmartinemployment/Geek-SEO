@@ -17,6 +17,7 @@ import {
   draftContentFromResearch,
   draftFromKeyword,
   generateFeaturedImage,
+  getContent,
   listProjects,
   listUrlResearch,
   updateContent,
@@ -28,6 +29,25 @@ import {
 
 const DEFAULT_LOCATION = 'United States';
 const DEFAULT_DRAFT_HTML = '<h1>Article title</h1><p>Start writing your article.</p>';
+
+function normalizePageUrl(url: string): string {
+  return url.trim().toLowerCase().replace(/\/$/, '');
+}
+
+function researchTimestamp(row: UrlResearchSummary): number {
+  const raw = row.researchedAt ?? row.createdAt;
+  const t = Date.parse(raw);
+  return Number.isFinite(t) ? t : 0;
+}
+
+function formatResearchWhen(iso?: string | null): string {
+  if (!iso) return 'recently';
+  try {
+    return new Date(iso).toLocaleString();
+  } catch {
+    return iso;
+  }
+}
 
 type Stage = 'setup' | 'review';
 type WritingPath = 'research' | 'keyword';
@@ -72,6 +92,28 @@ function ContentWritingPageInner() {
     () => completedResearch.find((row) => row.id === selectedResearchId) ?? null,
     [completedResearch, selectedResearchId],
   );
+
+  const newerResearchForAttached = useMemo(() => {
+    if (!doc?.urlResearchId || researchRows.length === 0) return null;
+
+    const attached = researchRows.find((row) => row.id === doc.urlResearchId);
+    if (!attached || attached.status !== 'completed') return null;
+
+    const source = normalizePageUrl(attached.sourceUrl);
+    const attachedAt = researchTimestamp(attached);
+
+    return (
+      researchRows
+        .filter(
+          (row) =>
+            row.status === 'completed' &&
+            row.id !== attached.id &&
+            normalizePageUrl(row.sourceUrl) === source &&
+            researchTimestamp(row) > attachedAt,
+        )
+        .sort((a, b) => researchTimestamp(b) - researchTimestamp(a))[0] ?? null
+    );
+  }, [doc?.urlResearchId, researchRows]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -250,6 +292,18 @@ function ContentWritingPageInner() {
     return nextDoc;
   }
 
+  async function reattachNewerResearch(newerId: string) {
+    if (!doc) return;
+    await run('reattach-research', async () => {
+      const updated = await attachUrlResearch(doc.id, newerId, accessToken);
+      setDoc(updated);
+      setSelectedResearchId(newerId);
+      setStatusMessage(
+        'Attached newer page research. Regenerate the draft if you want content aligned to the latest SERP pack.',
+      );
+    });
+  }
+
   if (authLoading || documentLoading) {
     return <main className="mx-auto max-w-5xl p-8 text-[var(--color-text-secondary)]">Loading…</main>;
   }
@@ -294,6 +348,49 @@ function ContentWritingPageInner() {
           </div>
 
           {error ? <SeoErrorBanner error={error} /> : null}
+
+          {newerResearchForAttached ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              <p className="font-medium">Newer research available</p>
+              <p className="mt-1 text-xs">
+                A more recent analysis exists for{' '}
+                <span className="font-mono">{newerResearchForAttached.sourceUrl}</span> (
+                {formatResearchWhen(newerResearchForAttached.researchedAt)}).
+              </p>
+              <div className="mt-2 flex flex-wrap gap-3">
+                {doc ? (
+                  <button
+                    type="button"
+                    disabled={!!loadingAction}
+                    className="text-xs font-medium underline disabled:opacity-50"
+                    onClick={() => void reattachNewerResearch(newerResearchForAttached.id)}
+                  >
+                    {loadingAction === 'reattach-research'
+                      ? 'Attaching…'
+                      : 'Attach newer research'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="text-xs font-medium underline"
+                    onClick={() => setSelectedResearchId(newerResearchForAttached.id)}
+                  >
+                    Use newer research
+                  </button>
+                )}
+                <Link
+                  href={
+                    projectId
+                      ? `/projects/${projectId}/url-analyzer`
+                      : '/url-analyzer'
+                  }
+                  className="text-xs font-medium underline"
+                >
+                  Open URL Analyzer
+                </Link>
+              </div>
+            </div>
+          ) : null}
 
           {!inReview ? (
             <section className="rounded-xl border bg-white p-5 shadow-sm">
