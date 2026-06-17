@@ -29,7 +29,7 @@ export const ContentEditor = forwardRef<ContentEditorHandle, ContentEditorProps>
     editorProps: {
       attributes: {
         class:
-          'prose prose-zinc max-w-none min-h-[420px] rounded border px-4 py-3 focus:outline-none prose-h2:font-bold prose-h3:font-bold prose-h4:font-bold prose-h5:font-bold prose-h6:font-bold',
+          'content-editor max-w-none min-h-[420px] rounded border px-4 py-3 focus:outline-none',
       },
     },
     onUpdate: ({ editor: ed }) => {

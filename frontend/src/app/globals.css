@@ -76,3 +76,12 @@ body {
 .btn-primary:disabled {
   opacity: 0.5;
 }
+
+/* TipTap content editor — prose plugin not installed; style headings explicitly */
+.ProseMirror h2,
+.ProseMirror h3,
+.ProseMirror h4,
+.ProseMirror h5,
+.ProseMirror h6 {
+  font-weight: 700;
+}
