@@ -6,9 +6,15 @@ public sealed class CurrentUserContext(IHttpContextAccessor accessor, WorkerUser
 {
     public bool IsAuthenticated => TryResolveUserId(out _);
 
-    public string? Email =>
-        accessor.HttpContext?.User.FindFirstValue(ClaimTypes.Email)
-        ?? accessor.HttpContext?.User.FindFirstValue("email");
+    public string? Email
+    {
+        get
+        {
+            var ctx = HttpContextAccess.TryGetLiveContext(accessor);
+            return ctx?.User.FindFirstValue(ClaimTypes.Email)
+                ?? ctx?.User.FindFirstValue("email");
+        }
+    }
 
     public Guid UserId
     {
@@ -20,10 +26,19 @@ public sealed class CurrentUserContext(IHttpContextAccessor accessor, WorkerUser
         }
     }
 
-    private bool TryResolveUserId(out Guid userId) =>
-        UserIdResolver.TryResolve(
-            worker.UserId,
-            accessor.HttpContext?.User,
-            accessor.HttpContext?.Request.Headers["X-User-Id"].ToString(),
+    private bool TryResolveUserId(out Guid userId)
+    {
+        if (worker.UserId != Guid.Empty)
+        {
+            userId = worker.UserId;
+            return true;
+        }
+
+        var ctx = HttpContextAccess.TryGetLiveContext(accessor);
+        return UserIdResolver.TryResolve(
+            Guid.Empty,
+            ctx?.User,
+            ctx?.Request.Headers["X-User-Id"].ToString(),
             out userId);
+    }
 }
