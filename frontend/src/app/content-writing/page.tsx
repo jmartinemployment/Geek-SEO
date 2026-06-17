@@ -182,7 +182,7 @@ function ContentWritingPageInner() {
   const grid = (
     <div className="w-full max-w-none">
       <div className="grid min-h-[calc(100vh-8rem)] grid-cols-12 gap-4">
-        <div className="col-span-2 sticky top-4 max-h-[calc(100vh-5rem)] min-w-0 space-y-4 self-start overflow-y-auto">
+        <div className="col-span-2 min-w-0 space-y-4 self-start">
           {inReview ? (
             <div className="min-w-0 rounded-xl border bg-white shadow-sm">
               <ReviewScoreLeft keyword={keyword} />
@@ -377,7 +377,7 @@ function ContentWritingPageInner() {
           )}
         </div>
 
-        <aside className="col-span-2 sticky top-4 max-h-[calc(100vh-5rem)] min-w-0 space-y-4 self-start overflow-y-auto">
+        <aside className="col-span-2 min-w-0 space-y-4 self-start">
           {inReview ? (
             <div className="min-w-0 rounded-xl border bg-white shadow-sm">
               <ReviewScoreRight keyword={keyword} statusMessage={statusMessage} />
