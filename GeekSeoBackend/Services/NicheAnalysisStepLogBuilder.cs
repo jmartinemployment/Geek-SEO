@@ -320,6 +320,7 @@ internal static class NicheAnalysisStepLogBuilder
             ["localScopedCompetitors"] = demand.Competitors.Count(c =>
                 string.Equals(c.Scope, "local", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(c.Scope, "both", StringComparison.OrdinalIgnoreCase)),
+            ["filteredAdjacentCompetitors"] = demand.FilteredAdjacentCompetitors,
             ["sampleCompetitors"] = demand.Competitors
                 .Take(SampleLimit)
                 .Select(c => $"{c.Domain} ({c.SerpPresence} SERPs)")

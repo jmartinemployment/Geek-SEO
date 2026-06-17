@@ -75,6 +75,13 @@ internal static class SerpValidationMessages
         {
             var note =
                 $"Local SERP: {localStats.Succeeded}/{localStats.Attempted} pillars returned local results for {localStats.Location}; {localStats.Empty} had no local pack (normal for some topics).";
+            if (localScoped == 0 && localStats.Succeeded > 0)
+            {
+                var warning =
+                    $"{WarningPrefix} Local SERP returned results for {localStats.Succeeded}/{localStats.Attempted} pillars but no competitors have local scope — re-run Step 11 after deploy, and confirm Business Address + service radius in project settings.";
+                return ($"{baseMsg} {note} {warning}", warning);
+            }
+
             return ($"{baseMsg} {note}", null);
         }
 

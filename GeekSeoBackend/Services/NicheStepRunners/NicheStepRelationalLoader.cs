@@ -37,6 +37,22 @@ internal static partial class NicheStepRelationalLoader
         return new MergingInputs(schema, sitemap, nav, headings, pageContent, structure);
     }
 
+    internal static async Task<SiteBusinessProfile> LoadSiteBusinessProfileAsync(
+        INicheProfileRepository profileRepo,
+        Guid profileId,
+        string domain,
+        CancellationToken ct)
+    {
+        var details = await profileRepo.GetAnalysisDetailsRowAsync(profileId, includeFusion: false, ct);
+        if (!details.IsSuccess || details.Value is null)
+            throw new InvalidOperationException("Step log not available.");
+
+        var steps = NicheStepArtifactStore.ParseSteps(details.Value.AnalysisStepLog);
+        var schema = await LoadSchemaAsync(profileRepo, profileId, steps, ct);
+        var headings = await LoadHeadingsAsync(profileRepo, profileId, domain, steps, ct);
+        return SiteBusinessProfileBuilder.Build(schema, headings);
+    }
+
     internal static async Task<SchemaOrgData> LoadSchemaAsync(
         INicheProfileRepository profileRepo,
         Guid profileId,

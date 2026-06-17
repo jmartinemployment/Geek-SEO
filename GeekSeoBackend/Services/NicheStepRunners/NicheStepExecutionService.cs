@@ -470,6 +470,7 @@ public sealed class NicheStepExecutionService(
         var fused = await LoadFusionAsync(profileId, ct);
         var merged = fused.SelectedPillars.Select(PillarSelector.ToDiscoveredPillar).ToList();
         var localContext = await ResolveLocalSerpContextAsync(profile.ProjectId, ct);
+        var siteBusiness = await LoadSiteBusinessProfileAsync(profileId, domain, ct);
         var serp = await pillarDemandEnricher.ValidateSerpOnlyAsync(
             merged,
             domain,
@@ -478,10 +479,12 @@ public sealed class NicheStepExecutionService(
             null,
             ct);
         var provider = serp.Validations.FirstOrDefault()?.Provider ?? "unknown";
-        var competitors = PillarDemandEnricher.BuildCompetitors(
+        var (competitors, filteredAdjacent) = PillarDemandEnricher.BuildCompetitors(
             profileId,
             PillarDemandEnricher.NormalizeHost(domain),
-            serp.Validations);
+            serp.Validations,
+            merged,
+            siteBusiness);
         var pillarsAfterDemotion = PillarDemandEnricher.ApplySerpDemotions(merged, serp.Validations, out var demotedSlugs);
         var updatedFusion = ApplySerpDemotionsToFusion(fused, pillarsAfterDemotion, demotedSlugs);
 
@@ -534,7 +537,8 @@ public sealed class NicheStepExecutionService(
                     serp.SkipReason,
                     "disabled",
                     provider,
-                    serp.LocalStats),
+                    serp.LocalStats,
+                    filteredAdjacent),
                 message),
             "serp_validation",
             new SerpValidationArtifact(
@@ -864,6 +868,12 @@ public sealed class NicheStepExecutionService(
             ct);
         return fusion ?? throw new InvalidOperationException("Fusion snapshot is malformed.");
     }
+
+    private async Task<SiteBusinessProfile> LoadSiteBusinessProfileAsync(
+        Guid profileId,
+        string domain,
+        CancellationToken ct) =>
+        await NicheStepRelationalLoader.LoadSiteBusinessProfileAsync(profileRepo, profileId, domain, ct);
 
     private async Task<LocalSerpContext> ResolveLocalSerpContextAsync(Guid projectId, CancellationToken ct)
     {

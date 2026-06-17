@@ -29,13 +29,19 @@ public sealed class PillarDemandEnricher(
         string location,
         LocalServiceAreaContext? serviceArea = null,
         Func<int, int, string, Task>? onProgress = null,
+        SchemaOrgData? siteSchema = null,
+        HomepageHeadings? siteHeadings = null,
         CancellationToken ct = default)
     {
         var targets = pillars.ToList();
         var siteHost = NormalizeHost(siteDomain);
+        var siteBusiness = siteSchema is null
+            ? null
+            : SiteBusinessProfileBuilder.Build(siteSchema, siteHeadings);
 
         var (keyword, serp) = await RunBothPhasesAsync(targets, siteHost, location, serviceArea, onProgress, ct);
-        var competitors = BuildCompetitors(profileId, siteHost, serp.Validations);
+        var (competitors, filteredAdjacent) = BuildCompetitors(
+            profileId, siteHost, serp.Validations, targets, siteBusiness);
         var demoted = ApplySerpDemotions(pillars, serp.Validations, out var demotedSlugs);
 
         return new PillarDemandEnrichment(
@@ -50,7 +56,8 @@ public sealed class PillarDemandEnricher(
             serp.SkipReason,
             keywordProvider.ProviderName,
             serpProvider.ProviderName,
-            serp.LocalStats);
+            serp.LocalStats,
+            filteredAdjacent);
     }
 
     public Task<(IReadOnlyList<PillarKeywordEnrichment> Enrichments, bool Skipped, string? SkipReason)>
@@ -110,13 +117,19 @@ public sealed class PillarDemandEnricher(
         return kept;
     }
 
-    internal static IReadOnlyList<NicheCompetitor> BuildCompetitors(
+    internal static (IReadOnlyList<NicheCompetitor> Competitors, int FilteredAdjacent) BuildCompetitors(
         Guid profileId,
         string siteHost,
-        IReadOnlyList<PillarSerpEnrichment> serpEnrichments)
+        IReadOnlyList<PillarSerpEnrichment> serpEnrichments,
+        IReadOnlyList<DiscoveredPillar>? pillars = null,
+        SiteBusinessProfile? siteBusiness = null)
     {
         if (serpEnrichments.Count == 0)
-            return [];
+            return ([], 0);
+
+        var pillarsBySlug = pillars is { Count: > 0 }
+            ? pillars.ToDictionary(p => p.Slug, StringComparer.OrdinalIgnoreCase)
+            : null;
 
         // national presence count
         var national = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -126,6 +139,13 @@ public sealed class PillarDemandEnricher(
 
         foreach (var v in serpEnrichments)
         {
+            if (pillarsBySlug is not null
+                && (!pillarsBySlug.TryGetValue(v.Slug, out var pillar)
+                    || !CompetitorRelevanceFilter.PillarCountsForCompetitorDiscovery(pillar, siteBusiness)))
+            {
+                continue;
+            }
+
             foreach (var domain in v.TopCompetitorDomains)
             {
                 if (string.IsNullOrWhiteSpace(domain) || IsSameSite(domain, siteHost)) continue;
@@ -147,8 +167,18 @@ public sealed class PillarDemandEnricher(
             .OrderByDescending(d => (national.GetValueOrDefault(d) + local.GetValueOrDefault(d)))
             .ThenBy(d => d, StringComparer.OrdinalIgnoreCase);
 
-        return allDomains.Select(domain =>
+        var domainList = allDomains.ToList();
+        var competitors = new List<NicheCompetitor>();
+        foreach (var domain in domainList)
         {
+            if (pillarsBySlug is not null
+                && rankingPillars.TryGetValue(domain, out var contributing)
+                && !CompetitorRelevanceFilter.ShouldIncludeCompetitor(
+                    domain, contributing, pillarsBySlug, siteBusiness))
+            {
+                continue;
+            }
+
             var inNational = national.ContainsKey(domain);
             var inLocal = local.ContainsKey(domain);
             var totalPresence = national.GetValueOrDefault(domain) + local.GetValueOrDefault(domain);
@@ -159,7 +189,7 @@ public sealed class PillarDemandEnricher(
                 _ => "national",
             };
 
-            return new NicheCompetitor
+            competitors.Add(new NicheCompetitor
             {
                 Id = Guid.NewGuid(),
                 NicheProfileId = profileId,
@@ -169,8 +199,11 @@ public sealed class PillarDemandEnricher(
                 StrengthAssessment = AssessStrength(totalPresence),
                 EstimatedAuthorityScore = Math.Min(totalPresence * 15m, 100m),
                 Scope = scope,
-            };
-        }).ToList();
+            });
+        }
+
+        var filteredAdjacent = Math.Max(0, domainList.Count - competitors.Count);
+        return (competitors, filteredAdjacent);
     }
 
     private static void TrackPillar(Dictionary<string, HashSet<string>> map, string domain, string slug)
@@ -719,7 +752,8 @@ public sealed record PillarDemandEnrichment(
     string? SerpSkipReason,
     string KeywordProvider,
     string SerpProvider,
-    SerpLocalQueryStats? LocalSerpStats = null);
+    SerpLocalQueryStats? LocalSerpStats = null,
+    int FilteredAdjacentCompetitors = 0);
 
 public sealed record PillarKeywordEnrichment(
     string Slug,

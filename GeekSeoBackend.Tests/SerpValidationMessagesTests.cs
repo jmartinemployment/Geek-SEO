@@ -28,6 +28,28 @@ public sealed class SerpValidationMessagesTests
     }
 
     [Fact]
+    public void Build_WarnsWhenLocalPillarsSucceededButNoLocalScopedCompetitors()
+    {
+        var localStats = new SerpLocalQueryStats("Delray Beach, Florida, United States", 57, 34, 0, 23, null);
+        var competitors = new List<NicheCompetitor>
+        {
+            new() { Domain = "example.com", Scope = "national", SerpPresence = 2 },
+        };
+
+        var (summary, warning) = SerpValidationMessages.Build(
+            [],
+            competitors,
+            skipped: false,
+            skipReason: null,
+            localStats);
+
+        Assert.Contains("34/57 pillars returned local results", summary);
+        Assert.Contains("23 had no local pack", summary);
+        Assert.NotNull(warning);
+        Assert.Contains("no competitors have local scope", warning);
+    }
+
+    [Fact]
     public void Build_NoWarningWhenLocalQueriesReturnEmpty()
     {
         var localStats = new SerpLocalQueryStats("Delray Beach, Florida, United States", 57, 43, 0, 14, null);

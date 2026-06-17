@@ -49,6 +49,53 @@ function serpSummaryImpliesCompetitors(summary: string | null | undefined): bool
   return match !== null && Number(match[1]) > 0;
 }
 
+function serpSummaryImpliesLocalResults(summary: string | null | undefined): boolean {
+  if (!summary) return false;
+  return /pillars returned local results/i.test(summary);
+}
+
+function scopeLabelsStaleAfterLocalSerp(
+  rows: NicheCompetitorResult[],
+  serpSummary: string | null | undefined,
+): boolean {
+  if (rows.length === 0 || !serpSummaryImpliesLocalResults(serpSummary)) return false;
+  return rows.every((c) => c.scope === 'national');
+}
+
+function ScopePersistenceBanner({
+  onRerun,
+  rerunning,
+  disabled,
+  progress,
+}: {
+  onRerun: () => void;
+  rerunning: boolean;
+  disabled: boolean;
+  progress: string | null;
+}) {
+  return (
+    <div className="rounded-lg border border-violet-300 bg-violet-50 px-4 py-3 text-sm text-violet-950">
+      <p className="font-medium">Local competitor labels need a refresh</p>
+      <p className="mt-1 text-xs leading-relaxed">
+        SERP validation found local results for your service area, but every saved competitor is still
+        labeled national — a persistence bug from an earlier run. Re-run SERP validation to rewrite
+        competitor scope (local / both / national). This re-queries SERP and can take several minutes.
+      </p>
+      {progress ? (
+        <p className="mt-2 text-xs text-violet-900">{progress}</p>
+      ) : null}
+      <button
+        type="button"
+        onClick={onRerun}
+        disabled={disabled || rerunning}
+        className="mt-3 rounded-lg bg-violet-700 px-4 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {rerunning ? 'Re-running SERP validation…' : 'Re-run SERP validation'}
+      </button>
+    </div>
+  );
+}
+
 export function NicheCompetitorPanel({
   profileId,
   competitors,
@@ -97,6 +144,10 @@ export function NicheCompetitorPanel({
   const totalPages = loadedCompetitors.reduce((sum, c) => sum + (c.pagesCrawled ?? 0), 0);
   const showLocalSerpWarning =
     Boolean(serpLocalWarning) && serpStepStatus !== 'running' && !serpRerunning;
+  const showScopePersistenceBanner =
+    scopeLabelsStaleAfterLocalSerp(loadedCompetitors, serpValidationSummary)
+    && serpStepStatus !== 'running'
+    && !serpRerunning;
 
   useEffect(() => {
     return () => {
@@ -218,6 +269,14 @@ export function NicheCompetitorPanel({
     <section className="space-y-4">
       {showLocalSerpWarning && serpLocalWarning ? (
         <LocalSerpWarningBanner message={serpLocalWarning} />
+      ) : null}
+      {showScopePersistenceBanner ? (
+        <ScopePersistenceBanner
+          onRerun={handleRerunSerpValidation}
+          rerunning={serpRerunning}
+          disabled={anyStepRunning}
+          progress={serpProgress}
+        />
       ) : null}
       {/* Header + action */}
       <div className="flex items-center justify-between">

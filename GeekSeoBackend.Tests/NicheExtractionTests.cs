@@ -1085,7 +1085,7 @@ public sealed class NicheExtractionTests
                 "test"),
         };
 
-        var competitors = PillarDemandEnricher.BuildCompetitors(profileId, "geekatyourspot.com", serp);
+        var (competitors, _) = PillarDemandEnricher.BuildCompetitors(profileId, "geekatyourspot.com", serp);
 
         Assert.Single(competitors);
         Assert.Equal("competitor.com", competitors[0].Domain);
@@ -1108,11 +1108,57 @@ public sealed class NicheExtractionTests
                 LocalCompetitorDomains: ["local-msp.com"]),
         };
 
-        var competitors = PillarDemandEnricher.BuildCompetitors(profileId, "geekatyourspot.com", serp);
+        var (competitors, _) = PillarDemandEnricher.BuildCompetitors(profileId, "geekatyourspot.com", serp);
 
         Assert.Equal(2, competitors.Count);
         Assert.Equal("local", competitors.First(c => c.Domain == "local-msp.com").Scope);
         Assert.Equal("national", competitors.First(c => c.Domain == "national-only.com").Scope);
+    }
+
+    [Fact]
+    public void PillarDemandEnricher_BuildCompetitors_ExcludesAudienceVerticalOnlyDomains()
+    {
+        var profileId = Guid.NewGuid();
+        var pillars = new List<DiscoveredPillar>
+        {
+            new() { Name = "AI Consulting", Slug = "ai-consulting", Source = "schema" },
+            new() { Name = "Accounting", Slug = "accounting", Source = "page_vertical" },
+        };
+        var siteBusiness = new SiteBusinessProfile(new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "consulting", "artificial", "intelligence", "automation",
+        });
+        var serp = new List<PillarSerpEnrichment>
+        {
+            new(
+                "ai-consulting",
+                true,
+                10,
+                false,
+                null,
+                ["real-ai-competitor.com"],
+                "test"),
+            new(
+                "accounting",
+                true,
+                10,
+                false,
+                null,
+                ["bocaratonaccounting.biz"],
+                "test",
+                LocalCompetitorDomains: ["bocaratonaccounting.biz"]),
+        };
+
+        var (competitors, filteredAdjacent) = PillarDemandEnricher.BuildCompetitors(
+            profileId,
+            "geekatyourspot.com",
+            serp,
+            pillars,
+            siteBusiness);
+
+        Assert.DoesNotContain(competitors, c => c.Domain.Equals("bocaratonaccounting.biz", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(competitors, c => c.Domain == "real-ai-competitor.com");
+        Assert.Single(competitors);
     }
 
     [Fact]

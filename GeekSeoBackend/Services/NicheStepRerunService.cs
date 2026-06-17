@@ -356,7 +356,13 @@ public sealed class NicheStepRerunService(
         var merged = fused.SelectedPillars.Select(PillarSelector.ToDiscoveredPillar).ToList();
         var localContext = await ResolveLocalSerpContextAsync(profile.ProjectId, ct);
         var demand = await pillarDemandEnricher.EnrichAsync(
-            merged, profileId, domain, localContext.SerpMarketLocation, localContext.ServiceArea, null, ct);
+            merged,
+            profileId,
+            domain,
+            localContext.SerpMarketLocation,
+            localContext.ServiceArea,
+            onProgress: null,
+            ct: ct);
         var msg = demand.KeywordsSkipped
             ? $"Keywords skipped: {demand.KeywordSkipReason}"
             : $"Keywords: {demand.Keywords.Count(k => k.Enriched)} pillar(s) enriched.";
@@ -369,8 +375,12 @@ public sealed class NicheStepRerunService(
         var fused = await LoadFusionAsync(profileId);
         var merged = fused.SelectedPillars.Select(PillarSelector.ToDiscoveredPillar).ToList();
         var localContext = await ResolveLocalSerpContextAsync(profile.ProjectId, ct);
+        var details = await profileRepo.GetAnalysisDetailsRowAsync(profileId, includeFusion: false, ct);
+        var steps = NicheStepArtifactStore.ParseSteps(details.Value!.AnalysisStepLog);
+        var schema = await NicheStepRelationalLoader.LoadSchemaAsync(profileRepo, profileId, steps, ct);
+        var headings = await NicheStepRelationalLoader.LoadHeadingsAsync(profileRepo, profileId, domain, steps, ct);
         var demand = await pillarDemandEnricher.EnrichAsync(
-            merged, profileId, domain, localContext.SerpMarketLocation, localContext.ServiceArea, null, ct);
+            merged, profileId, domain, localContext.SerpMarketLocation, localContext.ServiceArea, null, schema, headings, ct);
         await profileRepo.BulkInsertCompetitorsAsync(demand.Competitors, ct);
         var (msg, localWarning) = SerpValidationMessages.Build(
             demand.SerpValidations,
