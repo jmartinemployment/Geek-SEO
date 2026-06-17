@@ -277,9 +277,7 @@ public sealed class ContentWritingPromptingTests
             TargetWordCount = 1600,
             RecommendedTerms = ["QuickBooks", "Zapier", "webhook routing"],
             SuggestedHeadings = ["Business objectives", "Pilot implementation strategy"],
-            Methodology = new WritingMethodologySpec(
-                "Four Phase Methodology",
-                ["Business Objectives", "Data Quality Assessment", "Tech Selection", "Pilot Implementation Strategy"]),
+            Methodology = WritingMethodologySpec.FourPhase,
             DirectAnswerBlocks =
             [
                 new DirectAnswerBlockSpec("Direct answer", "Open with a short definition and business outcome."),
@@ -313,6 +311,8 @@ public sealed class ContentWritingPromptingTests
         Assert.Contains("Business Objectives", prompt);
         Assert.Contains("Data Quality Assessment", prompt);
         Assert.Contains("Pilot Implementation Strategy", prompt);
+        Assert.Contains("Methodology weave", prompt);
+        Assert.Contains("topic-specific", prompt, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("sanitized code", prompt, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Palm Beach County", prompt);
         Assert.Contains("JSON-LD", prompt);
@@ -348,6 +348,8 @@ public sealed class ContentWritingPromptingTests
 
         Assert.Contains("exactly 5", systemPrompt, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Frequently Asked Questions", systemPrompt);
+        Assert.Contains("methodology movement", systemPrompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("topic-specific", systemPrompt, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Closing FAQ section", userPrompt);
         Assert.Contains("1. What is quickbooks automation?", userPrompt);
     }

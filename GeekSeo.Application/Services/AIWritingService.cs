@@ -119,7 +119,20 @@ public sealed partial class AIWritingService(
             Temperature = 0.5,
         }, ct);
 
-        return ToWritingResult(response);
+        var outlineResult = ToWritingResult(response);
+        if (!outlineResult.IsSuccess || outlineResult.Value is null)
+            return outlineResult;
+
+        var withMethodology = await ArticleMethodologyOutlineEnricher.EnsureMethodologyOutlineAsync(
+            outlineResult.Value.Content,
+            request.Brief,
+            ai,
+            ct);
+
+        return Result<WritingTextResult>.Success(new WritingTextResult
+        {
+            Content = ArticleClosingFaqEnricher.EnsureClosingFaqOutline(withMethodology, request.Brief),
+        });
     }
 
     public async Task<Result<WritingTextResult>> GenerateDraftAsync(
@@ -134,7 +147,17 @@ public sealed partial class AIWritingService(
             Temperature = 0.7,
         }, ct);
 
-        return ToWritingResult(response);
+        var draftResult = ToWritingResult(response);
+        if (!draftResult.IsSuccess || draftResult.Value is null)
+            return draftResult;
+
+        var enriched = await ArticleClosingFaqEnricher.EnsureClosingFaqDraftAsync(
+            draftResult.Value.Content,
+            request.Brief,
+            ai,
+            ct);
+
+        return Result<WritingTextResult>.Success(new WritingTextResult { Content = enriched });
     }
 
     public async Task<Result<WritingTextResult>> HumanizeAsync(
@@ -164,10 +187,13 @@ public sealed partial class AIWritingService(
             return Result<AiDetectionResult>.Failure(access.Error ?? "Access denied");
 
         var plain = StripHtml(request.ContentHtml);
+        if (string.IsNullOrWhiteSpace(plain))
+            return Result<AiDetectionResult>.Failure("Add article content before running AI detection.");
+
         var response = await ai.CompleteAsync(new AIRequest
         {
             SystemPrompt =
-                "Estimate how likely text was AI-generated. Reply ONLY with JSON: {\"aiProbability\":0.0-1.0,\"summary\":\"one sentence\"}",
+                "Estimate how likely text was AI-generated. Reply ONLY with JSON: {\"aiProbability\":0.0,\"summary\":\"one sentence\"}. Use a number between 0 and 1 for aiProbability.",
             UserPrompt = plain.Length > 8000 ? plain[..8000] : plain,
             MaxTokens = 256,
             Temperature = 0,
@@ -176,23 +202,16 @@ public sealed partial class AIWritingService(
         if (!response.IsSuccess || response.Value is null)
             return Result<AiDetectionResult>.Failure(response.Error ?? "Detection failed");
 
-        try
+        if (!AiDetectionResponseParser.TryParse(response.Value.Content, out var prob, out var summary))
+            return Result<AiDetectionResult>.Failure("Could not parse AI detection response. Try again.");
+
+        var clamped = Math.Clamp(prob, 0, 1);
+        await documentRepo.UpdateAiDetectionScoreAsync(request.DocumentId, (decimal)clamped, ct);
+        return Result<AiDetectionResult>.Success(new AiDetectionResult
         {
-            var json = JsonDocument.Parse(response.Value.Content);
-            var prob = json.RootElement.GetProperty("aiProbability").GetDouble();
-            var summary = json.RootElement.TryGetProperty("summary", out var s) ? s.GetString() ?? "" : "";
-            var clamped = Math.Clamp(prob, 0, 1);
-            await documentRepo.UpdateAiDetectionScoreAsync(request.DocumentId, (decimal)clamped, ct);
-            return Result<AiDetectionResult>.Success(new AiDetectionResult
-            {
-                AiProbability = clamped,
-                Summary = summary,
-            });
-        }
-        catch
-        {
-            return Result<AiDetectionResult>.Failure("Could not parse AI detection response");
-        }
+            AiProbability = clamped,
+            Summary = summary,
+        });
     }
 
     private static Result<WritingTextResult> ToWritingResult(Result<AIResponse> response)

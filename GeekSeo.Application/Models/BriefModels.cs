@@ -28,18 +28,47 @@ public sealed record ContentBrief
     public string BenchmarkQuality { get; init; } = "good";
 }
 
-public sealed record WritingMethodologySpec(
-    string Name,
-    IReadOnlyList<string> Phases)
+public sealed record MethodologyPhaseDefinition(
+    string Id,
+    string Label,
+    string Intent,
+    IReadOnlyList<string> HeadingFamilies);
+
+public sealed record WritingMethodologySpec
 {
-    public static readonly WritingMethodologySpec FourPhase = new(
-        "Four Phase Methodology",
+    public required string Name { get; init; }
+    public required IReadOnlyList<MethodologyPhaseDefinition> PhaseDefinitions { get; init; }
+
+    public IReadOnlyList<string> Phases =>
+        PhaseDefinitions.Select(phase => phase.Label).ToArray();
+
+    public static WritingMethodologySpec FourPhase { get; } = new()
+    {
+        Name = "Four Phase Methodology",
+        PhaseDefinitions =
         [
-            "Business Objectives",
-            "Data Quality Assessment",
-            "Tech Selection",
-            "Pilot Implementation Strategy",
-        ]);
+            new MethodologyPhaseDefinition(
+                "business-objectives",
+                "Business Objectives",
+                "Clarify why this matters now, who it is for, and the business outcomes or ROI of getting it right.",
+                ["goals", "business case", "outcomes", "priorities", "why now", "ROI", "success metrics"]),
+            new MethodologyPhaseDefinition(
+                "data-quality-assessment",
+                "Data Quality Assessment",
+                "Assess data readiness, cleanup work, risks, and what must be true before tools or automation run.",
+                ["data health", "readiness", "chart of accounts", "migration prep", "garbage in", "audit", "data cleanup"]),
+            new MethodologyPhaseDefinition(
+                "tech-selection",
+                "Tech Selection",
+                "Compare stack options, integrations, and build-vs-buy tradeoffs for this topic and buyer.",
+                ["software comparison", "tooling", "integration options", "stack", "platform fit", "vendor selection", "build vs buy"]),
+            new MethodologyPhaseDefinition(
+                "pilot-implementation",
+                "Pilot Implementation Strategy",
+                "Describe a practical rollout: timeline, pilot scope, proof of value, and how to expand safely.",
+                ["pilot plan", "phased rollout", "first 30 days", "proof of value", "implementation steps", "quick wins", "rollout timeline"]),
+        ],
+    };
 }
 
 public sealed record DirectAnswerBlockSpec(

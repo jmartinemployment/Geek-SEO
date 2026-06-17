@@ -368,6 +368,12 @@ export type ContentBrief = {
   methodology: {
     name: string;
     phases: string[];
+    phaseDefinitions: {
+      id: string;
+      label: string;
+      intent: string;
+      headingFamilies: string[];
+    }[];
   };
   directAnswerBlocks: {
     label: string;

@@ -68,7 +68,7 @@ public sealed class ContentBriefService(
         }).ToList();
 
         var terms = await BuildRecommendedTermsAsync(keyword, benchmarks, related, ct);
-        var headings = BuildSuggestedHeadings(keyword, paa);
+        var headings = BuildSuggestedHeadings(keyword);
         var latestProfile = await TryGetLatestProfileAsync(request.ProjectId, ct);
         var gapTopics = await TryGetGapTopicsAsync(latestProfile?.Id, ct);
         var matchedPillar = FindMatchedPillar(keyword, latestProfile);
@@ -224,17 +224,12 @@ public sealed class ContentBriefService(
         return fallback.Distinct(StringComparer.OrdinalIgnoreCase).Take(12).ToList();
     }
 
-    private static List<string> BuildSuggestedHeadings(string keyword, List<PeopleAlsoAskResult> paa)
+    private static List<string> BuildSuggestedHeadings(string keyword)
     {
-        var list = new List<string>
-        {
-            $"What is {keyword}?",
-            $"Benefits of {keyword}",
-            $"How to choose {keyword}",
-            "Frequently asked questions",
-        };
-        list.AddRange(paa.Take(ContentWritingRules.ClosingFaqCount).Select(p => p.Question));
-        return list.Distinct(StringComparer.OrdinalIgnoreCase).Take(8).ToList();
+        return WritingMethodologySpec.FourPhase.PhaseDefinitions
+            .Select(phase =>
+                $"{phase.Label}: {phase.Intent} (heading ideas: {string.Join(", ", phase.HeadingFamilies.Take(4))})")
+            .ToList();
     }
 
     private static int CountWords(string text) =>

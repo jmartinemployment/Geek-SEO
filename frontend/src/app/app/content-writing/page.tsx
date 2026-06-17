@@ -315,12 +315,41 @@ function ContentWritingPageInner() {
               </div>
 
               <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                <InfoList
-                  title="Methodology phases"
-                  items={brief.methodology.phases}
-                />
+                <div className="rounded-lg border bg-[var(--color-surface-muted)] p-4">
+                  <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                    Methodology movements
+                  </h3>
+                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                    Four topic-native H2 sections in this order. Corporate labels are intent guides, not required headings.
+                  </p>
+                  <ol className="mt-3 space-y-3">
+                    {(brief.methodology.phaseDefinitions?.length
+                      ? brief.methodology.phaseDefinitions
+                      : brief.methodology.phases.map((label, index) => ({
+                          id: `phase-${index + 1}`,
+                          label,
+                          intent: '',
+                          headingFamilies: [] as string[],
+                        }))
+                    ).map((phase, index) => (
+                      <li key={phase.id} className="text-sm">
+                        <p className="font-medium text-[var(--color-text-primary)]">
+                          {index + 1}. {phase.label}
+                        </p>
+                        {phase.intent ? (
+                          <p className="mt-1 text-[var(--color-text-secondary)]">{phase.intent}</p>
+                        ) : null}
+                        {phase.headingFamilies.length > 0 ? (
+                          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                            Heading ideas: {phase.headingFamilies.join(', ')}
+                          </p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
                 <InfoList title="Recommended terms" items={brief.recommendedTerms} />
-                <InfoList title="Suggested headings" items={brief.suggestedHeadings} />
+                <InfoList title="Movement heading hints" items={brief.suggestedHeadings} />
                 <InfoList title="Competitor heading patterns" items={brief.competitorHeadingHighlights} />
                 <InfoList title="Geo anchor nodes" items={brief.geoAnchorNodes} />
                 <InfoList title="Competitor domains" items={brief.competitorDomains} />

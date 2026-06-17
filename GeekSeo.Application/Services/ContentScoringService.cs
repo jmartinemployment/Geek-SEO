@@ -406,7 +406,7 @@ public sealed class ContentScoringService(
         var h2Count = CountOccurrences(html, "<h2");
         return h2Count switch
         {
-            >= 3 and <= 8 => 15,
+            >= 3 => 15,
             2 => 10,
             1 => 6,
             _ => 0,

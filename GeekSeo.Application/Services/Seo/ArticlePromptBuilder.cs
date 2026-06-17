@@ -7,7 +7,10 @@ public static class ArticlePromptBuilder
 {
     public static string BuildOutlineSystemPrompt() =>
         $"You are an SEO content strategist. Output a detailed article outline as HTML using h2 and h3 only. " +
-        $"Always end with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> and exactly {ContentWritingRules.ClosingFaqCount} <h3> FAQ questions (no answers in the outline). No preamble.";
+        $"Before the closing FAQ, include exactly four body <h2> sections (one per methodology movement, in order). " +
+        "Each body h2 must be topic-specific for the keyword. Do not copy corporate phase labels as h2 text unless they read naturally. " +
+        "Place <!-- methodology:{phase-id} --> immediately before each body h2. " +
+        $"Always end with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> and exactly {ContentWritingRules.ClosingFaqCount} <h3> FAQ questions (no answers in the outline). No preamble. No h1.";
 
     public static string BuildOutlineUserPrompt(WritingOutlineRequest request)
     {
@@ -16,9 +19,11 @@ public static class ArticlePromptBuilder
         builder.AppendLine($"Keyword: {request.Keyword}");
         builder.AppendLine($"Target words: {brief.TargetWordCount}");
         builder.AppendLine($"Methodology: {brief.Methodology.Name}");
-        builder.AppendLine($"Phases: {string.Join(" | ", brief.Methodology.Phases)}");
+        builder.AppendLine();
+        builder.AppendLine(ArticleMethodologyPrompt.BuildWeaveInstructions(request.Keyword, brief.Methodology));
+        builder.AppendLine();
         builder.AppendLine($"Terms to cover: {string.Join(", ", brief.RecommendedTerms)}");
-        builder.AppendLine($"Suggested sections: {string.Join("; ", brief.SuggestedHeadings)}");
+        builder.AppendLine($"Movement heading hints: {string.Join("; ", brief.SuggestedHeadings)}");
 
         if (brief.DirectAnswerBlocks.Count > 0)
         {
@@ -44,6 +49,7 @@ public static class ArticlePromptBuilder
 
     public static string BuildDraftSystemPrompt() =>
         $"You write SEO articles in HTML (h1 once, multiple h2/h3, paragraphs). Natural tone. No markdown fences. " +
+        "Follow the outline's h2 headings and methodology phase order. Fulfill each phase intent with topic-native prose; do not rename h2s to corporate phase labels. " +
         $"Always close with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> containing exactly {ContentWritingRules.ClosingFaqCount} topic FAQs as <h3> + <p> pairs.";
 
     public static string BuildDraftUserPrompt(WritingDraftRequest request)
@@ -58,11 +64,10 @@ public static class ArticlePromptBuilder
         builder.AppendLine($"Target words: {target}");
         builder.AppendLine();
         builder.AppendLine($"Methodology: {brief.Methodology.Name}");
-        foreach (var phase in brief.Methodology.Phases)
-            builder.AppendLine($"- {phase}");
+        builder.AppendLine(ArticleMethodologyPrompt.BuildWeaveInstructions(request.Keyword, brief.Methodology));
 
         builder.AppendLine();
-        builder.AppendLine("Outline:");
+        builder.AppendLine("Outline (use these h2 headings; expand each movement per its intent):");
         builder.AppendLine(request.Outline);
         builder.AppendLine();
         builder.AppendLine($"Include terms: {string.Join(", ", brief.RecommendedTerms.Take(10))}");
