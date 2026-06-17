@@ -19,8 +19,13 @@ public sealed class SerperDevSerpProvider(IHttpClientFactory httpClientFactory) 
 
     public async Task<Result<SerpResult>> GetSerpResultsAsync(SerpRequest request, CancellationToken ct = default)
     {
-        if (!TryGetApiKey(out var apiKey))
+        if (!TryGetApiKey(out _))
             return Result<SerpResult>.Failure("SERPER_DEV_API_KEY must be set.");
+
+        if (request.PlacesOnly)
+            return await FetchPlacesAsSerpResultAsync(request, ct);
+
+        await SerperRateGate.WaitAsync(ct);
 
         var body = new
         {
@@ -36,7 +41,7 @@ public sealed class SerperDevSerpProvider(IHttpClientFactory httpClientFactory) 
         {
             Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json"),
         };
-        httpRequest.Headers.Add("X-API-KEY", apiKey);
+        httpRequest.Headers.Add("X-API-KEY", Environment.GetEnvironmentVariable("SERPER_DEV_API_KEY")!);
 
         HttpResponseMessage response;
         try
@@ -58,12 +63,12 @@ public sealed class SerperDevSerpProvider(IHttpClientFactory httpClientFactory) 
             if (!parsed.IsSuccess || parsed.Value is null)
                 return parsed;
 
-            if (IsLocalMarket(request.Location))
+            if (IsLocalMarket(request.Location) && ShouldSupplementPlaces(parsed.Value))
             {
-                var additionalPlaces = await FetchPlacesAsync(request, ct);
-                if (additionalPlaces.Count > 0)
+                var placesResult = await FetchPlacesAsync(request, ct);
+                if (placesResult.IsSuccess && placesResult.Value is { Count: > 0 })
                 {
-                    var mergedPlaces = MergePlaces(parsed.Value.LocalPlaces, additionalPlaces);
+                    var mergedPlaces = MergePlaces(parsed.Value.LocalPlaces, placesResult.Value);
                     parsed = Result<SerpResult>.Success(parsed.Value with
                     {
                         LocalPlaces = mergedPlaces,
@@ -80,10 +85,35 @@ public sealed class SerperDevSerpProvider(IHttpClientFactory httpClientFactory) 
         !string.IsNullOrWhiteSpace(location)
         && !location.Equals("United States", StringComparison.OrdinalIgnoreCase);
 
-    private async Task<IReadOnlyList<SerpLocalPlace>> FetchPlacesAsync(SerpRequest request, CancellationToken ct)
+    private static bool ShouldSupplementPlaces(SerpResult result) =>
+        result.LocalPlaces.Count == 0
+        || result.LocalPlaces.All(p => !p.Latitude.HasValue || !p.Longitude.HasValue);
+
+    private async Task<Result<SerpResult>> FetchPlacesAsSerpResultAsync(SerpRequest request, CancellationToken ct)
+    {
+        var placesResult = await FetchPlacesAsync(request, ct);
+        if (!placesResult.IsSuccess)
+            return Result<SerpResult>.Failure(placesResult.Error ?? "Serper.dev places request failed.");
+
+        var places = placesResult.Value ?? [];
+        return Result<SerpResult>.Success(new SerpResult
+        {
+            Keyword = request.Keyword,
+            Location = request.Location,
+            OrganicResults = [],
+            LocalPlaces = places,
+            LocalPlaceDomains = DomainsFromPlaces(places),
+            Features = new SerpFeatures { HasLocalPack = places.Count > 0 },
+            FetchedAt = DateTimeOffset.UtcNow,
+        });
+    }
+
+    private async Task<Result<IReadOnlyList<SerpLocalPlace>>> FetchPlacesAsync(SerpRequest request, CancellationToken ct)
     {
         if (!TryGetApiKey(out var apiKey))
-            return [];
+            return Result<IReadOnlyList<SerpLocalPlace>>.Failure("SERPER_DEV_API_KEY must be set.");
+
+        await SerperRateGate.WaitAsync(ct);
 
         var body = new
         {
@@ -104,25 +134,28 @@ public sealed class SerperDevSerpProvider(IHttpClientFactory httpClientFactory) 
         {
             response = await client.SendAsync(httpRequest, ct);
         }
-        catch
+        catch (Exception ex)
         {
-            return [];
+            return Result<IReadOnlyList<SerpLocalPlace>>.Failure($"Serper.dev places request failed: {ex.Message}");
         }
 
         using (response)
         {
-            if (!response.IsSuccessStatusCode)
-                return [];
-
             var raw = await response.Content.ReadAsStringAsync(ct);
+            if (!response.IsSuccessStatusCode)
+                return Result<IReadOnlyList<SerpLocalPlace>>.Failure(
+                    $"Serper.dev HTTP {(int)response.StatusCode}: {Truncate(raw)}");
+
             try
             {
                 using var doc = JsonDocument.Parse(raw);
-                return SerpLocalPlaceParser.PlacesFromSerperRoot(doc.RootElement);
+                return Result<IReadOnlyList<SerpLocalPlace>>.Success(
+                    SerpLocalPlaceParser.PlacesFromSerperRoot(doc.RootElement));
             }
-            catch
+            catch (Exception ex)
             {
-                return [];
+                return Result<IReadOnlyList<SerpLocalPlace>>.Failure(
+                    $"Failed to parse Serper.dev places response: {ex.Message}");
             }
         }
     }
@@ -161,23 +194,6 @@ public sealed class SerperDevSerpProvider(IHttpClientFactory httpClientFactory) 
             var current = merged[index];
             if (!current.Latitude.HasValue && place.Latitude.HasValue)
                 merged[index] = place;
-        }
-
-        return merged;
-    }
-
-    private static IReadOnlyList<string> MergeDomains(
-        IReadOnlyList<string> existing,
-        IReadOnlyList<string> additional)
-    {
-        if (existing.Count == 0)
-            return additional;
-
-        var merged = new List<string>(existing);
-        foreach (var domain in additional)
-        {
-            if (!merged.Contains(domain, StringComparer.OrdinalIgnoreCase))
-                merged.Add(domain);
         }
 
         return merged;

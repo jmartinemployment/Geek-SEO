@@ -8,6 +8,8 @@ public sealed record SerpRequest
     public string CountryCode { get; init; } = "US";
     public int ResultCount { get; init; } = 10;
     public string Device { get; init; } = "desktop";
+    /// <summary>Serper only: hit /places instead of /search (local competitor discovery).</summary>
+    public bool PlacesOnly { get; init; }
 }
 
 public sealed record SerpResult

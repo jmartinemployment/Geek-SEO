@@ -18,8 +18,7 @@ public sealed class PillarDemandEnricher(
     private const int MaxConcurrency = 8;
     /// <summary>When running national + local SERP per pillar, keep below Serper's ~5 req/s cap.</summary>
     private const int DualSerpConcurrency = 1;
-    private const int SerpRateLimitMaxAttempts = 4;
-    private const int SerperInterRequestDelayMs = 350;
+    private const int SerpRateLimitMaxAttempts = 5;
 
     public async Task<PillarDemandEnrichment> EnrichAsync(
         IReadOnlyList<DiscoveredPillar> pillars,
@@ -330,10 +329,16 @@ public sealed class PillarDemandEnricher(
                 Result<SerpResult>? localResult = null;
                 if (isLocal)
                 {
-                    if (string.Equals(serpProvider.ProviderName, "serpdev", StringComparison.OrdinalIgnoreCase))
-                        await Task.Delay(SerperInterRequestDelayMs, ct);
+                    var usePlacesOnly = serviceArea is not null
+                        && string.Equals(serpProvider.ProviderName, "serpdev", StringComparison.OrdinalIgnoreCase);
 
-                    var localRequest = new SerpRequest { Keyword = keyword, Location = location, ResultCount = 10 };
+                    var localRequest = new SerpRequest
+                    {
+                        Keyword = keyword,
+                        Location = location,
+                        ResultCount = 10,
+                        PlacesOnly = usePlacesOnly,
+                    };
                     localResult = await FetchSerpWithRetryAsync(localRequest, ct);
                     if (localResult.IsSuccess && localResult.Value is not null && HasLocalSerpSignal(localResult.Value))
                         Interlocked.Increment(ref localSuccesses);
