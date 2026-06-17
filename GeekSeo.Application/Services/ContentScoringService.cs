@@ -93,6 +93,7 @@ public sealed class ContentScoringService(
         Guid userId,
         Guid documentId,
         string suggestionId,
+        string? contentHtml = null,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(suggestionId))
@@ -106,6 +107,7 @@ public sealed class ContentScoringService(
         var keyword = doc.TargetKeyword;
         var location = string.IsNullOrWhiteSpace(doc.TargetLocation) ? "United States" : doc.TargetLocation;
         const string languageCode = "en";
+        var baseHtml = string.IsNullOrWhiteSpace(contentHtml) ? doc.ContentHtml : contentHtml;
 
         var benchmarkResult = await ResolveBenchmarksAsync(keyword, location, languageCode, ct);
         if (!benchmarkResult.IsSuccess)
@@ -114,29 +116,33 @@ public sealed class ContentScoringService(
             return Result<ApplySuggestionResult>.Failure("Benchmarks are still loading. Try again shortly.");
 
         var benchmarks = benchmarkResult.Value!.Benchmarks;
-        var plainText = richText.ExtractPlainText(doc.ContentHtml);
-        var current = await ScoreAsync(userId, documentId, doc.ContentHtml, keyword, invalidateCache: false, ct);
+        var plainText = richText.ExtractPlainText(baseHtml);
+        var current = await ScoreAsync(userId, documentId, baseHtml, keyword, invalidateCache: false, ct);
         if (!current.IsSuccess || current.Value?.ScoreUpdate is null)
             return Result<ApplySuggestionResult>.Failure(current.Error ?? "Could not score document");
 
         var suggestion = current.Value.ScoreUpdate.Suggestions
             .FirstOrDefault(s => string.Equals(s.Id, suggestionId, StringComparison.Ordinal));
         if (suggestion is null)
-            return Result<ApplySuggestionResult>.Failure("Suggestion is no longer available. Refresh the score.");
+            return Result<ApplySuggestionResult>.Failure(
+                $"Suggestion “{suggestionId}” is no longer available. Wait for the score to refresh, then try again.");
 
         string patchedHtml;
         if (string.Equals(suggestion.ApplyMode, "deterministic", StringComparison.Ordinal))
         {
             patchedHtml = ScoreSuggestionApplicator.TryApplyDeterministic(
                 suggestion.Id,
-                doc.ContentHtml,
+                baseHtml,
                 keyword,
                 benchmarks.AvgTitleLength,
                 plainText,
-                benchmarks.OrganicResults) ?? doc.ContentHtml;
+                benchmarks.OrganicResults) ?? baseHtml;
 
-            if (string.Equals(patchedHtml, doc.ContentHtml, StringComparison.Ordinal))
-                return Result<ApplySuggestionResult>.Failure("Could not apply this change automatically.");
+            if (string.Equals(patchedHtml, baseHtml, StringComparison.Ordinal))
+            {
+                return Result<ApplySuggestionResult>.Failure(
+                    ScoreSuggestionApplicator.DescribeDeterministicFailure(suggestion.Id, baseHtml, keyword));
+            }
         }
         else if (string.Equals(suggestion.ApplyMode, "ai", StringComparison.Ordinal))
         {
@@ -145,7 +151,7 @@ public sealed class ContentScoringService(
                 SystemPrompt =
                     "You optimize SEO HTML articles. Apply exactly one requested change while preserving meaning. Return improved HTML only (h1/h2/h3/p/ul/li/a). No markdown fences.",
                 UserPrompt =
-                    $"Keyword: {keyword}\nChange to apply: {suggestion.ProposedChange}\nContext: {suggestion.ActionText}\n\nHTML:\n{doc.ContentHtml}",
+                    $"Keyword: {keyword}\nChange to apply: {suggestion.ProposedChange}\nContext: {suggestion.ActionText}\n\nHTML:\n{baseHtml}",
                 MaxTokens = 8192,
                 Temperature = 0.5,
             }, ct);
@@ -154,6 +160,8 @@ public sealed class ContentScoringService(
                 return Result<ApplySuggestionResult>.Failure(optimized.Error ?? "Could not apply change with AI");
 
             patchedHtml = AiHtmlSanitizer.ToHtmlFragment(optimized.Value.Content);
+            if (string.IsNullOrWhiteSpace(patchedHtml))
+                return Result<ApplySuggestionResult>.Failure("AI returned empty HTML. Try again or edit manually.");
         }
         else
         {

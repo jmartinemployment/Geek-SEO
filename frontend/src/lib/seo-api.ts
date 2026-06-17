@@ -519,11 +519,12 @@ export async function applyScoreSuggestion(
   documentId: string,
   suggestionId: string,
   accessToken?: string | null,
+  contentHtml?: string,
 ): Promise<ApplySuggestionResult> {
   const res = await fetch(`${API_URL}/api/seo/content/${documentId}/apply-suggestion`, {
     method: 'POST',
     headers: apiHeaders(accessToken),
-    body: JSON.stringify({ suggestionId }),
+    body: JSON.stringify({ suggestionId, contentHtml }),
   });
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<ApplySuggestionResult>;

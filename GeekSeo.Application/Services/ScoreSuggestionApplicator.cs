@@ -120,9 +120,25 @@ public static class ScoreSuggestionApplicator
                $"<p>{paragraph}</p>\n";
     }
 
+    public static string DescribeDeterministicFailure(string suggestionId, string html, string keyword) =>
+        suggestionId switch
+        {
+            "title_keyword" =>
+                "The title already matches the suggested change. Refresh the score to clear this hint.",
+            "meta_description" =>
+                "A meta description is already present with the suggested content.",
+            "geo_citations" =>
+                "No new external sources were available to link, or they are already cited.",
+            "geo_structure" when ArticleClosingFaqEnricher.HasClosingFaqSection(html) =>
+                "The closing FAQ section is already present.",
+            "geo_structure" =>
+                "Could not append the FAQ block automatically. Add it manually in the editor.",
+            _ => "Could not apply this change automatically.",
+        };
+
     private static string ApplyFaqStructure(string html, string keyword)
     {
-        if (Regex.IsMatch(html, @"<h[23][^>]*>.*\?", RegexOptions.IgnoreCase))
+        if (ArticleClosingFaqEnricher.HasClosingFaqSection(html))
             return html;
 
         var topic = string.IsNullOrWhiteSpace(keyword) ? "this topic" : keyword;

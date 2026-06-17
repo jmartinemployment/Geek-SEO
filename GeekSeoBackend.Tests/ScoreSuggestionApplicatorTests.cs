@@ -56,4 +56,21 @@ public sealed class ScoreSuggestionApplicatorTests
         Assert.Contains("<h2>Sources</h2>", patched!, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("https://example.org/study", patched!, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void TryApplyDeterministic_geo_structure_appends_faq_when_questions_exist_without_closing_section()
+    {
+        var html = "<h2>Section</h2><h3>Why does this matter?</h3><p>Body</p>";
+
+        var patched = ScoreSuggestionApplicator.TryApplyDeterministic(
+            "geo_structure",
+            html,
+            "local seo",
+            55,
+            "Body",
+            []);
+
+        Assert.NotNull(patched);
+        Assert.Contains("Frequently asked questions", patched!, StringComparison.OrdinalIgnoreCase);
+    }
 }

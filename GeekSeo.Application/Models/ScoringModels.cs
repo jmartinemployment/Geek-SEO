@@ -35,6 +35,8 @@ public sealed record ScoreSuggestion
 public sealed record ApplySuggestionRequest
 {
     public required string SuggestionId { get; init; }
+    /// <summary>Current editor HTML when it may differ from the last saved document.</summary>
+    public string? ContentHtml { get; init; }
 }
 
 public sealed record ApplySuggestionResult

@@ -8,7 +8,7 @@ import { ContentEditor, type ContentEditorHandle } from '@/components/editor/con
 import { EditorAiToolbar } from '@/components/editor/editor-ai-toolbar';
 import { ScoreSidebar } from '@/components/editor/score-sidebar';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
-import { useContentScoring } from '@/hooks/useContentScoring';
+import { useContentScoring, type ScoreSuggestion } from '@/hooks/useContentScoring';
 import {
   applyScoreSuggestion,
   createContent,
@@ -564,14 +564,19 @@ function ReviewWorkspace({
     }
   }
 
-  async function handleApplySuggestion(suggestionId: string) {
-    setApplyingSuggestionId(suggestionId);
+  async function handleApplySuggestion(suggestion: ScoreSuggestion) {
+    setApplyingSuggestionId(suggestion.id);
     try {
       onError(null);
-      const result = await applyScoreSuggestion(doc.id, suggestionId, accessToken);
+      setAiError(null);
+      await save(html, keyword, title, location);
+      const result = await applyScoreSuggestion(doc.id, suggestion.id, accessToken, html);
       setHtml(result.contentHtml);
       await save(result.contentHtml, keyword, title, location);
     } catch (applyError) {
+      const detail =
+        applyError instanceof Error ? applyError.message : 'Apply failed';
+      setAiError(`Could not apply “${suggestion.proposedChange}”: ${detail}`);
       onError(applyError);
     } finally {
       setApplyingSuggestionId(null);
@@ -594,8 +599,25 @@ function ReviewWorkspace({
         </div>
       </div>
 
-      <div className="flex min-h-[800px] flex-col xl:flex-row">
-        <div className="flex-1 border-r-0 xl:border-r">
+      <div className="grid min-h-[800px] grid-cols-1 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)_minmax(0,3fr)]">
+        <div className="order-2 border-t xl:order-1 xl:border-t-0 xl:border-r">
+          <ScoreSidebar
+            placement="left"
+            keyword={keyword}
+            scoreUpdate={scoreUpdate}
+            pendingReason={pendingReason}
+            benchmarkRefreshing={benchmarkRefreshing}
+            scoreError={scoreError}
+            connected={connected}
+            onRefreshSerp={() => {
+              void deleteSerpCache(keyword, location, accessToken).then(() => {
+                void notifyKeywordChanged(html, keyword, location);
+              }).catch(onError);
+            }}
+          />
+        </div>
+
+        <div className="order-1 min-w-0 xl:order-2">
           <header className="flex items-center gap-4 border-b bg-white px-5 py-4">
             <input
               className="flex-1 rounded-lg border border-transparent bg-transparent text-lg font-semibold outline-none focus:border-[var(--color-border-strong)] focus:bg-white focus:px-2"
@@ -661,8 +683,9 @@ function ReviewWorkspace({
           </div>
         </div>
 
-        <div className="w-full xl:w-[380px]">
+        <div className="order-3 border-t xl:border-t-0 xl:border-l">
           <ScoreSidebar
+            placement="right"
             keyword={keyword}
             scoreUpdate={scoreUpdate}
             pendingReason={pendingReason}
@@ -687,7 +710,7 @@ function ReviewWorkspace({
             }}
           />
 
-          <div className="space-y-3 border-t px-6 py-5">
+          <div className="space-y-3 border-t px-5 py-5 xl:px-6">
             <h3 className="text-sm font-semibold">Review gate</h3>
             <button
               type="button"

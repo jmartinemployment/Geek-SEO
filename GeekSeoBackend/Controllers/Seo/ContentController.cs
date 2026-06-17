@@ -93,8 +93,19 @@ public sealed class ContentController(
     [HttpPost("{id:guid}/apply-suggestion")]
     public async Task<IActionResult> ApplySuggestion(Guid id, [FromBody] ApplySuggestionRequest request, CancellationToken ct)
     {
-        var result = await scoring.ApplySuggestionAsync(user.RequireUserId(), id, request.SuggestionId, ct);
-        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
+        if (request is null)
+            return BadRequest(new { error = "Request body is required" });
+
+        var result = await scoring.ApplySuggestionAsync(
+            user.RequireUserId(),
+            id,
+            request.SuggestionId,
+            request.ContentHtml,
+            ct);
+
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : BadRequest(new { error = result.Error, suggestionId = request.SuggestionId });
     }
 }
 

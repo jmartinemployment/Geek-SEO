@@ -11,7 +11,7 @@ import { PlagiarismPanel } from '@/components/editor/plagiarism-panel';
 import { ContentEditor, type ContentEditorHandle } from '@/components/editor/content-editor';
 import { ScoreSidebar } from '@/components/editor/score-sidebar';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
-import { useContentScoring } from '@/hooks/useContentScoring';
+import { useContentScoring, type ScoreSuggestion } from '@/hooks/useContentScoring';
 import {
   applyScoreSuggestion,
   deleteSerpCache,
@@ -119,14 +119,16 @@ export default function ContentEditorPage() {
     void save(nextHtml, keyword, title);
   }
 
-  async function handleApplySuggestion(suggestionId: string) {
-    setApplyingSuggestionId(suggestionId);
+  async function handleApplySuggestion(suggestion: ScoreSuggestion) {
+    setApplyingSuggestionId(suggestion.id);
     try {
       setError(null);
-      const result = await applyScoreSuggestion(documentId, suggestionId, accessToken);
+      await save(html, keyword, title);
+      const result = await applyScoreSuggestion(documentId, suggestion.id, accessToken, html);
       applyEditorHtml(result.contentHtml);
     } catch (e) {
-      setError(e);
+      const detail = e instanceof Error ? e.message : 'Apply failed';
+      setError(new Error(`Could not apply “${suggestion.proposedChange}”: ${detail}`));
     } finally {
       setApplyingSuggestionId(null);
     }

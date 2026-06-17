@@ -17,5 +17,5 @@ public interface IContentScoringService
         Guid userId, Guid documentId, CancellationToken ct = default);
 
     Task<Result<ApplySuggestionResult>> ApplySuggestionAsync(
-        Guid userId, Guid documentId, string suggestionId, CancellationToken ct = default);
+        Guid userId, Guid documentId, string suggestionId, string? contentHtml = null, CancellationToken ct = default);
 }
