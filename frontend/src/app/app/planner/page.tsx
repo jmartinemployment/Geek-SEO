@@ -8,7 +8,6 @@ import {
   createContent,
   listProjects,
   researchKeywords,
-  startFullArticle,
   type KeywordCluster,
   type KeywordResult,
   type SeoProject,
@@ -78,14 +77,17 @@ export default function ContentPlannerPage() {
     }
   }
 
-  async function queueFullArticle(keyword: string) {
+  async function openAiArticle(keyword: string) {
     if (!projectId) return;
     setActionMsg(null);
     try {
-      const job = await startFullArticle({ projectId, keyword, location, title: keyword }, accessToken);
-      setActionMsg(`Queued full article (job ${job.jobId.slice(0, 8)}…). Check Jobs or open the document when complete.`);
+      const doc = await createContent(
+        { projectId, title: keyword, targetKeyword: keyword, targetLocation: location },
+        accessToken,
+      );
+      window.location.href = `/content-writing?documentId=${doc.id}`;
     } catch (err) {
-      setActionMsg(err instanceof Error ? err.message : 'Queue failed');
+      setActionMsg(err instanceof Error ? err.message : 'Could not create document');
     }
   }
 
@@ -198,7 +200,7 @@ export default function ContentPlannerPage() {
                         <button
                           type="button"
                           className="rounded border border-[var(--color-accent)] bg-[var(--color-accent)] px-2 py-1 text-xs text-white hover:bg-[var(--color-accent-hover)]"
-                          onClick={() => void queueFullArticle(kw)}
+                          onClick={() => void openAiArticle(kw)}
                         >
                           AI article
                         </button>

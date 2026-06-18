@@ -121,35 +121,59 @@ export async function waitForNicheStepViaSignalR(
       return status;
     };
 
-    const hydrateUntilTerminal = async (attempts = 5): Promise<NicheAnalysisStatus | null> => {
-      for (let i = 0; i < attempts; i += 1) {
+    const settleFromDb = async (): Promise<boolean> => {
+      try {
         const status = await hydrate();
         const stepState = status.stepStatuses?.[slug];
-        if (isTerminalStepStatus(stepState)) return status;
+        if (isTerminalStepStatus(stepState)) {
+          finishResolve(status);
+          return true;
+        }
         if (status.stepErrors?.[slug]) {
           throw new Error(status.stepErrors[slug] ?? `Step "${slug}" failed.`);
         }
-        if (status.stepSummaries?.[slug] && stepState !== 'running') return status;
-        if (status.status === 'failed' && status.step === slug) {
-          throw new Error(status.errorMessage ?? `Step "${slug}" failed.`);
-        }
-        if (i < attempts - 1) await sleep(200);
-      }
-      return null;
-    };
-
-    const settleFromDb = async (): Promise<boolean> => {
-      try {
-        const status = await hydrateUntilTerminal();
-        if (status) {
+        if (status.stepSummaries?.[slug] && stepState !== 'running') {
           finishResolve(status);
           return true;
+        }
+        if (status.status === 'failed' && status.step === slug) {
+          throw new Error(status.errorMessage ?? `Step "${slug}" failed.`);
         }
         return false;
       } catch (e) {
         finishReject(e instanceof Error ? e : new Error(`Step "${slug}" failed.`));
         return true;
       }
+    };
+
+    const settleAfterSignal = async (detail?: string) => {
+      const settledNow = await settleFromDb();
+      if (settledNow || settled) return;
+
+      // One deferred read if persistence lags the hub event — not polling.
+      await sleep(500);
+      if (settled) return;
+
+      const status = await hydrate();
+      const stepState = status.stepStatuses?.[slug];
+      if (isTerminalStepStatus(stepState)) {
+        finishResolve(status);
+        return;
+      }
+
+      finishResolve({
+        ...status,
+        stepStatuses: {
+          ...(status.stepStatuses ?? {}),
+          [slug]: 'complete',
+        },
+        stepSummaries: detail
+          ? {
+              ...(status.stepSummaries ?? {}),
+              [slug]: detail,
+            }
+          : status.stepSummaries,
+      });
     };
 
     timeoutId = setTimeout(() => {
@@ -161,20 +185,8 @@ export async function waitForNicheStepViaSignalR(
       })();
     }, timeoutMs);
 
-    // Fast steps can finish before the hub connects; reconcile a few times during the wait.
-    for (const delayMs of [1_000, 3_000, 8_000]) {
-      setTimeout(() => {
-        if (!settled) void settleFromDb();
-      }, delayMs);
-    }
-
     const onTerminalSignal = () => {
-      void (async () => {
-        const done = await settleFromDb();
-        if (!done && !settled) {
-          // DB may lag the push slightly; timeout will reconcile if needed.
-        }
-      })();
+      void settleAfterSignal();
     };
 
     async function connect() {
@@ -204,34 +216,7 @@ export async function waitForNicheStepViaSignalR(
           if (status === 'running') return;
 
           if (status === 'complete') {
-            void (async () => {
-              try {
-                const hydrated = await hydrateUntilTerminal(12);
-                if (hydrated) {
-                  finishResolve(hydrated);
-                  return;
-                }
-
-                const fallback = await hydrate();
-                finishResolve({
-                  ...fallback,
-                  stepStatuses: {
-                    ...(fallback.stepStatuses ?? {}),
-                    [slug]: 'complete',
-                  },
-                  stepSummaries: detail
-                    ? {
-                        ...(fallback.stepSummaries ?? {}),
-                        [slug]: detail,
-                      }
-                    : fallback.stepSummaries,
-                });
-              } catch (e) {
-                finishReject(
-                  e instanceof Error ? e : new Error(`Step "${slug}" failed.`),
-                );
-              }
-            })();
+            void settleAfterSignal(detail);
             return;
           }
 

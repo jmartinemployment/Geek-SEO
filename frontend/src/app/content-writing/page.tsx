@@ -271,11 +271,6 @@ function ContentWritingPageInner() {
         elapsedMs,
       });
     },
-    onFallback: (reason: string) => {
-      setStatusMessage(
-        `${reason} Continuing with a direct draft — this may take a few minutes.`,
-      );
-    },
   };
 
   async function finalizeDraftDocument(saved: SeoContentDocument): Promise<SeoContentDocument> {

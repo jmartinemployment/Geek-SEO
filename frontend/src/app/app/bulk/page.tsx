@@ -4,12 +4,20 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useAuthReady } from '@/hooks/use-auth-ready';
 import {
-  getJobStatus,
+  describeDraftJobProgress,
   listProjects,
-  startBulkArticles,
-  type BackgroundJobStatus,
+  runBulkKeywordDrafts,
+  type BulkDraftProgress,
+  type SeoContentDocument,
   type SeoProject,
 } from '@/lib/seo-api';
+
+function formatElapsed(elapsedMs: number): string {
+  const totalSeconds = Math.floor(elapsedMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+}
 
 export default function BulkArticlesPage() {
   const { accessToken, authLoading, authReady } = useAuthReady();
@@ -17,9 +25,9 @@ export default function BulkArticlesPage() {
   const [projectId, setProjectId] = useState('');
   const [keywordsText, setKeywordsText] = useState('');
   const [location, setLocation] = useState('United States');
-  const [job, setJob] = useState<BackgroundJobStatus | null>(null);
+  const [progress, setProgress] = useState<BulkDraftProgress | null>(null);
+  const [completed, setCompleted] = useState<SeoContentDocument[]>([]);
   const [loading, setLoading] = useState(false);
-  const [refreshingJob, setRefreshingJob] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,17 +40,6 @@ export default function BulkArticlesPage() {
       }
     });
   }, [accessToken, authReady]);
-
-  async function refreshJobStatusNow() {
-    if (!job) return;
-    setRefreshingJob(true);
-    try {
-      const next = await getJobStatus(job.jobId, accessToken);
-      setJob(next);
-    } finally {
-      setRefreshingJob(false);
-    }
-  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,25 +55,40 @@ export default function BulkArticlesPage() {
       return;
     }
 
+    if (keywords.length > 20) {
+      setError('Enter at most 20 keywords.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
+    setCompleted([]);
+    setProgress(null);
     try {
-      const started = await startBulkArticles({ projectId, keywords, location }, accessToken);
-      setJob(started);
+      const documents = await runBulkKeywordDrafts(projectId, keywords, location, accessToken, {
+        onProgress: setProgress,
+      });
+      setCompleted(documents);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bulk job failed to start');
+      setError(err instanceof Error ? err.message : 'Bulk draft failed');
     } finally {
       setLoading(false);
+      setProgress(null);
     }
   }
 
   if (authLoading) return <main className="p-8">Loading…</main>;
 
+  const progressLabel = progress
+    ? `Keyword ${progress.keywordIndex}/${progress.keywordTotal}: ${progress.keyword} — ${describeDraftJobProgress(progress.step)} (${formatElapsed(progress.elapsedMs)}${progress.step.progressPercent > 0 ? ` · ${progress.step.progressPercent}%` : ''})`
+    : null;
+
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <h1 className="text-2xl font-semibold tracking-tight">Bulk article generation</h1>
       <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Queue up to 20 keywords — each runs brief → outline → draft in the background (Professional tier).
+        Draft up to 20 keywords sequentially — brief, outline, and article run directly (no background
+        job queue).
       </p>
 
       <form onSubmit={onSubmit} className="mt-8 space-y-4 rounded-xl border bg-white p-6 shadow-sm">
@@ -117,49 +129,32 @@ export default function BulkArticlesPage() {
           disabled={loading}
           className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
         >
-          {loading ? 'Starting…' : 'Start bulk job'}
+          {loading ? progressLabel ?? 'Drafting…' : 'Generate all drafts'}
         </button>
       </form>
 
       {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
 
-      {job ? (
+      {completed.length > 0 ? (
         <section className="mt-8 rounded-xl border bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold">Job status</h2>
-          <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-            {job.status} · {job.progressPercent}% complete
-          </p>
-          {job.errorMessage ? <p className="mt-2 text-sm text-red-600">{job.errorMessage}</p> : null}
-          {job.status !== 'completed' && job.status !== 'failed' ? (
-            <div className="mt-4 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  void refreshJobStatusNow();
-                }}
-                disabled={refreshingJob}
-                className="inline-flex rounded-lg border px-3 py-2 text-sm font-medium hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {refreshingJob ? 'Refreshing…' : 'Refresh status'}
-              </button>
-              <span className="text-xs text-[var(--color-text-secondary)]">
-                Status updates are manual on this page.
-              </span>
-            </div>
-          ) : null}
-          {job.status === 'completed' && job.resultId ? (
-            <Link
-              href={`/content-writing?documentId=${job.resultId}`}
-              className="mt-4 inline-flex rounded-lg border px-3 py-2 text-sm font-medium hover:bg-slate-50"
-            >
-              Open last document →
-            </Link>
-          ) : null}
+          <h2 className="text-lg font-semibold">Completed ({completed.length})</h2>
+          <ul className="mt-3 space-y-2 text-sm">
+            {completed.map((doc) => (
+              <li key={doc.id}>
+                <Link
+                  href={`/content-writing?documentId=${doc.id}`}
+                  className="text-[var(--color-brand)] hover:underline"
+                >
+                  {doc.title || doc.targetKeyword || doc.id}
+                </Link>
+              </li>
+            ))}
+          </ul>
           <Link
             href="/content-writing"
-            className="mt-4 ml-3 inline-flex text-sm text-[var(--color-brand)] hover:underline"
+            className="mt-4 inline-flex text-sm text-[var(--color-brand)] hover:underline"
           >
-            View all content
+            View all content →
           </Link>
         </section>
       ) : null}
