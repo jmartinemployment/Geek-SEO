@@ -13,6 +13,7 @@ import {
 import * as signalR from '@microsoft/signalr';
 import { useAuth } from '@/components/auth/auth-provider';
 import { getHubUrl } from '@/lib/seo-api';
+import { ALWAYS_WIRED_USER_EVENTS } from '@/lib/seo-hub-events';
 
 const DEV_USER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID;
 
@@ -60,6 +61,8 @@ function groupKey(kind: string, id: string): string {
 }
 
 const DEFAULT_HUB_CONNECT_TIMEOUT_MS = 15_000;
+
+const ALWAYS_WIRED_EVENT_SET = new Set<string>(ALWAYS_WIRED_USER_EVENTS);
 
 function waitForHubConnected(
   conn: signalR.HubConnection,
@@ -114,6 +117,9 @@ export function SeoHubProvider({ children }: { children: ReactNode }) {
 
   const wirePendingEventListeners = useCallback(
     (conn: signalR.HubConnection) => {
+      for (const event of ALWAYS_WIRED_USER_EVENTS) {
+        attachRootListener(conn, event);
+      }
       for (const [event, handlers] of eventHandlersRef.current) {
         if (handlers.size > 0) attachRootListener(conn, event);
       }
@@ -197,11 +203,13 @@ export function SeoHubProvider({ children }: { children: ReactNode }) {
         set.delete(handler);
         if (set.size === 0) {
           eventHandlersRef.current.delete(event);
-          const root = rootListenersRef.current.get(event);
-          if (root && connectionRef.current) {
-            connectionRef.current.off(event, root);
+          if (!ALWAYS_WIRED_EVENT_SET.has(event)) {
+            const root = rootListenersRef.current.get(event);
+            if (root && connectionRef.current) {
+              connectionRef.current.off(event, root);
+            }
+            rootListenersRef.current.delete(event);
           }
-          rootListenersRef.current.delete(event);
         }
       };
     },
