@@ -294,7 +294,24 @@ export type DraftJobProgressOptions = {
   onFallback?: (reason: string) => void;
 };
 
-/** Prefer background job; fall back to sync draft when API is not deployed yet (404). */
+function reportDraftProgress(
+  options: DraftJobProgressOptions | undefined,
+  startedAt: number,
+  progressPercent: number,
+  status: 'running' | 'completed' = 'running',
+) {
+  options?.onProgress?.(
+    {
+      jobId: '',
+      jobType: 'content_draft',
+      status,
+      progressPercent,
+    },
+    Date.now() - startedAt,
+  );
+}
+
+/** Direct draft (brief → outline → article). Background job queue is not used — it was unreliable in production. */
 export async function runKeywordContentDraft(
   documentId: string,
   projectId: string,
@@ -302,98 +319,59 @@ export async function runKeywordContentDraft(
   accessToken?: string | null,
   options?: DraftJobProgressOptions,
 ): Promise<SeoContentDocument> {
-  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/draft-job/keyword`, {
-    method: 'POST',
-    headers: apiHeaders(accessToken),
-    body: JSON.stringify(body),
-  });
+  const startedAt = Date.now();
 
-  if (res.status === 404) {
-    const draft = await draftFromKeyword(
-      { projectId, keyword: body.keyword, location: body.location, title: body.title },
-      accessToken,
-    );
-    return updateContent(
-      documentId,
-      {
-        contentHtml: draft.content,
-        title: body.title,
-        targetKeyword: body.keyword,
-        targetLocation: body.location,
-      },
-      accessToken,
-    );
-  }
+  reportDraftProgress(options, startedAt, 5);
+  const brief = await generateBrief(
+    { projectId, keyword: body.keyword, location: body.location },
+    accessToken,
+  );
 
-  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  reportDraftProgress(options, startedAt, 25);
+  const outline = await generateOutline(
+    { keyword: body.keyword, brief, title: body.title },
+    accessToken,
+  );
 
-  const job = normalizeBackgroundJobStatus((await res.json()) as BackgroundJobStatus);
-  try {
-    const completed = await waitForBackgroundJob(job.jobId, accessToken, {
-      onProgress: options?.onProgress,
-    });
-    if (!completed.resultId) {
-      throw new Error('Draft job completed without a document id.');
-    }
-    return getContent(completed.resultId, accessToken);
-  } catch (jobError) {
-    if (!isStuckDraftJobError(jobError)) throw jobError;
-    options?.onFallback?.(
-      jobError instanceof Error ? jobError.message : 'Background draft stalled; using direct draft.',
-    );
-    const draft = await draftFromKeyword(
-      { projectId, keyword: body.keyword, location: body.location, title: body.title },
-      accessToken,
-    );
-    return updateContent(
-      documentId,
-      {
-        contentHtml: draft.content,
-        title: body.title,
-        targetKeyword: body.keyword,
-        targetLocation: body.location,
-      },
-      accessToken,
-    );
-  }
+  reportDraftProgress(options, startedAt, 55);
+  const draft = await generateDraft(
+    {
+      keyword: body.keyword,
+      brief,
+      outline: outline.content,
+      targetWordCount: brief.targetWordCount,
+      title: body.title,
+    },
+    accessToken,
+  );
+
+  reportDraftProgress(options, startedAt, 90);
+  const saved = await updateContent(
+    documentId,
+    {
+      contentHtml: draft.content,
+      title: body.title,
+      targetKeyword: body.keyword,
+      targetLocation: body.location,
+    },
+    accessToken,
+  );
+
+  reportDraftProgress(options, startedAt, 100, 'completed');
+  return saved;
 }
 
-/** Prefer background job; fall back to sync research draft when API is not deployed yet (404). */
+/** Direct research-backed draft. Background job queue is not used — it was unreliable in production. */
 export async function runResearchContentDraft(
   documentId: string,
   accessToken?: string | null,
   options?: DraftJobProgressOptions,
 ): Promise<SeoContentDocument> {
-  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/draft-job/research`, {
-    method: 'POST',
-    headers: apiHeaders(accessToken),
-    cache: 'no-store',
-  });
-
-  if (res.status === 404) {
-    await draftContentFromResearch(documentId, accessToken);
-    return getContent(documentId, accessToken);
-  }
-
-  if (!res.ok) throw await parseSeoApiErrorResponse(res);
-
-  const job = normalizeBackgroundJobStatus((await res.json()) as BackgroundJobStatus);
-  try {
-    const completed = await waitForBackgroundJob(job.jobId, accessToken, {
-      onProgress: options?.onProgress,
-    });
-    if (!completed.resultId) {
-      throw new Error('Draft job completed without a document id.');
-    }
-    return getContent(completed.resultId, accessToken);
-  } catch (jobError) {
-    if (!isStuckDraftJobError(jobError)) throw jobError;
-    options?.onFallback?.(
-      jobError instanceof Error ? jobError.message : 'Background draft stalled; using direct draft.',
-    );
-    await draftContentFromResearch(documentId, accessToken);
-    return getContent(documentId, accessToken);
-  }
+  const startedAt = Date.now();
+  reportDraftProgress(options, startedAt, 10);
+  await draftContentFromResearch(documentId, accessToken);
+  reportDraftProgress(options, startedAt, 100, 'completed');
+  return getContent(documentId, accessToken);
 }
 
 const BACKGROUND_JOB_POLL_MS = 2500;
@@ -458,9 +436,10 @@ export async function waitForBackgroundJob(
 export function describeDraftJobProgress(status: BackgroundJobStatus): string {
   if (status.status === 'failed') return status.errorMessage || 'Draft failed';
   if (status.status === 'completed' || status.status === 'complete') return 'Draft complete';
-  if (status.progressPercent >= 85) return 'Saving draft…';
-  if (status.progressPercent >= 15) return 'Writing outline and article…';
-  if (status.progressPercent >= 5) return 'Starting draft…';
+  if (status.progressPercent >= 90) return 'Saving draft…';
+  if (status.progressPercent >= 55) return 'Drafting article…';
+  if (status.progressPercent >= 25) return 'Writing outline…';
+  if (status.progressPercent >= 5) return 'Researching SERP and building brief…';
   if (status.status === 'pending' || status.status === 'queued') return 'Queued…';
   return 'Draft in progress…';
 }
