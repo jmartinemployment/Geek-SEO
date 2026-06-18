@@ -173,8 +173,8 @@ public static class GeoScoringCalculator
         if (citations < 10)
         {
             var sourceLabels = organicResults
-                .Where(r => !string.IsNullOrWhiteSpace(r.Domain))
-                .Select(r => r.Domain!)
+                .Select(ResolveSourceLabel)
+                .Where(label => !string.IsNullOrWhiteSpace(label))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Take(3)
                 .ToList();
@@ -188,7 +188,7 @@ public static class GeoScoringCalculator
                 PointValue = 20 - citations,
                 ActionText = "Link to 2–3 authoritative external sources to strengthen citation signals.",
                 ProposedChange = $"Add a Sources section linking to {sourceHint}.",
-                ApplyMode = sourceLabels.Count > 0 ? "deterministic" : "ai",
+                ApplyMode = "deterministic",
             });
         }
         if (depth < 14)
@@ -205,6 +205,19 @@ public static class GeoScoringCalculator
         }
 
         return list.OrderByDescending(s => s.PointValue).Take(5).ToList();
+    }
+
+    private static string? ResolveSourceLabel(SerpOrganicResult result)
+    {
+        if (!string.IsNullOrWhiteSpace(result.Domain))
+            return result.Domain.Trim();
+
+        if (string.IsNullOrWhiteSpace(result.Url))
+            return null;
+
+        return Uri.TryCreate(result.Url.Trim(), UriKind.Absolute, out var uri)
+            ? uri.Host
+            : null;
     }
 
     private static int RegexQuoteCount(string text) =>

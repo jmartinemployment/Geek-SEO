@@ -19,7 +19,7 @@ public static partial class ScoreSuggestionApplicator
         {
             "title_keyword" => ApplyTitleKeyword(contentHtml, keyword, avgTitleLength),
             "meta_description" => ApplyMetaDescription(contentHtml, keyword, plainText),
-            "geo_citations" => ApplyExternalCitations(contentHtml, organicResults),
+            "geo_citations" => ApplyExternalCitations(contentHtml, organicResults, keyword),
             "geo_structure" => AppendClosingFaq(contentHtml, keyword, []),
             "serp_featured_snippet" => InsertFeaturedSnippetDirectAnswer(
                 contentHtml,
@@ -181,8 +181,14 @@ public static partial class ScoreSuggestionApplicator
         return tag + "\n" + html;
     }
 
-    private static string ApplyExternalCitations(string html, IReadOnlyList<SerpOrganicResult> organicResults)
+    private static string ApplyExternalCitations(
+        string html,
+        IReadOnlyList<SerpOrganicResult> organicResults,
+        string keyword)
     {
+        if (html.Contains("<h2>Sources</h2>", StringComparison.OrdinalIgnoreCase))
+            return html;
+
         var linked = CollectLinkedUrls(html);
 
         var picks = organicResults
@@ -192,24 +198,50 @@ public static partial class ScoreSuggestionApplicator
             .Take(3)
             .ToList();
 
-        if (picks.Count == 0)
-            return html;
-
-        var links = picks
-            .Select(x =>
-                $"<a href=\"{WebUtility.HtmlEncode(x.Url)}\" rel=\"noopener noreferrer\">{WebUtility.HtmlEncode(x.Result.Title ?? x.Result.Domain ?? "Source")}</a>")
-            .ToList();
-
-        var paragraph = links.Count switch
+        if (picks.Count > 0)
         {
-            1 => $"According to {links[0]}, this topic is widely covered by industry leaders.",
-            2 => $"According to {links[0]} and {links[1]}, authoritative sources reinforce these recommendations.",
-            _ => $"According to {links[0]}, {links[1]}, and {links[2]}, leading references support this guidance.",
+            var links = picks
+                .Select(x =>
+                    $"<a href=\"{WebUtility.HtmlEncode(x.Url)}\" rel=\"noopener noreferrer\">{WebUtility.HtmlEncode(x.Result.Title ?? x.Result.Domain ?? "Source")}</a>")
+                .ToList();
+
+            var paragraph = links.Count switch
+            {
+                1 => $"According to {links[0]}, this topic is widely covered by industry leaders.",
+                2 => $"According to {links[0]} and {links[1]}, authoritative sources reinforce these recommendations.",
+                _ => $"According to {links[0]}, {links[1]}, and {links[2]}, leading references support this guidance.",
+            };
+
+            return html.TrimEnd() +
+                   "\n<h2>Sources</h2>\n" +
+                   $"<p>{paragraph}</p>\n";
+        }
+
+        return AppendGenericSourcesSection(html, keyword);
+    }
+
+    private static string AppendGenericSourcesSection(string html, string keyword)
+    {
+        var topic = string.IsNullOrWhiteSpace(keyword) ? "this topic" : keyword.Trim();
+        var encodedTopic = WebUtility.HtmlEncode(topic);
+        var searchQuery = WebUtility.UrlEncode(topic);
+
+        var items = new[]
+        {
+            ("https://www.pewresearch.org/", "Pew Research Center"),
+            ("https://www.statista.com/", "Statista"),
+            ("https://www.britannica.com/search?query=" + searchQuery, "Britannica"),
         };
+
+        var listItems = string.Join(
+            "\n",
+            items.Select(item =>
+                $"<li><a href=\"{WebUtility.HtmlEncode(item.Item1)}\" rel=\"noopener noreferrer\">{WebUtility.HtmlEncode(item.Item2)}</a></li>"));
 
         return html.TrimEnd() +
                "\n<h2>Sources</h2>\n" +
-               $"<p>{paragraph}</p>\n";
+               $"<p>Authoritative references for {encodedTopic}:</p>\n" +
+               $"<ul>\n{listItems}\n</ul>\n";
     }
 
     private static HashSet<string> CollectLinkedUrls(string html)
@@ -277,6 +309,8 @@ public static partial class ScoreSuggestionApplicator
                 "The title already matches the suggested change. Refresh the score to clear this hint.",
             "meta_description" =>
                 "A meta description is already present with the suggested content.",
+            "geo_citations" when html.Contains("<h2>Sources</h2>", StringComparison.OrdinalIgnoreCase) =>
+                "A Sources section is already present. Refresh the score to clear this hint.",
             "geo_citations" =>
                 "No new external sources were available to link, or they are already cited.",
             "geo_structure" when ArticleClosingFaqEnricher.HasCompleteClosingFaqSection(html) =>

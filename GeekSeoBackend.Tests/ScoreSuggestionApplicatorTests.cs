@@ -59,6 +59,25 @@ public sealed class ScoreSuggestionApplicatorTests
     }
 
     [Fact]
+    public void TryApplyDeterministic_geo_citations_appends_generic_sources_when_no_serp()
+    {
+        var html = "<h1>Guide</h1><p>Body</p>";
+
+        var patched = ScoreSuggestionApplicator.TryApplyDeterministic(
+            "geo_citations",
+            html,
+            "local seo",
+            55,
+            "Body",
+            []);
+
+        Assert.NotNull(patched);
+        Assert.Contains("<h2>Sources</h2>", patched!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("pewresearch.org", patched!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("statista.com", patched!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void TryApplyDeterministic_serp_featured_snippet_inserts_paragraph_after_first_h2()
     {
         var html = "<h1>Guide</h1><h2>Overview</h2><p>Short intro.</p>";
