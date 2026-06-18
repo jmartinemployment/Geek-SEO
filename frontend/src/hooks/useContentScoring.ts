@@ -69,6 +69,7 @@ export function useContentScoring(documentId: string, accessToken: string | null
         accessTokenFactory: () => accessToken ?? '',
         withCredentials: true,
       })
+      .configureLogging(signalR.LogLevel.Warning)
       .withAutomaticReconnect()
       .build();
 
@@ -135,6 +136,13 @@ export function useContentScoring(documentId: string, accessToken: string | null
     [documentId],
   );
 
+  const receiveScoreUpdate = useCallback((payload: ScoreUpdate) => {
+    setScoreUpdate(payload);
+    setPendingReason(null);
+    setBenchmarkRefreshing(false);
+    setError(null);
+  }, []);
+
   const notifyKeywordChanged = useCallback(
     async (contentHtml: string, newKeyword: string, location: string) => {
       const connection = connectionRef.current;
@@ -159,5 +167,6 @@ export function useContentScoring(documentId: string, accessToken: string | null
     connected,
     notifyContentChanged,
     notifyKeywordChanged,
+    receiveScoreUpdate,
   };
 }

@@ -41,7 +41,13 @@ type ReviewWorkspaceContextValue = {
   applyingSuggestionId: string | null;
   statusUpdating: string | null;
   copyHint: string | null;
-  save: (nextHtml: string, nextKeyword: string, nextTitle: string, nextLocation: string) => Promise<void>;
+  save: (
+    nextHtml: string,
+    nextKeyword: string,
+    nextTitle: string,
+    nextLocation: string,
+    options?: { scheduleScore?: boolean },
+  ) => Promise<void>;
   handleApplySuggestion: (suggestion: ScoreSuggestion) => Promise<void>;
   changeStatus: (nextStatus: string) => Promise<void>;
   refreshSerp: () => void;
@@ -112,6 +118,7 @@ export function ReviewWorkspaceProvider({
     connected,
     notifyContentChanged,
     notifyKeywordChanged,
+    receiveScoreUpdate,
   } = useContentScoring(doc.id, accessToken);
 
   useEffect(() => {
@@ -127,7 +134,13 @@ export function ReviewWorkspaceProvider({
     }, 800);
   }
 
-  async function save(nextHtml: string, nextKeyword: string, nextTitle: string, nextLocation: string) {
+  async function save(
+    nextHtml: string,
+    nextKeyword: string,
+    nextTitle: string,
+    nextLocation: string,
+    options?: { scheduleScore?: boolean },
+  ) {
     setSaving(true);
     try {
       onError(null);
@@ -142,7 +155,9 @@ export function ReviewWorkspaceProvider({
         accessToken,
       );
       onDocumentChange(updated);
-      scheduleScore(nextHtml, nextKeyword);
+      if (options?.scheduleScore !== false) {
+        scheduleScore(nextHtml, nextKeyword);
+      }
     } catch (saveError) {
       onError(saveError);
     } finally {
@@ -170,14 +185,21 @@ export function ReviewWorkspaceProvider({
   }
 
   async function handleApplySuggestion(suggestion: ScoreSuggestion) {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
     setApplyingSuggestionId(suggestion.id);
     try {
       onError(null);
       setAiError(null);
-      await save(html, keyword, title, location);
+      await save(html, keyword, title, location, { scheduleScore: false });
       const result = await applyScoreSuggestion(doc.id, suggestion.id, accessToken, html);
       setHtml(result.contentHtml);
-      await save(result.contentHtml, keyword, title, location);
+      if (result.scoreUpdate) {
+        receiveScoreUpdate(result.scoreUpdate);
+      }
+      await save(result.contentHtml, keyword, title, location, { scheduleScore: false });
     } catch (applyError) {
       const detail = applyError instanceof Error ? applyError.message : 'Apply failed';
       setAiError(`Could not apply “${suggestion.proposedChange}”: ${detail}`);

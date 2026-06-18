@@ -1,5 +1,6 @@
 import { parseSeoApiErrorResponse } from '@/lib/seo-api-errors';
 import { buildApiHeaders } from '@/lib/auth/api-headers';
+import type { ScoreUpdate } from '@/hooks/useContentScoring';
 
 export { SeoApiError, formatSeoApiErrorMessage } from '@/lib/seo-api-errors';
 export type { SeoGateErrorBody } from '@/lib/seo-api-errors';
@@ -476,6 +477,7 @@ export type AutoOptimizeResult = {
 export type ApplySuggestionResult = {
   contentHtml: string;
   appliedChange: string;
+  scoreUpdate?: ScoreUpdate | null;
 };
 
 export type AiDetectionResult = {
