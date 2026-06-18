@@ -21,7 +21,7 @@ import {
   updateContentStatus,
   type SeoContentDocument,
 } from '@/lib/seo-api';
-import { copyHtmlFromPromise } from '@/lib/copy-to-clipboard';
+import { copyTextFromPromise } from '@/lib/copy-to-clipboard';
 
 const DEFAULT_DRAFT_HTML = '<h1>Article title</h1><p>Start writing your article.</p>';
 
@@ -220,7 +220,7 @@ export function ReviewWorkspaceProvider({
   }
 
   function copyRenderedHtml() {
-    void copyHtmlFromPromise(async () => {
+    void copyTextFromPromise(async () => {
       const result = await getRenderedContentHtml(doc.id, accessToken);
       return result.renderedHtml;
     })
