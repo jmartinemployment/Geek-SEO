@@ -1,3 +1,4 @@
+using GeekSeo.Application.Configuration;
 using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
@@ -149,6 +150,19 @@ public sealed class SeoProviderRegistrationTests
         var config = SeoProviderConfiguration.FromEnvironment();
         Assert.Equal(90, config.SerpRetentionDays);
         Assert.Equal(90, config.KeywordRetentionDays);
+    }
+
+    private static Dictionary<string, string?> WithDefaultVendorCache(
+        IReadOnlyDictionary<string, string?> values)
+    {
+        var merged = new Dictionary<string, string?>
+        {
+            [SerpCacheDaysEnv] = "30",
+            [KeywordCacheDaysEnv] = "60",
+        };
+        foreach (var (key, value) in values)
+            merged[key] = value;
+        return merged;
     }
 
     private static ServiceCollection CreateServiceCollection()
