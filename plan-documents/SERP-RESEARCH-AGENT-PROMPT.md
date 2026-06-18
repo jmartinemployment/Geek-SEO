@@ -216,6 +216,12 @@ Return **only** valid JSON (no markdown fences in your final message) matching t
       "label": "Pilot Implementation Strategy",
       "suggestedH2": "",
       "subtopicsFromSerp": []
+    },
+    {
+      "movement": 5,
+      "label": "Scaling Safety",
+      "suggestedH2": "",
+      "subtopicsFromSerp": []
     }
   ]
 }

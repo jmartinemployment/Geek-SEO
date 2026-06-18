@@ -15,7 +15,7 @@ public sealed record ContentBrief
     public IReadOnlyList<string> PeopleAlsoAsk { get; init; } = [];
     /// <summary>Exactly five topic FAQs for the closing section and FAQPage schema.</summary>
     public IReadOnlyList<string> ClosingFaqQuestions { get; init; } = [];
-    public WritingMethodologySpec Methodology { get; init; } = WritingMethodologySpec.FourPhase;
+    public WritingMethodologySpec Methodology { get; init; } = WritingMethodologySpec.FivePhase;
     public IReadOnlyList<DirectAnswerBlockSpec> DirectAnswerBlocks { get; init; } = [];
     public IReadOnlyList<string> TechnicalEvidenceRequirements { get; init; } = [];
     public IReadOnlyList<string> GeoAnchorNodes { get; init; } = [];
@@ -42,9 +42,9 @@ public sealed record WritingMethodologySpec
     public IReadOnlyList<string> Phases =>
         PhaseDefinitions.Select(phase => phase.Label).ToArray();
 
-    public static WritingMethodologySpec FourPhase { get; } = new()
+  public static WritingMethodologySpec FivePhase { get; } = new()
     {
-        Name = "Four Phase Methodology",
+        Name = "Five Phase Methodology",
         PhaseDefinitions =
         [
             new MethodologyPhaseDefinition(
@@ -65,10 +65,18 @@ public sealed record WritingMethodologySpec
             new MethodologyPhaseDefinition(
                 "pilot-implementation",
                 "Pilot Implementation Strategy",
-                "Describe a practical rollout: timeline, pilot scope, proof of value, and how to expand safely.",
+                "Describe a practical rollout: timeline, pilot scope, proof of value, and what success looks like in the first pilot.",
                 ["pilot plan", "phased rollout", "first 30 days", "proof of value", "implementation steps", "quick wins", "rollout timeline"]),
+            new MethodologyPhaseDefinition(
+                "scaling-safety",
+                "Scaling Safety",
+                "Explain how to expand beyond the pilot without breaking operations: governance, monitoring, rollback, capacity, and team adoption.",
+                ["scaling safely", "governance", "monitoring", "rollback plan", "error handling", "team adoption", "capacity planning", "production readiness"]),
         ],
     };
+
+    /// <summary>Backward-compatible alias for <see cref="FivePhase"/>.</summary>
+    public static WritingMethodologySpec FourPhase => FivePhase;
 }
 
 public sealed record DirectAnswerBlockSpec(

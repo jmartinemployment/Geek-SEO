@@ -37,7 +37,7 @@ public static partial class ArticleMethodologyOutlineEnricher
 
         var response = await ai.CompleteAsync(new AIRequest
         {
-            SystemPrompt = ArticleMethodologyPrompt.BuildOutlineRepairSystemPrompt(),
+            SystemPrompt = ArticleMethodologyPrompt.BuildOutlineRepairSystemPrompt(methodology),
             UserPrompt = ArticleMethodologyPrompt.BuildOutlineRepairUserPrompt(
                 brief.Keyword,
                 methodology,

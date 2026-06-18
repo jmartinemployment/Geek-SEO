@@ -55,7 +55,7 @@ Draft user prompt includes the numbered list of 5 questions from `ContentBrief.c
 
 ---
 
-## Four Phase Methodology
+## Five Phase Methodology
 
 Structure body content around:
 
@@ -63,6 +63,7 @@ Structure body content around:
 2. Data Quality Assessment
 3. Tech Selection
 4. Pilot Implementation Strategy
+5. Scaling Safety
 
 ---
 

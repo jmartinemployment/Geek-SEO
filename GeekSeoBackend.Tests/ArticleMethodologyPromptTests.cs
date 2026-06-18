@@ -10,26 +10,28 @@ public sealed class ArticleMethodologyPromptTests
     {
         var text = ArticleMethodologyPrompt.BuildWeaveInstructions(
             "quickbooks automation consultant",
-            WritingMethodologySpec.FourPhase);
+            WritingMethodologySpec.FivePhase);
 
         Assert.Contains("Section 1 intent:", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("business outcomes or ROI", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("pilot plan", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("scaling safely", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Section 5 intent:", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Heading families", text, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Movement 1 —", text);
         Assert.DoesNotContain("<p><strong>Movement", text);
     }
 
     [Fact]
-    public void BuildOutlineRepairUserPrompt_RequestsFourBodySectionsOnly()
+    public void BuildOutlineRepairUserPrompt_RequestsFiveBodySectionsOnly()
     {
         var text = ArticleMethodologyPrompt.BuildOutlineRepairUserPrompt(
             "zapier quickbooks integration",
-            WritingMethodologySpec.FourPhase,
+            WritingMethodologySpec.FivePhase,
             "<h2>Weak section</h2>",
             ["How to connect QuickBooks"]);
 
-        Assert.Contains("Output only the four body sections", text);
+        Assert.Contains("Output only the 5 body sections", text);
         Assert.Contains("zapier quickbooks integration", text);
         Assert.Contains("How to connect QuickBooks", text);
     }
@@ -45,29 +47,31 @@ public sealed class ArticleMethodologyOutlineEnricherTests
             "<h2>Data readiness checklist</h2>" +
             "<h2>Tooling options</h2>" +
             "<h2>Pilot rollout plan</h2>" +
+            "<h2>Scaling safely across teams</h2>" +
             $"<h2>{ContentWritingRules.ClosingFaqHeading}</h2>" +
             "<h3>What is automation?</h3>";
 
-        Assert.Equal(4, ArticleMethodologyOutlineEnricher.CountBodyH2Sections(html));
+        Assert.Equal(5, ArticleMethodologyOutlineEnricher.CountBodyH2Sections(html));
     }
 
     [Fact]
-    public void HasRequiredBodySections_ReturnsFalseWhenFewerThanFourBodyH2s()
+    public void HasRequiredBodySections_ReturnsFalseWhenFewerThanFiveBodyH2s()
     {
         var html = "<h2>Only one section</h2>";
-        Assert.False(ArticleMethodologyOutlineEnricher.HasRequiredBodySections(html, WritingMethodologySpec.FourPhase));
+        Assert.False(ArticleMethodologyOutlineEnricher.HasRequiredBodySections(html, WritingMethodologySpec.FivePhase));
     }
 
     [Fact]
-    public void HasRequiredBodySections_ReturnsTrueWhenFourBodyH2sPresent()
+    public void HasRequiredBodySections_ReturnsTrueWhenFiveBodyH2sPresent()
     {
         var html =
             "<h2>Why automation matters</h2>" +
             "<h2>Data readiness</h2>" +
             "<h2>Tooling</h2>" +
-            "<h2>Pilot plan</h2>";
+            "<h2>Pilot plan</h2>" +
+            "<h2>Scaling safely</h2>";
 
-        Assert.True(ArticleMethodologyOutlineEnricher.HasRequiredBodySections(html, WritingMethodologySpec.FourPhase));
+        Assert.True(ArticleMethodologyOutlineEnricher.HasRequiredBodySections(html, WritingMethodologySpec.FivePhase));
     }
 }
 
@@ -120,21 +124,21 @@ public sealed class ArticleMethodologyScaffoldTests
         var result = ArticleMethodologyScaffold.SanitizeDraft(
             html,
             "bookkeeping automation",
-            WritingMethodologySpec.FourPhase);
+            WritingMethodologySpec.FivePhase);
 
         Assert.DoesNotContain("Movement", result, StringComparison.OrdinalIgnoreCase);
-        Assert.True(ArticleMethodologyOutlineEnricher.HasRequiredBodySections(result, WritingMethodologySpec.FourPhase));
+        Assert.True(ArticleMethodologyOutlineEnricher.HasRequiredBodySections(result, WritingMethodologySpec.FivePhase));
     }
 
     [Fact]
-    public void BuildDeterministicBodySections_IncludesFourTopicHeadings()
+    public void BuildDeterministicBodySections_IncludesFiveTopicHeadings()
     {
         var html = ArticleMethodologyScaffold.BuildDeterministicBodySections(
             "zapier quickbooks integration",
-            WritingMethodologySpec.FourPhase);
+            WritingMethodologySpec.FivePhase);
 
         Assert.DoesNotContain("Movement 1", html);
         Assert.Contains("<h2>", html);
-        Assert.Equal(4, ArticleMethodologyOutlineEnricher.CountBodyH2Sections(html));
+        Assert.Equal(5, ArticleMethodologyOutlineEnricher.CountBodyH2Sections(html));
     }
 }

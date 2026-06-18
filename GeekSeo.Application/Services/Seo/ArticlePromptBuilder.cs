@@ -7,7 +7,7 @@ public static class ArticlePromptBuilder
 {
     public static string BuildOutlineSystemPrompt() =>
         $"You are an SEO content strategist. Output a detailed article outline as HTML using h2 and h3 only. " +
-        $"Before the closing FAQ, include exactly four body sections in order — each with one topic-specific <h2>. " +
+        $"Before the closing FAQ, include exactly {WritingMethodologySpec.FivePhase.PhaseDefinitions.Count} body sections in order — each with one topic-specific <h2>. " +
         $"Always end with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> and exactly {ContentWritingRules.ClosingFaqCount} <h3> FAQ questions (no answers in the outline). No preamble. No h1.";
 
     public static string BuildOutlineUserPrompt(WritingOutlineRequest request)

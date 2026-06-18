@@ -601,7 +601,7 @@ public sealed class SerpResearchPackService(
             .Where(q => q.Length > 0)
             .ToList();
 
-        var phases = WritingMethodologySpec.FourPhase.PhaseDefinitions;
+        var phases = WritingMethodologySpec.FivePhase.PhaseDefinitions;
         var hints = new List<SerpResearchMethodologyHint>();
 
         for (var i = 0; i < phases.Count; i++)

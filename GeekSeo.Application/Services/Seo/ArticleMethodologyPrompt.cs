@@ -25,14 +25,18 @@ public static class ArticleMethodologyPrompt
         }
 
         builder.AppendLine(
-            "Competitor heading patterns are inspiration only. They must not replace the four required body sections.");
+            $"Competitor heading patterns are inspiration only. They must not replace the {methodology.PhaseDefinitions.Count} required body sections.");
         return builder.ToString().TrimEnd();
     }
 
-    public static string BuildOutlineRepairSystemPrompt() =>
-        "You are an SEO content strategist. Output HTML only: exactly four body sections. " +
-        "Each section is one topic-specific <h2> and optional <h3> sub-points. " +
-        "No internal movement labels. No FAQ section. No preamble. No h1. No markdown fences.";
+    public static string BuildOutlineRepairSystemPrompt(WritingMethodologySpec methodology)
+    {
+        var sectionCount = methodology.PhaseDefinitions.Count;
+        return
+            $"You are an SEO content strategist. Output HTML only: exactly {sectionCount} body sections. " +
+            "Each section is one topic-specific <h2> and optional <h3> sub-points. " +
+            "No internal movement labels. No FAQ section. No preamble. No h1. No markdown fences.";
+    }
 
     public static string BuildOutlineRepairUserPrompt(
         string keyword,
@@ -59,7 +63,7 @@ public static class ArticleMethodologyPrompt
         }
 
         builder.AppendLine();
-        builder.AppendLine("Output only the four body sections in order.");
+        builder.AppendLine($"Output only the {methodology.PhaseDefinitions.Count} body sections in order.");
         return builder.ToString().TrimEnd();
     }
 }

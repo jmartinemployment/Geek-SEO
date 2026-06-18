@@ -91,6 +91,7 @@ public static partial class ArticleMethodologyScaffold
             "data-quality-assessment" => $"{TitleCase(family)} before you implement {topic}",
             "tech-selection" => $"Choosing the right stack for {topic}",
             "pilot-implementation" => $"Pilot plan and rollout for {topic}",
+            "scaling-safety" => $"Scaling {topic} safely across the business",
             _ => $"{TitleCase(family)} for {topic}",
         };
     }
