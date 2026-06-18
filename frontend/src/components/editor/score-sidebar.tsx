@@ -375,10 +375,14 @@ function ScoreActionsColumn({
                             onClick={() => void onApplySuggestion(s)}
                           >
                             {applyingSuggestionId === s.id
-                              ? 'Applying…'
-                              : s.applyMode === 'ai'
-                                ? 'Apply with AI'
-                                : 'Apply'}
+                              ? s.id === 'geo_citations' && s.applyMode === 'ai'
+                                ? 'Finding sources…'
+                                : 'Applying…'
+                              : s.id === 'geo_citations' && s.applyMode === 'ai'
+                                ? 'Find Sources with AI'
+                                : s.applyMode === 'ai'
+                                  ? 'Apply with AI'
+                                  : 'Apply'}
                           </button>
                         ) : null}
                       </div>

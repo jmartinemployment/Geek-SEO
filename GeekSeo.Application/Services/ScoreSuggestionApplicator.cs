@@ -19,7 +19,7 @@ public static partial class ScoreSuggestionApplicator
         {
             "title_keyword" => ApplyTitleKeyword(contentHtml, keyword, avgTitleLength),
             "meta_description" => ApplyMetaDescription(contentHtml, keyword, plainText),
-            "geo_citations" => ApplyExternalCitations(contentHtml, organicResults, keyword),
+            "geo_citations" => TryAppendSourcesFromSerp(contentHtml, organicResults),
             "geo_structure" => AppendClosingFaq(contentHtml, keyword, []),
             "serp_featured_snippet" => InsertFeaturedSnippetDirectAnswer(
                 contentHtml,
@@ -181,68 +181,82 @@ public static partial class ScoreSuggestionApplicator
         return tag + "\n" + html;
     }
 
-    private static string ApplyExternalCitations(
-        string html,
-        IReadOnlyList<SerpOrganicResult> organicResults,
-        string keyword)
+    public static bool HasUsableSerpCitationPicks(string html, IReadOnlyList<SerpOrganicResult> organicResults) =>
+        SelectSerpCitationPicks(html, organicResults).Count > 0;
+
+    public static string? TryAppendSourcesFromSerp(string html, IReadOnlyList<SerpOrganicResult> organicResults)
     {
-        if (html.Contains("<h2>Sources</h2>", StringComparison.OrdinalIgnoreCase))
-            return html;
+        if (HasSourcesSection(html))
+            return null;
 
+        var picks = SelectSerpCitationPicks(html, organicResults);
+        if (picks.Count == 0)
+            return null;
+
+        var links = picks
+            .Select(x =>
+                $"<a href=\"{WebUtility.HtmlEncode(x.Url)}\" rel=\"noopener noreferrer\">{WebUtility.HtmlEncode(x.Label)}</a>")
+            .ToList();
+
+        return AppendSourcesBlock(html, BuildSourcesParagraph(links));
+    }
+
+    public static string? TryAppendSourcesFromDiscovered(string html, IReadOnlyList<DiscoveredSource> sources)
+    {
+        if (HasSourcesSection(html))
+            return null;
+
+        var picks = sources
+            .Where(s => IsValidExternalUrl(s.Url))
+            .Take(3)
+            .ToList();
+        if (picks.Count == 0)
+            return null;
+
+        var items = picks
+            .Select(source =>
+            {
+                var label = string.IsNullOrWhiteSpace(source.AnchorText) ? source.Title : source.AnchorText!;
+                return $"<li><a href=\"{WebUtility.HtmlEncode(source.Url.Trim())}\" rel=\"noopener noreferrer\">{WebUtility.HtmlEncode(label.Trim())}</a></li>";
+            });
+
+        return AppendSourcesBlock(
+            html,
+            $"<ul>\n{string.Join("\n", items)}\n</ul>");
+    }
+
+    private static bool HasSourcesSection(string html) =>
+        html.Contains("<h2>Sources</h2>", StringComparison.OrdinalIgnoreCase);
+
+    private static string AppendSourcesBlock(string html, string body) =>
+        html.TrimEnd() + "\n<h2>Sources</h2>\n" + body + "\n";
+
+    private static string BuildSourcesParagraph(IReadOnlyList<string> links) =>
+        links.Count switch
+        {
+            1 => $"<p>According to {links[0]}, this topic is widely covered by industry leaders.</p>",
+            2 => $"<p>According to {links[0]} and {links[1]}, authoritative sources reinforce these recommendations.</p>",
+            _ => $"<p>According to {links[0]}, {links[1]}, and {links[2]}, leading references support this guidance.</p>",
+        };
+
+    private static List<(string Url, string Label)> SelectSerpCitationPicks(
+        string html,
+        IReadOnlyList<SerpOrganicResult> organicResults)
+    {
         var linked = CollectLinkedUrls(html);
-
-        var picks = organicResults
+        return organicResults
             .Select(r => new { Result = r, Url = ResolveOrganicUrl(r) })
             .Where(x => !string.IsNullOrWhiteSpace(x.Url))
             .Where(x => !IsUrlAlreadyLinked(x.Url, linked))
             .Take(3)
+            .Select(x => (x.Url, x.Result.Title ?? x.Result.Domain ?? "Source"))
             .ToList();
-
-        if (picks.Count > 0)
-        {
-            var links = picks
-                .Select(x =>
-                    $"<a href=\"{WebUtility.HtmlEncode(x.Url)}\" rel=\"noopener noreferrer\">{WebUtility.HtmlEncode(x.Result.Title ?? x.Result.Domain ?? "Source")}</a>")
-                .ToList();
-
-            var paragraph = links.Count switch
-            {
-                1 => $"According to {links[0]}, this topic is widely covered by industry leaders.",
-                2 => $"According to {links[0]} and {links[1]}, authoritative sources reinforce these recommendations.",
-                _ => $"According to {links[0]}, {links[1]}, and {links[2]}, leading references support this guidance.",
-            };
-
-            return html.TrimEnd() +
-                   "\n<h2>Sources</h2>\n" +
-                   $"<p>{paragraph}</p>\n";
-        }
-
-        return AppendGenericSourcesSection(html, keyword);
     }
 
-    private static string AppendGenericSourcesSection(string html, string keyword)
-    {
-        var topic = string.IsNullOrWhiteSpace(keyword) ? "this topic" : keyword.Trim();
-        var encodedTopic = WebUtility.HtmlEncode(topic);
-        var searchQuery = WebUtility.UrlEncode(topic);
-
-        var items = new[]
-        {
-            ("https://www.pewresearch.org/", "Pew Research Center"),
-            ("https://www.statista.com/", "Statista"),
-            ("https://www.britannica.com/search?query=" + searchQuery, "Britannica"),
-        };
-
-        var listItems = string.Join(
-            "\n",
-            items.Select(item =>
-                $"<li><a href=\"{WebUtility.HtmlEncode(item.Item1)}\" rel=\"noopener noreferrer\">{WebUtility.HtmlEncode(item.Item2)}</a></li>"));
-
-        return html.TrimEnd() +
-               "\n<h2>Sources</h2>\n" +
-               $"<p>Authoritative references for {encodedTopic}:</p>\n" +
-               $"<ul>\n{listItems}\n</ul>\n";
-    }
+    private static bool IsValidExternalUrl(string url) =>
+        Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri)
+        && (uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+            || uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase));
 
     private static HashSet<string> CollectLinkedUrls(string html)
     {
@@ -309,7 +323,7 @@ public static partial class ScoreSuggestionApplicator
                 "The title already matches the suggested change. Refresh the score to clear this hint.",
             "meta_description" =>
                 "A meta description is already present with the suggested content.",
-            "geo_citations" when html.Contains("<h2>Sources</h2>", StringComparison.OrdinalIgnoreCase) =>
+            "geo_citations" when HasSourcesSection(html) =>
                 "A Sources section is already present. Refresh the score to clear this hint.",
             "geo_citations" =>
                 "No new external sources were available to link, or they are already cited.",

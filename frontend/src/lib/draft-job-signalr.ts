@@ -306,4 +306,4 @@ export async function runBulkKeywordDrafts(
   return all.filter((doc) => doc.status === 'awaiting_review' || doc.status === 'draft').slice(0, keywords.length);
 }
 
-export { describeDraftJobProgress };
+export { describeDraftJobProgress, beginDraftJobWait };

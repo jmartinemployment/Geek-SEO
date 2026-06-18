@@ -59,22 +59,27 @@ public sealed class ScoreSuggestionApplicatorTests
     }
 
     [Fact]
-    public void TryApplyDeterministic_geo_citations_appends_generic_sources_when_no_serp()
+    public void HasUsableSerpCitationPicks_returns_false_when_no_organic_results()
     {
         var html = "<h1>Guide</h1><p>Body</p>";
+        Assert.False(ScoreSuggestionApplicator.HasUsableSerpCitationPicks(html, []));
+    }
 
-        var patched = ScoreSuggestionApplicator.TryApplyDeterministic(
-            "geo_citations",
-            html,
-            "local seo",
-            55,
-            "Body",
-            []);
+    [Fact]
+    public void TryAppendSourcesFromDiscovered_appends_list_with_ai_sources()
+    {
+        var html = "<h1>Guide</h1><p>Body</p>";
+        var sources = new List<DiscoveredSource>
+        {
+            new() { Url = "https://www.cdc.gov/example", Title = "CDC", AnchorText = "CDC guidance" },
+            new() { Url = "https://www.nih.gov/example", Title = "NIH", AnchorText = "NIH research" },
+        };
+
+        var patched = ScoreSuggestionApplicator.TryAppendSourcesFromDiscovered(html, sources);
 
         Assert.NotNull(patched);
         Assert.Contains("<h2>Sources</h2>", patched!, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("pewresearch.org", patched!, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("statista.com", patched!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("https://www.cdc.gov/example", patched!, StringComparison.Ordinal);
     }
 
     [Fact]

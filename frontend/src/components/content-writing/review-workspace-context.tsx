@@ -17,11 +17,15 @@ import {
   applyScoreSuggestion,
   deleteSerpCache,
   formatRenderedArticleForClipboard,
+  getContent,
   getRenderedContentHtml,
+  scoreContentDocument,
   updateContent,
   updateContentStatus,
   type SeoContentDocument,
 } from '@/lib/seo-api';
+import { beginDraftJobWait } from '@/lib/draft-job-signalr';
+import { useSeoHub } from '@/components/signalr/seo-hub-provider';
 import { copyTextFromPromise } from '@/lib/copy-to-clipboard';
 
 const DEFAULT_DRAFT_HTML = '<h1>Article title</h1><p>Start writing your article.</p>';
@@ -111,6 +115,7 @@ export function ReviewWorkspaceProvider({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialScoreSentRef = useRef(false);
   const editorRef = useRef<ContentEditorHandle>(null);
+  const hub = useSeoHub();
 
   const {
     scoreUpdate,
@@ -192,21 +197,49 @@ export function ReviewWorkspaceProvider({
       debounceRef.current = null;
     }
     setApplyingSuggestionId(suggestion.id);
+    const isAsyncSources = suggestion.id === 'geo_citations' && suggestion.applyMode === 'ai';
+    const listener = isAsyncSources
+      ? beginDraftJobWait({ hub, accessToken })
+      : null;
     try {
       onError(null);
       setAiError(null);
-      await save(html, keyword, title, location, { scheduleScore: false });
-      const result = await applyScoreSuggestion(doc.id, suggestion.id, accessToken, html);
-      setHtml(result.contentHtml);
-      if (result.scoreUpdate) {
-        receiveScoreUpdate(result.scoreUpdate);
+      if (listener) {
+        await listener.whenReady();
       }
-      await save(result.contentHtml, keyword, title, location, { scheduleScore: false });
+      await save(html, keyword, title, location, { scheduleScore: false });
+      const outcome = await applyScoreSuggestion(doc.id, suggestion.id, accessToken, html);
+      if (outcome.kind === 'queued') {
+        const terminal = await listener!.waitFor(outcome.job.jobId);
+        if (terminal.status === 'failed') {
+          throw new Error(terminal.errorMessage ?? 'Source discovery failed');
+        }
+        const updated = await getContent(doc.id, accessToken);
+        setHtml(updated.contentHtml);
+        onDocumentChange(updated);
+        const scored = await scoreContentDocument(
+          doc.id,
+          { contentHtml: updated.contentHtml, targetKeyword: keyword },
+          accessToken,
+        );
+        if (scored.scoreUpdate) {
+          receiveScoreUpdate(scored.scoreUpdate);
+        }
+        await save(updated.contentHtml, keyword, title, location, { scheduleScore: false });
+        return;
+      }
+
+      setHtml(outcome.result.contentHtml);
+      if (outcome.result.scoreUpdate) {
+        receiveScoreUpdate(outcome.result.scoreUpdate);
+      }
+      await save(outcome.result.contentHtml, keyword, title, location, { scheduleScore: false });
     } catch (applyError) {
       const detail = applyError instanceof Error ? applyError.message : 'Apply failed';
       setAiError(`Could not apply “${suggestion.proposedChange}”: ${detail}`);
       onError(applyError);
     } finally {
+      listener?.dispose();
       setApplyingSuggestionId(null);
     }
   }

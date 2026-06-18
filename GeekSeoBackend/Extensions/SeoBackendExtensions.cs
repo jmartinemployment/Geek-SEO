@@ -33,6 +33,7 @@ public static class SeoBackendExtensions
         services.AddSingleton<NicheAnalysisJobChannel>();
         services.AddSingleton<UrlResearchJobChannel>();
         services.AddSingleton<ContentDraftJobChannel>();
+        services.AddSingleton<ApplySourcesJobChannel>();
 
         // Persistence via GeekAPI → GeekRepository (dumb data pipe)
         services.AddScoped<IProjectRepository, HttpProjectRepository>();
@@ -61,6 +62,8 @@ public static class SeoBackendExtensions
         services.AddScoped<IContentDocumentService, ContentDocumentService>();
         services.AddScoped<IContentResearchWritingService, ContentResearchWritingService>();
         services.AddScoped<IContentDraftJobService, ContentDraftJobService>();
+        services.AddScoped<IApplySourcesJobService, ApplySourcesJobService>();
+        services.AddScoped<ISourceDiscoveryService, SourceDiscoveryService>();
         services.AddScoped<IContentFeaturedImageService, ContentFeaturedImageService>();
         services.AddScoped<IBackgroundJobService, BackgroundJobService>();
         services.AddScoped<SubscriptionService>();

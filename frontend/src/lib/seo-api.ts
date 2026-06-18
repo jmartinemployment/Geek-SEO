@@ -531,6 +531,10 @@ export type ApplySuggestionResult = {
   scoreUpdate?: ScoreUpdate | null;
 };
 
+export type ApplySuggestionOutcome =
+  | { kind: 'completed'; result: ApplySuggestionResult }
+  | { kind: 'queued'; job: BackgroundJobStatus };
+
 export type AiDetectionResult = {
   aiProbability: number;
   summary: string;
@@ -649,14 +653,19 @@ export async function applyScoreSuggestion(
   suggestionId: string,
   accessToken?: string | null,
   contentHtml?: string,
-): Promise<ApplySuggestionResult> {
+): Promise<ApplySuggestionOutcome> {
   const res = await fetch(`${API_URL}/api/seo/content/${documentId}/apply-suggestion`, {
     method: 'POST',
     headers: apiHeaders(accessToken),
     body: JSON.stringify({ suggestionId, contentHtml }),
   });
+  if (res.status === 202) {
+    const job = (await res.json()) as BackgroundJobStatus;
+    return { kind: 'queued', job };
+  }
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
-  return res.json() as Promise<ApplySuggestionResult>;
+  const result = (await res.json()) as ApplySuggestionResult;
+  return { kind: 'completed', result };
 }
 
 /** Below SignalR default 32 KB — large drafts must score over HTTP. */

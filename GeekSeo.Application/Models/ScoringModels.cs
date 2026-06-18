@@ -55,6 +55,21 @@ public sealed record ApplySuggestionResult
     public ScoreUpdateMessage? ScoreUpdate { get; init; }
 }
 
+/// <summary>completed = inline apply finished; queued = background job accepted.</summary>
+public sealed record ApplySuggestionResponse
+{
+    public required string Outcome { get; init; }
+    public ApplySuggestionResult? Result { get; init; }
+    public BackgroundJobStatus? Job { get; init; }
+}
+
+public sealed record DiscoveredSource
+{
+    public required string Url { get; init; }
+    public required string Title { get; init; }
+    public string? AnchorText { get; init; }
+}
+
 public sealed record SerpFeatureGuidance
 {
     public required string Feature { get; init; }

@@ -188,7 +188,9 @@ public static class GeoScoringCalculator
                 PointValue = 20 - citations,
                 ActionText = "Link to 2–3 authoritative external sources to strengthen citation signals.",
                 ProposedChange = $"Add a Sources section linking to {sourceHint}.",
-                ApplyMode = "deterministic",
+                ApplyMode = ScoreSuggestionApplicator.HasUsableSerpCitationPicks(contentHtml, organicResults)
+                    ? "deterministic"
+                    : "ai",
             });
         }
         if (depth < 14)

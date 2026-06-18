@@ -167,7 +167,8 @@ public sealed class ContentScoringForbiddenTests
             serp,
             new CompetitorCrawlService(new FakeCrawlerProvider(), new FakeCompetitorPageRepository()),
             new FakeRichTextProvider(),
-            new NoOpAiProvider());
+            new NoOpAiProvider(),
+            new NoOpApplySourcesJobService());
     }
 
     private static SeoContentDocument ResearchDocument() => new()
@@ -405,5 +406,16 @@ public sealed class ContentScoringForbiddenTests
 
         public Task<Result<SeoCompetitorPage>> UpsertAsync(Guid serpResultId, PageContent page, CancellationToken ct = default) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class NoOpApplySourcesJobService : IApplySourcesJobService
+    {
+        public Task<Result<BackgroundJobStatus>> EnqueueAsync(
+            Guid userId,
+            Guid documentId,
+            string keyword,
+            string location,
+            CancellationToken ct = default) =>
+            Task.FromResult(Result<BackgroundJobStatus>.Failure("Not implemented in test"));
     }
 }

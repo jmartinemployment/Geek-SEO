@@ -16,6 +16,7 @@ public sealed class ContentController(
     IContentResearchWritingService researchWriting,
     IContentDraftJobService draftJobs,
     ContentDraftJobChannel draftJobChannel,
+    ApplySourcesJobChannel applySourcesJobChannel,
     IContentFeaturedImageService featuredImages,
     IArticleRenderService renderer,
     ICompetitorInsightsService competitors,
@@ -189,9 +190,16 @@ public sealed class ContentController(
             request.ContentHtml,
             ct);
 
-        return result.IsSuccess
-            ? Ok(result.Value)
-            : BadRequest(new { error = result.Error, suggestionId = request.SuggestionId });
+        if (!result.IsSuccess || result.Value is null)
+            return BadRequest(new { error = result.Error, suggestionId = request.SuggestionId });
+
+        if (string.Equals(result.Value.Outcome, "queued", StringComparison.Ordinal))
+        {
+            applySourcesJobChannel.Notify();
+            return Accepted(result.Value.Job);
+        }
+
+        return Ok(result.Value.Result);
     }
 }
 

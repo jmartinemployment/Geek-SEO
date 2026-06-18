@@ -16,7 +16,8 @@ public sealed class ContentScoringService(
     ISerpProvider serpProvider,
     CompetitorCrawlService competitorCrawl,
     IRichTextProvider richText,
-    IAIProvider ai) : IContentScoringService
+    IAIProvider ai,
+    IApplySourcesJobService applySourcesJobs) : IContentScoringService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -103,7 +104,7 @@ public sealed class ContentScoringService(
         });
     }
 
-    public async Task<Result<ApplySuggestionResult>> ApplySuggestionAsync(
+    public async Task<Result<ApplySuggestionResponse>> ApplySuggestionAsync(
         Guid userId,
         Guid documentId,
         string suggestionId,
@@ -111,11 +112,11 @@ public sealed class ContentScoringService(
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(suggestionId))
-            return Result<ApplySuggestionResult>.Failure("Suggestion id is required");
+            return Result<ApplySuggestionResponse>.Failure("Suggestion id is required");
 
         var access = await documents.EnsureAccessAsync(userId, documentId, ct);
         if (!access.IsSuccess || access.Value is null)
-            return Result<ApplySuggestionResult>.Failure(access.Error ?? "Access denied");
+            return Result<ApplySuggestionResponse>.Failure(access.Error ?? "Access denied");
 
         var doc = access.Value;
         var keyword = doc.TargetKeyword;
@@ -127,9 +128,9 @@ public sealed class ContentScoringService(
             ? await ResolveBenchmarksFromResearchAsync(doc.UrlResearchId!.Value, ct)
             : await ResolveBenchmarksAsync(keyword, location, languageCode, ct);
         if (!benchmarkResult.IsSuccess)
-            return Result<ApplySuggestionResult>.Failure(benchmarkResult.Error ?? "Benchmark error");
+            return Result<ApplySuggestionResponse>.Failure(benchmarkResult.Error ?? "Benchmark error");
         if (benchmarkResult.Value?.PendingReason is not null)
-            return Result<ApplySuggestionResult>.Failure("Benchmarks are still loading. Try again shortly.");
+            return Result<ApplySuggestionResponse>.Failure("Benchmarks are still loading. Try again shortly.");
 
         var benchmarks = benchmarkResult.Value!.Benchmarks;
         var plainText = richText.ExtractPlainText(baseHtml);
@@ -142,14 +143,28 @@ public sealed class ContentScoringService(
             ct: ct,
             skipAutoEnrich: true);
         if (!current.IsSuccess || current.Value?.ScoreUpdate is null)
-            return Result<ApplySuggestionResult>.Failure(current.Error ?? "Could not score document");
+            return Result<ApplySuggestionResponse>.Failure(current.Error ?? "Could not score document");
 
         var suggestion = current.Value.ScoreUpdate.Suggestions
                              .FirstOrDefault(s => string.Equals(s.Id, suggestionId, StringComparison.Ordinal))
                          ?? ResolveSerpFeatureSuggestion(current.Value.ScoreUpdate.SerpFeatures, suggestionId);
         if (suggestion is null)
-            return Result<ApplySuggestionResult>.Failure(
+            return Result<ApplySuggestionResponse>.Failure(
                 $"Suggestion “{suggestionId}” is no longer available. Wait for the score to refresh, then try again.");
+
+        if (string.Equals(suggestionId, "geo_citations", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(suggestion.ApplyMode, "ai", StringComparison.Ordinal))
+        {
+            var queued = await applySourcesJobs.EnqueueAsync(userId, documentId, keyword, location, ct);
+            if (!queued.IsSuccess || queued.Value is null)
+                return Result<ApplySuggestionResponse>.Failure(queued.Error ?? "Could not queue source discovery job");
+
+            return Result<ApplySuggestionResponse>.Success(new ApplySuggestionResponse
+            {
+                Outcome = "queued",
+                Job = queued.Value,
+            });
+        }
 
         string patchedHtml;
         if (string.Equals(suggestionId, "geo_structure", StringComparison.OrdinalIgnoreCase))
@@ -157,7 +172,7 @@ public sealed class ContentScoringService(
             patchedHtml = await ApplyClosingFaqSuggestionAsync(doc, baseHtml, ct);
             if (string.Equals(patchedHtml, baseHtml, StringComparison.Ordinal))
             {
-                return Result<ApplySuggestionResult>.Failure(
+                return Result<ApplySuggestionResponse>.Failure(
                     ScoreSuggestionApplicator.DescribeDeterministicFailure(suggestion.Id, baseHtml, keyword));
             }
         }
@@ -174,7 +189,7 @@ public sealed class ContentScoringService(
 
             if (string.Equals(patchedHtml, baseHtml, StringComparison.Ordinal))
             {
-                return Result<ApplySuggestionResult>.Failure(
+                return Result<ApplySuggestionResponse>.Failure(
                     ScoreSuggestionApplicator.DescribeDeterministicFailure(suggestion.Id, baseHtml, keyword));
             }
         }
@@ -191,15 +206,15 @@ public sealed class ContentScoringService(
             }, ct);
 
             if (!optimized.IsSuccess || optimized.Value is null)
-                return Result<ApplySuggestionResult>.Failure(optimized.Error ?? "Could not apply change with AI");
+                return Result<ApplySuggestionResponse>.Failure(optimized.Error ?? "Could not apply change with AI");
 
             patchedHtml = AiHtmlSanitizer.ToHtmlFragment(optimized.Value.Content);
             if (string.IsNullOrWhiteSpace(patchedHtml))
-                return Result<ApplySuggestionResult>.Failure("AI returned empty HTML. Try again or edit manually.");
+                return Result<ApplySuggestionResponse>.Failure("AI returned empty HTML. Try again or edit manually.");
         }
         else
         {
-            return Result<ApplySuggestionResult>.Failure("This suggestion must be applied manually in the editor.");
+            return Result<ApplySuggestionResponse>.Failure("This suggestion must be applied manually in the editor.");
         }
 
         await documents.UpdateContentAsync(
@@ -209,11 +224,15 @@ public sealed class ContentScoringService(
             ct);
 
         var after = await ScoreAsync(userId, documentId, patchedHtml, keyword, invalidateCache: false, ct);
-        return Result<ApplySuggestionResult>.Success(new ApplySuggestionResult
+        return Result<ApplySuggestionResponse>.Success(new ApplySuggestionResponse
         {
-            ContentHtml = patchedHtml,
-            AppliedChange = suggestion.ProposedChange,
-            ScoreUpdate = after.Value?.ScoreUpdate,
+            Outcome = "completed",
+            Result = new ApplySuggestionResult
+            {
+                ContentHtml = patchedHtml,
+                AppliedChange = suggestion.ProposedChange,
+                ScoreUpdate = after.Value?.ScoreUpdate,
+            },
         });
     }
 
