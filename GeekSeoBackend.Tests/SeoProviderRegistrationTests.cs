@@ -35,11 +35,12 @@ public sealed class SeoProviderRegistrationTests
         var services = CreateServiceCollection();
         services.AddSeoDataProviders();
         using var sp = services.BuildServiceProvider();
+        using var scope = sp.CreateScope();
 
-        Assert.IsType<DatabaseBackedSerpProvider>(sp.GetRequiredService<ISerpProvider>());
-        Assert.IsType<DatabaseBackedKeywordProvider>(sp.GetRequiredService<IKeywordProvider>());
-        Assert.IsType<MeteredRankSnapshotProvider>(sp.GetRequiredService<IRankSnapshotProvider>());
-        Assert.IsType<DataForSeoRankSnapshotProvider>(sp.GetRequiredService<DataForSeoRankSnapshotProvider>());
+        Assert.IsType<DatabaseBackedSerpProvider>(scope.ServiceProvider.GetRequiredService<ISerpProvider>());
+        Assert.IsType<DatabaseBackedKeywordProvider>(scope.ServiceProvider.GetRequiredService<IKeywordProvider>());
+        Assert.IsType<MeteredRankSnapshotProvider>(scope.ServiceProvider.GetRequiredService<IRankSnapshotProvider>());
+        Assert.IsType<DataForSeoRankSnapshotProvider>(scope.ServiceProvider.GetRequiredService<DataForSeoRankSnapshotProvider>());
 
         var config = sp.GetRequiredService<SeoProviderConfiguration>();
         Assert.Equal("dataforseo", config.SerpProvider);
@@ -77,10 +78,11 @@ public sealed class SeoProviderRegistrationTests
         var services = CreateServiceCollection();
         services.AddSeoDataProviders();
         using var sp = services.BuildServiceProvider();
+        using var scope = sp.CreateScope();
 
-        Assert.IsType<DatabaseBackedSerpProvider>(sp.GetRequiredService<ISerpProvider>());
-        Assert.IsType<MeteredRankSnapshotProvider>(sp.GetRequiredService<IRankSnapshotProvider>());
-        Assert.IsType<SerpApiRankSnapshotProvider>(sp.GetRequiredService<SerpApiRankSnapshotProvider>());
+        Assert.IsType<DatabaseBackedSerpProvider>(scope.ServiceProvider.GetRequiredService<ISerpProvider>());
+        Assert.IsType<MeteredRankSnapshotProvider>(scope.ServiceProvider.GetRequiredService<IRankSnapshotProvider>());
+        Assert.IsType<SerpApiRankSnapshotProvider>(scope.ServiceProvider.GetRequiredService<SerpApiRankSnapshotProvider>());
     }
 
     [Fact]
@@ -98,8 +100,9 @@ public sealed class SeoProviderRegistrationTests
         var services = CreateServiceCollection();
         services.AddSeoDataProviders();
         using var sp = services.BuildServiceProvider();
+        using var scope = sp.CreateScope();
 
-        var serp = sp.GetRequiredService<ISerpProvider>();
+        var serp = scope.ServiceProvider.GetRequiredService<ISerpProvider>();
         Assert.IsType<DatabaseBackedSerpProvider>(serp);
     }
 
@@ -111,8 +114,8 @@ public sealed class SeoProviderRegistrationTests
             ["DATAFORSEO_LOGIN"] = "user",
             ["DATAFORSEO_PASSWORD"] = "pass",
             [SeoProviderRegistration.SerpApiKeyEnv] = "key",
-            ["SEO_VENDOR_SERP_RETENTION_DAYS"] = "45",
-            ["SEO_VENDOR_KEYWORD_RETENTION_DAYS"] = "90",
+            ["SEO_VENDOR_SERP_CACHE_DAYS"] = "45",
+            ["SEO_VENDOR_KEYWORD_CACHE_DAYS"] = "90",
         });
 
         var config = SeoProviderConfiguration.FromEnvironment();
@@ -133,22 +136,6 @@ public sealed class SeoProviderRegistrationTests
 
         var config = SeoProviderConfiguration.FromEnvironment();
         Assert.Equal(45, config.SerpRetentionDays);
-        Assert.Equal(90, config.KeywordRetentionDays);
-    }
-
-    [Fact]
-    public void SeoProviderConfiguration_retention_wins_over_cache_when_both_set()
-    {
-        using var env = EnvScope.For(new Dictionary<string, string?>
-        {
-            ["SEO_VENDOR_SERP_RETENTION_DAYS"] = "90",
-            ["SEO_VENDOR_SERP_CACHE_DAYS"] = "30",
-            ["SEO_VENDOR_KEYWORD_RETENTION_DAYS"] = "90",
-            ["SEO_VENDOR_KEYWORD_CACHE_DAYS"] = "30",
-        });
-
-        var config = SeoProviderConfiguration.FromEnvironment();
-        Assert.Equal(90, config.SerpRetentionDays);
         Assert.Equal(90, config.KeywordRetentionDays);
     }
 

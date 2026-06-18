@@ -1,13 +1,15 @@
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
+using GeekSeoBackend.Providers.Seo.SerpApi;
 
 namespace GeekSeoBackend.Providers.Seo;
 
 /// <summary>
-/// Tries primary <see cref="ISerpProvider"/> first; on failure, calls fallback (Phase A bridge).
+/// Tries SerpApi first; on failure, calls DataForSEO (Phase A bridge).
+/// Concrete types avoid circular DI with the database-backed <see cref="ISerpProvider"/> wrapper.
 /// </summary>
-public sealed class FallbackSerpProvider(ISerpProvider primary, ISerpProvider fallback) : ISerpProvider
+public sealed class FallbackSerpProvider(SerpApiSerpProvider primary, DataForSEOSerpProvider fallback) : ISerpProvider
 {
     private string _providerName = primary.ProviderName;
 
