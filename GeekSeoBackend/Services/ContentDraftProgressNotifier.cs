@@ -32,7 +32,7 @@ public sealed class ContentDraftProgressNotifier(
             DocumentId = extras?.DocumentId,
         };
 
-        await SendAsync(userId, "DraftJobProgress", payload, ct);
+        await SendAsync(userId, SeoHubClientEvents.DraftJobProgress, payload, ct);
     }
 
     public async Task PushCompleteAsync(
@@ -50,7 +50,7 @@ public sealed class ContentDraftProgressNotifier(
             ErrorMessage = status.ErrorMessage,
         };
 
-        await SendAsync(userId, "DraftJobComplete", payload, ct);
+        await SendAsync(userId, SeoHubClientEvents.DraftJobComplete, payload, ct);
     }
 
     private async Task SendAsync(Guid userId, string method, object payload, CancellationToken ct)

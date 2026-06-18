@@ -25,6 +25,7 @@ type GroupEntry = {
 export type SeoHubContextValue = {
   connection: signalR.HubConnection | null;
   isConnected: boolean;
+  whenConnected: (timeoutMs?: number) => Promise<void>;
   subscribe: (event: string, handler: (...args: unknown[]) => void) => () => void;
   joinDocument: (documentId: string) => () => void;
   joinNicheProfile: (profileId: string) => () => void;
@@ -36,6 +37,7 @@ export type SeoHubApi = Pick<
   SeoHubContextValue,
   | 'connection'
   | 'isConnected'
+  | 'whenConnected'
   | 'subscribe'
   | 'joinDocument'
   | 'joinNicheProfile'
@@ -55,6 +57,35 @@ function hubUrl(accessToken: string | null): string {
 
 function groupKey(kind: string, id: string): string {
   return `${kind}:${id}`;
+}
+
+const DEFAULT_HUB_CONNECT_TIMEOUT_MS = 15_000;
+
+function waitForHubConnected(
+  conn: signalR.HubConnection,
+  timeoutMs: number,
+): Promise<void> {
+  if (conn.state === signalR.HubConnectionState.Connected) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve, reject) => {
+    const deadline = Date.now() + timeoutMs;
+
+    const poll = () => {
+      if (conn.state === signalR.HubConnectionState.Connected) {
+        resolve();
+        return;
+      }
+      if (Date.now() >= deadline) {
+        reject(new Error('Timed out waiting for SignalR hub connection.'));
+        return;
+      }
+      setTimeout(poll, 50);
+    };
+
+    poll();
+  });
 }
 
 export function SeoHubProvider({ children }: { children: ReactNode }) {
@@ -177,6 +208,14 @@ export function SeoHubProvider({ children }: { children: ReactNode }) {
     [attachRootListener],
   );
 
+  const whenConnected = useCallback((timeoutMs = DEFAULT_HUB_CONNECT_TIMEOUT_MS) => {
+    const conn = connectionRef.current;
+    if (!conn) {
+      return Promise.reject(new Error('SignalR hub is not initialized.'));
+    }
+    return waitForHubConnected(conn, timeoutMs);
+  }, []);
+
   const joinDocument = useCallback(
     (documentId: string) =>
       registerGroup(
@@ -293,6 +332,7 @@ export function SeoHubProvider({ children }: { children: ReactNode }) {
     () => ({
       connection,
       isConnected,
+      whenConnected,
       subscribe,
       joinDocument,
       joinNicheProfile,
@@ -302,6 +342,7 @@ export function SeoHubProvider({ children }: { children: ReactNode }) {
     [
       connection,
       isConnected,
+      whenConnected,
       subscribe,
       joinDocument,
       joinNicheProfile,

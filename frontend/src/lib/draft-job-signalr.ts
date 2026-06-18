@@ -10,6 +10,7 @@ import {
   type SeoContentDocument,
 } from '@/lib/seo-api';
 import type { SeoHubApi } from '@/components/signalr/seo-hub-provider';
+import { SEO_HUB_EVENTS } from '@/lib/seo-hub-events';
 
 const TERMINAL = new Set(['completed', 'complete', 'failed']);
 
@@ -74,83 +75,137 @@ export type WaitForDraftJobOptions = {
   onProgress?: (status: BackgroundJobStatus, elapsedMs: number) => void;
 };
 
-export async function waitForDraftJobViaSignalR(
-  options: WaitForDraftJobOptions,
-): Promise<BackgroundJobStatus> {
-  const { jobId, hub, accessToken, onProgress } = options;
+type BeginDraftJobWaitOptions = {
+  hub: SeoHubApi;
+  accessToken?: string | null;
+  timeoutMs?: number;
+  onProgress?: (status: BackgroundJobStatus, elapsedMs: number) => void;
+};
+
+type DraftJobWaitHandle = {
+  /** Subscribe handlers, then block until the shared hub connection is ready. Call before enqueue. */
+  whenReady: () => Promise<void>;
+  /** Arm jobId filter and wait for terminal status. Call immediately after enqueue returns. */
+  waitFor: (jobId: string) => Promise<BackgroundJobStatus>;
+  dispose: () => void;
+};
+
+function beginDraftJobWait(options: BeginDraftJobWaitOptions): DraftJobWaitHandle {
+  const { hub, accessToken, onProgress } = options;
   const timeoutMs = options.timeoutMs ?? 20 * 60 * 1000;
   const startedAt = Date.now();
 
-  const initial = await getBackgroundJob(jobId, accessToken);
-  if (TERMINAL.has(initial.status.toLowerCase())) {
-    onProgress?.(initial, Date.now() - startedAt);
-    return initial;
-  }
+  let armed = false;
+  let expectedJobId = '';
+  let settled = false;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let resolveWait: ((status: BackgroundJobStatus) => void) | null = null;
+  let rejectWait: ((error: Error) => void) | null = null;
 
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    let cleanupProgress: (() => void) | undefined;
-    let cleanupComplete: (() => void) | undefined;
+  const finish = (status: BackgroundJobStatus) => {
+    if (settled) return;
+    settled = true;
+    if (timeoutId) clearTimeout(timeoutId);
+    resolveWait?.(status);
+  };
 
-    const finish = (status: BackgroundJobStatus) => {
-      if (settled) return;
-      settled = true;
-      if (timeoutId) clearTimeout(timeoutId);
-      cleanupProgress?.();
-      cleanupComplete?.();
-      resolve(status);
-    };
+  const fail = (error: Error) => {
+    if (settled) return;
+    settled = true;
+    if (timeoutId) clearTimeout(timeoutId);
+    rejectWait?.(error);
+  };
 
-    const fail = (error: Error) => {
-      if (settled) return;
-      settled = true;
-      if (timeoutId) clearTimeout(timeoutId);
-      cleanupProgress?.();
-      cleanupComplete?.();
-      reject(error);
-    };
+  const onProgressMsg = (raw: unknown) => {
+    if (!armed) return;
+    const msg = raw as DraftJobMsg;
+    const incomingJobId = msgJobId(msg);
+    if (!incomingJobId || !idsMatch(incomingJobId, expectedJobId)) return;
+    onProgress?.(toStatus(msg), Date.now() - startedAt);
+  };
 
-    const onProgressMsg = (raw: unknown) => {
-      const msg = raw as DraftJobMsg;
-      if (!idsMatch(msgJobId(msg), jobId)) return;
-      onProgress?.(toStatus(msg), Date.now() - startedAt);
-    };
-
-    const onCompleteMsg = (raw: unknown) => {
-      const msg = raw as DraftJobMsg;
-      if (!idsMatch(msgJobId(msg), jobId)) return;
-      const status = toStatus(msg);
-      onProgress?.(status, Date.now() - startedAt);
-      if (TERMINAL.has(status.status)) {
-        void (async () => {
-          try {
-            finish(await getBackgroundJob(jobId, accessToken));
-          } catch {
-            finish(status);
-          }
-        })();
-      }
-    };
-
-    cleanupProgress = hub.subscribe('DraftJobProgress', onProgressMsg);
-    cleanupComplete = hub.subscribe('DraftJobComplete', onCompleteMsg);
-
-    timeoutId = setTimeout(() => {
+  const onCompleteMsg = (raw: unknown) => {
+    if (!armed) return;
+    const msg = raw as DraftJobMsg;
+    const incomingJobId = msgJobId(msg);
+    if (!incomingJobId || !idsMatch(incomingJobId, expectedJobId)) return;
+    const status = toStatus(msg);
+    onProgress?.(status, Date.now() - startedAt);
+    if (TERMINAL.has(status.status)) {
       void (async () => {
         try {
-          const status = await getBackgroundJob(jobId, accessToken);
-          if (TERMINAL.has(status.status.toLowerCase())) {
-            finish(status);
-            return;
-          }
-          fail(new Error('Timed out waiting for draft job to finish.'));
-        } catch (e) {
-          fail(e instanceof Error ? e : new Error('Timed out waiting for draft job.'));
+          finish(await getBackgroundJob(expectedJobId, accessToken));
+        } catch {
+          finish(status);
         }
       })();
-    }, timeoutMs);
-  });
+    }
+  };
+
+  const cleanupProgress = hub.subscribe(SEO_HUB_EVENTS.draftJobProgress, onProgressMsg);
+  const cleanupComplete = hub.subscribe(SEO_HUB_EVENTS.draftJobComplete, onCompleteMsg);
+
+  const dispose = () => {
+    armed = false;
+    if (timeoutId) clearTimeout(timeoutId);
+    cleanupProgress();
+    cleanupComplete();
+  };
+
+  return {
+    whenReady: () => hub.whenConnected(),
+
+    waitFor(jobId: string) {
+      armed = true;
+      expectedJobId = jobId;
+      settled = false;
+
+      return new Promise<BackgroundJobStatus>((resolve, reject) => {
+        resolveWait = resolve;
+        rejectWait = reject;
+
+        void (async () => {
+          const initial = await getBackgroundJob(jobId, accessToken);
+          if (TERMINAL.has(initial.status.toLowerCase())) {
+            onProgress?.(initial, Date.now() - startedAt);
+            finish(initial);
+            return;
+          }
+
+          timeoutId = setTimeout(() => {
+            void (async () => {
+              try {
+                const status = await getBackgroundJob(jobId, accessToken);
+                if (TERMINAL.has(status.status.toLowerCase())) {
+                  finish(status);
+                  return;
+                }
+                fail(new Error('Timed out waiting for draft job to finish.'));
+              } catch (e) {
+                fail(e instanceof Error ? e : new Error('Timed out waiting for draft job.'));
+              }
+            })();
+          }, timeoutMs);
+        })().catch((e) => {
+          fail(e instanceof Error ? e : new Error('Failed waiting for draft job.'));
+        });
+      });
+    },
+
+    dispose,
+  };
+}
+
+export async function waitForDraftJobViaSignalR(
+  options: WaitForDraftJobOptions,
+): Promise<BackgroundJobStatus> {
+  const listener = beginDraftJobWait(options);
+  try {
+    await listener.whenReady();
+    return await listener.waitFor(options.jobId);
+  } finally {
+    listener.dispose();
+  }
 }
 
 export async function hydrateDraftDocument(
@@ -173,6 +228,24 @@ export type BulkDraftProgress = {
   elapsedMs: number;
 };
 
+async function runDraftJobWithListener<T>(
+  hub: SeoHubApi,
+  accessToken: string | null | undefined,
+  onProgress: ((status: BackgroundJobStatus, elapsedMs: number) => void) | undefined,
+  enqueue: () => Promise<BackgroundJobStatus>,
+  hydrate: (terminal: BackgroundJobStatus) => Promise<T>,
+): Promise<T> {
+  const listener = beginDraftJobWait({ hub, accessToken, onProgress });
+  try {
+    await listener.whenReady();
+    const enqueued = await enqueue();
+    const terminal = await listener.waitFor(enqueued.jobId);
+    return await hydrate(terminal);
+  } finally {
+    listener.dispose();
+  }
+}
+
 export async function runKeywordContentDraft(
   documentId: string,
   _projectId: string,
@@ -181,14 +254,13 @@ export async function runKeywordContentDraft(
   options?: DraftJobProgressOptions,
 ): Promise<SeoContentDocument> {
   if (!options?.hub) throw new Error('SignalR hub is required for draft generation.');
-  const enqueued = await enqueueKeywordContentDraft(documentId, body, accessToken);
-  const terminal = await waitForDraftJobViaSignalR({
-    jobId: enqueued.jobId,
-    hub: options.hub,
+  return runDraftJobWithListener(
+    options.hub,
     accessToken,
-    onProgress: options.onProgress,
-  });
-  return hydrateDraftDocument(terminal, documentId, accessToken);
+    options.onProgress,
+    () => enqueueKeywordContentDraft(documentId, body, accessToken),
+    (terminal) => hydrateDraftDocument(terminal, documentId, accessToken),
+  );
 }
 
 export async function runResearchContentDraft(
@@ -197,14 +269,13 @@ export async function runResearchContentDraft(
   options?: DraftJobProgressOptions,
 ): Promise<SeoContentDocument> {
   if (!options?.hub) throw new Error('SignalR hub is required for draft generation.');
-  const enqueued = await enqueueResearchContentDraft(documentId, accessToken);
-  const terminal = await waitForDraftJobViaSignalR({
-    jobId: enqueued.jobId,
-    hub: options.hub,
+  return runDraftJobWithListener(
+    options.hub,
     accessToken,
-    onProgress: options.onProgress,
-  });
-  return hydrateDraftDocument(terminal, documentId, accessToken);
+    options.onProgress,
+    () => enqueueResearchContentDraft(documentId, accessToken),
+    (terminal) => hydrateDraftDocument(terminal, documentId, accessToken),
+  );
 }
 
 export async function runBulkKeywordDrafts(
@@ -215,12 +286,10 @@ export async function runBulkKeywordDrafts(
   options?: { hub: SeoHubApi; onProgress?: (progress: BulkDraftProgress) => void },
 ): Promise<SeoContentDocument[]> {
   if (!options?.hub) throw new Error('SignalR hub is required for bulk draft generation.');
-  const enqueued = await enqueueBulkArticles({ projectId, keywords, location }, accessToken);
-  await waitForDraftJobViaSignalR({
-    jobId: enqueued.jobId,
-    hub: options.hub,
+  await runDraftJobWithListener(
+    options.hub,
     accessToken,
-    onProgress: (status, elapsedMs) => {
+    (status, elapsedMs) => {
       options?.onProgress?.({
         keywordIndex: status.keywordIndex ?? 0,
         keywordTotal: status.keywordTotal ?? keywords.length,
@@ -229,7 +298,9 @@ export async function runBulkKeywordDrafts(
         elapsedMs,
       });
     },
-  });
+    () => enqueueBulkArticles({ projectId, keywords, location }, accessToken),
+    async (terminal) => terminal,
+  );
 
   const all = await listContent(projectId, accessToken);
   return all.filter((doc) => doc.status === 'awaiting_review' || doc.status === 'draft').slice(0, keywords.length);

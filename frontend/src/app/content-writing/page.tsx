@@ -98,7 +98,7 @@ function ContentWritingPageInner() {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [generateFeaturedImageWithDraft, setGenerateFeaturedImageWithDraft] = useState(true);
+  const [generateFeaturedImageWithDraft, setGenerateFeaturedImageWithDraft] = useState(false);
   const [draftProgress, setDraftProgress] = useState<{
     label: string;
     percent: number;
