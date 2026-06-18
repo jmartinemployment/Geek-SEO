@@ -35,14 +35,19 @@ function statusBadge(status: string): string {
 type UrlAnalyzerWorkspaceProps = {
   accessToken: string | null;
   initialProjectId?: string;
+  initialUrlResearchId?: string;
 };
 
-export function UrlAnalyzerWorkspace({ accessToken, initialProjectId = '' }: UrlAnalyzerWorkspaceProps) {
+export function UrlAnalyzerWorkspace({
+  accessToken,
+  initialProjectId = '',
+  initialUrlResearchId = '',
+}: UrlAnalyzerWorkspaceProps) {
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [projectId, setProjectId] = useState(initialProjectId);
   const [pageUrl, setPageUrl] = useState('');
   const [rows, setRows] = useState<UrlResearchSummary[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(initialUrlResearchId || null);
   const [detail, setDetail] = useState<UrlResearchFull | null>(null);
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
   const [liveMessage, setLiveMessage] = useState<string | null>(null);

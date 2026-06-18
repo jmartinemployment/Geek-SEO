@@ -152,6 +152,9 @@ public sealed class ContentResearchWritingServiceTests
 
     private sealed class FakeUrlResearchService(SeoUrlResearch research) : IUrlResearchService
     {
+        public Task<Result<SeoUrlResearch>> GetHeadAsync(Guid userId, Guid urlResearchId, CancellationToken ct = default) =>
+            GetFullAsync(userId, urlResearchId, ct);
+
         public Task<Result<SeoUrlResearch>> GetFullAsync(Guid userId, Guid urlResearchId, CancellationToken ct = default) =>
             urlResearchId == research.Id
                 ? Task.FromResult(Result<SeoUrlResearch>.Success(research))

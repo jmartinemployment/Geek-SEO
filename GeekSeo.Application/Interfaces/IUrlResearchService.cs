@@ -9,6 +9,8 @@ public interface IUrlResearchService
     Task<Result<SeoUrlResearch>> CreateQueuedAsync(
         Guid userId, CreateUrlResearchQueuedRequest request, CancellationToken ct = default);
 
+    Task<Result<SeoUrlResearch>> GetHeadAsync(Guid userId, Guid urlResearchId, CancellationToken ct = default);
+
     Task<Result<SeoUrlResearch>> GetFullAsync(Guid userId, Guid urlResearchId, CancellationToken ct = default);
 
     Task<Result<IReadOnlyList<UrlResearchSummary>>> ListSummaryByProjectAsync(

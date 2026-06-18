@@ -30,6 +30,13 @@ public sealed class HttpUrlResearchRepository(
         return await ReadOneAsync(res, ct);
     }
 
+    public async Task<Result<SeoUrlResearch>> GetHeadAsync(Guid urlResearchId, CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/url-research/{urlResearchId}/head?userId={user.UserId}", ct);
+        return await ReadOneAsync(res, ct);
+    }
+
     public async Task<Result<SeoUrlResearch>> GetFullAsync(Guid urlResearchId, CancellationToken ct = default)
     {
         var res = await _http.GetAsync(

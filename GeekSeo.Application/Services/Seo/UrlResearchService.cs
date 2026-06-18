@@ -18,12 +18,20 @@ public sealed class UrlResearchService(IUrlResearchRepository research, IProject
         return await research.CreateQueuedAsync(userId, request, ct);
     }
 
+    public async Task<Result<SeoUrlResearch>> GetHeadAsync(
+        Guid userId, Guid urlResearchId, CancellationToken ct = default)
+    {
+        if (!await EnsureResearchAccessAsync(userId, urlResearchId, ct))
+            return await AccessFailureAsync(urlResearchId, ct);
+
+        return await research.GetHeadAsync(urlResearchId, ct);
+    }
+
     public async Task<Result<SeoUrlResearch>> GetFullAsync(
         Guid userId, Guid urlResearchId, CancellationToken ct = default)
     {
-        var access = await EnsureResearchAccessAsync(userId, urlResearchId, ct);
-        if (!access.IsSuccess)
-            return access;
+        if (!await EnsureResearchAccessAsync(userId, urlResearchId, ct))
+            return await AccessFailureAsync(urlResearchId, ct);
 
         return await research.GetFullAsync(urlResearchId, ct);
     }
@@ -41,9 +49,8 @@ public sealed class UrlResearchService(IUrlResearchRepository research, IProject
     public async Task<Result<SeoUrlResearch>> PersistFullAsync(
         Guid userId, Guid urlResearchId, UrlResearchFullWrite body, CancellationToken ct = default)
     {
-        var access = await EnsureResearchAccessAsync(userId, urlResearchId, ct);
-        if (!access.IsSuccess)
-            return access;
+        if (!await EnsureResearchAccessAsync(userId, urlResearchId, ct))
+            return await AccessFailureAsync(urlResearchId, ct);
 
         return await research.PersistFullAsync(urlResearchId, body, ct);
     }
@@ -51,9 +58,8 @@ public sealed class UrlResearchService(IUrlResearchRepository research, IProject
     public async Task<Result<SeoUrlResearch>> UpdateStatusAsync(
         Guid userId, Guid urlResearchId, UrlResearchStatusPatch patch, CancellationToken ct = default)
     {
-        var access = await EnsureResearchAccessAsync(userId, urlResearchId, ct);
-        if (!access.IsSuccess)
-            return access;
+        if (!await EnsureResearchAccessAsync(userId, urlResearchId, ct))
+            return await AccessFailureAsync(urlResearchId, ct);
 
         return await research.UpdateStatusAsync(urlResearchId, patch, ct);
     }
@@ -66,19 +72,25 @@ public sealed class UrlResearchService(IUrlResearchRepository research, IProject
         return Result.Success();
     }
 
-    private async Task<Result<SeoUrlResearch>> EnsureResearchAccessAsync(
+    private async Task<bool> EnsureResearchAccessAsync(
         Guid userId, Guid urlResearchId, CancellationToken ct)
     {
-        var row = await research.GetFullAsync(urlResearchId, ct);
+        var row = await research.GetHeadAsync(urlResearchId, ct);
         if (!row.IsSuccess || row.Value is null)
-            return Result<SeoUrlResearch>.NotFound("Page research not found");
+            return false;
         if (row.Value.UserId != userId)
-            return Result<SeoUrlResearch>.Failure("Access denied");
+            return false;
 
         var project = await projects.GetByIdAsync(row.Value.ProjectId, userId, ct);
-        if (!project.IsSuccess || project.Value is null)
-            return Result<SeoUrlResearch>.Failure("Access denied");
+        return project.IsSuccess && project.Value is not null;
+    }
 
-        return row;
+    private async Task<Result<SeoUrlResearch>> AccessFailureAsync(
+        Guid urlResearchId, CancellationToken ct)
+    {
+        var row = await research.GetHeadAsync(urlResearchId, ct);
+        if (!row.IsSuccess || row.Value is null)
+            return Result<SeoUrlResearch>.NotFound("Page research not found");
+        return Result<SeoUrlResearch>.Failure("Access denied");
     }
 }

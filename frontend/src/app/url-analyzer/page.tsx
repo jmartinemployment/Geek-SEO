@@ -10,9 +10,17 @@ function UrlAnalyzerPageInner() {
   const searchParams = useSearchParams();
   const initialProjectId = searchParams.get('projectId') ?? '';
 
+  const initialUrlResearchId = searchParams.get('urlResearchId') ?? '';
+
   if (authLoading) return <div className="p-8">Loading…</div>;
 
-  return <UrlAnalyzerWorkspace accessToken={accessToken} initialProjectId={initialProjectId} />;
+  return (
+    <UrlAnalyzerWorkspace
+      accessToken={accessToken}
+      initialProjectId={initialProjectId}
+      initialUrlResearchId={initialUrlResearchId}
+    />
+  );
 }
 
 export default function UrlAnalyzerPage() {

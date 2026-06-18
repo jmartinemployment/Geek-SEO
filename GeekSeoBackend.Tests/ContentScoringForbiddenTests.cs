@@ -288,6 +288,9 @@ public sealed class ContentScoringForbiddenTests
 
     private sealed class FakeUrlResearchRepository(SeoUrlResearch research) : IUrlResearchRepository
     {
+        public Task<Result<SeoUrlResearch>> GetHeadAsync(Guid urlResearchId, CancellationToken ct = default) =>
+            GetFullAsync(urlResearchId, ct);
+
         public Task<Result<SeoUrlResearch>> GetFullAsync(Guid urlResearchId, CancellationToken ct = default) =>
             urlResearchId == research.Id
                 ? Task.FromResult(Result<SeoUrlResearch>.Success(research))

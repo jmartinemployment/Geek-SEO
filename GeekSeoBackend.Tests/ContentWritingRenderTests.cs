@@ -152,6 +152,9 @@ public sealed class ContentWritingRenderTests
         public Task<Result<SeoUrlResearch>> CreateQueuedAsync(Guid userId, CreateUrlResearchQueuedRequest request, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
+        public Task<Result<SeoUrlResearch>> GetHeadAsync(Guid userId, Guid urlResearchId, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
         public Task<Result<SeoUrlResearch>> GetFullAsync(Guid userId, Guid urlResearchId, CancellationToken ct = default) =>
             throw new NotSupportedException();
 

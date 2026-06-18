@@ -137,6 +137,9 @@ public sealed class UrlResearchJobProcessorTests
             Guid userId, CreateUrlResearchQueuedRequest request, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
+        public Task<Result<SeoUrlResearch>> GetHeadAsync(Guid urlResearchId, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
         public Task<Result<SeoUrlResearch>> GetFullAsync(Guid urlResearchId, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
