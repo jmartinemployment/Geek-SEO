@@ -18,11 +18,8 @@ import {
   getContent,
   listProjects,
   listUrlResearch,
-  startKeywordContentDraftJob,
-  startResearchContentDraftJob,
-  updateContent,
-  updateContentStatus,
-  waitForBackgroundJob,
+  runKeywordContentDraft,
+  runResearchContentDraft,
   type SeoContentDocument,
   type SeoProject,
   type UrlResearchSummary,
@@ -522,12 +519,7 @@ function ContentWritingPageInner() {
                           throw new Error('This document is already linked to different page research.');
                         }
 
-                        const job = await startResearchContentDraftJob(workingDoc.id, accessToken);
-                        const completed = await waitForBackgroundJob(job.jobId, accessToken);
-                        if (!completed.resultId) {
-                          throw new Error('Draft job completed without a document id.');
-                        }
-                        const saved = await getContent(completed.resultId, accessToken);
+                        const saved = await runResearchContentDraft(workingDoc.id, accessToken);
                         setDoc(saved);
                         await finalizeDraftDocument(saved);
                       })
@@ -563,16 +555,12 @@ function ContentWritingPageInner() {
                         );
                         setDoc(placeholder);
 
-                        const job = await startKeywordContentDraftJob(
+                        const saved = await runKeywordContentDraft(
                           placeholder.id,
+                          projectId,
                           { keyword, location, title },
                           accessToken,
                         );
-                        const completed = await waitForBackgroundJob(job.jobId, accessToken);
-                        if (!completed.resultId) {
-                          throw new Error('Draft job completed without a document id.');
-                        }
-                        const saved = await getContent(completed.resultId, accessToken);
                         setDoc(saved);
                         await finalizeDraftDocument(saved);
                       })

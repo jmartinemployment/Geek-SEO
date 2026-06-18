@@ -281,6 +281,72 @@ export async function startResearchContentDraftJob(
   return res.json() as Promise<BackgroundJobStatus>;
 }
 
+/** Prefer background job; fall back to sync draft when API is not deployed yet (404). */
+export async function runKeywordContentDraft(
+  documentId: string,
+  projectId: string,
+  body: { keyword: string; location?: string; title?: string },
+  accessToken?: string | null,
+): Promise<SeoContentDocument> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/draft-job/keyword`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+  });
+
+  if (res.status === 404) {
+    const draft = await draftFromKeyword(
+      { projectId, keyword: body.keyword, location: body.location, title: body.title },
+      accessToken,
+    );
+    return updateContent(
+      documentId,
+      {
+        contentHtml: draft.content,
+        title: body.title,
+        targetKeyword: body.keyword,
+        targetLocation: body.location,
+      },
+      accessToken,
+    );
+  }
+
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+
+  const job = (await res.json()) as BackgroundJobStatus;
+  const completed = await waitForBackgroundJob(job.jobId, accessToken);
+  if (!completed.resultId) {
+    throw new Error('Draft job completed without a document id.');
+  }
+  return getContent(completed.resultId, accessToken);
+}
+
+/** Prefer background job; fall back to sync research draft when API is not deployed yet (404). */
+export async function runResearchContentDraft(
+  documentId: string,
+  accessToken?: string | null,
+): Promise<SeoContentDocument> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/draft-job/research`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+
+  if (res.status === 404) {
+    await draftContentFromResearch(documentId, accessToken);
+    return getContent(documentId, accessToken);
+  }
+
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+
+  const job = (await res.json()) as BackgroundJobStatus;
+  const completed = await waitForBackgroundJob(job.jobId, accessToken);
+  if (!completed.resultId) {
+    throw new Error('Draft job completed without a document id.');
+  }
+  return getContent(completed.resultId, accessToken);
+}
+
 const BACKGROUND_JOB_POLL_MS = 2500;
 const BACKGROUND_JOB_MAX_WAIT_MS = 15 * 60 * 1000;
 
