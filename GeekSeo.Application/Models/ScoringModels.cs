@@ -59,6 +59,10 @@ public sealed record SerpFeatureGuidance
 {
     public required string Feature { get; init; }
     public required string ActionText { get; init; }
+    /// <summary>When set, maps to apply-suggestion id (e.g. serp_featured_snippet).</summary>
+    public string? SuggestionId { get; init; }
+    /// <summary>deterministic | ai | none</summary>
+    public string ApplyMode { get; init; } = "none";
 }
 
 public sealed record EeatAdvisory

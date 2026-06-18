@@ -410,8 +410,30 @@ function ScoreActionsColumn({
               <h3 className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>SERP</h3>
               <ul className={`mt-2 space-y-1.5 text-[var(--color-text-primary)] ${compact ? 'text-[11px]' : 'text-sm'}`}>
                 {scoreUpdate.serpFeatures.map((f) => (
-                  <li key={f.feature} className="rounded-lg border bg-white px-2 py-1.5">
-                    {f.actionText}
+                  <li
+                    key={f.feature}
+                    className={`rounded-lg border bg-white ${compact ? 'px-2 py-1.5' : 'p-3'}`}
+                  >
+                    {f.applyMode && f.applyMode !== 'none' && f.suggestionId && onApplySuggestion ? (
+                      <button
+                        type="button"
+                        disabled={applyingSuggestionId === f.suggestionId}
+                        className={`mb-2 w-full rounded-md border border-[var(--color-border-strong)] bg-white font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50 ${compact ? 'px-2 py-1 text-[10px]' : 'px-2 py-1.5 text-xs'}`}
+                        onClick={() =>
+                          void onApplySuggestion({
+                            id: f.suggestionId!,
+                            component: 'serp',
+                            pointValue: 0,
+                            actionText: f.actionText,
+                            proposedChange: 'Add a direct answer paragraph after the first H2',
+                            applyMode: f.applyMode as ScoreSuggestion['applyMode'],
+                          })
+                        }
+                      >
+                        {applyingSuggestionId === f.suggestionId ? 'Applying…' : 'Apply'}
+                      </button>
+                    ) : null}
+                    <span className={compact ? 'text-[11px]' : 'text-sm'}>{f.actionText}</span>
                   </li>
                 ))}
               </ul>

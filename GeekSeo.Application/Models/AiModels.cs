@@ -60,3 +60,20 @@ public sealed record BulkArticleJobPayload
     public required string Location { get; init; }
     public int CurrentIndex { get; init; }
 }
+
+public sealed record KeywordContentDraftRequest
+{
+    public required string Keyword { get; init; }
+    public string Location { get; init; } = "United States";
+    public string Title { get; init; } = string.Empty;
+}
+
+public sealed record ContentDraftJobPayload
+{
+    public required Guid DocumentId { get; init; }
+    /// <summary><c>keyword</c> or <c>research</c></summary>
+    public required string Mode { get; init; }
+    public string? Keyword { get; init; }
+    public string? Location { get; init; }
+    public string? Title { get; init; }
+}

@@ -42,7 +42,12 @@ export type ScoreUpdate = {
   geoGrade?: string;
   geoComponents?: GeoScoreComponents;
   suggestions: ScoreSuggestion[];
-  serpFeatures: { feature: string; actionText: string }[];
+  serpFeatures: {
+    feature: string;
+    actionText: string;
+    suggestionId?: string | null;
+    applyMode?: string | null;
+  }[];
   eeatAdvisories: { code: string; actionText: string }[];
   benchmarkQuality: string;
   researchedAt?: string | null;

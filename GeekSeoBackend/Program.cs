@@ -44,6 +44,7 @@ builder.Services.AddHostedService<BulkArticleJobWorker>();
 builder.Services.AddHostedService<NicheAnalysisJobWorker>();
 builder.Services.AddHostedService<UrlResearchJobWorker>();
 builder.Services.AddHostedService<NicheEnrichmentJobWorker>();
+builder.Services.AddHostedService<ContentDraftJobWorker>();
 builder.Services.AddHostedService<SeoMaintenanceWorker>();
 
 var corsOrigins = CorsOriginParser.GetAllowedOrigins();

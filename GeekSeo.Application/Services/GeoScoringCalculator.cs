@@ -156,7 +156,7 @@ public static class GeoScoringCalculator
                 ApplyMode = "ai",
             });
         }
-        if (structure < 14 && !ArticleClosingFaqEnricher.HasClosingFaqSection(contentHtml))
+        if (structure < 14 && !ArticleClosingFaqEnricher.HasCompleteClosingFaqSection(contentHtml))
         {
             list.Add(new ScoreSuggestion
             {

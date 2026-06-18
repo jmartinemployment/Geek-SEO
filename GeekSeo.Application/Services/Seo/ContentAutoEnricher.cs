@@ -13,8 +13,6 @@ public static partial class ContentAutoEnricher
         changed = !string.Equals(result, html, StringComparison.Ordinal);
         result = EnsureMetaDescription(result, keyword, out var metaChanged);
         changed |= metaChanged;
-        result = EnsureClosingFaq(result, keyword, out var faqChanged);
-        changed |= faqChanged;
         return result;
     }
 
@@ -33,20 +31,6 @@ public static partial class ContentAutoEnricher
             plain,
             []);
         if (patched is null || string.Equals(patched, html, StringComparison.Ordinal))
-            return html;
-
-        changed = true;
-        return patched;
-    }
-
-    public static string EnsureClosingFaq(string html, string keyword, out bool changed)
-    {
-        changed = false;
-        if (ArticleClosingFaqEnricher.HasClosingFaqSection(html))
-            return html;
-
-        var patched = ScoreSuggestionApplicator.AppendClosingFaq(html, keyword, []);
-        if (string.Equals(patched, html, StringComparison.Ordinal))
             return html;
 
         changed = true;

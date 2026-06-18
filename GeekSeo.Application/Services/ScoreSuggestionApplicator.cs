@@ -4,7 +4,7 @@ using GeekSeo.Application.Models.Seo;
 
 namespace GeekSeo.Application.Services.Seo;
 
-public static class ScoreSuggestionApplicator
+public static partial class ScoreSuggestionApplicator
 {
     public static string? TryApplyDeterministic(
         string suggestionId,
@@ -12,7 +12,8 @@ public static class ScoreSuggestionApplicator
         string keyword,
         int avgTitleLength,
         string plainText,
-        IReadOnlyList<SerpOrganicResult> organicResults)
+        IReadOnlyList<SerpOrganicResult> organicResults,
+        string? featuredSnippetText = null)
     {
         return suggestionId switch
         {
@@ -20,8 +21,71 @@ public static class ScoreSuggestionApplicator
             "meta_description" => ApplyMetaDescription(contentHtml, keyword, plainText),
             "geo_citations" => ApplyExternalCitations(contentHtml, organicResults),
             "geo_structure" => AppendClosingFaq(contentHtml, keyword, []),
+            "serp_featured_snippet" => InsertFeaturedSnippetDirectAnswer(
+                contentHtml,
+                keyword,
+                plainText,
+                featuredSnippetText),
             _ => null,
         };
+    }
+
+    public static string ProposeFeaturedSnippetDirectAnswer(
+        string keyword,
+        string plainText,
+        string? featuredSnippetText = null)
+    {
+        var seed = !string.IsNullOrWhiteSpace(featuredSnippetText)
+            ? featuredSnippetText.Trim()
+            : BuildDirectAnswerSeed(keyword, plainText);
+
+        seed = Regex.Replace(seed, @"\s+", " ").Trim();
+        if (string.IsNullOrWhiteSpace(seed))
+            seed = keyword;
+
+        if (!string.IsNullOrWhiteSpace(keyword)
+            && !seed.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+        {
+            seed = $"{keyword} is {seed.TrimEnd('.')}.";
+        }
+
+        return TrimToWordRange(seed, minWords: 40, maxWords: 60);
+    }
+
+    public static bool HasDirectAnswerAfterFirstH2(string html)
+    {
+        var match = FirstH2Regex().Match(html);
+        if (!match.Success)
+            return false;
+
+        var after = html[(match.Index + match.Length)..].TrimStart();
+        var paragraph = FirstParagraphRegex().Match(after);
+        if (!paragraph.Success)
+            return false;
+
+        var inner = Regex.Replace(paragraph.Groups[1].Value, "<[^>]+>", " ");
+        inner = Regex.Replace(inner, @"\s+", " ").Trim();
+        var words = CountWords(inner);
+        return words is >= 35 and <= 65;
+    }
+
+    public static string? InsertFeaturedSnippetDirectAnswer(
+        string html,
+        string keyword,
+        string plainText,
+        string? featuredSnippetText = null)
+    {
+        if (HasDirectAnswerAfterFirstH2(html))
+            return null;
+
+        var match = FirstH2Regex().Match(html);
+        if (!match.Success)
+            return null;
+
+        var answer = ProposeFeaturedSnippetDirectAnswer(keyword, plainText, featuredSnippetText);
+        var paragraph = $"<p>{WebUtility.HtmlEncode(answer)}</p>";
+        var insertAt = match.Index + match.Length;
+        return html[..insertAt] + "\n" + paragraph + "\n" + html[insertAt..];
     }
 
     public static string ProposeTitle(string? currentTitle, string keyword, int targetLength)
@@ -66,7 +130,7 @@ public static class ScoreSuggestionApplicator
 
         var meta = body.Contains(keyword, StringComparison.OrdinalIgnoreCase)
             ? body
-            : $"{keyword} — {body}";
+            : $"{keyword}: {body}";
 
         return meta.Length > 160 ? meta[..157].TrimEnd() + "…" : meta;
     }
@@ -76,7 +140,7 @@ public static class ScoreSuggestionApplicator
         string keyword,
         IEnumerable<string> serpPaaQuestions)
     {
-        if (ArticleClosingFaqEnricher.HasClosingFaqSection(html))
+        if (ArticleClosingFaqEnricher.HasCompleteClosingFaqSection(html))
             return html;
 
         var questions = ContentWritingRules.BuildClosingFaqQuestions(keyword, serpPaaQuestions, null);
@@ -119,16 +183,12 @@ public static class ScoreSuggestionApplicator
 
     private static string ApplyExternalCitations(string html, IReadOnlyList<SerpOrganicResult> organicResults)
     {
-        var linked = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (Match match in Regex.Matches(html, "href=[\"']([^\"']+)[\"']", RegexOptions.IgnoreCase))
-        {
-            if (match.Groups.Count > 1)
-                linked.Add(match.Groups[1].Value);
-        }
+        var linked = CollectLinkedUrls(html);
 
         var picks = organicResults
-            .Where(r => !string.IsNullOrWhiteSpace(r.Url))
-            .Where(r => !linked.Contains(r.Url))
+            .Select(r => new { Result = r, Url = ResolveOrganicUrl(r) })
+            .Where(x => !string.IsNullOrWhiteSpace(x.Url))
+            .Where(x => !IsUrlAlreadyLinked(x.Url, linked))
             .Take(3)
             .ToList();
 
@@ -136,8 +196,8 @@ public static class ScoreSuggestionApplicator
             return html;
 
         var links = picks
-            .Select(r =>
-                $"<a href=\"{WebUtility.HtmlEncode(r.Url)}\" rel=\"noopener noreferrer\">{WebUtility.HtmlEncode(r.Title)}</a>")
+            .Select(x =>
+                $"<a href=\"{WebUtility.HtmlEncode(x.Url)}\" rel=\"noopener noreferrer\">{WebUtility.HtmlEncode(x.Result.Title ?? x.Result.Domain ?? "Source")}</a>")
             .ToList();
 
         var paragraph = links.Count switch
@@ -152,6 +212,64 @@ public static class ScoreSuggestionApplicator
                $"<p>{paragraph}</p>\n";
     }
 
+    private static HashSet<string> CollectLinkedUrls(string html)
+    {
+        var linked = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (Match match in Regex.Matches(html, "href=[\"']([^\"']+)[\"']", RegexOptions.IgnoreCase))
+        {
+            if (match.Groups.Count <= 1)
+                continue;
+
+            var href = match.Groups[1].Value.Trim();
+            if (href.Length == 0)
+                continue;
+
+            linked.Add(NormalizeUrl(href));
+            var host = TryGetHost(href);
+            if (!string.IsNullOrWhiteSpace(host))
+                linked.Add(host);
+        }
+
+        return linked;
+    }
+
+    private static bool IsUrlAlreadyLinked(string url, HashSet<string> linked)
+    {
+        var normalized = NormalizeUrl(url);
+        if (linked.Contains(normalized))
+            return true;
+
+        var host = TryGetHost(url);
+        return !string.IsNullOrWhiteSpace(host) && linked.Contains(host);
+    }
+
+    private static string ResolveOrganicUrl(SerpOrganicResult result)
+    {
+        if (!string.IsNullOrWhiteSpace(result.Url))
+            return result.Url.Trim();
+
+        if (string.IsNullOrWhiteSpace(result.Domain))
+            return string.Empty;
+
+        var domain = result.Domain.Trim().TrimStart('/');
+        return domain.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || domain.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            ? domain
+            : $"https://{domain}";
+    }
+
+    private static string NormalizeUrl(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            return url.Trim().TrimEnd('/');
+
+        var builder = new UriBuilder(uri) { Fragment = string.Empty, Query = string.Empty };
+        return builder.Uri.ToString().TrimEnd('/');
+    }
+
+    private static string? TryGetHost(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host.ToLowerInvariant() : null;
+
     public static string DescribeDeterministicFailure(string suggestionId, string html, string keyword) =>
         suggestionId switch
         {
@@ -161,12 +279,80 @@ public static class ScoreSuggestionApplicator
                 "A meta description is already present with the suggested content.",
             "geo_citations" =>
                 "No new external sources were available to link, or they are already cited.",
+            "geo_structure" when ArticleClosingFaqEnricher.HasCompleteClosingFaqSection(html) =>
+                "The closing FAQ section is already present with full answers.",
             "geo_structure" when ArticleClosingFaqEnricher.HasClosingFaqSection(html) =>
-                "The closing FAQ section is already present.",
+                "FAQ headings are present but answers are still placeholders. Try Apply again to generate full answers.",
             "geo_structure" =>
                 "Could not append the FAQ block automatically. Add it manually in the editor.",
+            "serp_featured_snippet" when HasDirectAnswerAfterFirstH2(html) =>
+                "A direct answer paragraph is already present after the first H2.",
+            "serp_featured_snippet" =>
+                "Could not insert the direct answer. Add an H2 section first, then try again.",
             _ => "Could not apply this change automatically.",
         };
+
+    private static string BuildDirectAnswerSeed(string keyword, string plainText)
+    {
+        if (string.IsNullOrWhiteSpace(plainText))
+            return keyword;
+
+        var sentences = plainText
+            .Split(['.', '!', '?'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(s => s.Length > 0)
+            .ToList();
+
+        if (sentences.Count == 0)
+            return plainText;
+
+        var builder = new System.Text.StringBuilder();
+        foreach (var sentence in sentences)
+        {
+            if (builder.Length > 0)
+                builder.Append(' ');
+            builder.Append(sentence.TrimEnd('.'));
+            if (CountWords(builder.ToString()) >= 40)
+                break;
+        }
+
+        var result = builder.ToString().Trim();
+        return string.IsNullOrWhiteSpace(result) ? plainText : result + ".";
+    }
+
+    private static string TrimToWordRange(string text, int minWords, int maxWords)
+    {
+        var words = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length <= maxWords)
+        {
+            if (words.Length >= minWords)
+                return string.Join(' ', words);
+
+            var padded = text.TrimEnd('.');
+            while (words.Length < minWords)
+            {
+                padded += " This guide explains what matters, who it helps, and the practical steps to get results.";
+                words = padded.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            }
+
+            return TrimToWordRange(padded, minWords, maxWords);
+        }
+
+        var trimmed = string.Join(' ', words.Take(maxWords));
+        if (!trimmed.EndsWith('.'))
+            trimmed += ".";
+        return trimmed;
+    }
+
+    private static int CountWords(string text) =>
+        string.IsNullOrWhiteSpace(text)
+            ? 0
+            : text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+
+    [GeneratedRegex(@"<h2\b[^>]*>.*?</h2>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex FirstH2Regex();
+
+    [GeneratedRegex(@"<p\b[^>]*>(.*?)</p>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex FirstParagraphRegex();
 
     private static string ExtractTagInner(string html, string tag)
     {

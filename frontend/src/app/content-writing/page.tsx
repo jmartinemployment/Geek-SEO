@@ -14,14 +14,15 @@ import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import {
   attachUrlResearch,
   createContent,
-  draftContentFromResearch,
-  draftFromKeyword,
   generateFeaturedImage,
   getContent,
   listProjects,
   listUrlResearch,
+  startKeywordContentDraftJob,
+  startResearchContentDraftJob,
   updateContent,
   updateContentStatus,
+  waitForBackgroundJob,
   type SeoContentDocument,
   type SeoProject,
   type UrlResearchSummary,
@@ -237,47 +238,6 @@ function ContentWritingPageInner() {
     } finally {
       setLoadingAction(null);
     }
-  }
-
-  async function ensureDocument(nextHtml: string): Promise<SeoContentDocument> {
-    if (!projectId) throw new Error('Select a project first.');
-
-    if (!doc) {
-      const created = await createContent(
-        {
-          projectId,
-          title,
-          targetKeyword: keyword,
-          targetLocation: location,
-        },
-        accessToken,
-      );
-      const saved = await updateContent(
-        created.id,
-        {
-          contentHtml: nextHtml,
-          title,
-          targetKeyword: keyword,
-          targetLocation: location,
-        },
-        accessToken,
-      );
-      setDoc(saved);
-      return saved;
-    }
-
-    const saved = await updateContent(
-      doc.id,
-      {
-        contentHtml: nextHtml,
-        title,
-        targetKeyword: keyword,
-        targetLocation: location,
-      },
-      accessToken,
-    );
-    setDoc(saved);
-    return saved;
   }
 
   async function finalizeDraftDocument(saved: SeoContentDocument): Promise<SeoContentDocument> {
@@ -562,17 +522,13 @@ function ContentWritingPageInner() {
                           throw new Error('This document is already linked to different page research.');
                         }
 
-                        const result = await draftContentFromResearch(workingDoc.id, accessToken);
-                        const saved = await updateContent(
-                          workingDoc.id,
-                          {
-                            contentHtml: result.content || DEFAULT_DRAFT_HTML,
-                            title,
-                            targetKeyword: keyword,
-                            targetLocation: location,
-                          },
-                          accessToken,
-                        );
+                        const job = await startResearchContentDraftJob(workingDoc.id, accessToken);
+                        const completed = await waitForBackgroundJob(job.jobId, accessToken);
+                        if (!completed.resultId) {
+                          throw new Error('Draft job completed without a document id.');
+                        }
+                        const saved = await getContent(completed.resultId, accessToken);
+                        setDoc(saved);
                         await finalizeDraftDocument(saved);
                       })
                     }
@@ -596,11 +552,28 @@ function ContentWritingPageInner() {
                     className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                     onClick={() =>
                       void run('keyword-draft', async () => {
-                        const result = await draftFromKeyword(
-                          { projectId, keyword, location, title },
+                        const placeholder = await createContent(
+                          {
+                            projectId,
+                            title,
+                            targetKeyword: keyword,
+                            targetLocation: location,
+                          },
                           accessToken,
                         );
-                        const saved = await ensureDocument(result.content || DEFAULT_DRAFT_HTML);
+                        setDoc(placeholder);
+
+                        const job = await startKeywordContentDraftJob(
+                          placeholder.id,
+                          { keyword, location, title },
+                          accessToken,
+                        );
+                        const completed = await waitForBackgroundJob(job.jobId, accessToken);
+                        if (!completed.resultId) {
+                          throw new Error('Draft job completed without a document id.');
+                        }
+                        const saved = await getContent(completed.resultId, accessToken);
+                        setDoc(saved);
                         await finalizeDraftDocument(saved);
                       })
                     }

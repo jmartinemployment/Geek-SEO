@@ -40,6 +40,12 @@ public static class MeteredRoutes
             return "auto_optimize";
         }
 
+        if (upperMethod == "POST"
+            && path.Contains("/draft-job", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ai_draft";
+        }
+
         foreach (var (routeMethod, prefix, feature) in ExactPrefixes)
         {
             if (!string.Equals(routeMethod, upperMethod, StringComparison.Ordinal))

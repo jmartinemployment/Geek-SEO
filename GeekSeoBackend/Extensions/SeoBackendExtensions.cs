@@ -32,6 +32,7 @@ public static class SeoBackendExtensions
         services.AddSingleton<BulkArticleJobChannel>();
         services.AddSingleton<NicheAnalysisJobChannel>();
         services.AddSingleton<UrlResearchJobChannel>();
+        services.AddSingleton<ContentDraftJobChannel>();
 
         // Persistence via GeekAPI → GeekRepository (dumb data pipe)
         services.AddScoped<IProjectRepository, HttpProjectRepository>();
@@ -59,6 +60,7 @@ public static class SeoBackendExtensions
         services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<IContentDocumentService, ContentDocumentService>();
         services.AddScoped<IContentResearchWritingService, ContentResearchWritingService>();
+        services.AddScoped<IContentDraftJobService, ContentDraftJobService>();
         services.AddScoped<IContentFeaturedImageService, ContentFeaturedImageService>();
         services.AddScoped<IBackgroundJobService, BackgroundJobService>();
         services.AddScoped<SubscriptionService>();
@@ -68,7 +70,11 @@ public static class SeoBackendExtensions
         // External providers + scoring (product host only)
         services.AddScoped<IRichTextProvider, HtmlRichTextProvider>();
         services.AddSeoDataProviders();
-        services.AddHttpClient("Anthropic", client => client.BaseAddress = new Uri("https://api.anthropic.com"));
+        services.AddHttpClient("Anthropic", client =>
+        {
+            client.BaseAddress = new Uri("https://api.anthropic.com");
+            client.Timeout = TimeSpan.FromMinutes(10);
+        });
         services.AddHttpClient("OpenAI", client => client.BaseAddress = new Uri("https://api.openai.com/"));
         services.AddHttpClient("WordPress");
         services.AddScoped<IAIProvider, ClaudeProvider>();

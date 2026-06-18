@@ -133,18 +133,35 @@ public sealed class ContentScoringService(
 
         var benchmarks = benchmarkResult.Value!.Benchmarks;
         var plainText = richText.ExtractPlainText(baseHtml);
-        var current = await ScoreAsync(userId, documentId, baseHtml, keyword, invalidateCache: false, ct);
+        var current = await ScoreAsync(
+            userId,
+            documentId,
+            baseHtml,
+            keyword,
+            invalidateCache: false,
+            ct: ct,
+            skipAutoEnrich: true);
         if (!current.IsSuccess || current.Value?.ScoreUpdate is null)
             return Result<ApplySuggestionResult>.Failure(current.Error ?? "Could not score document");
 
         var suggestion = current.Value.ScoreUpdate.Suggestions
-            .FirstOrDefault(s => string.Equals(s.Id, suggestionId, StringComparison.Ordinal));
+                             .FirstOrDefault(s => string.Equals(s.Id, suggestionId, StringComparison.Ordinal))
+                         ?? ResolveSerpFeatureSuggestion(current.Value.ScoreUpdate.SerpFeatures, suggestionId);
         if (suggestion is null)
             return Result<ApplySuggestionResult>.Failure(
                 $"Suggestion “{suggestionId}” is no longer available. Wait for the score to refresh, then try again.");
 
         string patchedHtml;
-        if (string.Equals(suggestion.ApplyMode, "deterministic", StringComparison.Ordinal))
+        if (string.Equals(suggestionId, "geo_structure", StringComparison.OrdinalIgnoreCase))
+        {
+            patchedHtml = await ApplyClosingFaqSuggestionAsync(doc, baseHtml, ct);
+            if (string.Equals(patchedHtml, baseHtml, StringComparison.Ordinal))
+            {
+                return Result<ApplySuggestionResult>.Failure(
+                    ScoreSuggestionApplicator.DescribeDeterministicFailure(suggestion.Id, baseHtml, keyword));
+            }
+        }
+        else if (string.Equals(suggestion.ApplyMode, "deterministic", StringComparison.Ordinal))
         {
             patchedHtml = ScoreSuggestionApplicator.TryApplyDeterministic(
                 suggestion.Id,
@@ -152,7 +169,8 @@ public sealed class ContentScoringService(
                 keyword,
                 benchmarks.AvgTitleLength,
                 plainText,
-                benchmarks.OrganicResults) ?? baseHtml;
+                benchmarks.OrganicResults,
+                benchmarkResult.Value!.FeaturedSnippetText) ?? baseHtml;
 
             if (string.Equals(patchedHtml, baseHtml, StringComparison.Ordinal))
             {
@@ -199,13 +217,54 @@ public sealed class ContentScoringService(
         });
     }
 
+    private async Task<string> ApplyClosingFaqSuggestionAsync(
+        SeoContentDocument doc,
+        string baseHtml,
+        CancellationToken ct)
+    {
+        if (ResearchBackedWriteGate.IsResearchBacked(doc) && doc.UrlResearchId is Guid researchId)
+        {
+            var row = await urlResearch.GetFullAsync(researchId, ct);
+            if (row.IsSuccess && row.Value is not null)
+            {
+                var context = WritingResearchContextMapper.FromEntity(row.Value);
+                return await ArticleClosingFaqEnricher.EnsureClosingFaqDraftAsync(baseHtml, context, ai, ct);
+            }
+        }
+
+        var keyword = doc.TargetKeyword;
+        var location = string.IsNullOrWhiteSpace(doc.TargetLocation) ? "United States" : doc.TargetLocation;
+        const string languageCode = "en";
+        var paaQuestions = new List<string>();
+        var cacheResult = await serpCache.GetAsync(keyword, location, languageCode, ct);
+        if (cacheResult.IsSuccess && cacheResult.Value is not null)
+        {
+            var serp = SerpResultStore.FromDbRow(cacheResult.Value);
+            if (serp is not null)
+            {
+                paaQuestions = serp.PeopleAlsoAsk
+                    .Select(p => p.Question)
+                    .Where(q => !string.IsNullOrWhiteSpace(q))
+                    .ToList();
+            }
+        }
+
+        return await ArticleClosingFaqEnricher.EnsureClosingFaqDraftAsync(
+            baseHtml,
+            keyword,
+            paaQuestions,
+            ai,
+            ct);
+    }
+
     private async Task<Result<ContentScoreHubResult>> ScoreAsync(
         Guid userId,
         Guid documentId,
         string contentHtml,
         string targetKeyword,
         bool invalidateCache,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool skipAutoEnrich = false)
     {
         var access = await documents.EnsureAccessAsync(userId, documentId, ct);
         if (!access.IsSuccess || access.Value is null)
@@ -215,13 +274,17 @@ public sealed class ContentScoringService(
         var keyword = string.IsNullOrWhiteSpace(targetKeyword) ? doc.TargetKeyword : targetKeyword;
 
         var enrichedHtml = ContentAutoEnricher.Enrich(contentHtml, keyword, out var enriched);
-        if (enriched)
+        if (enriched && !skipAutoEnrich)
         {
             await documents.UpdateContentAsync(
                 userId,
                 documentId,
                 new UpdateContentRequest { ContentHtml = enrichedHtml },
                 ct);
+            contentHtml = enrichedHtml;
+        }
+        else if (enriched)
+        {
             contentHtml = enrichedHtml;
         }
 
@@ -302,7 +365,7 @@ public sealed class ContentScoringService(
                 readability = readabilityScore,
             },
             Suggestions = allSuggestions,
-            SerpFeatures = SerpFeatureGuidanceBuilder.Build(serpFeatures),
+            SerpFeatures = FilterSerpFeatureGuidance(contentHtml, serpFeatures),
             EeatAdvisories = EeatAdvisoryBuilder.Build(plainText, contentHtml),
             GeoScore = geo.TotalScore,
             GeoGrade = geo.Grade,
@@ -347,6 +410,7 @@ public sealed class ContentScoringService(
             SerpFeatures = WritingResearchBenchmarkResolver.ToSerpFeatures(context),
             CoverageTerms = coverageTerms,
             ResearchedAt = context.ResearchedAt ?? row.Value.ResearchedAt,
+            FeaturedSnippetText = string.IsNullOrWhiteSpace(context.Paf.Text) ? null : context.Paf.Text,
         });
     }
 
@@ -398,6 +462,7 @@ public sealed class ContentScoringService(
                 OrganicResults = benchmarks?.OrganicResults ?? [],
                 Features = serpFeatures ?? new SerpFeatures(),
                 FetchedAt = serpRow.FetchedAt,
+                FeaturedSnippetText = serpRow.FeaturedSnippet,
             };
         }
 
@@ -422,7 +487,44 @@ public sealed class ContentScoringService(
         {
             Benchmarks = benchmarks,
             SerpFeatures = serpFeatures,
+            FeaturedSnippetText = serpData?.FeaturedSnippetText ?? serpRow?.FeaturedSnippet,
         });
+    }
+
+    private static IReadOnlyList<SerpFeatureGuidance> FilterSerpFeatureGuidance(
+        string contentHtml,
+        SerpFeatures serpFeatures)
+    {
+        var guidance = SerpFeatureGuidanceBuilder.Build(serpFeatures);
+        if (!serpFeatures.HasFeaturedSnippet || !ScoreSuggestionApplicator.HasDirectAnswerAfterFirstH2(contentHtml))
+            return guidance;
+
+        return guidance
+            .Where(g => !string.Equals(g.Feature, "featured_snippet", StringComparison.Ordinal))
+            .ToList();
+    }
+
+    private static ScoreSuggestion? ResolveSerpFeatureSuggestion(
+        IReadOnlyList<SerpFeatureGuidance> serpFeatures,
+        string suggestionId)
+    {
+        var feature = serpFeatures.FirstOrDefault(f =>
+            string.Equals(f.SuggestionId, suggestionId, StringComparison.Ordinal));
+        if (feature is null || string.IsNullOrWhiteSpace(feature.SuggestionId))
+            return null;
+        if (!string.Equals(feature.ApplyMode, "deterministic", StringComparison.Ordinal)
+            && !string.Equals(feature.ApplyMode, "ai", StringComparison.Ordinal))
+            return null;
+
+        return new ScoreSuggestion
+        {
+            Id = feature.SuggestionId,
+            Component = "serp",
+            PointValue = 0,
+            ActionText = feature.ActionText,
+            ProposedChange = "Add a direct answer paragraph after the first H2",
+            ApplyMode = feature.ApplyMode,
+        };
     }
 
     private sealed record BenchmarkResolution
@@ -432,6 +534,7 @@ public sealed class ContentScoringService(
         public string? PendingReason { get; init; }
         public IReadOnlyList<string> CoverageTerms { get; init; } = [];
         public DateTimeOffset? ResearchedAt { get; init; }
+        public string? FeaturedSnippetText { get; init; }
     }
 
     private static int ScoreReadability(string plainText)

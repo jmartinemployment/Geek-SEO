@@ -254,6 +254,64 @@ export async function draftContentFromResearch(
   return res.json() as Promise<WritingTextResult>;
 }
 
+export async function startKeywordContentDraftJob(
+  documentId: string,
+  body: { keyword: string; location?: string; title?: string },
+  accessToken?: string | null,
+): Promise<BackgroundJobStatus> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/draft-job/keyword`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<BackgroundJobStatus>;
+}
+
+export async function startResearchContentDraftJob(
+  documentId: string,
+  accessToken?: string | null,
+): Promise<BackgroundJobStatus> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/draft-job/research`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<BackgroundJobStatus>;
+}
+
+const BACKGROUND_JOB_POLL_MS = 2500;
+const BACKGROUND_JOB_MAX_WAIT_MS = 15 * 60 * 1000;
+
+export async function waitForBackgroundJob(
+  jobId: string,
+  accessToken?: string | null,
+  options?: {
+    onProgress?: (status: BackgroundJobStatus) => void;
+    pollIntervalMs?: number;
+    maxWaitMs?: number;
+  },
+): Promise<BackgroundJobStatus> {
+  const pollIntervalMs = options?.pollIntervalMs ?? BACKGROUND_JOB_POLL_MS;
+  const maxWaitMs = options?.maxWaitMs ?? BACKGROUND_JOB_MAX_WAIT_MS;
+  const started = Date.now();
+
+  while (Date.now() - started < maxWaitMs) {
+    const status = await getJobStatus(jobId, accessToken);
+    options?.onProgress?.(status);
+
+    if (status.status === 'completed') return status;
+    if (status.status === 'failed') {
+      throw new Error(status.errorMessage || 'Background job failed');
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+
+  throw new Error('Draft generation is taking longer than expected. Check Jobs or try again.');
+}
+
 export type FeaturedImageResult = {
   dataUrl: string;
   prompt: string;

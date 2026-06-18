@@ -57,3 +57,17 @@ public sealed class UrlResearchJobChannel(ILogger<UrlResearchJobChannel> logger)
 
     public ChannelReader<byte> Reader => _channel.Reader;
 }
+
+public sealed class ContentDraftJobChannel(ILogger<ContentDraftJobChannel> logger)
+{
+    private readonly Channel<byte> _channel = Channel.CreateBounded<byte>(
+        new BoundedChannelOptions(500) { FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true });
+
+    public void Notify()
+    {
+        if (!_channel.Writer.TryWrite(0))
+            logger.LogWarning("ContentDraftJobChannel at capacity — notification dropped; job will be picked up on next startup drain");
+    }
+
+    public ChannelReader<byte> Reader => _channel.Reader;
+}

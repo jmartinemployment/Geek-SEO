@@ -1,5 +1,6 @@
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Extensions;
+using GeekSeoBackend.Infrastructure;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
@@ -13,6 +14,8 @@ namespace GeekSeoBackend.Controllers.Seo;
 public sealed class ContentController(
     IContentDocumentService content,
     IContentResearchWritingService researchWriting,
+    IContentDraftJobService draftJobs,
+    ContentDraftJobChannel draftJobChannel,
     IContentFeaturedImageService featuredImages,
     IArticleRenderService renderer,
     ICompetitorInsightsService competitors,
@@ -77,6 +80,27 @@ public sealed class ContentController(
     {
         var result = await researchWriting.DraftFromResearchAsync(user.RequireUserId(), id, ct);
         return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
+    }
+
+    [HttpPost("{id:guid}/draft-job/keyword")]
+    public async Task<IActionResult> EnqueueKeywordDraft(
+        Guid id, [FromBody] KeywordContentDraftRequest request, CancellationToken ct)
+    {
+        var result = await draftJobs.EnqueueKeywordDraftAsync(user.RequireUserId(), id, request, ct);
+        if (!result.IsSuccess)
+            return BadRequest(new { error = result.Error });
+        draftJobChannel.Notify();
+        return Accepted(result.Value);
+    }
+
+    [HttpPost("{id:guid}/draft-job/research")]
+    public async Task<IActionResult> EnqueueResearchDraft(Guid id, CancellationToken ct)
+    {
+        var result = await draftJobs.EnqueueResearchDraftAsync(user.RequireUserId(), id, ct);
+        if (!result.IsSuccess)
+            return BadRequest(new { error = result.Error });
+        draftJobChannel.Notify();
+        return Accepted(result.Value);
     }
 
     [HttpPost("{id:guid}/featured-image")]

@@ -11,12 +11,53 @@ public static partial class ArticleClosingFaqEnricher
 {
     public static bool HasClosingFaqSection(string html)
     {
-        var faqStart = FindFaqSectionStart(html);
-        if (faqStart < 0)
+        var section = ExtractFaqSectionBody(html);
+        if (section is null)
             return false;
 
-        var tail = html[faqStart..];
-        return FaqH3Regex().Matches(tail).Count >= ContentWritingRules.ClosingFaqCount;
+        return FaqH3Regex().Matches(section).Count >= ContentWritingRules.ClosingFaqCount;
+    }
+
+    public static bool HasCompleteClosingFaqSection(string html)
+    {
+        var section = ExtractFaqSectionBody(html);
+        if (section is null)
+            return false;
+
+        if (FaqH3Regex().Matches(section).Count < ContentWritingRules.ClosingFaqCount)
+            return false;
+
+        const string placeholder = "Expand this answer in the editor.";
+        var substantiveAnswers = 0;
+        foreach (Match match in FaqAnswerParagraphRegex().Matches(section))
+        {
+            var text = StripTags(match.Groups[1].Value);
+            if (string.IsNullOrWhiteSpace(text))
+                continue;
+            if (text.Contains(placeholder, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (CountWords(text) < 12)
+                continue;
+
+            substantiveAnswers++;
+        }
+
+        return substantiveAnswers >= ContentWritingRules.ClosingFaqCount;
+    }
+
+    public static async Task<string> EnsureClosingFaqDraftAsync(
+        string html,
+        string keyword,
+        IEnumerable<string> serpPaaQuestions,
+        IAIProvider ai,
+        CancellationToken ct = default)
+    {
+        if (HasCompleteClosingFaqSection(html))
+            return html;
+
+        html = RemoveIncompleteClosingFaqSection(html);
+        var questions = ContentWritingRules.BuildClosingFaqQuestions(keyword, serpPaaQuestions, null);
+        return await EnsureClosingFaqDraftCoreAsync(html, keyword, questions, ai, ct);
     }
 
     public static string EnsureClosingFaqOutline(string outline, ContentBrief brief)
@@ -40,9 +81,10 @@ public static partial class ArticleClosingFaqEnricher
         IAIProvider ai,
         CancellationToken ct = default)
     {
-        if (HasClosingFaqSection(html))
+        if (HasCompleteClosingFaqSection(html))
             return html;
 
+        html = RemoveIncompleteClosingFaqSection(html);
         var questions = ResolveQuestions(brief);
         return await EnsureClosingFaqDraftCoreAsync(html, brief.Keyword, questions, ai, ct);
     }
@@ -53,8 +95,10 @@ public static partial class ArticleClosingFaqEnricher
         IAIProvider ai,
         CancellationToken ct = default)
     {
-        if (HasClosingFaqSection(html))
+        if (HasCompleteClosingFaqSection(html))
             return html;
+
+        html = RemoveIncompleteClosingFaqSection(html);
 
         var questions = ResolveQuestions(research);
         return await EnsureClosingFaqDraftCoreAsync(html, research.DerivedKeyword, questions, ai, ct);
@@ -121,23 +165,73 @@ public static partial class ArticleClosingFaqEnricher
         return builder.ToString().TrimEnd();
     }
 
+    private static string RemoveIncompleteClosingFaqSection(string html)
+    {
+        if (HasCompleteClosingFaqSection(html))
+            return html;
+
+        var faqStart = FindFaqSectionStart(html);
+        if (faqStart < 0)
+            return html;
+
+        var tail = html[faqStart..];
+        var nextH2 = NextH2Regex().Match(tail);
+        var removeLength = nextH2.Success && nextH2.Index > 0 ? nextH2.Index : tail.Length;
+        return html[..faqStart].TrimEnd();
+    }
+
+    private static string? ExtractFaqSectionBody(string html)
+    {
+        var faqStart = FindFaqSectionStart(html);
+        if (faqStart < 0)
+            return null;
+
+        var tail = html[faqStart..];
+        var nextH2 = NextH2Regex().Match(tail);
+        if (nextH2.Success && nextH2.Index > 0)
+            tail = tail[..nextH2.Index];
+
+        return tail;
+    }
+
     private static int FindFaqSectionStart(string html)
     {
-        var match = FaqHeadingRegex().Match(html);
-        if (match.Success)
+        foreach (Match match in H2InnerRegex().Matches(html))
+        {
+            if (!IsFaqHeading(StripTags(match.Groups[1].Value)))
+                continue;
+
             return match.Index;
+        }
 
-        var headingIndex = html.IndexOf(ContentWritingRules.ClosingFaqHeading, StringComparison.OrdinalIgnoreCase);
-        if (headingIndex < 0)
-            return -1;
-
-        var h2Start = html.LastIndexOf("<h2", headingIndex, StringComparison.OrdinalIgnoreCase);
-        return h2Start >= 0 ? h2Start : headingIndex;
+        return -1;
     }
+
+    private static bool IsFaqHeading(string text)
+    {
+        var normalized = Regex.Replace(text.Trim(), @"\s+", " ");
+        return normalized.Equals(ContentWritingRules.ClosingFaqHeading, StringComparison.OrdinalIgnoreCase)
+               || normalized.Equals("FAQ", StringComparison.OrdinalIgnoreCase)
+               || normalized.Equals("FAQs", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string StripTags(string html) =>
+        Regex.Replace(html, "<[^>]+>", string.Empty).Trim();
+
+    private static int CountWords(string text) =>
+        string.IsNullOrWhiteSpace(text)
+            ? 0
+            : text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
 
     [GeneratedRegex("<h3\\b", RegexOptions.IgnoreCase)]
     private static partial Regex FaqH3Regex();
 
-    [GeneratedRegex("<h2[^>]*>\\s*[^<]*faq[^<]*</h2>", RegexOptions.IgnoreCase)]
-    private static partial Regex FaqHeadingRegex();
+    [GeneratedRegex("<h2\\b[^>]*>(.*?)</h2>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex H2InnerRegex();
+
+    [GeneratedRegex("<h2\\b", RegexOptions.IgnoreCase)]
+    private static partial Regex NextH2Regex();
+
+    [GeneratedRegex("<p\\b[^>]*>(.*?)</p>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex FaqAnswerParagraphRegex();
 }
