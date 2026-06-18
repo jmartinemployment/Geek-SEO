@@ -101,6 +101,12 @@ export type BackgroundJobStatus = {
   errorMessage?: string;
 };
 
+/** GeekRepository persists `complete`; older UI expected `completed`. */
+export function normalizeBackgroundJobStatus(job: BackgroundJobStatus): BackgroundJobStatus {
+  if (job.status !== 'complete') return job;
+  return { ...job, status: 'completed' };
+}
+
 export type CompetitorPageInsight = {
   url: string;
   domain?: string;
@@ -265,7 +271,8 @@ export async function startKeywordContentDraftJob(
     body: JSON.stringify(body),
   });
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
-  return res.json() as Promise<BackgroundJobStatus>;
+  const job = (await res.json()) as BackgroundJobStatus;
+  return normalizeBackgroundJobStatus(job);
 }
 
 export async function startResearchContentDraftJob(
@@ -278,8 +285,14 @@ export async function startResearchContentDraftJob(
     cache: 'no-store',
   });
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
-  return res.json() as Promise<BackgroundJobStatus>;
+  const job = (await res.json()) as BackgroundJobStatus;
+  return normalizeBackgroundJobStatus(job);
 }
+
+export type DraftJobProgressOptions = {
+  onProgress?: (status: BackgroundJobStatus, elapsedMs: number) => void;
+  onFallback?: (reason: string) => void;
+};
 
 /** Prefer background job; fall back to sync draft when API is not deployed yet (404). */
 export async function runKeywordContentDraft(
@@ -287,6 +300,7 @@ export async function runKeywordContentDraft(
   projectId: string,
   body: { keyword: string; location?: string; title?: string },
   accessToken?: string | null,
+  options?: DraftJobProgressOptions,
 ): Promise<SeoContentDocument> {
   const res = await fetch(`${API_URL}/api/seo/content/${documentId}/draft-job/keyword`, {
     method: 'POST',
@@ -313,18 +327,42 @@ export async function runKeywordContentDraft(
 
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
 
-  const job = (await res.json()) as BackgroundJobStatus;
-  const completed = await waitForBackgroundJob(job.jobId, accessToken);
-  if (!completed.resultId) {
-    throw new Error('Draft job completed without a document id.');
+  const job = normalizeBackgroundJobStatus((await res.json()) as BackgroundJobStatus);
+  try {
+    const completed = await waitForBackgroundJob(job.jobId, accessToken, {
+      onProgress: options?.onProgress,
+    });
+    if (!completed.resultId) {
+      throw new Error('Draft job completed without a document id.');
+    }
+    return getContent(completed.resultId, accessToken);
+  } catch (jobError) {
+    if (!isStuckDraftJobError(jobError)) throw jobError;
+    options?.onFallback?.(
+      jobError instanceof Error ? jobError.message : 'Background draft stalled; using direct draft.',
+    );
+    const draft = await draftFromKeyword(
+      { projectId, keyword: body.keyword, location: body.location, title: body.title },
+      accessToken,
+    );
+    return updateContent(
+      documentId,
+      {
+        contentHtml: draft.content,
+        title: body.title,
+        targetKeyword: body.keyword,
+        targetLocation: body.location,
+      },
+      accessToken,
+    );
   }
-  return getContent(completed.resultId, accessToken);
 }
 
 /** Prefer background job; fall back to sync research draft when API is not deployed yet (404). */
 export async function runResearchContentDraft(
   documentId: string,
   accessToken?: string | null,
+  options?: DraftJobProgressOptions,
 ): Promise<SeoContentDocument> {
   const res = await fetch(`${API_URL}/api/seo/content/${documentId}/draft-job/research`, {
     method: 'POST',
@@ -339,43 +377,92 @@ export async function runResearchContentDraft(
 
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
 
-  const job = (await res.json()) as BackgroundJobStatus;
-  const completed = await waitForBackgroundJob(job.jobId, accessToken);
-  if (!completed.resultId) {
-    throw new Error('Draft job completed without a document id.');
+  const job = normalizeBackgroundJobStatus((await res.json()) as BackgroundJobStatus);
+  try {
+    const completed = await waitForBackgroundJob(job.jobId, accessToken, {
+      onProgress: options?.onProgress,
+    });
+    if (!completed.resultId) {
+      throw new Error('Draft job completed without a document id.');
+    }
+    return getContent(completed.resultId, accessToken);
+  } catch (jobError) {
+    if (!isStuckDraftJobError(jobError)) throw jobError;
+    options?.onFallback?.(
+      jobError instanceof Error ? jobError.message : 'Background draft stalled; using direct draft.',
+    );
+    await draftContentFromResearch(documentId, accessToken);
+    return getContent(documentId, accessToken);
   }
-  return getContent(completed.resultId, accessToken);
 }
 
 const BACKGROUND_JOB_POLL_MS = 2500;
 const BACKGROUND_JOB_MAX_WAIT_MS = 15 * 60 * 1000;
+const BACKGROUND_JOB_STALE_MS = 45 * 1000;
+
+function isStuckDraftJobError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return (
+    error.message.includes('worker never started') ||
+    error.message.includes('taking longer than expected')
+  );
+}
 
 export async function waitForBackgroundJob(
   jobId: string,
   accessToken?: string | null,
   options?: {
-    onProgress?: (status: BackgroundJobStatus) => void;
+    onProgress?: (status: BackgroundJobStatus, elapsedMs: number) => void;
     pollIntervalMs?: number;
     maxWaitMs?: number;
+    staleMs?: number;
   },
 ): Promise<BackgroundJobStatus> {
   const pollIntervalMs = options?.pollIntervalMs ?? BACKGROUND_JOB_POLL_MS;
   const maxWaitMs = options?.maxWaitMs ?? BACKGROUND_JOB_MAX_WAIT_MS;
+  const staleMs = options?.staleMs ?? BACKGROUND_JOB_STALE_MS;
   const started = Date.now();
+  let staleSince: number | null = null;
 
   while (Date.now() - started < maxWaitMs) {
+    const elapsedMs = Date.now() - started;
     const status = await getJobStatus(jobId, accessToken);
-    options?.onProgress?.(status);
+    options?.onProgress?.(status, elapsedMs);
 
-    if (status.status === 'completed') return status;
+    if (status.status === 'completed' || status.status === 'complete') return normalizeBackgroundJobStatus(status);
     if (status.status === 'failed') {
       throw new Error(status.errorMessage || 'Background job failed');
+    }
+
+    const looksQueued =
+      (status.status === 'pending' || status.status === 'queued') && status.progressPercent <= 0;
+    if (looksQueued) {
+      staleSince ??= Date.now();
+      if (Date.now() - staleSince >= staleMs) {
+        throw new Error(
+          'Draft job was queued but the server worker never started it. Retrying with a direct draft.',
+        );
+      }
+    } else {
+      staleSince = null;
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
 
-  throw new Error('Draft generation is taking longer than expected. Check Jobs or try again.');
+  throw new Error(
+    'Draft generation is taking longer than expected (over 15 minutes). Try again or use a shorter keyword.',
+  );
+}
+
+export function describeDraftJobProgress(status: BackgroundJobStatus): string {
+  if (status.status === 'failed') return status.errorMessage || 'Draft failed';
+  if (status.status === 'completed' || status.status === 'complete') return 'Draft complete';
+  if (status.progressPercent >= 85) return 'Saving draft…';
+  if (status.progressPercent >= 15) return 'Writing outline and article…';
+  if (status.progressPercent >= 5) return 'Starting draft…';
+  if (status.status === 'pending' || status.status === 'queued') return 'Queued…';
+  return 'Draft in progress…';
 }
 
 export type FeaturedImageResult = {
@@ -428,7 +515,8 @@ export async function startFullArticle(
     body: JSON.stringify(body),
   });
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
-  return res.json() as Promise<BackgroundJobStatus>;
+  const job = (await res.json()) as BackgroundJobStatus;
+  return normalizeBackgroundJobStatus(job);
 }
 
 export async function getJobStatus(
@@ -440,7 +528,8 @@ export async function getJobStatus(
     cache: 'no-store',
   });
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
-  return res.json() as Promise<BackgroundJobStatus>;
+  const job = (await res.json()) as BackgroundJobStatus;
+  return normalizeBackgroundJobStatus(job);
 }
 
 export async function getCompetitors(

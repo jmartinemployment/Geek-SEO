@@ -20,6 +20,7 @@ import {
   listUrlResearch,
   runKeywordContentDraft,
   runResearchContentDraft,
+  describeDraftJobProgress,
   updateContentStatus,
   type SeoContentDocument,
   type SeoProject,
@@ -46,6 +47,23 @@ function formatResearchWhen(iso?: string | null): string {
   } catch {
     return iso;
   }
+}
+
+function formatDraftElapsed(elapsedMs: number): string {
+  const totalSeconds = Math.floor(elapsedMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+}
+
+function draftLoadingLabel(
+  action: string | null,
+  progress: { label: string; percent: number; elapsedMs: number } | null,
+  fallback: string,
+): string {
+  if (!action || !progress) return fallback;
+  const pct = progress.percent > 0 ? ` · ${progress.percent}%` : '';
+  return `${progress.label} (${formatDraftElapsed(progress.elapsedMs)}${pct})`;
 }
 
 type Stage = 'setup' | 'review';
@@ -77,6 +95,11 @@ function ContentWritingPageInner() {
   const [error, setError] = useState<unknown>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [generateFeaturedImageWithDraft, setGenerateFeaturedImageWithDraft] = useState(true);
+  const [draftProgress, setDraftProgress] = useState<{
+    label: string;
+    percent: number;
+    elapsedMs: number;
+  } | null>(null);
   const [documentLoading, setDocumentLoading] = useState(!!initialDocumentId);
 
   const isResearchDoc = Boolean(doc?.urlResearchId);
@@ -229,24 +252,50 @@ function ContentWritingPageInner() {
     setLoadingAction(action);
     setError(null);
     setStatusMessage(null);
+    setDraftProgress(null);
     try {
       await fn();
     } catch (runError) {
       setError(runError);
     } finally {
       setLoadingAction(null);
+      setDraftProgress(null);
     }
   }
+
+  const draftJobOptions = {
+    onProgress: (status: Parameters<typeof describeDraftJobProgress>[0], elapsedMs: number) => {
+      setDraftProgress({
+        label: describeDraftJobProgress(status),
+        percent: status.progressPercent,
+        elapsedMs,
+      });
+    },
+    onFallback: (reason: string) => {
+      setStatusMessage(
+        `${reason} Continuing with a direct draft — this may take a few minutes.`,
+      );
+    },
+  };
 
   async function finalizeDraftDocument(saved: SeoContentDocument): Promise<SeoContentDocument> {
     await updateContentStatus(saved.id, 'awaiting_review', accessToken);
     let nextDoc = { ...saved, status: 'awaiting_review' };
-    if (generateFeaturedImageWithDraft) {
-      const image = await generateFeaturedImage(saved.id, {}, accessToken);
-      nextDoc = { ...nextDoc, featuredImageUrl: image.dataUrl };
-    }
     setDoc(nextDoc);
     setStage('review');
+
+    if (generateFeaturedImageWithDraft) {
+      try {
+        const image = await generateFeaturedImage(saved.id, {}, accessToken);
+        nextDoc = { ...nextDoc, featuredImageUrl: image.dataUrl };
+        setDoc(nextDoc);
+      } catch (imageError) {
+        setStatusMessage(
+          'Draft is ready in the editor. Featured image could not be generated — you can retry from the review panel.',
+        );
+        setError(imageError);
+      }
+    }
     return nextDoc;
   }
 
@@ -306,6 +355,12 @@ function ContentWritingPageInner() {
           </div>
 
           {error ? <SeoErrorBanner error={error} /> : null}
+
+          {statusMessage ? (
+            <p className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
+              {statusMessage}
+            </p>
+          ) : null}
 
           {newerResearchForAttached ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
@@ -520,13 +575,19 @@ function ContentWritingPageInner() {
                           throw new Error('This document is already linked to different page research.');
                         }
 
-                        const saved = await runResearchContentDraft(workingDoc.id, accessToken);
+                        const saved = await runResearchContentDraft(
+                          workingDoc.id,
+                          accessToken,
+                          draftJobOptions,
+                        );
                         setDoc(saved);
                         await finalizeDraftDocument(saved);
                       })
                     }
                   >
-                    {loadingAction === 'research-draft' ? 'Drafting from research…' : 'Generate draft'}
+                    {loadingAction === 'research-draft'
+                      ? draftLoadingLabel(loadingAction, draftProgress, 'Drafting from research…')
+                      : 'Generate draft'}
                   </button>
                   {!selectedResearchId ? (
                     <Link
@@ -561,6 +622,7 @@ function ContentWritingPageInner() {
                           projectId,
                           { keyword, location, title },
                           accessToken,
+                          draftJobOptions,
                         );
                         setDoc(saved);
                         await finalizeDraftDocument(saved);
@@ -568,7 +630,11 @@ function ContentWritingPageInner() {
                     }
                   >
                     {loadingAction === 'keyword-draft'
-                      ? 'Researching SERP and drafting…'
+                      ? draftLoadingLabel(
+                          loadingAction,
+                          draftProgress,
+                          'Researching SERP and drafting…',
+                        )
                       : 'Generate draft'}
                   </button>
                 </div>

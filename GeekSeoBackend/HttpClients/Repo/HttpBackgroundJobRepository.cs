@@ -71,8 +71,9 @@ public sealed class HttpBackgroundJobRepository(IHttpClientFactory factory, ICur
     public async Task<Result<IReadOnlyList<SeoBackgroundJob>>> GetPendingAsync(
         string jobType, int limit, CancellationToken ct = default)
     {
+        // Workers poll cross-user queues; auth is via X-Geek-User-Id + service API key, not userId filter.
         var response = await _http.GetAsync(
-            $"api/seo/internal/jobs/pending?jobType={Uri.EscapeDataString(jobType)}&limit={limit}&userId={user.UserId}",
+            $"api/seo/internal/jobs/pending?jobType={Uri.EscapeDataString(jobType)}&limit={limit}",
             ct);
         if (!response.IsSuccessStatusCode)
             return Result<IReadOnlyList<SeoBackgroundJob>>.Failure(await response.Content.ReadAsStringAsync(ct));
