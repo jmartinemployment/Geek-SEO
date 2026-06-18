@@ -20,6 +20,7 @@ import {
   listUrlResearch,
   runKeywordContentDraft,
   runResearchContentDraft,
+  updateContentStatus,
   type SeoContentDocument,
   type SeoProject,
   type UrlResearchSummary,
