@@ -148,6 +148,8 @@ public static class SeoBackendExtensions
         services.AddScoped<NicheAnalyzerService>();
         services.AddScoped<CompetitorAnalysisService>();
         services.AddScoped<NicheAnalysisProgressNotifier>();
+        services.AddSingleton<HubGroupAccessCache>();
+        services.AddScoped<ContentDraftProgressNotifier>();
         services.AddScoped<IUrlResearchProgressNotifier, UrlResearchProgressNotifier>();
         services.AddScoped<UrlResearchJobProcessor>();
         services.AddScoped<NicheStepRerunService>();

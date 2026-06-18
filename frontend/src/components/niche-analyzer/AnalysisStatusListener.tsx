@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { getHubUrl, getNicheAnalysisStatus, type NicheAnalysisStatus } from '@/lib/seo-api';
+import { useSeoHub } from '@/components/signalr/seo-hub-provider';
+import { getNicheAnalysisStatus, type NicheAnalysisStatus } from '@/lib/seo-api';
 import { isNicheStepStalled, NICHE_STALL_MS } from '@/lib/niche-analysis-stale';
-
-const DEV_USER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID;
 
 const STEP_LABELS: Record<string, string> = {
   schema: 'Extracting schema.org data…',
@@ -49,15 +48,8 @@ function mergeStatus(
   return next;
 }
 
-function hubUrl(accessToken?: string | null): string {
-  const base = getHubUrl();
-  if (!accessToken && DEV_USER_ID) {
-    return `${base}?access_token=${encodeURIComponent(DEV_USER_ID)}`;
-  }
-  return base;
-}
-
 export function AnalysisStatusListener({ profileId, accessToken, onComplete, onError }: Props) {
+  const hub = useSeoHub();
   const [progress, setProgress] = useState<NicheAnalysisStatus | null>(null);
   const [liveMessage, setLiveMessage] = useState<string | null>(null);
   const [stalled, setStalled] = useState(false);
@@ -121,100 +113,63 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
     };
   }, [profileId, accessToken]);
 
-  // SignalR live progress; reconcile from DB on reconnect.
   useEffect(() => {
-    let disposed = false;
-    let started = false;
-    let connection: import('@microsoft/signalr').HubConnection | null = null;
+    if (!hub.isConnected) return;
 
     async function hydrateOnce() {
       try {
         const status = await getNicheAnalysisStatus(profileId, accessToken);
-        if (!disposed) applyStatus(status);
+        applyStatus(status);
       } catch {
-        if (!disposed) {
-          setConnectionError('Could not refresh analysis status.');
-        }
+        setConnectionError('Could not refresh analysis status.');
       }
     }
 
-    async function connect() {
-      try {
-        const { HubConnectionBuilder, LogLevel } = await import('@microsoft/signalr');
-        if (disposed) return;
+    const leave = hub.joinNicheProfile(profileId);
+    const unsub = hub.subscribe(
+      'AnalysisProgress',
+      (msg: unknown) => {
+        const payload = msg as NicheAnalysisStatus & {
+          message?: string;
+          Message?: string;
+          ProfileId?: string;
+        };
+        const msgProfileId = payload.profileId ?? payload.ProfileId;
+        if (msgProfileId && msgProfileId !== profileId) return;
+        const detail = payload.message ?? payload.Message;
+        if (detail) setLiveMessage(detail);
 
-        const conn = new HubConnectionBuilder()
-          .withUrl(hubUrl(accessToken), {
-            accessTokenFactory: () => accessToken ?? '',
-            withCredentials: true,
-          })
-          .configureLogging(LogLevel.None)
-          .withAutomaticReconnect([0, 2_000, 5_000, 10_000])
-          .build();
-
-        conn.on(
-          'AnalysisProgress',
-          (msg: NicheAnalysisStatus & { message?: string; Message?: string; ProfileId?: string }) => {
-            const msgProfileId = msg.profileId ?? msg.ProfileId;
-            if (msgProfileId && msgProfileId !== profileId) return;
-            const detail = msg.message ?? msg.Message;
-            if (detail) setLiveMessage(detail);
-
-            const status = msg.status ?? (msg as { Status?: string }).Status ?? 'processing';
-            if (status === 'complete' && !completedRef.current) {
-              completedRef.current = true;
-              void hydrateOnce();
-              onCompleteRef.current(profileId);
-              return;
-            }
-            if (status === 'failed') {
-              onErrorRef.current(msg.errorMessage ?? 'Analysis failed');
-              return;
-            }
-
-            applyStatus({
-              profileId: msgProfileId ?? profileId,
-              status: status as NicheAnalysisStatus['status'],
-              step: msg.step ?? (msg as { Step?: string }).Step,
-              stepNumber: msg.stepNumber ?? (msg as { StepNumber?: number }).StepNumber,
-              totalSteps: msg.totalSteps ?? (msg as { TotalSteps?: number }).TotalSteps ?? 16,
-              errorMessage: msg.errorMessage ?? (msg as { ErrorMessage?: string }).ErrorMessage,
-            });
-          },
-        );
-
-        conn.onreconnected(() => {
-          setConnectionError(null);
+        const status = payload.status ?? (payload as { Status?: string }).Status ?? 'processing';
+        if (status === 'complete' && !completedRef.current) {
+          completedRef.current = true;
           void hydrateOnce();
-        });
-
-        connection = conn;
-        await conn.start();
-        started = true;
-        if (disposed) {
-          void conn.stop().catch(() => {});
+          onCompleteRef.current(profileId);
           return;
         }
-        setConnectionError(null);
-        await conn.invoke('JoinGroup', `niche-${profileId}`);
-      } catch (e) {
-        if (!disposed) {
-          setConnectionError(
-            e instanceof Error ? e.message : 'Live progress connection failed.',
-          );
+        if (status === 'failed') {
+          onErrorRef.current(payload.errorMessage ?? 'Analysis failed');
+          return;
         }
-      }
-    }
 
-    void connect();
+        applyStatus({
+          profileId: msgProfileId ?? profileId,
+          status: status as NicheAnalysisStatus['status'],
+          step: payload.step ?? (payload as { Step?: string }).Step,
+          stepNumber: payload.stepNumber ?? (payload as { StepNumber?: number }).StepNumber,
+          totalSteps: payload.totalSteps ?? (payload as { TotalSteps?: number }).TotalSteps ?? 16,
+          errorMessage: payload.errorMessage ?? (payload as { ErrorMessage?: string }).ErrorMessage,
+        });
+      },
+    );
+
+    setConnectionError(null);
+    void hydrateOnce();
 
     return () => {
-      disposed = true;
-      const conn = connection;
-      connection = null;
-      if (conn && started) void conn.stop().catch(() => {});
+      unsub();
+      leave();
     };
-  }, [profileId, accessToken]);
+  }, [profileId, accessToken, hub, hub.isConnected]);
 
   const stepNumber = progress?.stepNumber ?? 0;
   const totalSteps = progress?.totalSteps ?? 16;

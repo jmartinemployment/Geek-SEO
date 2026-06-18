@@ -1,11 +1,9 @@
 import {
-  getHubUrl,
   getNicheAnalysisStatus,
   type NicheAnalysisStatus,
   type StepStatus,
 } from '@/lib/seo-api';
-
-const DEV_USER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID;
+import type { SeoHubApi } from '@/components/signalr/seo-hub-provider';
 
 const TERMINAL_STEP_STATUSES = new Set<StepStatus>(['complete', 'error', 'skipped']);
 
@@ -30,20 +28,6 @@ type AnalysisProgressMsg = {
   Message?: string;
 };
 
-function hubUrl(accessToken?: string | null): string {
-  const base = getHubUrl();
-  if (!accessToken && DEV_USER_ID) {
-    return `${base}?access_token=${encodeURIComponent(DEV_USER_ID)}`;
-  }
-  return base;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
-}
-
 function msgProfileId(msg: AnalysisProgressMsg): string | undefined {
   return msg.profileId ?? msg.ProfileId;
 }
@@ -64,41 +48,41 @@ function isTerminalStepStatus(status: StepStatus | undefined): boolean {
   return status !== undefined && TERMINAL_STEP_STATUSES.has(status);
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 export type WaitForNicheStepOptions = {
   profileId: string;
   slug: string;
   accessToken?: string | null;
+  hub: SeoHubApi;
   timeoutMs?: number;
-  /** Called after the hub is connected — use this to POST run-step so events are not missed. */
   triggerRun?: () => Promise<void>;
   onProgress?: (message: string) => void;
   onStatus?: (status: NicheAnalysisStatus) => void;
 };
 
-/**
- * Waits for a manual step run to finish via SignalR, then hydrates once from GET /status.
- */
 export async function waitForNicheStepViaSignalR(
   options: WaitForNicheStepOptions,
 ): Promise<NicheAnalysisStatus> {
-  const { profileId, slug, accessToken, onProgress, onStatus, triggerRun } = options;
+  const { profileId, slug, accessToken, hub, onProgress, onStatus, triggerRun } = options;
   const timeoutMs =
     options.timeoutMs ??
     (slug === 'site_crawl' ? 300_000 : slug === 'serp_validation' ? 900_000 : 120_000);
 
   return new Promise((resolve, reject) => {
-    let disposed = false;
-    let started = false;
     let settled = false;
-    let connection: import('@microsoft/signalr').HubConnection | null = null;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let leaveGroup: (() => void) | undefined;
+    let unsubProgress: (() => void) | undefined;
 
     const cleanup = () => {
-      disposed = true;
       if (timeoutId) clearTimeout(timeoutId);
-      const conn = connection;
-      connection = null;
-      if (conn && started) void conn.stop().catch(() => {});
+      unsubProgress?.();
+      leaveGroup?.();
     };
 
     const finishResolve = (status: NicheAnalysisStatus) => {
@@ -150,7 +134,6 @@ export async function waitForNicheStepViaSignalR(
       const settledNow = await settleFromDb();
       if (settledNow || settled) return;
 
-      // One deferred read if persistence lags the hub event — not polling.
       await sleep(500);
       if (settled) return;
 
@@ -185,74 +168,45 @@ export async function waitForNicheStepViaSignalR(
       })();
     }, timeoutMs);
 
-    const onTerminalSignal = () => {
+    leaveGroup = hub.joinNicheProfile(profileId);
+
+    unsubProgress = hub.subscribe('AnalysisProgress', (raw: unknown) => {
+      const msg = raw as AnalysisProgressMsg;
+      const pid = msgProfileId(msg);
+      const step = msgStep(msg);
+      if (!idsMatch(pid, profileId)) return;
+      if (step && step !== slug) return;
+
+      const detail = msgMessage(msg);
+      if (detail) onProgress?.(detail);
+
+      const status = msgStatus(msg)?.toLowerCase();
+      if (status === 'running') return;
+
+      if (status === 'complete') {
+        void settleAfterSignal(detail);
+        return;
+      }
+
+      if (status === 'error' || status === 'failed') {
+        void (async () => {
+          try {
+            const hydrated = await hydrate();
+            finishReject(
+              new Error(hydrated.stepErrors?.[slug] ?? detail ?? `Step "${slug}" failed.`),
+            );
+          } catch (e) {
+            finishReject(e instanceof Error ? e : new Error(`Step "${slug}" failed.`));
+          }
+        })();
+        return;
+      }
+
       void settleAfterSignal();
-    };
+    });
 
-    async function connect() {
+    void (async () => {
       try {
-        const { HubConnectionBuilder, LogLevel } = await import('@microsoft/signalr');
-        if (disposed) return;
-
-        const conn = new HubConnectionBuilder()
-          .withUrl(hubUrl(accessToken), {
-            accessTokenFactory: () => accessToken ?? '',
-            withCredentials: true,
-          })
-          .configureLogging(LogLevel.None)
-          .withAutomaticReconnect([0, 2_000, 5_000, 10_000])
-          .build();
-
-        conn.on('AnalysisProgress', (raw: AnalysisProgressMsg) => {
-          const pid = msgProfileId(raw);
-          const step = msgStep(raw);
-          if (!idsMatch(pid, profileId)) return;
-          if (step && step !== slug) return;
-
-          const detail = msgMessage(raw);
-          if (detail) onProgress?.(detail);
-
-          const status = msgStatus(raw)?.toLowerCase();
-          if (status === 'running') return;
-
-          if (status === 'complete') {
-            void settleAfterSignal(detail);
-            return;
-          }
-
-          if (status === 'error' || status === 'failed') {
-            void (async () => {
-              try {
-                const hydrated = await hydrate();
-                finishReject(
-                  new Error(
-                    hydrated.stepErrors?.[slug] ?? detail ?? `Step "${slug}" failed.`,
-                  ),
-                );
-              } catch (e) {
-                finishReject(
-                  e instanceof Error ? e : new Error(`Step "${slug}" failed.`),
-                );
-              }
-            })();
-            return;
-          }
-
-          onTerminalSignal();
-        });
-
-        conn.onreconnected(() => {
-          void settleFromDb();
-        });
-
-        connection = conn;
-        await conn.start();
-        started = true;
-        if (disposed) {
-          void conn.stop().catch(() => {});
-          return;
-        }
-        await conn.invoke('JoinGroup', `niche-${profileId}`);
         if (triggerRun) await triggerRun();
         if (!settled) void settleFromDb();
       } catch (e) {
@@ -265,8 +219,6 @@ export async function waitForNicheStepViaSignalR(
           );
         }
       }
-    }
-
-    void connect();
+    })();
   });
 }

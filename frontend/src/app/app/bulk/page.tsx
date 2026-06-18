@@ -3,14 +3,9 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useAuthReady } from '@/hooks/use-auth-ready';
-import {
-  describeDraftJobProgress,
-  listProjects,
-  runBulkKeywordDrafts,
-  type BulkDraftProgress,
-  type SeoContentDocument,
-  type SeoProject,
-} from '@/lib/seo-api';
+import { useSeoHub } from '@/components/signalr/seo-hub-provider';
+import { describeDraftJobProgress, listProjects, type SeoContentDocument, type SeoProject } from '@/lib/seo-api';
+import { runBulkKeywordDrafts, type BulkDraftProgress } from '@/lib/draft-job-signalr';
 
 function formatElapsed(elapsedMs: number): string {
   const totalSeconds = Math.floor(elapsedMs / 1000);
@@ -21,6 +16,7 @@ function formatElapsed(elapsedMs: number): string {
 
 export default function BulkArticlesPage() {
   const { accessToken, authLoading, authReady } = useAuthReady();
+  const hub = useSeoHub();
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [projectId, setProjectId] = useState('');
   const [keywordsText, setKeywordsText] = useState('');
@@ -66,6 +62,7 @@ export default function BulkArticlesPage() {
     setProgress(null);
     try {
       const documents = await runBulkKeywordDrafts(projectId, keywords, location, accessToken, {
+        hub,
         onProgress: setProgress,
       });
       setCompleted(documents);
@@ -87,8 +84,7 @@ export default function BulkArticlesPage() {
     <main className="mx-auto max-w-3xl px-6 py-10">
       <h1 className="text-2xl font-semibold tracking-tight">Bulk article generation</h1>
       <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Draft up to 20 keywords sequentially — brief, outline, and article run directly (no background
-        job queue).
+        Draft up to 20 keywords sequentially — each keyword runs as a background job with live progress over SignalR.
       </p>
 
       <form onSubmit={onSubmit} className="mt-8 space-y-4 rounded-xl border bg-white p-6 shadow-sm">

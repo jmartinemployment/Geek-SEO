@@ -1,7 +1,7 @@
 'use client';
 
-import { Fragment, useEffect, useRef, useState } from 'react';
-import * as signalR from '@microsoft/signalr';
+import { Fragment, useEffect, useState } from 'react';
+import { useSeoHub } from '@/components/signalr/seo-hub-provider';
 import type { NicheAnalysisStatus, NicheCompetitorResult, StepStatus } from '@/lib/seo-api';
 import { analyzeCompetitors, getNicheProfileCompetitors, runNicheStep } from '@/lib/seo-api';
 import { waitForNicheStepViaSignalR } from '@/lib/niche-step-wait';
@@ -107,6 +107,7 @@ export function NicheCompetitorPanel({
   serpStepStatus,
   onStepStatusChange,
 }: Readonly<Props>) {
+  const hub = useSeoHub();
   const [expandedDomain, setExpandedDomain] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressState>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -115,7 +116,6 @@ export function NicheCompetitorPanel({
   const [error, setError] = useState<string | null>(null);
   const [loadedCompetitors, setLoadedCompetitors] = useState(competitors);
   const [loadingCompetitors, setLoadingCompetitors] = useState(false);
-  const connectionRef = useRef<signalR.HubConnection | null>(null);
 
   useEffect(() => {
     setLoadedCompetitors(competitors);
@@ -149,12 +149,6 @@ export function NicheCompetitorPanel({
     && serpStepStatus !== 'running'
     && !serpRerunning;
 
-  useEffect(() => {
-    return () => {
-      connectionRef.current?.stop().catch(() => {});
-    };
-  }, []);
-
   async function handleRerunSerpValidation() {
     setError(null);
     setSerpRerunning(true);
@@ -164,6 +158,7 @@ export function NicheCompetitorPanel({
         profileId,
         slug: 'serp_validation',
         accessToken,
+        hub,
         timeoutMs: 900_000,
         triggerRun: () => runNicheStep(profileId, 'serp_validation', accessToken),
         onProgress: setSerpProgress,
@@ -185,33 +180,28 @@ export function NicheCompetitorPanel({
     setAnalyzing(true);
     setProgress({ done: 0, total: loadedCompetitors.length, message: 'Starting…' });
 
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5051';
-      const connection = new signalR.HubConnectionBuilder()
-        .withUrl(`${API_URL}/hubs/seo-scoring`, {
-          accessTokenFactory: () => accessToken ?? '',
-        })
-        .withAutomaticReconnect()
-        .build();
-
-      connection.on('CompetitorAnalysisProgress', (data: { done: number; total: number; message: string }) => {
-        setProgress(data);
-        if (data.done >= data.total) {
+    const leave = hub.joinNicheProfile(profileId);
+    const unsub = hub.subscribe(
+      'CompetitorAnalysisProgress',
+      (data: unknown) => {
+        const progress = data as { done: number; total: number; message: string };
+        setProgress(progress);
+        if (progress.done >= progress.total) {
           setAnalyzing(false);
-          connection.stop().catch(() => {});
           onCompetitorsUpdated?.();
         }
-      });
+      },
+    );
 
-      await connection.start();
-      await connection.invoke('JoinGroup', `niche-${profileId}`);
-      connectionRef.current = connection;
-
+    try {
       await analyzeCompetitors(profileId, accessToken);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to start competitor analysis');
       setAnalyzing(false);
       setProgress(null);
+    } finally {
+      unsub();
+      leave();
     }
   }
 

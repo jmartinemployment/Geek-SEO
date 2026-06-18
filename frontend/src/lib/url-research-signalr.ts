@@ -1,6 +1,6 @@
-import { getHubUrl, getUrlResearch, type UrlResearchFull } from '@/lib/seo-api';
+import { getUrlResearch, type UrlResearchFull } from '@/lib/seo-api';
+import type { SeoHubApi } from '@/components/signalr/seo-hub-provider';
 
-const DEV_USER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID;
 const TERMINAL = new Set(['completed', 'failed']);
 
 export type UrlResearchProgressMsg = {
@@ -16,14 +16,6 @@ export type UrlResearchProgressMsg = {
   ErrorMessage?: string;
 };
 
-function hubUrl(accessToken?: string | null): string {
-  const base = getHubUrl();
-  if (!accessToken && DEV_USER_ID) {
-    return `${base}?access_token=${encodeURIComponent(DEV_USER_ID)}`;
-  }
-  return base;
-}
-
 function idsMatch(a: string | undefined, b: string): boolean {
   const left = a?.toLowerCase();
   const right = b.toLowerCase();
@@ -38,99 +30,57 @@ function msgStatus(msg: UrlResearchProgressMsg): string | undefined {
   return (msg.status ?? msg.Status)?.toLowerCase();
 }
 
-function researchGroup(urlResearchId: string): string {
-  return `url-research-${urlResearchId}`;
-}
-
-function projectGroup(projectId: string): string {
-  return `url-research-project-${projectId}`;
-}
-
 export type SubscribeUrlResearchProjectProgressOptions = {
   projectId: string;
-  accessToken?: string | null;
   onProgress: (update: { urlResearchId: string; status: string; message?: string }) => void;
 };
 
-/**
- * Subscribes to all page-research updates for a project (list row status patches).
- */
-export async function subscribeUrlResearchProjectProgress(
+/** Subscribes to all page-research updates for a project via the shared hub. */
+export function subscribeUrlResearchProjectProgress(
+  hub: SeoHubApi,
   options: SubscribeUrlResearchProjectProgressOptions,
-): Promise<() => void> {
-  const { projectId, accessToken, onProgress } = options;
+): () => void {
+  const { projectId, onProgress } = options;
+  const leave = hub.joinUrlResearchProject(projectId);
 
-  const { HubConnectionBuilder, LogLevel } = await import('@microsoft/signalr');
-  const connection = new HubConnectionBuilder()
-    .withUrl(hubUrl(accessToken), {
-      accessTokenFactory: () => accessToken ?? '',
-      withCredentials: true,
-    })
-    .configureLogging(LogLevel.None)
-    .withAutomaticReconnect([0, 2_000, 5_000, 10_000])
-    .build();
-
-  let disposed = false;
-
-  connection.on('UrlResearchProgress', (raw: UrlResearchProgressMsg) => {
-    const urlResearchId = msgResearchId(raw);
-    const status = msgStatus(raw);
+  const unsub = hub.subscribe('UrlResearchProgress', (raw: unknown) => {
+    const msg = raw as UrlResearchProgressMsg;
+    const urlResearchId = msgResearchId(msg);
+    const status = msgStatus(msg);
     if (!urlResearchId || !status) return;
-
-    const message = raw.message ?? raw.Message ?? undefined;
+    const message = msg.message ?? msg.Message ?? undefined;
     onProgress({ urlResearchId, status, message });
   });
 
-  await connection.start();
-  if (disposed) {
-    await connection.stop().catch(() => {});
-    return () => {};
-  }
-
-  await connection.invoke('JoinGroup', projectGroup(projectId));
-
   return () => {
-    disposed = true;
-    void connection.stop().catch(() => {});
+    unsub();
+    leave();
   };
 }
 
 export type SubscribeUrlResearchProgressOptions = {
   urlResearchId: string;
   projectId: string;
-  accessToken?: string | null;
   onStatus?: (status: string, message?: string) => void;
   onTerminal?: (status: string) => void;
 };
 
-/**
- * Subscribes to live page-research job updates via SignalR (no polling).
- * Returns a cleanup function that stops the hub connection.
- */
-export async function subscribeUrlResearchProgress(
+export function subscribeUrlResearchProgress(
+  hub: SeoHubApi,
   options: SubscribeUrlResearchProgressOptions,
-): Promise<() => void> {
-  const { urlResearchId, projectId, accessToken, onStatus, onTerminal } = options;
+): () => void {
+  const { urlResearchId, projectId, onStatus, onTerminal } = options;
+  const leaveResearch = hub.joinUrlResearch(urlResearchId);
+  const leaveProject = hub.joinUrlResearchProject(projectId);
 
-  const { HubConnectionBuilder, LogLevel } = await import('@microsoft/signalr');
-  const connection = new HubConnectionBuilder()
-    .withUrl(hubUrl(accessToken), {
-      accessTokenFactory: () => accessToken ?? '',
-      withCredentials: true,
-    })
-    .configureLogging(LogLevel.None)
-    .withAutomaticReconnect([0, 2_000, 5_000, 10_000])
-    .build();
+  const unsub = hub.subscribe('UrlResearchProgress', (raw: unknown) => {
+    const msg = raw as UrlResearchProgressMsg;
+    if (!idsMatch(msgResearchId(msg), urlResearchId)) return;
 
-  let disposed = false;
-
-  connection.on('UrlResearchProgress', (raw: UrlResearchProgressMsg) => {
-    if (!idsMatch(msgResearchId(raw), urlResearchId)) return;
-
-    const status = msgStatus(raw);
+    const status = msgStatus(msg);
     if (!status) return;
 
-    const message = raw.message ?? raw.Message ?? undefined;
+    const message = msg.message ?? msg.Message ?? undefined;
     onStatus?.(status, message);
 
     if (TERMINAL.has(status)) {
@@ -138,36 +88,26 @@ export async function subscribeUrlResearchProgress(
     }
   });
 
-  await connection.start();
-  if (disposed) {
-    await connection.stop().catch(() => {});
-    return () => {};
-  }
-
-  await connection.invoke('JoinGroup', researchGroup(urlResearchId));
-  await connection.invoke('JoinGroup', projectGroup(projectId));
-
   return () => {
-    disposed = true;
-    void connection.stop().catch(() => {});
+    unsub();
+    leaveResearch();
+    leaveProject();
   };
 }
 
 export type WaitForUrlResearchOptions = {
   urlResearchId: string;
   projectId: string;
+  hub: SeoHubApi;
   accessToken?: string | null;
   timeoutMs?: number;
   onStatus?: (status: string, message?: string) => void;
 };
 
-/**
- * Waits until a page-research job reaches a terminal state via SignalR, then hydrates once from GET.
- */
 export async function waitForUrlResearchViaSignalR(
   options: WaitForUrlResearchOptions,
 ): Promise<UrlResearchFull> {
-  const { urlResearchId, projectId, accessToken, onStatus } = options;
+  const { urlResearchId, projectId, hub, accessToken, onStatus } = options;
   const timeoutMs = options.timeoutMs ?? 15 * 60 * 1000;
 
   return new Promise((resolve, reject) => {
@@ -220,10 +160,9 @@ export async function waitForUrlResearchViaSignalR(
 
         onStatus?.(initial.status);
 
-        cleanup = await subscribeUrlResearchProgress({
+        cleanup = subscribeUrlResearchProgress(hub, {
           urlResearchId,
           projectId,
-          accessToken,
           onStatus,
           onTerminal: (status) => {
             void finish(async () => {

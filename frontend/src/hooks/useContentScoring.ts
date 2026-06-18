@@ -2,11 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as signalR from '@microsoft/signalr';
-import {
-  getHubUrl,
-  scoreContentDocument,
-  SIGNALR_SCORE_HTML_MAX_CHARS,
-} from '@/lib/seo-api';
+import { useSeoHub } from '@/components/signalr/seo-hub-provider';
+import { scoreContentDocument, SIGNALR_SCORE_HTML_MAX_CHARS } from '@/lib/seo-api';
 
 export type ScoreComponents = {
   termCoverage: number;
@@ -55,16 +52,13 @@ export type ScoreUpdate = {
   timestamp: string;
 };
 
-const DEV_USER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID;
-
 export function useContentScoring(documentId: string, accessToken: string | null) {
-  const connectionRef = useRef<signalR.HubConnection | null>(null);
+  const hub = useSeoHub();
   const accessTokenRef = useRef(accessToken);
   const [scoreUpdate, setScoreUpdate] = useState<ScoreUpdate | null>(null);
   const [pendingReason, setPendingReason] = useState<string | null>(null);
   const [benchmarkRefreshing, setBenchmarkRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [connected, setConnected] = useState(false);
 
   accessTokenRef.current = accessToken;
 
@@ -95,77 +89,39 @@ export function useContentScoring(documentId: string, accessToken: string | null
   );
 
   useEffect(() => {
-    if (!accessToken && !DEV_USER_ID) return;
+    if (!documentId) return;
 
-    const hubUrl =
-      !accessToken && DEV_USER_ID
-        ? `${getHubUrl()}?access_token=${encodeURIComponent(DEV_USER_ID)}`
-        : getHubUrl();
+    const leaveDocument = hub.joinDocument(documentId);
 
-    const connection = new signalR.HubConnectionBuilder()
-      .withUrl(hubUrl, {
-        accessTokenFactory: () => accessToken ?? '',
-        withCredentials: true,
-      })
-      .configureLogging(signalR.LogLevel.Warning)
-      .withAutomaticReconnect()
-      .build();
-
-    connection.on('ScoreUpdate', (payload: ScoreUpdate) => {
-      setScoreUpdate(payload);
+    const unsubScore = hub.subscribe('ScoreUpdate', (payload: unknown) => {
+      setScoreUpdate(payload as ScoreUpdate);
       setPendingReason(null);
       setBenchmarkRefreshing(false);
       setError(null);
     });
-    connection.on('ScorePending', (payload: { reason: string }) => {
-      setPendingReason(payload.reason);
+    const unsubPending = hub.subscribe('ScorePending', (payload: unknown) => {
+      const reason = (payload as { reason: string }).reason;
+      setPendingReason(reason);
       setBenchmarkRefreshing(false);
     });
-    connection.on('ScoreError', (payload: { message: string }) => {
-      setError(payload.message);
+    const unsubError = hub.subscribe('ScoreError', (payload: unknown) => {
+      const message = (payload as { message: string }).message;
+      setError(message);
       setBenchmarkRefreshing(false);
     });
-    connection.on('BenchmarkRefreshing', () => {
+    const unsubBenchmark = hub.subscribe('BenchmarkRefreshing', () => {
       setBenchmarkRefreshing(true);
       setPendingReason(null);
     });
 
-    const joinDocument = async () => {
-      await connection.invoke('JoinDocument', documentId);
-    };
-
-    connection.onreconnected(() => {
-      setConnected(true);
-      void joinDocument().catch((e: unknown) => {
-        setError(e instanceof Error ? e.message : 'Reconnect failed');
-      });
-    });
-
-    connection.onclose((closeError) => {
-      setConnected(false);
-      if (closeError) {
-        setError('Live scoring disconnected. Scores will refresh over HTTP on the next edit.');
-      }
-    });
-
-    connectionRef.current = connection;
-
-    void (async () => {
-      try {
-        await connection.start();
-        setConnected(true);
-        await joinDocument();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'SignalR connection failed');
-      }
-    })();
-
     return () => {
-      void connection.stop();
-      connectionRef.current = null;
-      setConnected(false);
+      leaveDocument();
+      unsubScore();
+      unsubPending();
+      unsubError();
+      unsubBenchmark();
     };
-  }, [documentId, accessToken]);
+  }, [documentId, hub]);
 
   const notifyContentChanged = useCallback(
     async (contentHtml: string, targetKeyword: string) => {
@@ -178,7 +134,7 @@ export function useContentScoring(documentId: string, accessToken: string | null
         return;
       }
 
-      const connection = connectionRef.current;
+      const connection = hub.connection;
       if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
         try {
           await scoreViaHttp(contentHtml, targetKeyword);
@@ -190,7 +146,7 @@ export function useContentScoring(documentId: string, accessToken: string | null
 
       try {
         await connection.invoke('ContentChanged', documentId, contentHtml, targetKeyword);
-      } catch (e) {
+      } catch {
         try {
           await scoreViaHttp(contentHtml, targetKeyword);
         } catch (fallbackError) {
@@ -200,7 +156,7 @@ export function useContentScoring(documentId: string, accessToken: string | null
         }
       }
     },
-    [documentId, scoreViaHttp],
+    [documentId, hub.connection, scoreViaHttp],
   );
 
   const receiveScoreUpdate = useCallback((payload: ScoreUpdate) => {
@@ -217,9 +173,9 @@ export function useContentScoring(documentId: string, accessToken: string | null
         return;
       }
 
-      const connection = connectionRef.current;
-      if (!connection || connection.state !== signalR.HubConnectionState.Connected)
-        return;
+      const connection = hub.connection;
+      if (!connection || connection.state !== signalR.HubConnectionState.Connected) return;
+
       try {
         setBenchmarkRefreshing(true);
         await connection.invoke('KeywordChanged', documentId, newKeyword, location, contentHtml);
@@ -228,7 +184,7 @@ export function useContentScoring(documentId: string, accessToken: string | null
         setBenchmarkRefreshing(false);
       }
     },
-    [documentId],
+    [documentId, hub.connection],
   );
 
   return {
@@ -236,7 +192,7 @@ export function useContentScoring(documentId: string, accessToken: string | null
     pendingReason,
     benchmarkRefreshing,
     error,
-    connected,
+    connected: hub.isConnected,
     notifyContentChanged,
     notifyKeywordChanged,
     receiveScoreUpdate,

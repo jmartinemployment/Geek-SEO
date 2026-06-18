@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSeoHub } from '@/components/signalr/seo-hub-provider';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import {
   analyzeUrlResearch,
@@ -43,6 +44,7 @@ export function UrlAnalyzerWorkspace({
   initialProjectId = '',
   initialUrlResearchId = '',
 }: UrlAnalyzerWorkspaceProps) {
+  const hub = useSeoHub();
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [projectId, setProjectId] = useState(initialProjectId);
   const [pageUrl, setPageUrl] = useState('');
@@ -115,16 +117,11 @@ export function UrlAnalyzerWorkspace({
   }, [accessToken, projectId]);
 
   useEffect(() => {
-    if (!projectId) return;
+    if (!projectId || !hub.isConnected) return;
 
-    let cancelled = false;
-    let unsubscribe: (() => void) | null = null;
-
-    void subscribeUrlResearchProjectProgress({
+    return subscribeUrlResearchProjectProgress(hub, {
       projectId,
-      accessToken,
       onProgress: ({ urlResearchId, status }) => {
-        if (cancelled) return;
         setRows((prev) =>
           prev.map((row) => (row.id === urlResearchId ? { ...row, status } : row)),
         );
@@ -132,21 +129,11 @@ export function UrlAnalyzerWorkspace({
           void refreshList();
         }
       },
-    })
-      .then((cleanup) => {
-        if (cancelled) cleanup();
-        else unsubscribe = cleanup;
-      })
-      .catch(() => {});
-
-    return () => {
-      cancelled = true;
-      unsubscribe?.();
-    };
-  }, [accessToken, projectId, activeId, refreshList]);
+    });
+  }, [hub, hub.isConnected, projectId, activeId, refreshList]);
 
   useEffect(() => {
-    if (!activeId || !projectId) return;
+    if (!activeId || !projectId || !hub.isConnected) return;
 
     const researchId = activeId;
     const pid = projectId;
@@ -166,10 +153,9 @@ export function UrlAnalyzerWorkspace({
           return;
         }
 
-        unsubscribe = await subscribeUrlResearchProgress({
+        unsubscribe = subscribeUrlResearchProgress(hub, {
           urlResearchId: researchId,
           projectId: pid,
-          accessToken,
           onStatus: (status, message) => {
             if (cancelled) return;
             setLiveStatus(status);
@@ -202,7 +188,7 @@ export function UrlAnalyzerWorkspace({
       cancelled = true;
       unsubscribe?.();
     };
-  }, [activeId, projectId, accessToken, refreshList]);
+  }, [activeId, projectId, accessToken, refreshList, hub, hub.isConnected]);
 
   const visibleDetail =
     activeId && detail && detail.id === activeId ? detail : null;

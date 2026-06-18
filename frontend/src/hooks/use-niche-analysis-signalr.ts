@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { getHubUrl, getNicheAnalysisStatus, type NicheAnalysisStatus } from '@/lib/seo-api';
-
-const DEV_USER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID;
+import { useSeoHub } from '@/components/signalr/seo-hub-provider';
+import { getNicheAnalysisStatus, type NicheAnalysisStatus } from '@/lib/seo-api';
 
 type AnalysisProgressMsg = {
   profileId?: string;
@@ -15,14 +14,6 @@ type AnalysisProgressMsg = {
   message?: string;
   Message?: string;
 };
-
-function hubUrl(accessToken?: string | null): string {
-  const base = getHubUrl();
-  if (!accessToken && DEV_USER_ID) {
-    return `${base}?access_token=${encodeURIComponent(DEV_USER_ID)}`;
-  }
-  return base;
-}
 
 function normalizeId(id: string | undefined): string | undefined {
   return id?.toLowerCase();
@@ -42,10 +33,6 @@ function msgStatus(msg: AnalysisProgressMsg): string | undefined {
   return msg.status ?? msg.Status;
 }
 
-/**
- * Push-driven niche analysis updates via SignalR.
- * Hydrates from GET /status once on connect and after each hub event (debounced) — no interval polling.
- */
 export function useNicheAnalysisSignalR(
   profileId: string | null,
   accessToken: string | null | undefined,
@@ -55,6 +42,7 @@ export function useNicheAnalysisSignalR(
     onConnectionError?: (message: string) => void;
   },
 ): void {
+  const hub = useSeoHub();
   const onStatusRef = useRef(onStatus);
   const onCompleteRef = useRef(options?.onComplete);
   const onConnectionErrorRef = useRef(options?.onConnectionError);
@@ -66,23 +54,18 @@ export function useNicheAnalysisSignalR(
   });
 
   useEffect(() => {
-    if (!profileId || !accessToken) return;
+    if (!profileId || !accessToken || !hub.isConnected) return;
 
     const activeProfileId = profileId;
-    let disposed = false;
-    let started = false;
     let hydrateTimer: ReturnType<typeof setTimeout> | null = null;
-    let connection: import('@microsoft/signalr').HubConnection | null = null;
 
     async function hydrate(): Promise<NicheAnalysisStatus | null> {
       try {
         const status = await getNicheAnalysisStatus(activeProfileId, accessToken);
-        if (!disposed) onStatusRef.current(status);
+        onStatusRef.current(status);
         return status;
       } catch {
-        if (!disposed) {
-          onConnectionErrorRef.current?.('Could not refresh analysis status.');
-        }
+        onConnectionErrorRef.current?.('Could not refresh analysis status.');
         return null;
       }
     }
@@ -95,67 +78,31 @@ export function useNicheAnalysisSignalR(
       }, 250);
     }
 
-    async function connect() {
-      try {
-        const { HubConnectionBuilder, LogLevel } = await import('@microsoft/signalr');
-        if (disposed) return;
+    const leave = hub.joinNicheProfile(activeProfileId);
+    const unsub = hub.subscribe('AnalysisProgress', (raw: unknown) => {
+      const msg = raw as AnalysisProgressMsg;
+      if (!idsMatch(msgProfileId(msg), activeProfileId)) return;
 
-        const conn = new HubConnectionBuilder()
-          .withUrl(hubUrl(accessToken), {
-            accessTokenFactory: () => accessToken ?? '',
-            withCredentials: true,
-          })
-          .configureLogging(LogLevel.None)
-          .withAutomaticReconnect([0, 2_000, 5_000, 10_000])
-          .build();
-
-        conn.on('AnalysisProgress', (raw: AnalysisProgressMsg) => {
-          if (!idsMatch(msgProfileId(raw), activeProfileId)) return;
-
-          const status = msgStatus(raw)?.toLowerCase();
-          if (status === 'complete' && (raw.step ?? raw.Step) === 'complete') {
-            void (async () => {
-              const hydrated = await hydrate();
-              if (!disposed && hydrated?.status === 'complete') {
-                onCompleteRef.current?.(activeProfileId);
-              }
-            })();
-            return;
+      const status = msgStatus(msg)?.toLowerCase();
+      if (status === 'complete' && (msg.step ?? msg.Step) === 'complete') {
+        void (async () => {
+          const hydrated = await hydrate();
+          if (hydrated?.status === 'complete') {
+            onCompleteRef.current?.(activeProfileId);
           }
-
-          scheduleHydrate();
-        });
-
-        conn.onreconnected(() => {
-          void hydrate();
-        });
-
-        connection = conn;
-        await conn.start();
-        started = true;
-        if (disposed) {
-          void conn.stop().catch(() => {});
-          return;
-        }
-        await conn.invoke('JoinGroup', `niche-${activeProfileId}`);
-        await hydrate();
-      } catch (e) {
-        if (!disposed) {
-          onConnectionErrorRef.current?.(
-            e instanceof Error ? e.message : 'Live progress connection failed.',
-          );
-        }
+        })();
+        return;
       }
-    }
 
-    void connect();
+      scheduleHydrate();
+    });
+
+    void hydrate();
 
     return () => {
-      disposed = true;
       if (hydrateTimer) clearTimeout(hydrateTimer);
-      const conn = connection;
-      connection = null;
-      if (conn && started) void conn.stop().catch(() => {});
+      unsub();
+      leave();
     };
-  }, [profileId, accessToken]);
+  }, [profileId, accessToken, hub, hub.isConnected]);
 }

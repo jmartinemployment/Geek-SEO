@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
+import { useSeoHub } from '@/components/signalr/seo-hub-provider';
 import {
   ReviewEditorPane,
   ReviewScoreLeft,
@@ -18,14 +19,16 @@ import {
   getContent,
   listProjects,
   listUrlResearch,
-  runKeywordContentDraft,
-  runResearchContentDraft,
   describeDraftJobProgress,
   updateContentStatus,
   type SeoContentDocument,
   type SeoProject,
   type UrlResearchSummary,
 } from '@/lib/seo-api';
+import {
+  runKeywordContentDraft,
+  runResearchContentDraft,
+} from '@/lib/draft-job-signalr';
 
 const DEFAULT_LOCATION = 'United States';
 const DEFAULT_DRAFT_HTML = '<h1>Article title</h1><p>Start writing your article.</p>';
@@ -71,6 +74,7 @@ type WritingPath = 'research' | 'keyword';
 
 function ContentWritingPageInner() {
   const { accessToken, isLoading: authLoading } = useAuth();
+  const hub = useSeoHub();
   const searchParams = useSearchParams();
   const initialKeyword = searchParams.get('keyword') ?? '';
   const initialTitle = searchParams.get('title') ?? '';
@@ -264,6 +268,7 @@ function ContentWritingPageInner() {
   }
 
   const draftJobOptions = {
+    hub,
     onProgress: (status: Parameters<typeof describeDraftJobProgress>[0], elapsedMs: number) => {
       setDraftProgress({
         label: describeDraftJobProgress(status),

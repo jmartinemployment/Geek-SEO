@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useSeoHub } from '@/components/signalr/seo-hub-provider';
 import {
   getNicheAnalysisDetails,
   runNicheStep,
@@ -134,6 +135,7 @@ function StepRow({
   onStepRerun?: () => void | Promise<void>;
   onStepStatusChange?: (status: NicheAnalysisStatus) => void;
 }) {
+  const hub = useSeoHub();
   const [rerunning, setRerunning] = useState(false);
   const [optimisticRunning, setOptimisticRunning] = useState(false);
   const [liveProgress, setLiveProgress] = useState<string | null>(null);
@@ -202,6 +204,7 @@ function StepRow({
         profileId,
         slug: stepDefinition.slug,
         accessToken,
+        hub,
         timeoutMs: stepDefinition.slug === 'serp_validation' ? 900_000 : undefined,
         triggerRun: () => runNicheStep(profileId, stepDefinition.slug, accessToken),
         onProgress: setLiveProgress,

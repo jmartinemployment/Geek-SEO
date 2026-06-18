@@ -79,6 +79,7 @@ public sealed class ContentDraftJobWorker(
         var briefs = scope.ServiceProvider.GetRequiredService<IContentBriefService>();
         var writing = scope.ServiceProvider.GetRequiredService<IAIWritingService>();
         var researchWriting = scope.ServiceProvider.GetRequiredService<IContentResearchWritingService>();
+        var notifier = scope.ServiceProvider.GetRequiredService<ContentDraftProgressNotifier>();
 
         var pending = await jobs.GetPendingAsync(ContentDraftJobService.JobType, 1, ct);
         if (!pending.IsSuccess || pending.Value is null || pending.Value.Count == 0)
@@ -88,25 +89,39 @@ public sealed class ContentDraftJobWorker(
         workerUser.UserId = job.UserId;
 
         await jobs.UpdateProgressAsync(job.Id, 5, ct);
+        await DraftJobHubPush.PushProgressAsync(
+            jobs,
+            notifier,
+            job.Id,
+            job.UserId,
+            new DraftJobProgressExtras { DocumentId = null },
+            ct);
 
         var payload = JsonSerializer.Deserialize<ContentDraftJobPayload>(job.PayloadJson, JsonOptions);
         if (payload is null)
         {
             await jobs.MarkFailedAsync(job.Id, "Invalid job payload", ct);
+            await DraftJobHubPush.PushTerminalAsync(jobs, notifier, job.Id, job.UserId, ct);
             return;
         }
+
+        var documentExtras = new DraftJobProgressExtras { DocumentId = payload.DocumentId };
 
         if (payload.Mode == "research")
         {
             await jobs.UpdateProgressAsync(job.Id, 20, ct);
+            await DraftJobHubPush.PushProgressAsync(jobs, notifier, job.Id, job.UserId, documentExtras, ct);
+
             var draft = await researchWriting.DraftFromResearchAsync(job.UserId, payload.DocumentId, ct);
             if (!draft.IsSuccess)
             {
                 await jobs.MarkFailedAsync(job.Id, draft.Error ?? "Research draft failed", ct);
+                await DraftJobHubPush.PushTerminalAsync(jobs, notifier, job.Id, job.UserId, ct);
                 return;
             }
 
             await jobs.MarkCompleteAsync(job.Id, payload.DocumentId, ct);
+            await DraftJobHubPush.PushTerminalAsync(jobs, notifier, job.Id, job.UserId, ct);
             logger.LogInformation(
                 "Content research draft job {JobId} completed → document {DocumentId}",
                 job.Id,
@@ -117,12 +132,14 @@ public sealed class ContentDraftJobWorker(
         if (payload.Mode != "keyword")
         {
             await jobs.MarkFailedAsync(job.Id, $"Unknown draft mode: {payload.Mode}", ct);
+            await DraftJobHubPush.PushTerminalAsync(jobs, notifier, job.Id, job.UserId, ct);
             return;
         }
 
         if (string.IsNullOrWhiteSpace(payload.Keyword))
         {
             await jobs.MarkFailedAsync(job.Id, "Keyword is required for keyword draft jobs", ct);
+            await DraftJobHubPush.PushTerminalAsync(jobs, notifier, job.Id, job.UserId, ct);
             return;
         }
 
@@ -130,13 +147,20 @@ public sealed class ContentDraftJobWorker(
         if (!access.IsSuccess || access.Value is null)
         {
             await jobs.MarkFailedAsync(job.Id, access.Error ?? "Access denied", ct);
+            await DraftJobHubPush.PushTerminalAsync(jobs, notifier, job.Id, job.UserId, ct);
             return;
         }
 
         var title = string.IsNullOrWhiteSpace(payload.Title) ? payload.Keyword : payload.Title;
         var location = string.IsNullOrWhiteSpace(payload.Location) ? "United States" : payload.Location;
+        var keywordExtras = new DraftJobProgressExtras
+        {
+            DocumentId = payload.DocumentId,
+            Keyword = payload.Keyword,
+        };
 
         await jobs.UpdateProgressAsync(job.Id, 15, ct);
+        await DraftJobHubPush.PushProgressAsync(jobs, notifier, job.Id, job.UserId, keywordExtras, ct);
 
         var htmlResult = await ArticleGenerationPipeline.GenerateHtmlAsync(
             job.UserId,
@@ -151,10 +175,12 @@ public sealed class ContentDraftJobWorker(
         if (!htmlResult.IsSuccess || htmlResult.Value is null)
         {
             await jobs.MarkFailedAsync(job.Id, htmlResult.Error ?? "Draft generation failed", ct);
+            await DraftJobHubPush.PushTerminalAsync(jobs, notifier, job.Id, job.UserId, ct);
             return;
         }
 
         await jobs.UpdateProgressAsync(job.Id, 85, ct);
+        await DraftJobHubPush.PushProgressAsync(jobs, notifier, job.Id, job.UserId, keywordExtras, ct);
 
         var updated = await documents.UpdateContentAsync(job.UserId, payload.DocumentId, new UpdateContentRequest
         {
@@ -167,10 +193,12 @@ public sealed class ContentDraftJobWorker(
         if (!updated.IsSuccess)
         {
             await jobs.MarkFailedAsync(job.Id, updated.Error ?? "Failed to save draft", ct);
+            await DraftJobHubPush.PushTerminalAsync(jobs, notifier, job.Id, job.UserId, ct);
             return;
         }
 
         await jobs.MarkCompleteAsync(job.Id, payload.DocumentId, ct);
+        await DraftJobHubPush.PushTerminalAsync(jobs, notifier, job.Id, job.UserId, ct);
         logger.LogInformation(
             "Content keyword draft job {JobId} completed → document {DocumentId}",
             job.Id,

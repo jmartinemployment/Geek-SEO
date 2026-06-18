@@ -75,6 +75,7 @@ public sealed class BulkArticleJobWorker(
         var briefs = scope.ServiceProvider.GetRequiredService<IContentBriefService>();
         var writing = scope.ServiceProvider.GetRequiredService<IAIWritingService>();
         var documents = scope.ServiceProvider.GetRequiredService<IContentDocumentService>();
+        var notifier = scope.ServiceProvider.GetRequiredService<ContentDraftProgressNotifier>();
 
         var pending = await jobs.GetPendingAsync("bulk_article", 1, ct);
         if (!pending.IsSuccess || pending.Value is null || pending.Value.Count == 0)
@@ -87,6 +88,7 @@ public sealed class BulkArticleJobWorker(
         if (payload is null || payload.Keywords.Count == 0)
         {
             await jobs.MarkFailedAsync(job.Id, "Invalid bulk job payload", ct);
+            await DraftJobHubPush.PushTerminalAsync(jobs, notifier, job.Id, job.UserId, ct);
             return;
         }
 
@@ -98,6 +100,18 @@ public sealed class BulkArticleJobWorker(
             var keyword = payload.Keywords[i];
             var progress = (int)Math.Round((i / (double)total) * 90) + 5;
             await jobs.UpdateProgressAsync(job.Id, progress, ct);
+            await DraftJobHubPush.PushProgressAsync(
+                jobs,
+                notifier,
+                job.Id,
+                job.UserId,
+                new DraftJobProgressExtras
+                {
+                    Keyword = keyword,
+                    KeywordIndex = i + 1,
+                    KeywordTotal = total,
+                },
+                ct);
 
             var htmlResult = await ArticleGenerationPipeline.GenerateHtmlAsync(
                 job.UserId, payload.ProjectId, keyword, payload.Location, keyword,
@@ -106,6 +120,7 @@ public sealed class BulkArticleJobWorker(
             if (!htmlResult.IsSuccess || htmlResult.Value is null)
             {
                 await jobs.MarkFailedAsync(job.Id, $"Failed on \"{keyword}\": {htmlResult.Error}", ct);
+                await DraftJobHubPush.PushTerminalAsync(jobs, notifier, job.Id, job.UserId, ct);
                 return;
             }
 
@@ -120,6 +135,7 @@ public sealed class BulkArticleJobWorker(
             if (!create.IsSuccess || create.Value is null)
             {
                 await jobs.MarkFailedAsync(job.Id, create.Error ?? "Failed to create document", ct);
+                await DraftJobHubPush.PushTerminalAsync(jobs, notifier, job.Id, job.UserId, ct);
                 return;
             }
 
@@ -130,11 +146,13 @@ public sealed class BulkArticleJobWorker(
             if (!updated.IsSuccess)
             {
                 await jobs.MarkFailedAsync(job.Id, updated.Error ?? "Failed to save content", ct);
+                await DraftJobHubPush.PushTerminalAsync(jobs, notifier, job.Id, job.UserId, ct);
                 return;
             }
         }
 
         await jobs.MarkCompleteAsync(job.Id, lastDocId, ct);
+        await DraftJobHubPush.PushTerminalAsync(jobs, notifier, job.Id, job.UserId, ct);
         logger.LogInformation("Bulk article job {JobId} completed {Count} articles", job.Id, total);
     }
 

@@ -99,6 +99,10 @@ export type BackgroundJobStatus = {
   progressPercent: number;
   resultId?: string;
   errorMessage?: string;
+  keyword?: string;
+  keywordIndex?: number;
+  keywordTotal?: number;
+  documentId?: string;
 };
 
 export type CompetitorPageInsight = {
@@ -258,141 +262,58 @@ export type DraftJobProgressOptions = {
   onProgress?: (status: BackgroundJobStatus, elapsedMs: number) => void;
 };
 
-function reportDraftProgress(
-  options: DraftJobProgressOptions | undefined,
-  startedAt: number,
-  progressPercent: number,
-  status: 'running' | 'completed' = 'running',
-) {
-  options?.onProgress?.(
-    {
-      jobId: '',
-      jobType: 'content_draft',
-      status,
-      progressPercent,
-    },
-    Date.now() - startedAt,
-  );
+export async function getBackgroundJob(
+  jobId: string,
+  accessToken?: string | null,
+): Promise<BackgroundJobStatus> {
+  const res = await fetch(`${API_URL}/api/seo/jobs/${jobId}`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<BackgroundJobStatus>;
 }
 
-/** Direct draft (brief → outline → article). Background job queue is not used — it was unreliable in production. */
-export async function runKeywordContentDraft(
+export async function enqueueKeywordContentDraft(
   documentId: string,
-  projectId: string,
   body: { keyword: string; location?: string; title?: string },
   accessToken?: string | null,
-  options?: DraftJobProgressOptions,
-): Promise<SeoContentDocument> {
-  const startedAt = Date.now();
-
-  reportDraftProgress(options, startedAt, 5);
-  const brief = await generateBrief(
-    { projectId, keyword: body.keyword, location: body.location },
-    accessToken,
-  );
-
-  reportDraftProgress(options, startedAt, 25);
-  const outline = await generateOutline(
-    { keyword: body.keyword, brief, title: body.title },
-    accessToken,
-  );
-
-  reportDraftProgress(options, startedAt, 55);
-  const draft = await generateDraft(
-    {
-      keyword: body.keyword,
-      brief,
-      outline: outline.content,
-      targetWordCount: brief.targetWordCount,
-      title: body.title,
-    },
-    accessToken,
-  );
-
-  reportDraftProgress(options, startedAt, 90);
-  const saved = await updateContent(
-    documentId,
-    {
-      contentHtml: draft.content,
-      title: body.title,
-      targetKeyword: body.keyword,
-      targetLocation: body.location,
-    },
-    accessToken,
-  );
-
-  reportDraftProgress(options, startedAt, 100, 'completed');
-  return saved;
+): Promise<BackgroundJobStatus> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/draft-job/keyword`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+    cache: 'no-store',
+  });
+  if (res.status !== 202) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<BackgroundJobStatus>;
 }
 
-/** Direct research-backed draft. Background job queue is not used — it was unreliable in production. */
-export async function runResearchContentDraft(
+export async function enqueueResearchContentDraft(
   documentId: string,
   accessToken?: string | null,
-  options?: DraftJobProgressOptions,
-): Promise<SeoContentDocument> {
-  const startedAt = Date.now();
-  reportDraftProgress(options, startedAt, 10);
-  await draftContentFromResearch(documentId, accessToken);
-  reportDraftProgress(options, startedAt, 100, 'completed');
-  return getContent(documentId, accessToken);
+): Promise<BackgroundJobStatus> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/draft-job/research`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (res.status !== 202) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<BackgroundJobStatus>;
 }
 
-export type BulkDraftProgress = {
-  keywordIndex: number;
-  keywordTotal: number;
-  keyword: string;
-  step: BackgroundJobStatus;
-  elapsedMs: number;
-};
-
-/** Generate drafts sequentially — no background jobs, no status polling. */
-export async function runBulkKeywordDrafts(
-  projectId: string,
-  keywords: string[],
-  location: string,
+export async function enqueueBulkArticles(
+  body: { projectId: string; keywords: string[]; location?: string },
   accessToken?: string | null,
-  options?: { onProgress?: (progress: BulkDraftProgress) => void },
-): Promise<SeoContentDocument[]> {
-  const documents: SeoContentDocument[] = [];
-
-  for (let index = 0; index < keywords.length; index += 1) {
-    const keyword = keywords[index]!.trim();
-    if (!keyword) continue;
-
-    const placeholder = await createContent(
-      {
-        projectId,
-        title: keyword,
-        targetKeyword: keyword,
-        targetLocation: location,
-      },
-      accessToken,
-    );
-
-    const saved = await runKeywordContentDraft(
-      placeholder.id,
-      projectId,
-      { keyword, location, title: keyword },
-      accessToken,
-      {
-        onProgress: (step, elapsedMs) => {
-          options?.onProgress?.({
-            keywordIndex: index + 1,
-            keywordTotal: keywords.length,
-            keyword,
-            step,
-            elapsedMs,
-          });
-        },
-      },
-    );
-
-    await updateContentStatus(saved.id, 'awaiting_review', accessToken);
-    documents.push({ ...saved, status: 'awaiting_review' });
-  }
-
-  return documents;
+): Promise<BackgroundJobStatus> {
+  const res = await fetch(`${API_URL}/api/seo/writing/bulk`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+    cache: 'no-store',
+  });
+  if (res.status !== 202) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<BackgroundJobStatus>;
 }
 
 export function describeDraftJobProgress(status: BackgroundJobStatus): string {
