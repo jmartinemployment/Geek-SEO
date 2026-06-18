@@ -25,6 +25,18 @@ public sealed class ContentScoringService(
         CancellationToken ct = default) =>
         ScoreAsync(userId, documentId, contentHtml, targetKeyword, invalidateCache: false, ct);
 
+    public async Task<Result<ContentScoreHubResult>> ScoreSavedDocumentAsync(
+        Guid userId, Guid documentId, string? targetKeyword = null, CancellationToken ct = default)
+    {
+        var access = await documents.EnsureAccessAsync(userId, documentId, ct);
+        if (!access.IsSuccess || access.Value is null)
+            return Result<ContentScoreHubResult>.Failure(access.Error ?? "Access denied");
+
+        var doc = access.Value;
+        var keyword = string.IsNullOrWhiteSpace(targetKeyword) ? doc.TargetKeyword : targetKeyword;
+        return await ScoreAsync(userId, documentId, doc.ContentHtml, keyword, invalidateCache: false, ct);
+    }
+
     public async Task<Result<ContentScoreHubResult>> ProcessKeywordChangedAsync(
         Guid userId, Guid documentId, string contentHtml, string targetKeyword, string targetLocation,
         CancellationToken ct = default)
@@ -241,7 +253,7 @@ public sealed class ContentScoringService(
 
         var plainText = richText.ExtractPlainText(contentHtml);
         var wordCount = richText.CountWords(contentHtml);
-        var titleTag = ExtractMeta(contentHtml, "title") ?? richText.ExtractPlainText(ExtractTag(contentHtml, "h1"));
+        var titleTag = ResolveTitleTag(contentHtml, doc.Title, richText);
 
         var termScore = coverageTerms is { Count: > 0 }
             ? ScoreTermCoverage(plainText, coverageTerms)
@@ -264,6 +276,7 @@ public sealed class ContentScoringService(
             titleScore,
             metaScore,
             keyword,
+            titleTag,
             coverageTerms);
 
         var geo = GeoScoringCalculator.Calculate(
@@ -513,6 +526,7 @@ public sealed class ContentScoringService(
         int titleScore,
         int metaScore,
         string keyword,
+        string? titleTag,
         IReadOnlyList<string>? coverageTerms = null)
     {
         var list = new List<ScoreSuggestion>();
@@ -547,6 +561,8 @@ public sealed class ContentScoringService(
         if (titleScore < 8)
         {
             var currentTitle = ExtractTagInnerStatic(contentHtml, "h1");
+            if (string.IsNullOrWhiteSpace(currentTitle))
+                currentTitle = titleTag ?? string.Empty;
             var proposedTitle = ScoreSuggestionApplicator.ProposeTitle(currentTitle, keyword, avgTitleLength);
             list.Add(new ScoreSuggestion
             {
@@ -574,6 +590,23 @@ public sealed class ContentScoringService(
             });
         }
         return list.OrderByDescending(s => s.PointValue).ToList();
+    }
+
+    private static string? ResolveTitleTag(string contentHtml, string? documentTitle, IRichTextProvider richText)
+    {
+        var fromMeta = ExtractMeta(contentHtml, "title");
+        if (!string.IsNullOrWhiteSpace(fromMeta))
+            return fromMeta.Trim();
+
+        var fromTitleElement = richText.ExtractPlainText(ExtractTag(contentHtml, "title"));
+        if (!string.IsNullOrWhiteSpace(fromTitleElement))
+            return fromTitleElement.Trim();
+
+        var fromH1 = richText.ExtractPlainText(ExtractTag(contentHtml, "h1"));
+        if (!string.IsNullOrWhiteSpace(fromH1))
+            return fromH1.Trim();
+
+        return string.IsNullOrWhiteSpace(documentTitle) ? null : documentTitle.Trim();
     }
 
     private static string ExtractTagInnerStatic(string html, string tag)

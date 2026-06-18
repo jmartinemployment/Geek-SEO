@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as signalR from '@microsoft/signalr';
-import { getHubUrl } from '@/lib/seo-api';
+import {
+  getHubUrl,
+  scoreContentDocument,
+  SIGNALR_SCORE_HTML_MAX_CHARS,
+} from '@/lib/seo-api';
 
 export type ScoreComponents = {
   termCoverage: number;
@@ -50,11 +54,40 @@ const DEV_USER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID;
 
 export function useContentScoring(documentId: string, accessToken: string | null) {
   const connectionRef = useRef<signalR.HubConnection | null>(null);
+  const accessTokenRef = useRef(accessToken);
   const [scoreUpdate, setScoreUpdate] = useState<ScoreUpdate | null>(null);
   const [pendingReason, setPendingReason] = useState<string | null>(null);
   const [benchmarkRefreshing, setBenchmarkRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
+
+  accessTokenRef.current = accessToken;
+
+  const applyScoreResult = useCallback((result: { scoreUpdate?: ScoreUpdate | null; pendingReason?: string | null }) => {
+    if (result.pendingReason) {
+      setPendingReason(result.pendingReason);
+      setBenchmarkRefreshing(false);
+      return;
+    }
+    if (result.scoreUpdate) {
+      setScoreUpdate(result.scoreUpdate);
+      setPendingReason(null);
+      setBenchmarkRefreshing(false);
+      setError(null);
+    }
+  }, []);
+
+  const scoreViaHttp = useCallback(
+    async (contentHtml: string | undefined, targetKeyword: string) => {
+      const result = await scoreContentDocument(
+        documentId,
+        { contentHtml, targetKeyword },
+        accessTokenRef.current,
+      );
+      applyScoreResult(result);
+    },
+    [applyScoreResult, documentId],
+  );
 
   useEffect(() => {
     if (!accessToken && !DEV_USER_ID) return;
@@ -103,6 +136,13 @@ export function useContentScoring(documentId: string, accessToken: string | null
       });
     });
 
+    connection.onclose((closeError) => {
+      setConnected(false);
+      if (closeError) {
+        setError('Live scoring disconnected. Scores will refresh over HTTP on the next edit.');
+      }
+    });
+
     connectionRef.current = connection;
 
     void (async () => {
@@ -124,16 +164,38 @@ export function useContentScoring(documentId: string, accessToken: string | null
 
   const notifyContentChanged = useCallback(
     async (contentHtml: string, targetKeyword: string) => {
-      const connection = connectionRef.current;
-      if (!connection || connection.state !== signalR.HubConnectionState.Connected)
+      if (contentHtml.length > SIGNALR_SCORE_HTML_MAX_CHARS) {
+        try {
+          await scoreViaHttp(contentHtml, targetKeyword);
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Scoring request failed');
+        }
         return;
+      }
+
+      const connection = connectionRef.current;
+      if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
+        try {
+          await scoreViaHttp(contentHtml, targetKeyword);
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Scoring request failed');
+        }
+        return;
+      }
+
       try {
         await connection.invoke('ContentChanged', documentId, contentHtml, targetKeyword);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Scoring request failed');
+        try {
+          await scoreViaHttp(contentHtml, targetKeyword);
+        } catch (fallbackError) {
+          setError(
+            fallbackError instanceof Error ? fallbackError.message : 'Scoring request failed',
+          );
+        }
       }
     },
-    [documentId],
+    [documentId, scoreViaHttp],
   );
 
   const receiveScoreUpdate = useCallback((payload: ScoreUpdate) => {
@@ -145,6 +207,11 @@ export function useContentScoring(documentId: string, accessToken: string | null
 
   const notifyKeywordChanged = useCallback(
     async (contentHtml: string, newKeyword: string, location: string) => {
+      if (contentHtml.length > SIGNALR_SCORE_HTML_MAX_CHARS) {
+        setError('Draft is too large to refresh SERP benchmarks over the live connection. Save and try again.');
+        return;
+      }
+
       const connection = connectionRef.current;
       if (!connection || connection.state !== signalR.HubConnectionState.Connected)
         return;

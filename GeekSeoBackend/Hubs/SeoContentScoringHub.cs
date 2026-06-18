@@ -1,5 +1,6 @@
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
+using GeekSeo.Application.Results;
 using GeekSeoBackend.Auth;
 using Microsoft.AspNetCore.SignalR;
 
@@ -30,6 +31,25 @@ public sealed class SeoContentScoringHub(
         await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
     }
 
+    public async Task RequestScore(string documentId)
+    {
+        if (!Guid.TryParse(documentId, out var docId))
+            return;
+
+        var userId = GetUserId();
+        if (userId == Guid.Empty)
+        {
+            await Clients.Caller.SendAsync("ScoreError", new { message = "Not authenticated. Set NEXT_PUBLIC_DEV_USER_ID or sign in." });
+            return;
+        }
+
+        await RunAsUserAsync(userId, async () =>
+        {
+            var result = await scoring.ScoreSavedDocumentAsync(userId, docId);
+            await SendScoreResultAsync(documentId, result);
+        });
+    }
+
     public async Task ContentChanged(string documentId, string contentHtml, string targetKeyword)
     {
         if (!Guid.TryParse(documentId, out var docId))
@@ -45,21 +65,7 @@ public sealed class SeoContentScoringHub(
         await RunAsUserAsync(userId, async () =>
         {
             var result = await scoring.ProcessContentChangedAsync(userId, docId, contentHtml, targetKeyword);
-
-            if (!result.IsSuccess)
-            {
-                await Clients.Caller.SendAsync("ScoreError", new { message = result.Error });
-                return;
-            }
-
-            if (result.Value?.PendingReason is not null)
-            {
-                await Clients.Caller.SendAsync("ScorePending", new { reason = result.Value.PendingReason });
-                return;
-            }
-
-            if (result.Value?.ScoreUpdate is not null)
-                await Clients.Group($"doc:{documentId}").SendAsync("ScoreUpdate", result.Value.ScoreUpdate);
+            await SendScoreResultAsync(documentId, result);
         });
     }
 
@@ -86,21 +92,26 @@ public sealed class SeoContentScoringHub(
             var result = await scoring.ProcessKeywordChangedAsync(
                 userId, docId, contentHtml, newKeyword, location);
 
-            if (!result.IsSuccess)
-            {
-                await Clients.Caller.SendAsync("ScoreError", new { message = result.Error });
-                return;
-            }
-
-            if (result.Value?.PendingReason is not null)
-            {
-                await Clients.Caller.SendAsync("ScorePending", new { reason = result.Value.PendingReason });
-                return;
-            }
-
-            if (result.Value?.ScoreUpdate is not null)
-                await Clients.Group($"doc:{documentId}").SendAsync("ScoreUpdate", result.Value.ScoreUpdate);
+            await SendScoreResultAsync(documentId, result);
         });
+    }
+
+    private async Task SendScoreResultAsync(string documentId, Result<ContentScoreHubResult> result)
+    {
+        if (!result.IsSuccess)
+        {
+            await Clients.Caller.SendAsync("ScoreError", new { message = result.Error });
+            return;
+        }
+
+        if (result.Value?.PendingReason is not null)
+        {
+            await Clients.Caller.SendAsync("ScorePending", new { reason = result.Value.PendingReason });
+            return;
+        }
+
+        if (result.Value?.ScoreUpdate is not null)
+            await Clients.Group($"doc:{documentId}").SendAsync("ScoreUpdate", result.Value.ScoreUpdate);
     }
 
     private async Task RunAsUserAsync(Guid userId, Func<Task> action)

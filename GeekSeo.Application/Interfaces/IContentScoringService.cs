@@ -9,6 +9,9 @@ public interface IContentScoringService
         Guid userId, Guid documentId, string contentHtml, string targetKeyword,
         CancellationToken ct = default);
 
+    Task<Result<ContentScoreHubResult>> ScoreSavedDocumentAsync(
+        Guid userId, Guid documentId, string? targetKeyword = null, CancellationToken ct = default);
+
     Task<Result<ContentScoreHubResult>> ProcessKeywordChangedAsync(
         Guid userId, Guid documentId, string contentHtml, string targetKeyword, string targetLocation,
         CancellationToken ct = default);

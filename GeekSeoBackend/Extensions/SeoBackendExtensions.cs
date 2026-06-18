@@ -186,7 +186,11 @@ public static class SeoBackendExtensions
         services.AddScoped<IGeocodeService, CompositeGeocodeService>();
         services.AddScoped<ILocalSerpContextResolver, LocalSerpContextResolver>();
 
-        services.AddSignalR();
+        services.AddSignalR(options =>
+        {
+            // Default 32 KB is too small for full draft HTML sent via ContentChanged.
+            options.MaximumReceiveMessageSize = 2 * 1024 * 1024;
+        });
         services.AddSingleton<Microsoft.AspNetCore.SignalR.IUserIdProvider, Hubs.SubUserIdProvider>();
         AddAuthentication(services, configuration);
 

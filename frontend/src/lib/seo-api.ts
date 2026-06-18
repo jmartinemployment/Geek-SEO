@@ -186,6 +186,14 @@ export async function getRenderedContentHtml(
   return res.json() as Promise<RenderedArticleResult>;
 }
 
+/** Article body + JSON-LD script tags for CMS paste (Copy HTML). */
+export function formatRenderedArticleForClipboard(result: RenderedArticleResult): string {
+  const body = result.bodyHtml || result.renderedHtml;
+  if (result.schemaScripts.length === 0) return body;
+  if (result.renderedHtml.includes('application/ld+json')) return result.renderedHtml;
+  return `${body.trimEnd()}\n${result.schemaScripts.join('\n')}`;
+}
+
 export async function updateContent(
   id: string,
   body: {
@@ -606,6 +614,36 @@ export async function applyScoreSuggestion(
   });
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<ApplySuggestionResult>;
+}
+
+/** Below SignalR default 32 KB — large drafts must score over HTTP. */
+export const SIGNALR_SCORE_HTML_MAX_CHARS = 28_000;
+
+export type ScoreContentResult = {
+  scoreUpdate?: ScoreUpdate | null;
+  pendingReason?: string | null;
+};
+
+export async function scoreContentDocument(
+  documentId: string,
+  body: { contentHtml?: string; targetKeyword?: string },
+  accessToken?: string | null,
+): Promise<ScoreContentResult> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/score`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+  });
+  if (res.status === 202) {
+    const pending = (await res.json()) as { pendingReason?: string };
+    return { pendingReason: pending.pendingReason ?? 'benchmark_refreshing' };
+  }
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  const data = (await res.json()) as { scoreUpdate?: ScoreUpdate; pendingReason?: string };
+  return {
+    scoreUpdate: data.scoreUpdate ?? null,
+    pendingReason: data.pendingReason ?? null,
+  };
 }
 
 export async function publishToWordPress(

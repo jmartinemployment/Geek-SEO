@@ -41,6 +41,13 @@ public sealed record ApplySuggestionRequest
     public string? ContentHtml { get; init; }
 }
 
+public sealed record ScoreContentRequest
+{
+    /// <summary>When omitted, scores the last saved document HTML.</summary>
+    public string? ContentHtml { get; init; }
+    public string? TargetKeyword { get; init; }
+}
+
 public sealed record ApplySuggestionResult
 {
     public required string ContentHtml { get; init; }

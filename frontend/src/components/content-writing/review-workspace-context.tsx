@@ -16,6 +16,7 @@ import { useContentScoring, type ScoreSuggestion } from '@/hooks/useContentScori
 import {
   applyScoreSuggestion,
   deleteSerpCache,
+  formatRenderedArticleForClipboard,
   getRenderedContentHtml,
   updateContent,
   updateContentStatus,
@@ -222,10 +223,10 @@ export function ReviewWorkspaceProvider({
   function copyRenderedHtml() {
     void copyTextFromPromise(async () => {
       const result = await getRenderedContentHtml(doc.id, accessToken);
-      return result.renderedHtml;
+      return formatRenderedArticleForClipboard(result);
     })
       .then(() => {
-        setCopyHint('Rendered HTML copied');
+        setCopyHint('Rendered HTML with schema copied');
         setTimeout(() => setCopyHint(null), 3000);
       })
       .catch(onError);

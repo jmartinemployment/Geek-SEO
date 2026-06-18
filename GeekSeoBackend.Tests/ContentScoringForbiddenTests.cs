@@ -15,6 +15,31 @@ public sealed class ContentScoringForbiddenTests
     private static readonly Guid ProjectId = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd");
 
     [Fact]
+    public async Task ProcessContentChangedAsync_uses_document_title_when_body_has_no_h1()
+    {
+        var serp = new ThrowingSerpProvider();
+        var document = ResearchDocument();
+        document.Title = "Widget repair guide for local shops";
+        document.ContentHtml =
+            "<h2>Overview</h2><h2>Steps</h2><h2>Tools</h2><h2>FAQ</h2>" +
+            "<p>widget repair content without an h1 in the body.</p>";
+
+        var sut = CreateScoringService(document, CompletedResearch(), serp, new TrackingContentDocumentRepository());
+
+        var result = await sut.ProcessContentChangedAsync(
+            UserId,
+            DocumentId,
+            document.ContentHtml,
+            "widget repair");
+
+        Assert.True(result.IsSuccess, result.Error);
+        var componentsJson = JsonSerializer.Serialize(result.Value!.ScoreUpdate!.Components);
+        using var parsed = JsonDocument.Parse(componentsJson);
+        var titleTagScore = parsed.RootElement.GetProperty("titleTag").GetInt32();
+        Assert.True(titleTagScore > 0, $"expected title tag score from document title, got {titleTagScore}");
+    }
+
+    [Fact]
     public async Task ProcessKeywordChangedAsync_forbids_live_serp_on_research_document()
     {
         var serp = new ThrowingSerpProvider();

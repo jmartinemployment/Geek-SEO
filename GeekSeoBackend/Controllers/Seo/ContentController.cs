@@ -2,6 +2,7 @@ using GeekSeoBackend.Auth;
 using GeekSeoBackend.Extensions;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
+using GeekSeo.Application.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -111,6 +112,37 @@ public sealed class ContentController(
     {
         var result = await competitors.RefreshCrawlForDocumentAsync(user.RequireUserId(), id, ct);
         return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
+    }
+
+    [HttpPost("{id:guid}/score")]
+    public async Task<IActionResult> Score(Guid id, [FromBody] ScoreContentRequest? request, CancellationToken ct)
+    {
+        var userId = user.RequireUserId();
+        Result<ContentScoreHubResult> result;
+
+        if (string.IsNullOrWhiteSpace(request?.ContentHtml))
+        {
+            result = await scoring.ScoreSavedDocumentAsync(userId, id, request?.TargetKeyword, ct);
+        }
+        else
+        {
+            var doc = await content.GetAsync(userId, id, ct);
+            if (!doc.IsSuccess || doc.Value is null)
+                return doc.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true ? NotFound() : BadRequest(doc.Error);
+
+            var keyword = string.IsNullOrWhiteSpace(request.TargetKeyword)
+                ? doc.Value.TargetKeyword
+                : request.TargetKeyword;
+            result = await scoring.ProcessContentChangedAsync(userId, id, request.ContentHtml, keyword, ct);
+        }
+
+        if (!result.IsSuccess)
+            return BadRequest(new { error = result.Error });
+
+        if (result.Value?.PendingReason is not null)
+            return Accepted(new { pendingReason = result.Value.PendingReason });
+
+        return Ok(result.Value);
     }
 
     [HttpPost("{id:guid}/auto-optimize")]
