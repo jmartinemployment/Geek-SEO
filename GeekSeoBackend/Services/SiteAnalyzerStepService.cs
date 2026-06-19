@@ -506,11 +506,14 @@ public sealed class SiteAnalyzerStepService(
 
         if (firstRed is not null)
         {
-            var gate = SiteAnalyzerGates.Step10(firstRed.StepNumber, firstRed.Message);
+            var detail = string.IsNullOrWhiteSpace(firstRed.Message)
+                ? $"Step {firstRed.StepNumber} is not green."
+                : firstRed.Message;
+            var gate = SiteAnalyzerGates.Step10(firstRed.StepNumber, detail);
             return await FinishStepAsync(site.Id, pack.Id, 10, gate, [gate.Message], null, ct);
         }
 
-        var validation = SiteAnalyzerPackValidator.ValidateCompletePack(full.Value);
+        var validation = SiteAnalyzerPackValidator.ValidateGateMinimums(full.Value);
         if (!validation.Passed)
             return await FinishStepAsync(site.Id, pack.Id, 10, validation, [validation.Message], null, ct);
 

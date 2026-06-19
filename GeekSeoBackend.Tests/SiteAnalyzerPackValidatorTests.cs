@@ -28,6 +28,16 @@ public sealed class SiteAnalyzerPackValidatorTests
     }
 
     [Fact]
+    public void ValidateGateMinimums_passes_when_data_quality_is_partial()
+    {
+        var research = MinimalComplete();
+        research.DataQuality = "partial";
+
+        var result = SiteAnalyzerPackValidator.ValidateGateMinimums(research);
+        Assert.True(result.Passed);
+    }
+
+    [Fact]
     public void ValidateCompletePack_passes_full_pack()
     {
         var research = MinimalComplete();

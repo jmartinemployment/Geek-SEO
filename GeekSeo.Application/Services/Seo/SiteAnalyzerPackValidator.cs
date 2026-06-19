@@ -7,13 +7,11 @@ namespace GeekSeo.Application.Services.Seo;
 
 public static class SiteAnalyzerPackValidator
 {
-    public static SiteAnalyzerGateResult ValidateCompletePack(SeoUrlResearch research)
+    /// <summary>Steps 5–9 minimums on persisted pack data. Does not require <c>data_quality = full</c>.</summary>
+    public static SiteAnalyzerGateResult ValidateGateMinimums(SeoUrlResearch research)
     {
         if (research.SiteResearchId is null)
             return SiteAnalyzerGateResult.Fail("Site index not linked — complete Site Analyzer first.");
-
-        if (!string.Equals(research.DataQuality, "full", StringComparison.OrdinalIgnoreCase))
-            return SiteAnalyzerGateResult.Fail("Research pack is not finalized (data_quality must be full).");
 
         var organic = research.OrganicResults?.Count ?? 0;
         var paa = research.PeopleAlsoAsk?.Count ?? 0;
@@ -44,6 +42,15 @@ public static class SiteAnalyzerPackValidator
             return SiteAnalyzerGates.Step9(false);
 
         return SiteAnalyzerGateResult.Pass();
+    }
+
+    /// <summary>Content Writing handoff — finalized pack with <c>data_quality = full</c>.</summary>
+    public static SiteAnalyzerGateResult ValidateCompletePack(SeoUrlResearch research)
+    {
+        if (!string.Equals(research.DataQuality, "full", StringComparison.OrdinalIgnoreCase))
+            return SiteAnalyzerGateResult.Fail("Research pack is not finalized (data_quality must be full).");
+
+        return ValidateGateMinimums(research);
     }
 
     public static bool IsHandoffReady(SeoUrlResearch research) =>
