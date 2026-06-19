@@ -79,6 +79,126 @@ function mergeStepDefinitions(
   });
 }
 
+function stepTitle(stepNumber: number): string {
+  const def =
+    stepNumber <= 4
+      ? SITE_INDEX_STEPS.find((d) => d.step === stepNumber)
+      : PACK_STEPS.find((d) => d.step === stepNumber);
+  return def?.title ?? `Step ${stepNumber}`;
+}
+
+function stepRunToState(result: SiteAnalyzerStepRunResponse): SiteAnalyzerStepState {
+  const validationMessage =
+    result.validationMessage ??
+    (result.status === 'red' ? result.message : null);
+  return {
+    stepNumber: result.stepNumber,
+    title: stepTitle(result.stepNumber),
+    status: result.status,
+    message: result.message,
+    validationMessage,
+    log: result.log ?? null,
+    counts: result.counts ?? null,
+    updatedAt: null,
+  };
+}
+
+function upsertRemoteStep(
+  remote: SiteAnalyzerStepState[],
+  update: SiteAnalyzerStepState,
+): SiteAnalyzerStepState[] {
+  const idx = remote.findIndex((s) => s.stepNumber === update.stepNumber);
+  if (idx >= 0) {
+    const next = [...remote];
+    next[idx] = { ...next[idx], ...update, title: update.title };
+    return next;
+  }
+  return [...remote, update];
+}
+
+function shouldKeepLocalStepRun(
+  remote: SiteAnalyzerStepState | undefined,
+  local: SiteAnalyzerStepState,
+): boolean {
+  if (local.status !== 'red') return false;
+  if (!remote || remote.status === 'pending') return true;
+  if (remote.status === 'running') return true;
+  return false;
+}
+
+function applyStepRunToProjectState(
+  state: SiteAnalyzerProjectState,
+  result: SiteAnalyzerStepRunResponse,
+  packId?: string,
+): SiteAnalyzerProjectState {
+  const update = stepRunToState(result);
+  if (result.stepNumber <= 4) {
+    const siteIndexSteps = mergeStepDefinitions(
+      SITE_INDEX_STEPS,
+      upsertRemoteStep(state.siteIndexSteps ?? [], update),
+    );
+    const firstRed = siteIndexSteps.find((s) => s.status === 'red')?.stepNumber ?? null;
+    const siteIndexComplete =
+      siteIndexSteps.length >= 4 && siteIndexSteps.every((s) => s.status === 'green');
+    return {
+      ...state,
+      siteIndexSteps,
+      siteIndexComplete,
+      firstRedSiteIndexStep: firstRed,
+    };
+  }
+  if (!packId) return state;
+  const packs = state.packs.map((pack) => {
+    if (pack.urlResearchId !== packId) return pack;
+    const steps = mergeStepDefinitions(
+      PACK_STEPS,
+      upsertRemoteStep(pack.steps ?? [], update),
+    );
+    const firstRedStep = steps.find((s) => s.status === 'red')?.stepNumber ?? null;
+    return { ...pack, steps, firstRedStep };
+  });
+  return { ...state, packs };
+}
+
+function reinforceStepRunAfterRefresh(
+  refreshed: SiteAnalyzerProjectState,
+  run: SiteAnalyzerStepRunResponse | null,
+  packId?: string,
+): SiteAnalyzerProjectState {
+  if (!run || run.status !== 'red') return refreshed;
+  if (run.stepNumber <= 4) {
+    const remote = refreshed.siteIndexSteps?.find((s) => s.stepNumber === run.stepNumber);
+    if (!shouldKeepLocalStepRun(remote, stepRunToState(run))) return refreshed;
+  } else {
+    const pack = refreshed.packs.find((p) => p.urlResearchId === packId);
+    const remote = pack?.steps?.find((s) => s.stepNumber === run.stepNumber);
+    if (!shouldKeepLocalStepRun(remote, stepRunToState(run))) return refreshed;
+  }
+  return applyStepRunToProjectState(refreshed, run, packId);
+}
+
+function parseBlockedPriorStep(message: string): { priorStep: number; detail: string } | null {
+  const match = /^Step (\d+) must pass before running step \d+: (.+)$/.exec(message);
+  if (!match) return null;
+  return { priorStep: Number(match[1]), detail: match[2] };
+}
+
+function failureRunFromError(
+  stepNumber: number,
+  message: string,
+): SiteAnalyzerStepRunResponse {
+  const blocked = parseBlockedPriorStep(message);
+  const targetStep = blocked?.priorStep ?? stepNumber;
+  const detail = blocked?.detail ?? message;
+  return {
+    stepNumber: targetStep,
+    status: 'red',
+    message: detail,
+    validationMessage: detail,
+    log: message,
+  };
+}
+
 function StepRow({
   step,
   subtitle,
@@ -195,25 +315,32 @@ export function SiteAnalyzerWorkspace({
     [projectId, projects],
   );
 
-  const refreshState = useCallback(async () => {
-    if (!projectId) {
-      setState(null);
-      return;
-    }
-    setLoadingState(true);
-    try {
-      const next = await getSiteAnalyzerProjectState(projectId, accessToken);
-      setState(next);
-      const packs = next.packs ?? [];
-      if (!selectedPackId && packs[0]) {
-        setSelectedPackId(packs[0].urlResearchId);
+  const refreshState = useCallback(
+    async (reinforceRun?: SiteAnalyzerStepRunResponse | null, reinforcePackId?: string) => {
+      if (!projectId) {
+        setState(null);
+        return;
       }
-    } catch (loadError) {
-      setError(loadError);
-    } finally {
-      setLoadingState(false);
-    }
-  }, [accessToken, projectId, selectedPackId]);
+      setLoadingState(true);
+      try {
+        const next = await getSiteAnalyzerProjectState(projectId, accessToken);
+        setState(
+          reinforceRun
+            ? reinforceStepRunAfterRefresh(next, reinforceRun, reinforcePackId)
+            : next,
+        );
+        const packs = next.packs ?? [];
+        if (!selectedPackId && packs[0]) {
+          setSelectedPackId(packs[0].urlResearchId);
+        }
+      } catch (loadError) {
+        setError(loadError);
+      } finally {
+        setLoadingState(false);
+      }
+    },
+    [accessToken, projectId, selectedPackId],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -268,12 +395,20 @@ export function SiteAnalyzerWorkspace({
     if (!projectId) return;
     setRunningStep(stepNumber);
     setError(null);
+    let reinforceRun: SiteAnalyzerStepRunResponse | null = null;
     try {
-      await runSiteIndexStep(projectId, stepNumber, accessToken);
-      await refreshState();
+      const result = await runSiteIndexStep(projectId, stepNumber, accessToken);
+      reinforceRun = result;
+      setState((prev) => (prev ? applyStepRunToProjectState(prev, result) : prev));
+      await refreshState(result);
     } catch (runError) {
       setError(runError);
-      await refreshState();
+      const message = runError instanceof Error ? runError.message : 'Step failed';
+      reinforceRun = failureRunFromError(stepNumber, message);
+      setState((prev) =>
+        prev ? applyStepRunToProjectState(prev, reinforceRun!) : prev,
+      );
+      await refreshState(reinforceRun);
     } finally {
       setRunningStep(null);
     }
@@ -304,13 +439,18 @@ export function SiteAnalyzerWorkspace({
     if (!selectedPackId) return;
     setRunningStep(stepNumber);
     setError(null);
+    let reinforceRun: SiteAnalyzerStepRunResponse | null = null;
     try {
       const result: SiteAnalyzerStepRunResponse = await runSiteAnalyzerPackStep(
         selectedPackId,
         stepNumber,
         accessToken,
       );
-      await refreshState();
+      reinforceRun = result;
+      setState((prev) =>
+        prev ? applyStepRunToProjectState(prev, result, selectedPackId) : prev,
+      );
+      await refreshState(result, selectedPackId);
       if (
         stepNumber === 10 &&
         result.status === 'green' &&
@@ -322,7 +462,12 @@ export function SiteAnalyzerWorkspace({
       }
     } catch (runError) {
       setError(runError);
-      await refreshState();
+      const message = runError instanceof Error ? runError.message : 'Step failed';
+      reinforceRun = failureRunFromError(stepNumber, message);
+      setState((prev) =>
+        prev ? applyStepRunToProjectState(prev, reinforceRun!, selectedPackId) : prev,
+      );
+      await refreshState(reinforceRun, selectedPackId);
     } finally {
       setRunningStep(null);
     }

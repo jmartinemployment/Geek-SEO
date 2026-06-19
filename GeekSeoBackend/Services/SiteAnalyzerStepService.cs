@@ -641,7 +641,7 @@ public sealed class SiteAnalyzerStepService(
         var logText = string.Join('\n', log);
         var countsJson = counts is null ? null : JsonSerializer.Serialize(counts, Json);
 
-        await siteResearch.UpsertStepRunAsync(new SiteAnalyzerStepRunUpsert
+        var upsert = await siteResearch.UpsertStepRunAsync(new SiteAnalyzerStepRunUpsert
         {
             SiteResearchId = siteId,
             UrlResearchId = packId,
@@ -651,6 +651,19 @@ public sealed class SiteAnalyzerStepService(
             Log = logText,
             CountsJson = countsJson,
         }, ct);
+
+        if (!upsert.IsSuccess)
+        {
+            logger.LogError(
+                "Site Analyzer step {Step} run could not be saved: {Error}",
+                step,
+                upsert.Error);
+            if (!gate.Passed)
+                return Result<SiteAnalyzerStepResponse>.Failure(gate.Message);
+
+            return Result<SiteAnalyzerStepResponse>.Failure(
+                $"Step {step} completed but could not be saved: {upsert.Error}");
+        }
 
         if (!gate.Passed)
             logger.LogWarning("Site Analyzer step {Step} red: {Message}", step, gate.Message);

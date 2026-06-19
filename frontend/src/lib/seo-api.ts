@@ -1876,6 +1876,13 @@ export type SiteAnalyzerStepRunResponse = {
   counts?: Record<string, unknown> | null;
 };
 
+function normalizeStepRunResponse(raw: SiteAnalyzerStepRunResponse): SiteAnalyzerStepRunResponse {
+  const validationMessage =
+    raw.validationMessage ??
+    (raw.status === 'red' ? raw.message : null);
+  return { ...raw, validationMessage };
+}
+
 export type SiteAnalyzerCreatePackResponse = {
   urlResearchId: string;
   keyword: string;
@@ -1997,7 +2004,7 @@ export async function runSiteIndexStep(
       cache: 'no-store',
     },
   );
-  return seoJson<SiteAnalyzerStepRunResponse>(res);
+  return normalizeStepRunResponse(await seoJson<SiteAnalyzerStepRunResponse>(res));
 }
 
 export async function createSiteAnalyzerPack(
@@ -2030,7 +2037,7 @@ export async function runSiteAnalyzerPackStep(
       cache: 'no-store',
     },
   );
-  return seoJson<SiteAnalyzerStepRunResponse>(res);
+  return normalizeStepRunResponse(await seoJson<SiteAnalyzerStepRunResponse>(res));
 }
 
 /** First failing step message for Content Writing gate UI. */
