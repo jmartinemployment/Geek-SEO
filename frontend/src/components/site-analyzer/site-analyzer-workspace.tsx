@@ -235,16 +235,16 @@ function StepRow({
   canRun,
   running,
   onRun,
-  allowRunWhenGreen = false,
-  greenRunLabel = 'Run',
+  handoffHref,
+  handoffLabel = 'Open Content Writing',
 }: {
   step: SiteAnalyzerStepState;
   subtitle: string;
   canRun: boolean;
   running: boolean;
   onRun: () => void;
-  allowRunWhenGreen?: boolean;
-  greenRunLabel?: string;
+  handoffHref?: string | null;
+  handoffLabel?: string;
 }) {
   const [expanded, setExpanded] = useState(step.status === 'red');
   const validationMessage =
@@ -255,14 +255,8 @@ function StepRow({
     if (step.status === 'red') setExpanded(true);
   }, [step.status]);
 
-  const runDisabled =
-    running || (!canRun && !(allowRunWhenGreen && step.status === 'green'));
-  const runLabel =
-    running
-      ? 'Running…'
-      : step.status === 'green' && allowRunWhenGreen
-        ? greenRunLabel
-        : 'Run';
+  const showHandoffLink = step.status === 'green' && Boolean(handoffHref);
+  const runDisabled = running || !canRun || (step.status === 'green' && !showHandoffLink);
 
   return (
     <li className="rounded-lg border border-[var(--color-border)] bg-white">
@@ -297,14 +291,23 @@ function StepRow({
               Log
             </button>
           ) : null}
-          <button
-            type="button"
-            disabled={runDisabled || (step.status === 'green' && !allowRunWhenGreen)}
-            onClick={onRun}
-            className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
-          >
-            {runLabel}
-          </button>
+          {showHandoffLink ? (
+            <Link
+              href={handoffHref!}
+              className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--color-accent-hover)]"
+            >
+              {handoffLabel}
+            </Link>
+          ) : (
+            <button
+              type="button"
+              disabled={runDisabled}
+              onClick={onRun}
+              className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
+            >
+              {running ? 'Running…' : 'Run'}
+            </button>
+          )}
         </div>
       </div>
       {expanded && hasOutput ? (
@@ -702,8 +705,14 @@ export function SiteAnalyzerWorkspace({
                       Boolean(state?.siteIndexComplete && selectedPackId),
                     )}
                     running={runningStep === step.stepNumber}
-                    allowRunWhenGreen={step.stepNumber === 10}
-                    greenRunLabel="Open Content Writing"
+                    handoffHref={
+                      step.stepNumber === 10 &&
+                      step.status === 'green' &&
+                      projectId &&
+                      selectedPackId
+                        ? `/content-writing?projectId=${encodeURIComponent(projectId)}&urlResearchId=${encodeURIComponent(selectedPackId)}`
+                        : null
+                    }
                     onRun={() => void handleRunPackStep(step.stepNumber)}
                   />
                 ))}
