@@ -6,6 +6,8 @@ public sealed record SiteAnalyzerStepResponse
     /// <summary>green | red | running | pending</summary>
     public required string Status { get; init; }
     public required string Message { get; init; }
+    /// <summary>Gate failure detail when <see cref="Status"/> is red; null otherwise.</summary>
+    public string? ValidationMessage { get; init; }
     public string Log { get; init; } = string.Empty;
     public IReadOnlyDictionary<string, int>? Counts { get; init; }
 }

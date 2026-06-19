@@ -68,14 +68,9 @@ public sealed class SiteAnalyzerStepService(
                 10,
                 packStepRuns.Value ?? [],
                 full.IsSuccess && full.Value is not null
-                    ? step => step switch
-                    {
-                        >= 5 and <= 9 => SiteAnalyzerStepValidators.ValidatePackStep(step, full.Value),
-                        10 => IsStep10Complete(full.Value)
-                            ? SiteAnalyzerGateResult.Pass()
-                            : SiteAnalyzerGateResult.Fail("Run when steps 5–9 are green to open Content Writing."),
-                        _ => SiteAnalyzerGateResult.Pass(),
-                    }
+                    ? step => step is >= 5 and <= 9
+                        ? SiteAnalyzerStepValidators.ValidatePackStep(step, full.Value)
+                        : SiteAnalyzerGateResult.Pass()
                     : null);
             var handoffReady = full.IsSuccess
                 && full.Value is not null
@@ -129,7 +124,7 @@ public sealed class SiteAnalyzerStepService(
             return Result<SiteAnalyzerStepResponse>.Failure(siteRow.Error ?? "Could not load site research");
 
         var prior = await siteResearch.GetStepRunsForSiteAsync(siteRow.Value.Id, ct);
-        if (!ValidatePriorStepsGreen(step, prior.Value ?? []))
+        if (!SiteAnalyzerStepProgression.PriorStepsGreen(step, prior.Value ?? []))
             return Result<SiteAnalyzerStepResponse>.Failure($"Step {step - 1} must be green before running step {step}.");
 
         var siteWithPages = await siteResearch.GetWithPagesAsync(siteRow.Value.Id, ct);
@@ -214,7 +209,7 @@ public sealed class SiteAnalyzerStepService(
             return Result<SiteAnalyzerStepResponse>.Failure("Access denied");
 
         var packSteps = await siteResearch.GetStepRunsForPackAsync(urlResearchId, ct);
-        if (!ValidatePriorStepsGreen(step, packSteps.Value ?? [], minStep: 5))
+        if (!SiteAnalyzerStepProgression.PriorStepsGreen(step, packSteps.Value ?? [], minStep: 5))
             return Result<SiteAnalyzerStepResponse>.Failure($"Step {step - 1} must be green before running step {step}.");
 
         if (head.Value.SiteResearchId is null)
@@ -228,8 +223,9 @@ public sealed class SiteAnalyzerStepService(
         if (!full.IsSuccess || full.Value is null)
             return Result<SiteAnalyzerStepResponse>.Failure(full.Error ?? "Keyword pack not found");
 
-        var blocked = await BlockIfPriorPackStepsFailAsync(
-            site.Value.Id, urlResearchId, step, full.Value, ct);
+        var blocked = step < 10
+            ? await BlockIfPriorPackStepsFailAsync(site.Value.Id, urlResearchId, step, full.Value, ct)
+            : null;
         if (blocked is not null)
             return blocked;
 
@@ -257,12 +253,11 @@ public sealed class SiteAnalyzerStepService(
             urls.Add(siteUrl);
         log.Add($"Discovered {data.TotalUrlsScanned} URL(s) from sitemap ({urls.Count} stored for crawl).");
 
-        await siteResearch.PersistStep1Async(site.Id, new SiteResearchStep1Write { DiscoveredUrls = urls }, ct);
-        var reloaded = await siteResearch.GetWithPagesAsync(site.Id, ct);
-        if (!reloaded.IsSuccess || reloaded.Value is null)
-            return Result<SiteAnalyzerStepResponse>.Failure(reloaded.Error ?? "Could not reload site index");
+        var gate = SiteAnalyzerGates.Step1(urls.Count);
+        if (!gate.Passed)
+            return await FinishStepAsync(site.Id, null, 1, gate, log, new Dictionary<string, int> { ["urls"] = urls.Count }, ct);
 
-        var gate = SiteAnalyzerStepValidators.ValidateSiteIndexStep(1, reloaded.Value);
+        await siteResearch.PersistStep1Async(site.Id, new SiteResearchStep1Write { DiscoveredUrls = urls }, ct);
         return await FinishStepAsync(site.Id, null, 1, gate, log, new Dictionary<string, int> { ["urls"] = urls.Count }, ct);
     }
 
@@ -278,6 +273,10 @@ public sealed class SiteAnalyzerStepService(
         var crawl = await pageCrawler.CrawlAsync(siteUrl, discovered, browser, ct, SiteAnalyzerGates.MaxCrawlPages);
         log.Add($"Crawl finished: {crawl.PagesFetched}/{crawl.PagesAttempted} page(s).");
 
+        var gate = SiteAnalyzerGates.Step2(crawl.PagesFetched);
+        if (!gate.Passed)
+            return await FinishStepAsync(site.Id, null, 2, gate, log, new Dictionary<string, int> { ["pages"] = crawl.PagesFetched }, ct);
+
         var pages = crawl.Pages.Select(p => new SiteResearchPageWrite
         {
             Url = p.Url,
@@ -285,11 +284,6 @@ public sealed class SiteAnalyzerStepService(
         }).ToList();
 
         await siteResearch.ReplacePagesAsync(site.Id, pages, ct);
-        var reloaded = await siteResearch.GetWithPagesAsync(site.Id, ct);
-        if (!reloaded.IsSuccess || reloaded.Value is null)
-            return Result<SiteAnalyzerStepResponse>.Failure(reloaded.Error ?? "Could not reload site index");
-
-        var gate = SiteAnalyzerStepValidators.ValidateSiteIndexStep(2, reloaded.Value);
         return await FinishStepAsync(site.Id, null, 2, gate, log, new Dictionary<string, int> { ["pages"] = crawl.PagesFetched }, ct);
     }
 
@@ -339,12 +333,21 @@ public sealed class SiteAnalyzerStepService(
             }
         }
 
-        await siteResearch.ReplacePagesAsync(site.Id, writes, ct);
-        var reloaded = await siteResearch.GetWithPagesAsync(site.Id, ct);
-        if (!reloaded.IsSuccess || reloaded.Value is null)
-            return Result<SiteAnalyzerStepResponse>.Failure(reloaded.Error ?? "Could not reload site index");
+        var extracted = writes.Count(w => w.ExtractSuccess);
+        var gate = SiteAnalyzerGates.Step3(crawled.Count, extracted, failed);
+        if (!gate.Passed)
+        {
+            return await FinishStepAsync(
+                site.Id,
+                null,
+                3,
+                gate,
+                log,
+                new Dictionary<string, int> { ["crawled"] = crawled.Count, ["failed"] = failed },
+                ct);
+        }
 
-        var gate = SiteAnalyzerStepValidators.ValidateSiteIndexStep(3, reloaded.Value);
+        await siteResearch.ReplacePagesAsync(site.Id, writes, ct);
         return await FinishStepAsync(
             site.Id,
             null,
@@ -383,18 +386,18 @@ public sealed class SiteAnalyzerStepService(
             summary = $"Site index for {siteUrl} ({pages.Count} page(s)).";
 
         var linkJson = JsonSerializer.Serialize(links, Json);
+        log.Add($"Summary length {summary.Length}; {links.Count} internal link(s).");
+
+        var gate = SiteAnalyzerGates.Step4(!string.IsNullOrWhiteSpace(summary), links.Count > 0);
+        if (!gate.Passed)
+            return await FinishStepAsync(site.Id, null, 4, gate, log, new Dictionary<string, int> { ["links"] = links.Count }, ct);
+
         await siteResearch.PersistStep4Async(site.Id, new SiteResearchStep4Write
         {
             BusinessSummary = summary,
             InternalLinkMapJson = linkJson,
         }, ct);
 
-        log.Add($"Summary length {summary.Length}; {links.Count} internal link(s).");
-        var reloaded = await siteResearch.GetWithPagesAsync(site.Id, ct);
-        if (!reloaded.IsSuccess || reloaded.Value is null)
-            return Result<SiteAnalyzerStepResponse>.Failure(reloaded.Error ?? "Could not reload site index");
-
-        var gate = SiteAnalyzerStepValidators.ValidateSiteIndexStep(4, reloaded.Value);
         return await FinishStepAsync(site.Id, null, 4, gate, log, new Dictionary<string, int> { ["links"] = links.Count }, ct);
     }
 
@@ -422,16 +425,25 @@ public sealed class SiteAnalyzerStepService(
         }
 
         var p = built.Value;
+        log.Add($"Organic={p.Organic.Count}, PAA={p.Paa.Count}, PASF={p.Pasf.Count}, PAF={p.Paf.Type}.");
+
+        var gate = SiteAnalyzerStepValidators.ValidatePackStepFromBuild(5, p);
+        if (!gate.Passed)
+        {
+            return await FinishStepAsync(
+                site.Id,
+                pack.Id,
+                5,
+                gate,
+                log,
+                new Dictionary<string, int> { ["organic"] = p.Organic.Count, ["paa"] = p.Paa.Count, ["pasf"] = p.Pasf.Count },
+                ct);
+        }
+
         var write = UrlResearchPackMapper.ToFullWrite(p, "running");
         write = write with { DataQuality = "partial", Status = "running" };
         await urlResearch.PersistFullAsync(pack.Id, write, ct);
 
-        log.Add($"Organic={p.Organic.Count}, PAA={p.Paa.Count}, PASF={p.Pasf.Count}, PAF={p.Paf.Type}.");
-        var reloaded = await urlResearch.GetFullAsync(pack.Id, ct);
-        if (!reloaded.IsSuccess || reloaded.Value is null)
-            return Result<SiteAnalyzerStepResponse>.Failure(reloaded.Error ?? "Could not reload keyword pack");
-
-        var gate = SiteAnalyzerStepValidators.ValidatePackStep(5, reloaded.Value);
         return await FinishStepAsync(
             site.Id,
             pack.Id,
@@ -476,15 +488,14 @@ public sealed class SiteAnalyzerStepService(
         if (!built.IsSuccess || built.Value is null)
             return await FinishStepAsync(site.Id, pack.Id, 7, SiteAnalyzerGateResult.Fail(built.Error ?? "Pack build failed"), [built.Error ?? ""], null, ct);
 
+        var terms = built.Value.RecommendedTerms.Count;
+        var gate = SiteAnalyzerStepValidators.ValidatePackStepFromBuild(7, built.Value);
+        if (!gate.Passed)
+            return await FinishStepAsync(site.Id, pack.Id, 7, gate, [$"Terms={terms}"], new Dictionary<string, int> { ["terms"] = terms }, ct);
+
         var write = UrlResearchPackMapper.ToFullWrite(built.Value, "running") with { Status = "running", DataQuality = "partial" };
         await urlResearch.PersistFullAsync(pack.Id, write, ct);
 
-        var terms = built.Value.RecommendedTerms.Count;
-        var reloaded = await urlResearch.GetFullAsync(pack.Id, ct);
-        if (!reloaded.IsSuccess || reloaded.Value is null)
-            return Result<SiteAnalyzerStepResponse>.Failure(reloaded.Error ?? "Could not reload keyword pack");
-
-        var gate = SiteAnalyzerStepValidators.ValidatePackStep(7, reloaded.Value);
         return await FinishStepAsync(site.Id, pack.Id, 7, gate, [$"Terms={terms}"], new Dictionary<string, int> { ["terms"] = terms }, ct);
     }
 
@@ -507,14 +518,22 @@ public sealed class SiteAnalyzerStepService(
 
         var hints = built.Value.MethodologyHints.Count;
         var faqs = built.Value.ClosingFaqQuestions.Count;
+        var gate = SiteAnalyzerStepValidators.ValidatePackStepFromBuild(8, built.Value);
+        if (!gate.Passed)
+        {
+            return await FinishStepAsync(
+                site.Id,
+                pack.Id,
+                8,
+                gate,
+                [$"Section hints={hints}, FAQs={faqs}"],
+                new Dictionary<string, int> { ["sectionHints"] = hints, ["faqs"] = faqs },
+                ct);
+        }
+
         var write = UrlResearchPackMapper.ToFullWrite(built.Value, "running") with { Status = "running", DataQuality = "partial" };
         await urlResearch.PersistFullAsync(pack.Id, write, ct);
 
-        var reloaded = await urlResearch.GetFullAsync(pack.Id, ct);
-        if (!reloaded.IsSuccess || reloaded.Value is null)
-            return Result<SiteAnalyzerStepResponse>.Failure(reloaded.Error ?? "Could not reload keyword pack");
-
-        var gate = SiteAnalyzerStepValidators.ValidatePackStep(8, reloaded.Value);
         return await FinishStepAsync(
             site.Id,
             pack.Id,
@@ -540,9 +559,24 @@ public sealed class SiteAnalyzerStepService(
             ? full.Value.BusinessContext
             : $"{site.BusinessSummary} {full.Value.BusinessContext}".Trim();
 
-        var write = UrlResearchPackMapper.ToFullWrite(
-            await RebuildPackFromEntityAsync(userId, full.Value, mergedContext, ct),
-            "running") with
+        var gate = SiteAnalyzerStepValidators.ValidatePackStep9BeforePersist(mergedContext);
+        if (!gate.Passed)
+            return await FinishStepAsync(site.Id, pack.Id, 9, gate, [$"Merged context length={mergedContext.Length}"], null, ct);
+
+        var rebuilt = await packService.BuildAsync(userId, new UrlAnalyzerResearchRequest
+        {
+            Keyword = full.Value.DerivedKeyword,
+            Url = full.Value.SourceUrl,
+            Location = full.Value.SearchLocation,
+            BusinessContext = mergedContext,
+        }, ct);
+        if (!rebuilt.IsSuccess || rebuilt.Value is null)
+        {
+            var fail = SiteAnalyzerGateResult.Fail(rebuilt.Error ?? "Pack rebuild failed after context merge");
+            return await FinishStepAsync(site.Id, pack.Id, 9, fail, [rebuilt.Error ?? "Pack rebuild failed"], null, ct);
+        }
+
+        var write = UrlResearchPackMapper.ToFullWrite(rebuilt.Value, "running") with
         {
             Status = "running",
             DataQuality = "partial",
@@ -550,11 +584,6 @@ public sealed class SiteAnalyzerStepService(
         };
         await urlResearch.PersistFullAsync(pack.Id, write, ct);
 
-        var reloaded = await urlResearch.GetFullAsync(pack.Id, ct);
-        if (!reloaded.IsSuccess || reloaded.Value is null)
-            return Result<SiteAnalyzerStepResponse>.Failure(reloaded.Error ?? "Could not reload keyword pack");
-
-        var gate = SiteAnalyzerStepValidators.ValidatePackStep(9, reloaded.Value);
         return await FinishStepAsync(site.Id, pack.Id, 9, gate, [$"Merged context length={mergedContext.Length}"], null, ct);
     }
 
@@ -587,22 +616,6 @@ public sealed class SiteAnalyzerStepService(
             ["Ready for Content Writing."],
             null,
             ct);
-    }
-
-    private async Task<SerpResearchPack> RebuildPackFromEntityAsync(
-        Guid userId,
-        GeekSeo.Persistence.Entities.SeoUrlResearch entity,
-        string businessContext,
-        CancellationToken ct)
-    {
-        var built = await packService.BuildAsync(userId, new UrlAnalyzerResearchRequest
-        {
-            Keyword = entity.DerivedKeyword,
-            Url = entity.SourceUrl,
-            Location = entity.SearchLocation,
-            BusinessContext = businessContext,
-        }, ct);
-        return built.Value ?? throw new InvalidOperationException("Pack rebuild failed");
     }
 
     private async Task MarkRunningAsync(Guid? siteId, Guid? packId, int step, CancellationToken ct) =>
@@ -642,19 +655,31 @@ public sealed class SiteAnalyzerStepService(
         if (!gate.Passed)
             logger.LogWarning("Site Analyzer step {Step} red: {Message}", step, gate.Message);
 
-        return Result<SiteAnalyzerStepResponse>.Success(new SiteAnalyzerStepResponse
-        {
-            StepNumber = step,
-            Status = status,
-            Message = gate.Passed ? $"Step {step} complete." : gate.Message,
-            Log = logText,
-            Counts = counts,
-        });
+        return Result<SiteAnalyzerStepResponse>.Success(CreateStepResponse(
+            step,
+            status,
+            gate.Passed ? $"Step {step} complete." : gate.Message,
+            logText,
+            counts,
+            gate.Passed ? null : gate.Message));
     }
 
-    private static bool IsStep10Complete(GeekSeo.Persistence.Entities.SeoUrlResearch research) =>
-        string.Equals(research.Status, "completed", StringComparison.OrdinalIgnoreCase)
-        && string.Equals(research.DataQuality, "full", StringComparison.OrdinalIgnoreCase);
+    private static SiteAnalyzerStepResponse CreateStepResponse(
+        int stepNumber,
+        string status,
+        string message,
+        string log,
+        IReadOnlyDictionary<string, int>? counts,
+        string? validationMessage) =>
+        new()
+        {
+            StepNumber = stepNumber,
+            Status = status,
+            Message = message,
+            ValidationMessage = validationMessage,
+            Log = log,
+            Counts = counts,
+        };
 
     private async Task<Result<SiteAnalyzerStepResponse>?> BlockIfPriorSiteStepsFailAsync(
         Guid siteId,
@@ -699,18 +724,6 @@ public sealed class SiteAnalyzerStepService(
         return null;
     }
 
-    private static bool ValidatePriorStepsGreen(int step, IReadOnlyList<SiteAnalyzerStepRunRow> runs, int minStep = 1)
-    {
-        for (var s = minStep; s < step; s++)
-        {
-            var row = runs.FirstOrDefault(r => r.StepNumber == s);
-            if (row is null || !string.Equals(row.Status, "green", StringComparison.OrdinalIgnoreCase))
-                return false;
-        }
-
-        return true;
-    }
-
     private static IReadOnlyList<SiteAnalyzerStepResponse> BuildStepResponses(
         int fromStep,
         int toStep,
@@ -736,14 +749,13 @@ public sealed class SiteAnalyzerStepService(
                 }
             }
 
-            list.Add(new SiteAnalyzerStepResponse
-            {
-                StepNumber = s,
-                Status = status,
-                Message = message,
-                Log = row?.Log ?? string.Empty,
-                Counts = ParseCounts(row?.CountsJson),
-            });
+            list.Add(CreateStepResponse(
+                s,
+                status,
+                message,
+                row?.Log ?? string.Empty,
+                ParseCounts(row?.CountsJson),
+                string.Equals(status, "red", StringComparison.OrdinalIgnoreCase) ? message : null));
         }
 
         return list;

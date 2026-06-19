@@ -50,4 +50,50 @@ public sealed class SiteAnalyzerStepValidatorsTests
         var result = SiteAnalyzerStepValidators.ValidatePackSteps(research);
         Assert.True(result.Passed);
     }
+
+    [Fact]
+    public void ValidatePackStepFromBuild_fails_before_persist_when_paa_missing()
+    {
+        var pack = SiteAnalyzerPackValidatorTests.MinimalSerpResearchPack() with
+        {
+            Paa = [],
+        };
+
+        var result = SiteAnalyzerStepValidators.ValidatePackStepFromBuild(5, pack);
+        Assert.False(result.Passed);
+        Assert.Contains("PAA", result.Message);
+        Assert.StartsWith("Step 5:", result.Message);
+    }
+
+    [Theory]
+    [InlineData(1, "Step 1:")]
+    [InlineData(2, "Step 2:")]
+    [InlineData(3, "Step 3:")]
+    [InlineData(4, "Step 4:")]
+    [InlineData(5, "Step 5:")]
+    [InlineData(6, "Step 6:")]
+    [InlineData(7, "Step 7:")]
+    [InlineData(8, "Step 8:")]
+    [InlineData(9, "Step 9:")]
+    [InlineData(10, "Step 10:")]
+    public void Each_gate_failure_message_is_step_scoped(int step, string prefix)
+    {
+        var result = step switch
+        {
+            1 => SiteAnalyzerGates.Step1(0),
+            2 => SiteAnalyzerGates.Step2(0),
+            3 => SiteAnalyzerGates.Step3(1, 0, 1),
+            4 => SiteAnalyzerGates.Step4(false, false),
+            5 => SiteAnalyzerGates.Step5(0, 0, 0, false),
+            6 => SiteAnalyzerGates.Step6(0),
+            7 => SiteAnalyzerGates.Step7(0),
+            8 => SiteAnalyzerGates.Step8(0, 0),
+            9 => SiteAnalyzerGates.Step9(false),
+            10 => SiteAnalyzerGates.Step10(false),
+            _ => throw new ArgumentOutOfRangeException(nameof(step)),
+        };
+
+        Assert.False(result.Passed);
+        Assert.StartsWith(prefix, result.Message);
+    }
 }

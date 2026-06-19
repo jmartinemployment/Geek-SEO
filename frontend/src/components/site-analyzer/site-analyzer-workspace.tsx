@@ -32,7 +32,7 @@ const PACK_STEPS: Array<{ step: number; title: string; subtitle: string }> = [
   { step: 7, title: 'Benchmarks & terms', subtitle: 'Length targets and recommended terms' },
   { step: 8, title: 'Structure', subtitle: 'Intent, section hints, and closing FAQs' },
   { step: 9, title: 'Merge site context', subtitle: 'Cross-reference site index with keyword pack' },
-  { step: 10, title: 'Open Content Writing', subtitle: 'Finalize frozen research and go to Content Writing (requires steps 5–9 green)' },
+  { step: 10, title: 'Open Content Writing', subtitle: 'Finalize frozen research and go to Content Writing (requires steps 5–9 green; no validation on this step)' },
 ];
 
 function statusStyles(status: SiteAnalyzerStepStatus): string {
@@ -69,6 +69,9 @@ function mergeStepDefinitions(
       title: def.title,
       status: existing?.status ?? 'pending',
       message: existing?.message ?? '',
+      validationMessage:
+        existing?.validationMessage ??
+        (existing?.status === 'red' && existing?.message ? existing.message : null),
       log: existing?.log ?? null,
       counts: existing?.counts ?? null,
       updatedAt: existing?.updatedAt ?? null,
@@ -90,7 +93,9 @@ function StepRow({
   onRun: () => void;
 }) {
   const [expanded, setExpanded] = useState(step.status === 'red');
-  const hasOutput = Boolean(step.log || step.message || step.counts);
+  const validationMessage =
+    step.validationMessage ?? (step.status === 'red' ? step.message : null);
+  const hasOutput = Boolean(step.log || validationMessage || step.message || step.counts);
 
   useEffect(() => {
     if (step.status === 'red') setExpanded(true);
@@ -109,12 +114,13 @@ function StepRow({
             Step {step.stepNumber}: {step.title}
           </p>
           <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">{subtitle}</p>
-          {step.message ? (
-            <p
-              className={`mt-1 text-xs ${step.status === 'red' ? 'text-red-700' : 'text-[var(--color-text-secondary)]'}`}
-            >
-              {step.message}
+          {validationMessage ? (
+            <p className="mt-1 text-xs text-red-700" role="alert">
+              <span className="font-medium">Validation: </span>
+              {validationMessage}
             </p>
+          ) : step.status === 'green' && step.message ? (
+            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{step.message}</p>
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -328,8 +334,9 @@ export function SiteAnalyzerWorkspace({
     <div className="mx-auto max-w-4xl">
       <h1 className="text-2xl font-semibold">Site Analyzer</h1>
       <p className="mt-1 max-w-2xl text-sm text-[var(--color-text-secondary)]">
-        Crawl your site, then build keyword research step by step. Each step must pass before the
-        next unlocks. Step 10 sends you to Content Writing — it does not re-validate earlier steps.
+        Crawl your site, then build keyword research step by step. A step must pass validation before the
+        next unlocks. Failed steps stay red with their own validation message. Step 10 only checks that
+        steps 5–9 are green — it does not re-validate pack artifacts.
       </p>
 
       {error ? (

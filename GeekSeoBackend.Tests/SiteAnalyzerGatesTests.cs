@@ -13,6 +13,18 @@ public sealed class SiteAnalyzerGatesTests
     }
 
     [Fact]
+    public void Step4_reports_missing_summary_and_link_map_separately()
+    {
+        var both = SiteAnalyzerGates.Step4(false, false);
+        var summary = SiteAnalyzerGates.Step4(false, true);
+        var links = SiteAnalyzerGates.Step4(true, false);
+
+        Assert.Contains("summary and internal link map", both.Message);
+        Assert.Contains("summary missing", summary.Message);
+        Assert.Contains("link map missing", links.Message);
+    }
+
+    [Fact]
     public void Step8_requires_exactly_five_faqs()
     {
         var gate = SiteAnalyzerGates.Step8(sectionHints: 4, closingFaqs: 4);

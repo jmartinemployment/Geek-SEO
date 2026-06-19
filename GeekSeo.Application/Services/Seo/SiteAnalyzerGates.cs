@@ -32,7 +32,11 @@ public static class SiteAnalyzerGates
     public static SiteAnalyzerGateResult Step4(bool hasSummary, bool hasLinkMap) =>
         hasSummary && hasLinkMap
             ? SiteAnalyzerGateResult.Pass()
-            : SiteAnalyzerGateResult.Fail("Step 4: site summary or link map missing");
+            : !hasSummary && !hasLinkMap
+                ? SiteAnalyzerGateResult.Fail("Step 4: site summary and internal link map missing")
+                : !hasSummary
+                    ? SiteAnalyzerGateResult.Fail("Step 4: site summary missing")
+                    : SiteAnalyzerGateResult.Fail("Step 4: internal link map missing");
 
     public static SiteAnalyzerGateResult Step5(int organic, int paa, int pasf, bool pafPresentOrExplicitNone) =>
         organic < MinOrganic
@@ -67,10 +71,10 @@ public static class SiteAnalyzerGates
             ? SiteAnalyzerGateResult.Pass()
             : SiteAnalyzerGateResult.Fail("Step 9: site context merge incomplete");
 
-    public static SiteAnalyzerGateResult Step10(int firstRedStep, string? redMessage) =>
-        firstRedStep == 0
+    public static SiteAnalyzerGateResult Step10(bool handoffReady) =>
+        handoffReady
             ? SiteAnalyzerGateResult.Pass()
-            : SiteAnalyzerGateResult.Fail(redMessage ?? $"Step 10: pack incomplete — Step {firstRedStep} still red");
+            : SiteAnalyzerGateResult.Fail("Step 10: pack not finalized — complete steps 5–9 first, then run this step.");
 }
 
 public sealed record SiteAnalyzerGateResult(bool Passed, string Message)

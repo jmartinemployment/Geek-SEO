@@ -1,4 +1,5 @@
 using System.Text.Json;
+using GeekSeo.Application.Models.Seo;
 using GeekSeo.Persistence.Entities;
 
 namespace GeekSeo.Application.Services.Seo;
@@ -28,6 +29,19 @@ public static class SiteAnalyzerStepValidators
             9 => ValidatePackStep9(research),
             _ => SiteAnalyzerGateResult.Fail($"Invalid keyword pack step {step}."),
         };
+
+    /// <summary>Validate in-memory build output before persisting keyword pack artifacts (steps 5, 7, 8).</summary>
+    public static SiteAnalyzerGateResult ValidatePackStepFromBuild(int step, SerpResearchPack pack) =>
+        step switch
+        {
+            5 => ValidatePackStep5FromBuild(pack),
+            7 => ValidatePackStep7FromBuild(pack),
+            8 => ValidatePackStep8FromBuild(pack),
+            _ => SiteAnalyzerGateResult.Fail($"Invalid keyword pack build step {step}."),
+        };
+
+    public static SiteAnalyzerGateResult ValidatePackStep9BeforePersist(string mergedContext) =>
+        SiteAnalyzerGates.Step9(!string.IsNullOrWhiteSpace(mergedContext));
 
     public static SiteAnalyzerGateResult ValidateSiteIndexSteps(SeoSiteResearch site)
     {
@@ -114,6 +128,28 @@ public static class SiteAnalyzerStepValidators
 
     private static SiteAnalyzerGateResult ValidatePackStep9(SeoUrlResearch research) =>
         SiteAnalyzerGates.Step9(!string.IsNullOrWhiteSpace(research.BusinessContext));
+
+    private static SiteAnalyzerGateResult ValidatePackStep5FromBuild(SerpResearchPack pack) =>
+        SiteAnalyzerGates.Step5(
+            pack.Organic.Count,
+            pack.Paa.Count,
+            pack.Pasf.Count,
+            HasPafPresentOrExplicitNone(pack));
+
+    private static SiteAnalyzerGateResult ValidatePackStep7FromBuild(SerpResearchPack pack) =>
+        SiteAnalyzerGates.Step7(pack.RecommendedTerms.Count);
+
+    private static SiteAnalyzerGateResult ValidatePackStep8FromBuild(SerpResearchPack pack) =>
+        SiteAnalyzerGates.Step8(pack.MethodologyHints.Count, pack.ClosingFaqQuestions.Count);
+
+    private static bool HasPafPresentOrExplicitNone(SerpResearchPack pack)
+    {
+        if (string.Equals(pack.Paf.Type, "none", StringComparison.OrdinalIgnoreCase))
+            return true;
+        return !string.IsNullOrWhiteSpace(pack.Paf.Type)
+               && (!string.IsNullOrWhiteSpace(pack.Paf.Text)
+                   || !string.IsNullOrWhiteSpace(pack.Paf.Format));
+    }
 
     private static bool HasPafPresentOrExplicitNone(SeoUrlResearch research)
     {

@@ -1,3 +1,4 @@
+using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Services.Seo;
 using GeekSeo.Persistence.Entities;
 
@@ -93,6 +94,55 @@ public sealed class SiteAnalyzerPackValidatorTests
             }).ToList(),
         };
     }
+
+    internal static SerpResearchPack MinimalSerpResearchPack() => new()
+    {
+        Meta = new SerpResearchPackMeta
+        {
+            SourceUrl = "https://example.com",
+            Keyword = "widget repair",
+            Location = "United States",
+            ResearchedAt = "2026-06-19T12:00:00Z",
+            DataQuality = "partial",
+        },
+        Intent = new SerpResearchIntent { Primary = "informational", Justification = "test" },
+        Paf = new SerpResearchPaf { Type = "none", Format = "" },
+        Paa = [new SerpResearchPaaItem { Question = "What is a widget?" }],
+        Pasf = ["widget repair near me"],
+        SerpFeatures = [],
+        Organic =
+        [
+            new SerpResearchOrganicItem
+            {
+                Position = 1,
+                Url = "https://a.com",
+                Domain = "a.com",
+                Title = "A",
+                Snippet = "s",
+                ContentType = "guide",
+            },
+        ],
+        CompetitorOutlines = [],
+        SourceHeadings = [],
+        Benchmarks = new SerpResearchBenchmarks
+        {
+            MedianWordCountTop5 = 1000,
+            MedianTitleLengthTop10 = 50,
+            DominantContentFormat = "guide",
+        },
+        RecommendedTerms = Enumerable.Range(1, 8).Select(i => $"term{i}").ToList(),
+        ClosingFaqQuestions = Enumerable.Range(1, 5)
+            .Select(i => new SerpResearchClosingFaqItem { Question = $"FAQ {i}?", Source = "suggested" })
+            .ToList(),
+        DirectAnswerBlock = new SerpResearchDirectAnswerBlock
+        {
+            Instruction = "Answer directly.",
+            MustBeatPaf = false,
+        },
+        MethodologyHints = Enumerable.Range(1, 4)
+            .Select(i => new SerpResearchMethodologyHint { Movement = i, Label = $"Section {i}" })
+            .ToList(),
+    };
 
     private static SeoUrlResearchCompetitor Competitor(int position) => new()
     {

@@ -1838,6 +1838,7 @@ export type SiteAnalyzerStepState = {
   title: string;
   status: SiteAnalyzerStepStatus;
   message: string;
+  validationMessage?: string | null;
   log?: string | null;
   counts?: Record<string, unknown> | null;
   updatedAt?: string | null;
@@ -1870,6 +1871,7 @@ export type SiteAnalyzerStepRunResponse = {
   stepNumber: number;
   status: SiteAnalyzerStepStatus;
   message: string;
+  validationMessage?: string | null;
   log?: string | null;
   counts?: Record<string, unknown> | null;
 };
@@ -1884,6 +1886,7 @@ type SiteAnalyzerStepApi = {
   stepNumber: number;
   status: SiteAnalyzerStepStatus;
   message?: string;
+  validationMessage?: string | null;
   log?: string | null;
   counts?: Record<string, unknown> | null;
   updatedAt?: string | null;
@@ -1901,11 +1904,15 @@ type SiteAnalyzerStateApiLegacy = {
 };
 
 function mapStepApi(step: SiteAnalyzerStepApi, title: string): SiteAnalyzerStepState {
+  const validationMessage =
+    step.validationMessage ??
+    (step.status === 'red' && step.message ? step.message : null);
   return {
     stepNumber: step.stepNumber,
     title,
     status: step.status ?? 'pending',
     message: step.message ?? '',
+    validationMessage,
     log: step.log ?? null,
     counts: step.counts ?? null,
     updatedAt: step.updatedAt ?? null,
@@ -2035,6 +2042,7 @@ export function siteAnalyzerBlockReason(state: SiteAnalyzerProjectState | null):
 
   if (!state.siteIndexComplete) {
     const red = siteIndexSteps.find((s) => s.status === 'red');
+    if (red?.validationMessage) return red.validationMessage;
     if (red?.message) return red.message;
     const pending = siteIndexSteps.find((s) => s.status !== 'green');
     if (pending) {
@@ -2050,6 +2058,7 @@ export function siteAnalyzerBlockReason(state: SiteAnalyzerProjectState | null):
   const packWithRed = packs.find((p) => p.firstRedStep);
   if (packWithRed?.firstRedStep) {
     const step = packWithRed.steps.find((s) => s.stepNumber === packWithRed.firstRedStep);
+    if (step?.validationMessage) return step.validationMessage;
     if (step?.message) return step.message;
     return `Keyword pack incomplete — step ${packWithRed.firstRedStep} is still red.`;
   }
