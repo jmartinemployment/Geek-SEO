@@ -6,6 +6,8 @@ public sealed record UrlAnalyzerResearchRequest
     public string? Url { get; init; }
     /// <summary>When set, SERP research runs for this keyword (no source-page crawl).</summary>
     public string? Keyword { get; init; }
+    /// <summary>Site index business summary merged at Site Analyzer step 9.</summary>
+    public string? BusinessContext { get; init; }
     public string Location { get; init; } = "United States";
     public string Language { get; init; } = "en";
 }

@@ -12,6 +12,7 @@ import { ContentEditor, type ContentEditorHandle } from '@/components/editor/con
 import { EditorAiToolbar } from '@/components/editor/editor-ai-toolbar';
 import { ScoreSidebar } from '@/components/editor/score-sidebar';
 import { ReviewFeaturedImage } from '@/components/content-writing/review-featured-image';
+import { ResearchInsightsRail } from '@/components/content-writing/research-insights-rail';
 import { useContentScoring, type ScoreSuggestion } from '@/hooks/useContentScoring';
 import {
   applyScoreSuggestion,
@@ -338,6 +339,7 @@ export function ReviewScoreRight({
 }) {
   const {
     doc,
+    accessToken,
     scoreUpdate,
     pendingReason,
     benchmarkRefreshing,
@@ -396,6 +398,10 @@ export function ReviewScoreRight({
       </div>
 
       <ReviewFeaturedImage />
+
+      {doc.urlResearchId ? (
+        <ResearchInsightsRail urlResearchId={doc.urlResearchId} accessToken={accessToken} />
+      ) : null}
     </>
   );
 }

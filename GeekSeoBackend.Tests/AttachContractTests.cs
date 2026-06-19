@@ -78,16 +78,17 @@ public sealed class AttachContractTests
         Assert.Equal("Austin, TX", repo.LastCreateRequest.TargetLocation);
     }
 
-    private static SeoUrlResearch CompletedResearch(Guid projectId) => new()
+    private static SeoUrlResearch CompletedResearch(Guid projectId)
     {
-        Id = ResearchId,
-        ProjectId = projectId,
-        UserId = UserId,
-        SourceUrl = "https://example.com/page",
-        DerivedKeyword = "widgets",
-        SearchLocation = "United States",
-        Status = "completed",
-    };
+        var research = SiteAnalyzerPackValidatorTests.MinimalComplete();
+        research.ProjectId = projectId;
+        research.UserId = UserId;
+        research.Id = ResearchId;
+        research.SourceUrl = "https://example.com/page";
+        research.DerivedKeyword = "widgets";
+        research.SearchLocation = "United States";
+        return research;
+    }
 
     private sealed class FakeProjectRepository(Guid projectId) : IProjectRepository
     {

@@ -25,12 +25,22 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/app/strategy/url-analyzer',
-        destination: '/url-analyzer',
+        destination: '/site-analyzer',
         permanent: true,
       },
       {
         source: '/app/strategy/niche-analyzer',
-        destination: '/url-analyzer',
+        destination: '/site-analyzer',
+        permanent: true,
+      },
+      {
+        source: '/url-analyzer',
+        destination: '/site-analyzer',
+        permanent: true,
+      },
+      {
+        source: '/projects/:projectId/url-analyzer',
+        destination: '/projects/:projectId/site-analyzer',
         permanent: true,
       },
     ];

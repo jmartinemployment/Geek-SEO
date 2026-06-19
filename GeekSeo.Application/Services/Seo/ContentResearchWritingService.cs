@@ -38,7 +38,7 @@ public sealed class ContentResearchWritingService(
 
         var doc = access.Value;
         if (!ResearchBackedWriteGate.IsResearchBacked(doc))
-            return Result<WritingTextResult>.Failure("Attach page research from URL Analyzer first.");
+            return Result<WritingTextResult>.Failure(ContentWritingBlockMessage.Default);
 
         var research = await urlResearch.GetFullAsync(userId, doc.UrlResearchId!.Value, ct);
         if (!research.IsSuccess || research.Value is null)

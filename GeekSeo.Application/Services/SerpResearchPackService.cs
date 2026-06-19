@@ -21,33 +21,59 @@ public sealed class SerpResearchPackService(
         CancellationToken ct = default)
     {
         _ = userId;
-        var sourceUrl = UrlPageKeywordResolver.NormalizeUrl(request.Url);
-        if (!Uri.TryCreate(sourceUrl, UriKind.Absolute, out _))
-            return Result<SerpResearchPack>.Failure("A valid url is required");
-
         var location = string.IsNullOrWhiteSpace(request.Location) ? "United States" : request.Location.Trim();
         var language = string.IsNullOrWhiteSpace(request.Language) ? "en" : request.Language.Trim();
         var notes = new List<string>();
 
-        var pageCrawl = await crawler.CrawlPageAsync(sourceUrl, ct);
-        if (!pageCrawl.IsSuccess || pageCrawl.Value is null)
+        string keyword;
+        string sourceUrl;
+        string businessContext;
+        IReadOnlyList<SerpResearchHeading> sourceHeadings;
+
+        if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
-            return Result<SerpResearchPack>.Failure(
-                pageCrawl.Error ?? "Could not crawl the URL to derive a search keyword.");
+            keyword = request.Keyword.Trim();
+            sourceUrl = string.IsNullOrWhiteSpace(request.Url)
+                ? string.Empty
+                : UrlPageKeywordResolver.NormalizeUrl(request.Url);
+            businessContext = request.BusinessContext?.Trim() ?? string.Empty;
+            sourceHeadings = [];
+            notes.Add($"Search keyword from Site Analyzer: \"{keyword}\".");
+        }
+        else
+        {
+            sourceUrl = UrlPageKeywordResolver.NormalizeUrl(request.Url);
+            if (!Uri.TryCreate(sourceUrl, UriKind.Absolute, out _))
+                return Result<SerpResearchPack>.Failure("A valid url is required");
+
+            var pageCrawl = await crawler.CrawlPageAsync(sourceUrl, ct);
+            if (!pageCrawl.IsSuccess || pageCrawl.Value is null)
+            {
+                return Result<SerpResearchPack>.Failure(
+                    pageCrawl.Error ?? "Could not crawl the URL to derive a search keyword.");
+            }
+
+            keyword = UrlPageKeywordResolver.Derive(pageCrawl.Value, sourceUrl);
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return Result<SerpResearchPack>.Failure(
+                    "Could not derive a search keyword from the page title, H1, or URL slug.");
+            }
+
+            notes.Add($"Search keyword derived from page: \"{keyword}\".");
+
+            businessContext = UrlPageBusinessContextResolver.Derive(pageCrawl.Value, sourceUrl);
+            if (!string.IsNullOrWhiteSpace(businessContext))
+                notes.Add("Business context derived from source page for intent filtering only.");
+
+            sourceHeadings = pageCrawl.Value.Headings
+                .Where(h => h.Level is 2 or 3 && !string.IsNullOrWhiteSpace(h.Text))
+                .Select(h => new SerpResearchHeading { Level = h.Level, Text = h.Text.Trim() })
+                .ToList();
         }
 
-        var keyword = UrlPageKeywordResolver.Derive(pageCrawl.Value, sourceUrl);
         if (string.IsNullOrWhiteSpace(keyword))
-        {
-            return Result<SerpResearchPack>.Failure(
-                "Could not derive a search keyword from the page title, H1, or URL slug.");
-        }
-
-        notes.Add($"Search keyword derived from page: \"{keyword}\".");
-
-        var businessContext = UrlPageBusinessContextResolver.Derive(pageCrawl.Value, sourceUrl);
-        if (!string.IsNullOrWhiteSpace(businessContext))
-            notes.Add("Business context derived from source page for intent filtering only.");
+            return Result<SerpResearchPack>.Failure("A keyword is required");
 
         var serpRow = await EnsureSerpAsync(keyword, location, language, notes, ct);
         if (!serpRow.IsSuccess)
@@ -90,10 +116,6 @@ public sealed class SerpResearchPackService(
 
         var organic = serp.OrganicResults.Take(10).Select(MapOrganic).ToList();
         var competitorOutlines = BuildCompetitorOutlines(serp.OrganicResults, crawledPages);
-        var sourceHeadings = pageCrawl.Value.Headings
-            .Where(h => h.Level is 2 or 3 && !string.IsNullOrWhiteSpace(h.Text))
-            .Select(h => new SerpResearchHeading { Level = h.Level, Text = h.Text.Trim() })
-            .ToList();
         var recommendedTerms = BuildRecommendedTerms(keyword, serp);
         var closingFaq = BuildClosingFaq(keyword, serp);
         var intent = InferIntent(keyword, serp, organic, businessContext);

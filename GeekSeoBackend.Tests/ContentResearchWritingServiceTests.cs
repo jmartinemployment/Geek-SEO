@@ -47,7 +47,7 @@ public sealed class ContentResearchWritingServiceTests
         var result = await sut.DraftFromResearchAsync(UserId, DocumentId);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("Attach page research", result.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Site must be crawled first", result.Error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -84,27 +84,21 @@ public sealed class ContentResearchWritingServiceTests
         UrlResearchId = ResearchId,
     };
 
-    private static SeoUrlResearch CompletedResearch() => new()
+    private static SeoUrlResearch CompletedResearch()
     {
-        Id = ResearchId,
-        ProjectId = ProjectId,
-        UserId = UserId,
-        SourceUrl = "https://example.com/widget-repair",
-        DerivedKeyword = "widget repair",
-        SearchLocation = "United States",
-        Status = "completed",
-        DataQuality = "full",
-        IntentPrimary = "informational",
-        IntentJustification = "how-to",
-        PafType = "paragraph",
-        PafFormat = "text",
-        DirectAnswerInstruction = "Lead with a direct answer.",
-        DominantContentFormat = "guide",
-        MedianWordCountTop5 = 1500,
-        MedianTitleLengthTop10 = 55,
-        MedianH2CountTop5 = 4,
-        ResearchedAt = DateTimeOffset.UtcNow,
-    };
+        var research = SiteAnalyzerPackValidatorTests.MinimalComplete();
+        research.Id = ResearchId;
+        research.ProjectId = ProjectId;
+        research.UserId = UserId;
+        research.SourceUrl = "https://example.com/widget-repair";
+        research.DerivedKeyword = "widget repair";
+        research.SearchLocation = "United States";
+        research.MedianWordCountTop5 = 1500;
+        research.MedianTitleLengthTop10 = 55;
+        research.MedianH2CountTop5 = 4;
+        research.ResearchedAt = DateTimeOffset.UtcNow;
+        return research;
+    }
 
     private sealed class FakeDocumentService(SeoContentDocument document) : IContentDocumentService
     {

@@ -1,0 +1,632 @@
+using System.Text.Json;
+using GeekSeo.Application.Interfaces;
+using GeekSeo.Application.Interfaces.Seo;
+using GeekSeo.Application.Mapping;
+using GeekSeo.Application.Models.Seo;
+using GeekSeo.Application.Results;
+using GeekSeo.Application.Services.Seo;
+using GeekSeoBackend.Services.NicheExtraction;
+using GeekSeoBackend.Services.SiteAnalyzer;
+using GeekSeoBackend.Infrastructure;
+using Microsoft.Playwright;
+
+namespace GeekSeoBackend.Services;
+
+public sealed class SiteAnalyzerStepService(
+    ISiteResearchRepository siteResearch,
+    IUrlResearchRepository urlResearch,
+    IProjectRepository projects,
+    SitemapExtractor sitemap,
+    SitePageCrawler pageCrawler,
+    ISerpResearchPackService packService,
+    PlaywrightBrowserHolder? playwrightHolder,
+    ILogger<SiteAnalyzerStepService> logger)
+{
+    private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
+    public async Task<Result<SiteAnalyzerStateResponse>> GetStateAsync(
+        Guid userId, Guid projectId, CancellationToken ct = default)
+    {
+        var project = await projects.GetByIdAsync(projectId, userId, ct);
+        if (!project.IsSuccess || project.Value is null)
+            return Result<SiteAnalyzerStateResponse>.Failure("Access denied");
+
+        var siteUrl = project.Value.Url.TrimEnd('/');
+        var siteRow = await siteResearch.GetOrCreateForProjectAsync(
+            userId,
+            new CreateSiteResearchRequest { ProjectId = projectId, SiteUrl = siteUrl },
+            ct);
+        if (!siteRow.IsSuccess || siteRow.Value is null)
+            return Result<SiteAnalyzerStateResponse>.Failure(siteRow.Error ?? "Could not load site research");
+
+        var siteSteps = await siteResearch.GetStepRunsForSiteAsync(siteRow.Value.Id, ct);
+        var siteIndexSteps = BuildStepResponses(1, 4, siteSteps.Value ?? []);
+
+        var packs = await urlResearch.ListSummaryByProjectAsync(projectId, ct);
+        var activePack = (packs.Value ?? [])
+            .Where(p => p.Status is not "failed")
+            .OrderByDescending(p => p.CreatedAt)
+            .FirstOrDefault();
+
+        IReadOnlyList<SiteAnalyzerStepResponse> keywordSteps = [];
+        bool handoff = false;
+        string? blockReason = null;
+
+        if (activePack is not null)
+        {
+            var packSteps = await siteResearch.GetStepRunsForPackAsync(activePack.Id, ct);
+            keywordSteps = BuildStepResponses(5, 10, packSteps.Value ?? []);
+
+            var full = await urlResearch.GetFullAsync(activePack.Id, ct);
+            if (full.IsSuccess && full.Value is not null)
+            {
+                handoff = SiteAnalyzerPackValidator.IsHandoffReady(full.Value);
+                if (!handoff)
+                {
+                    var validation = SiteAnalyzerPackValidator.ValidateCompletePack(full.Value);
+                    blockReason = validation.Passed ? null : validation.Message;
+                }
+            }
+        }
+
+        return Result<SiteAnalyzerStateResponse>.Success(new SiteAnalyzerStateResponse
+        {
+            SiteResearchId = siteRow.Value.Id,
+            SiteUrl = siteUrl,
+            SiteIndexSteps = siteIndexSteps,
+            ActiveUrlResearchId = activePack?.Id,
+            Keyword = activePack?.DerivedKeyword,
+            KeywordPackSteps = keywordSteps,
+            HandoffEnabled = handoff,
+            BlockReason = blockReason,
+        });
+    }
+
+    public async Task<Result<SiteAnalyzerStepResponse>> RunSiteIndexStepAsync(
+        Guid userId, Guid projectId, int step, CancellationToken ct = default)
+    {
+        if (step is < 1 or > 4)
+            return Result<SiteAnalyzerStepResponse>.Failure("Site index steps are 1–4.");
+
+        var project = await projects.GetByIdAsync(projectId, userId, ct);
+        if (!project.IsSuccess || project.Value is null)
+            return Result<SiteAnalyzerStepResponse>.Failure("Access denied");
+
+        var siteUrl = project.Value.Url.TrimEnd('/');
+        var siteRow = await siteResearch.GetOrCreateForProjectAsync(
+            userId,
+            new CreateSiteResearchRequest { ProjectId = projectId, SiteUrl = siteUrl },
+            ct);
+        if (!siteRow.IsSuccess || siteRow.Value is null)
+            return Result<SiteAnalyzerStepResponse>.Failure(siteRow.Error ?? "Could not load site research");
+
+        var prior = await siteResearch.GetStepRunsForSiteAsync(siteRow.Value.Id, ct);
+        if (!ValidatePriorStepsGreen(step, prior.Value ?? []))
+            return Result<SiteAnalyzerStepResponse>.Failure($"Step {step - 1} must be green before running step {step}.");
+
+        return step switch
+        {
+            1 => await RunStep1Async(userId, siteRow.Value, siteUrl, ct),
+            2 => await RunStep2Async(userId, siteRow.Value, siteUrl, ct),
+            3 => await RunStep3Async(userId, siteRow.Value, ct),
+            4 => await RunStep4Async(userId, siteRow.Value, siteUrl, ct),
+            _ => Result<SiteAnalyzerStepResponse>.Failure("Invalid step"),
+        };
+    }
+
+    public async Task<Result<SiteAnalyzerStepResponse>> CreatePackAsync(
+        Guid userId, Guid projectId, CreateSiteAnalyzerPackRequest request, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.Keyword))
+            return Result<SiteAnalyzerStepResponse>.Failure("Keyword is required.");
+
+        var project = await projects.GetByIdAsync(projectId, userId, ct);
+        if (!project.IsSuccess || project.Value is null)
+            return Result<SiteAnalyzerStepResponse>.Failure("Access denied");
+
+        var siteUrl = project.Value.Url.TrimEnd('/');
+        var siteRow = await siteResearch.GetOrCreateForProjectAsync(
+            userId,
+            new CreateSiteResearchRequest { ProjectId = projectId, SiteUrl = siteUrl },
+            ct);
+        if (!siteRow.IsSuccess || siteRow.Value is null)
+            return Result<SiteAnalyzerStepResponse>.Failure(siteRow.Error ?? "Could not load site research");
+
+        var siteSteps = await siteResearch.GetStepRunsForSiteAsync(siteRow.Value.Id, ct);
+        for (var s = 1; s <= 4; s++)
+        {
+            var row = (siteSteps.Value ?? []).FirstOrDefault(r => r.StepNumber == s);
+            if (row is null || !string.Equals(row.Status, "green", StringComparison.OrdinalIgnoreCase))
+                return Result<SiteAnalyzerStepResponse>.Failure($"Site index step {s} must be green before starting a keyword pack.");
+        }
+
+        var queued = await urlResearch.CreateQueuedAsync(
+            userId,
+            new CreateUrlResearchQueuedRequest
+            {
+                ProjectId = projectId,
+                SourceUrl = siteUrl,
+                SiteResearchId = siteRow.Value.Id,
+                DerivedKeyword = request.Keyword.Trim(),
+                SearchLocation = string.IsNullOrWhiteSpace(request.Location) ? "United States" : request.Location.Trim(),
+            },
+            ct);
+        if (!queued.IsSuccess || queued.Value is null)
+            return Result<SiteAnalyzerStepResponse>.Failure(queued.Error ?? "Could not create keyword pack");
+
+        return Result<SiteAnalyzerStepResponse>.Success(new SiteAnalyzerStepResponse
+        {
+            StepNumber = 0,
+            Status = "green",
+            Message = $"Keyword pack created for \"{request.Keyword.Trim()}\".",
+            Log = $"urlResearchId={queued.Value.Id}",
+        });
+    }
+
+    public async Task<Result<SiteAnalyzerStepResponse>> RunPackStepAsync(
+        Guid userId, Guid urlResearchId, int step, CancellationToken ct = default)
+    {
+        if (step is < 5 or > 10)
+            return Result<SiteAnalyzerStepResponse>.Failure("Keyword pack steps are 5–10.");
+
+        var head = await urlResearch.GetHeadAsync(urlResearchId, ct);
+        if (!head.IsSuccess || head.Value is null)
+            return Result<SiteAnalyzerStepResponse>.Failure(head.Error ?? "Keyword pack not found");
+        if (head.Value.UserId != userId)
+            return Result<SiteAnalyzerStepResponse>.Failure("Access denied");
+
+        var packSteps = await siteResearch.GetStepRunsForPackAsync(urlResearchId, ct);
+        if (!ValidatePriorStepsGreen(step, packSteps.Value ?? [], minStep: 5))
+            return Result<SiteAnalyzerStepResponse>.Failure($"Step {step - 1} must be green before running step {step}.");
+
+        if (head.Value.SiteResearchId is null)
+            return Result<SiteAnalyzerStepResponse>.Failure("Site index not linked to this pack.");
+
+        var site = await siteResearch.GetWithPagesAsync(head.Value.SiteResearchId.Value, ct);
+        if (!site.IsSuccess || site.Value is null)
+            return Result<SiteAnalyzerStepResponse>.Failure(site.Error ?? "Site index not found");
+
+        return step switch
+        {
+            5 => await RunStep5Async(userId, head.Value, site.Value, ct),
+            6 => await RunStep6Async(userId, head.Value, ct),
+            7 => await RunStep7Async(userId, head.Value, site.Value, ct),
+            8 => await RunStep8Async(userId, head.Value, site.Value, ct),
+            9 => await RunStep9Async(userId, head.Value, site.Value, ct),
+            10 => await RunStep10Async(userId, head.Value, site.Value, ct),
+            _ => Result<SiteAnalyzerStepResponse>.Failure("Invalid step"),
+        };
+    }
+
+    private async Task<Result<SiteAnalyzerStepResponse>> RunStep1Async(
+        Guid userId, GeekSeo.Persistence.Entities.SeoSiteResearch site, string siteUrl, CancellationToken ct)
+    {
+        var log = new List<string>();
+        await MarkRunningAsync(site.Id, null, 1, ct);
+
+        var data = await sitemap.ExtractAsync(siteUrl, ct);
+        var urls = data.SampleUrls.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (urls.Count == 0 && data.TotalUrlsScanned > 0)
+            urls.Add(siteUrl);
+        log.Add($"Discovered {data.TotalUrlsScanned} URL(s) from sitemap ({urls.Count} stored for crawl).");
+
+        var gate = SiteAnalyzerGates.Step1(data.TotalUrlsScanned);
+        await siteResearch.PersistStep1Async(site.Id, new SiteResearchStep1Write { DiscoveredUrls = urls }, ct);
+        return await FinishStepAsync(site.Id, null, 1, gate, log, new Dictionary<string, int> { ["urls"] = urls.Count }, ct);
+    }
+
+    private async Task<Result<SiteAnalyzerStepResponse>> RunStep2Async(
+        Guid userId, GeekSeo.Persistence.Entities.SeoSiteResearch site, string siteUrl, CancellationToken ct)
+    {
+        var log = new List<string>();
+        await MarkRunningAsync(site.Id, null, 2, ct);
+
+        var full = await siteResearch.GetWithPagesAsync(site.Id, ct);
+        var discovered = ParseUrlList(full.Value?.DiscoveredUrlsJson);
+        IBrowser? browser = playwrightHolder?.Browser;
+        var crawl = await pageCrawler.CrawlAsync(siteUrl, discovered, browser, ct, SiteAnalyzerGates.MaxCrawlPages);
+        log.Add($"Crawl finished: {crawl.PagesFetched}/{crawl.PagesAttempted} page(s).");
+
+        var pages = crawl.Pages.Select(p => new SiteResearchPageWrite
+        {
+            Url = p.Url,
+            Html = p.Html,
+        }).ToList();
+
+        await siteResearch.ReplacePagesAsync(site.Id, pages, ct);
+        var gate = SiteAnalyzerGates.Step2(crawl.PagesFetched);
+        return await FinishStepAsync(site.Id, null, 2, gate, log, new Dictionary<string, int> { ["pages"] = crawl.PagesFetched }, ct);
+    }
+
+    private async Task<Result<SiteAnalyzerStepResponse>> RunStep3Async(
+        Guid userId, GeekSeo.Persistence.Entities.SeoSiteResearch site, CancellationToken ct)
+    {
+        var log = new List<string>();
+        await MarkRunningAsync(site.Id, null, 3, ct);
+
+        var full = await siteResearch.GetWithPagesAsync(site.Id, ct);
+        var crawled = full.Value?.Pages ?? [];
+        var writes = new List<SiteResearchPageWrite>();
+        var failed = 0;
+
+        foreach (var page in crawled)
+        {
+            try
+            {
+                var headings = PageHtmlSignalExtractor.ExtractHeadings(page.Html);
+                var jsonLd = PageHtmlSignalExtractor.ExtractJsonLdBlocks(page.Html);
+                if (headings.Count == 0 && jsonLd.Count == 0)
+                    throw new InvalidOperationException("No headings or JSON-LD found");
+
+                writes.Add(new SiteResearchPageWrite
+                {
+                    Url = page.Url,
+                    Html = page.Html,
+                    HeadingsJson = PageHtmlSignalExtractor.SerializeHeadings(headings),
+                    JsonLdJson = PageHtmlSignalExtractor.SerializeJsonLd(jsonLd),
+                    ExtractSuccess = true,
+                });
+                log.Add($"OK {page.Url}: {headings.Count} heading(s), {jsonLd.Count} JSON-LD block(s).");
+            }
+            catch (Exception ex)
+            {
+                failed++;
+                writes.Add(new SiteResearchPageWrite
+                {
+                    Url = page.Url,
+                    Html = page.Html,
+                    HeadingsJson = "[]",
+                    JsonLdJson = "[]",
+                    ExtractSuccess = false,
+                    ExtractError = ex.Message,
+                });
+                log.Add($"FAIL {page.Url}: {ex.Message}");
+            }
+        }
+
+        await siteResearch.ReplacePagesAsync(site.Id, writes, ct);
+        var gate = SiteAnalyzerGates.Step3(crawled.Count, writes.Count(w => w.ExtractSuccess), failed);
+        return await FinishStepAsync(
+            site.Id,
+            null,
+            3,
+            gate,
+            log,
+            new Dictionary<string, int> { ["crawled"] = crawled.Count, ["failed"] = failed },
+            ct);
+    }
+
+    private async Task<Result<SiteAnalyzerStepResponse>> RunStep4Async(
+        Guid userId, GeekSeo.Persistence.Entities.SeoSiteResearch site, string siteUrl, CancellationToken ct)
+    {
+        var log = new List<string>();
+        await MarkRunningAsync(site.Id, null, 4, ct);
+
+        var full = await siteResearch.GetWithPagesAsync(site.Id, ct);
+        var pages = full.Value?.Pages.Where(p => p.ExtractSuccess).ToList() ?? [];
+        var origin = new Uri(siteUrl).GetLeftPart(UriPartial.Authority);
+
+        var links = new List<object>();
+        foreach (var page in pages)
+        {
+            foreach (var target in SitePageCrawler.ExtractSameOriginLinks(page.Html, page.Url, origin))
+            {
+                links.Add(new { from = page.Url, to = target });
+            }
+        }
+
+        var summaryParts = pages
+            .SelectMany(p => PageHtmlSignalExtractor.ExtractHeadings(p.Html).Where(h => h.Level <= 2).Select(h => h.Text))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(12);
+        var summary = string.Join("; ", summaryParts);
+        if (string.IsNullOrWhiteSpace(summary))
+            summary = $"Site index for {siteUrl} ({pages.Count} page(s)).";
+
+        var linkJson = JsonSerializer.Serialize(links, Json);
+        await siteResearch.PersistStep4Async(site.Id, new SiteResearchStep4Write
+        {
+            BusinessSummary = summary,
+            InternalLinkMapJson = linkJson,
+        }, ct);
+
+        log.Add($"Summary length {summary.Length}; {links.Count} internal link(s).");
+        var gate = SiteAnalyzerGates.Step4(!string.IsNullOrWhiteSpace(summary), links.Count > 0);
+        return await FinishStepAsync(site.Id, null, 4, gate, log, new Dictionary<string, int> { ["links"] = links.Count }, ct);
+    }
+
+    private async Task<Result<SiteAnalyzerStepResponse>> RunStep5Async(
+        Guid userId,
+        GeekSeo.Persistence.Entities.SeoUrlResearch pack,
+        GeekSeo.Persistence.Entities.SeoSiteResearch site,
+        CancellationToken ct)
+    {
+        var log = new List<string>();
+        await MarkRunningAsync(site.Id, pack.Id, 5, ct);
+
+        var built = await packService.BuildAsync(userId, new UrlAnalyzerResearchRequest
+        {
+            Keyword = pack.DerivedKeyword,
+            Url = pack.SourceUrl,
+            Location = pack.SearchLocation,
+            BusinessContext = site.BusinessSummary,
+        }, ct);
+
+        if (!built.IsSuccess || built.Value is null)
+        {
+            var fail = SiteAnalyzerGateResult.Fail(built.Error ?? "SERP fetch failed");
+            return await FinishStepAsync(site.Id, pack.Id, 5, fail, [built.Error ?? "SERP fetch failed"], null, ct);
+        }
+
+        var p = built.Value;
+        var pafOk = !string.IsNullOrWhiteSpace(p.Paf.Type)
+                    && (string.Equals(p.Paf.Type, "none", StringComparison.OrdinalIgnoreCase)
+                        || !string.IsNullOrWhiteSpace(p.Paf.Text));
+        var gate = SiteAnalyzerGates.Step5(p.Organic.Count, p.Paa.Count, p.Pasf.Count, pafOk);
+
+        var write = UrlResearchPackMapper.ToFullWrite(p, "running");
+        write = write with { DataQuality = "partial", Status = "running" };
+        await urlResearch.PersistFullAsync(pack.Id, write, ct);
+
+        log.Add($"Organic={p.Organic.Count}, PAA={p.Paa.Count}, PASF={p.Pasf.Count}, PAF={p.Paf.Type}.");
+        return await FinishStepAsync(
+            site.Id,
+            pack.Id,
+            5,
+            gate,
+            log,
+            new Dictionary<string, int> { ["organic"] = p.Organic.Count, ["paa"] = p.Paa.Count, ["pasf"] = p.Pasf.Count },
+            ct);
+    }
+
+    private async Task<Result<SiteAnalyzerStepResponse>> RunStep6Async(
+        Guid userId, GeekSeo.Persistence.Entities.SeoUrlResearch pack, CancellationToken ct)
+    {
+        var log = new List<string> { "Competitor data persisted with keyword pack build." };
+        await MarkRunningAsync(pack.SiteResearchId, pack.Id, 6, ct);
+
+        var full = await urlResearch.GetFullAsync(pack.Id, ct);
+        var competitors = full.Value?.Competitors?.Count(c =>
+            !string.IsNullOrWhiteSpace(c.H1) || (c.Headings?.Count ?? 0) > 0) ?? 0;
+        var gate = SiteAnalyzerGates.Step6(competitors);
+        return await FinishStepAsync(pack.SiteResearchId, pack.Id, 6, gate, log, new Dictionary<string, int> { ["competitors"] = competitors }, ct);
+    }
+
+    private async Task<Result<SiteAnalyzerStepResponse>> RunStep7Async(
+        Guid userId,
+        GeekSeo.Persistence.Entities.SeoUrlResearch pack,
+        GeekSeo.Persistence.Entities.SeoSiteResearch site,
+        CancellationToken ct)
+    {
+        await MarkRunningAsync(site.Id, pack.Id, 7, ct);
+        var built = await packService.BuildAsync(userId, new UrlAnalyzerResearchRequest
+        {
+            Keyword = pack.DerivedKeyword,
+            Url = pack.SourceUrl,
+            Location = pack.SearchLocation,
+            BusinessContext = site.BusinessSummary,
+        }, ct);
+        if (!built.IsSuccess || built.Value is null)
+            return await FinishStepAsync(site.Id, pack.Id, 7, SiteAnalyzerGateResult.Fail(built.Error ?? "Pack build failed"), [built.Error ?? ""], null, ct);
+
+        var write = UrlResearchPackMapper.ToFullWrite(built.Value, "running") with { Status = "running", DataQuality = "partial" };
+        await urlResearch.PersistFullAsync(pack.Id, write, ct);
+
+        var terms = built.Value.RecommendedTerms.Count;
+        var gate = SiteAnalyzerGates.Step7(terms);
+        return await FinishStepAsync(site.Id, pack.Id, 7, gate, [$"Terms={terms}"], new Dictionary<string, int> { ["terms"] = terms }, ct);
+    }
+
+    private async Task<Result<SiteAnalyzerStepResponse>> RunStep8Async(
+        Guid userId,
+        GeekSeo.Persistence.Entities.SeoUrlResearch pack,
+        GeekSeo.Persistence.Entities.SeoSiteResearch site,
+        CancellationToken ct)
+    {
+        await MarkRunningAsync(site.Id, pack.Id, 8, ct);
+        var built = await packService.BuildAsync(userId, new UrlAnalyzerResearchRequest
+        {
+            Keyword = pack.DerivedKeyword,
+            Url = pack.SourceUrl,
+            Location = pack.SearchLocation,
+            BusinessContext = site.BusinessSummary,
+        }, ct);
+        if (!built.IsSuccess || built.Value is null)
+            return await FinishStepAsync(site.Id, pack.Id, 8, SiteAnalyzerGateResult.Fail(built.Error ?? "Pack build failed"), [built.Error ?? ""], null, ct);
+
+        var write = UrlResearchPackMapper.ToFullWrite(built.Value, "running") with { Status = "running", DataQuality = "partial" };
+        await urlResearch.PersistFullAsync(pack.Id, write, ct);
+
+        var hints = built.Value.MethodologyHints.Count;
+        var faqs = built.Value.ClosingFaqQuestions.Count;
+        var gate = SiteAnalyzerGates.Step8(hints, faqs);
+        return await FinishStepAsync(
+            site.Id,
+            pack.Id,
+            8,
+            gate,
+            [$"Section hints={hints}, FAQs={faqs}"],
+            new Dictionary<string, int> { ["sectionHints"] = hints, ["faqs"] = faqs },
+            ct);
+    }
+
+    private async Task<Result<SiteAnalyzerStepResponse>> RunStep9Async(
+        Guid userId,
+        GeekSeo.Persistence.Entities.SeoUrlResearch pack,
+        GeekSeo.Persistence.Entities.SeoSiteResearch site,
+        CancellationToken ct)
+    {
+        await MarkRunningAsync(site.Id, pack.Id, 9, ct);
+        var full = await urlResearch.GetFullAsync(pack.Id, ct);
+        if (!full.IsSuccess || full.Value is null)
+            return Result<SiteAnalyzerStepResponse>.Failure(full.Error ?? "Pack not found");
+
+        var mergedContext = string.IsNullOrWhiteSpace(site.BusinessSummary)
+            ? full.Value.BusinessContext
+            : $"{site.BusinessSummary} {full.Value.BusinessContext}".Trim();
+
+        var write = UrlResearchPackMapper.ToFullWrite(
+            await RebuildPackFromEntityAsync(userId, full.Value, mergedContext, ct),
+            "running") with
+        {
+            Status = "running",
+            DataQuality = "partial",
+            BusinessContext = mergedContext,
+        };
+        await urlResearch.PersistFullAsync(pack.Id, write, ct);
+
+        var gate = SiteAnalyzerGates.Step9(!string.IsNullOrWhiteSpace(mergedContext));
+        return await FinishStepAsync(site.Id, pack.Id, 9, gate, [$"Merged context length={mergedContext.Length}"], null, ct);
+    }
+
+    private async Task<Result<SiteAnalyzerStepResponse>> RunStep10Async(
+        Guid userId,
+        GeekSeo.Persistence.Entities.SeoUrlResearch pack,
+        GeekSeo.Persistence.Entities.SeoSiteResearch site,
+        CancellationToken ct)
+    {
+        await MarkRunningAsync(site.Id, pack.Id, 10, ct);
+        var full = await urlResearch.GetFullAsync(pack.Id, ct);
+        if (!full.IsSuccess || full.Value is null)
+            return Result<SiteAnalyzerStepResponse>.Failure(full.Error ?? "Pack not found");
+
+        var packSteps = await siteResearch.GetStepRunsForPackAsync(pack.Id, ct);
+        var firstRed = (packSteps.Value ?? [])
+            .Where(r => r.StepNumber is >= 5 and <= 9)
+            .FirstOrDefault(r => !string.Equals(r.Status, "green", StringComparison.OrdinalIgnoreCase));
+
+        if (firstRed is not null)
+        {
+            var gate = SiteAnalyzerGates.Step10(firstRed.StepNumber, firstRed.Message);
+            return await FinishStepAsync(site.Id, pack.Id, 10, gate, [gate.Message], null, ct);
+        }
+
+        var validation = SiteAnalyzerPackValidator.ValidateCompletePack(full.Value);
+        if (!validation.Passed)
+            return await FinishStepAsync(site.Id, pack.Id, 10, validation, [validation.Message], null, ct);
+
+        var write = UrlResearchPackMapper.ToFullWrite(
+            await RebuildPackFromEntityAsync(userId, full.Value, full.Value.BusinessContext, ct),
+            "completed") with
+        {
+            DataQuality = "full",
+            ResearchedAt = DateTimeOffset.UtcNow,
+        };
+        await urlResearch.PersistFullAsync(pack.Id, write, ct);
+        await urlResearch.UpdateStatusAsync(pack.Id, new UrlResearchStatusPatch
+        {
+            Status = "completed",
+            ResearchedAt = DateTimeOffset.UtcNow,
+        }, ct);
+
+        return await FinishStepAsync(site.Id, pack.Id, 10, SiteAnalyzerGateResult.Pass(), ["Pack finalized — handoff enabled."], null, ct);
+    }
+
+    private async Task<SerpResearchPack> RebuildPackFromEntityAsync(
+        Guid userId,
+        GeekSeo.Persistence.Entities.SeoUrlResearch entity,
+        string businessContext,
+        CancellationToken ct)
+    {
+        var built = await packService.BuildAsync(userId, new UrlAnalyzerResearchRequest
+        {
+            Keyword = entity.DerivedKeyword,
+            Url = entity.SourceUrl,
+            Location = entity.SearchLocation,
+            BusinessContext = businessContext,
+        }, ct);
+        return built.Value ?? throw new InvalidOperationException("Pack rebuild failed");
+    }
+
+    private async Task MarkRunningAsync(Guid? siteId, Guid? packId, int step, CancellationToken ct) =>
+        await siteResearch.UpsertStepRunAsync(new SiteAnalyzerStepRunUpsert
+        {
+            SiteResearchId = siteId,
+            UrlResearchId = packId,
+            StepNumber = step,
+            Status = "running",
+            Message = "Running…",
+        }, ct);
+
+    private async Task<Result<SiteAnalyzerStepResponse>> FinishStepAsync(
+        Guid? siteId,
+        Guid? packId,
+        int step,
+        SiteAnalyzerGateResult gate,
+        IReadOnlyList<string> log,
+        IReadOnlyDictionary<string, int>? counts,
+        CancellationToken ct)
+    {
+        var status = gate.Passed ? "green" : "red";
+        var logText = string.Join('\n', log);
+        var countsJson = counts is null ? null : JsonSerializer.Serialize(counts, Json);
+
+        await siteResearch.UpsertStepRunAsync(new SiteAnalyzerStepRunUpsert
+        {
+            SiteResearchId = siteId,
+            UrlResearchId = packId,
+            StepNumber = step,
+            Status = status,
+            Message = gate.Passed ? $"Step {step} complete." : gate.Message,
+            Log = logText,
+            CountsJson = countsJson,
+        }, ct);
+
+        if (!gate.Passed)
+            logger.LogWarning("Site Analyzer step {Step} red: {Message}", step, gate.Message);
+
+        return Result<SiteAnalyzerStepResponse>.Success(new SiteAnalyzerStepResponse
+        {
+            StepNumber = step,
+            Status = status,
+            Message = gate.Passed ? $"Step {step} complete." : gate.Message,
+            Log = logText,
+            Counts = counts,
+        });
+    }
+
+    private static bool ValidatePriorStepsGreen(int step, IReadOnlyList<SiteAnalyzerStepRunRow> runs, int minStep = 1)
+    {
+        for (var s = minStep; s < step; s++)
+        {
+            var row = runs.FirstOrDefault(r => r.StepNumber == s);
+            if (row is null || !string.Equals(row.Status, "green", StringComparison.OrdinalIgnoreCase))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static IReadOnlyList<SiteAnalyzerStepResponse> BuildStepResponses(
+        int fromStep, int toStep, IReadOnlyList<SiteAnalyzerStepRunRow> runs)
+    {
+        var list = new List<SiteAnalyzerStepResponse>();
+        for (var s = fromStep; s <= toStep; s++)
+        {
+            var row = runs.FirstOrDefault(r => r.StepNumber == s);
+            list.Add(new SiteAnalyzerStepResponse
+            {
+                StepNumber = s,
+                Status = row?.Status ?? "pending",
+                Message = row?.Message ?? string.Empty,
+                Log = row?.Log ?? string.Empty,
+            });
+        }
+
+        return list;
+    }
+
+    private static IReadOnlyList<string> ParseUrlList(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return [];
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(json, Json) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+}

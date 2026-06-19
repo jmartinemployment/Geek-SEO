@@ -15,24 +15,12 @@ public sealed class ContentDraftJobService(
     public async Task<Result<BackgroundJobStatus>> EnqueueKeywordDraftAsync(
         Guid userId, Guid documentId, KeywordContentDraftRequest request, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(request.Keyword))
-            return Result<BackgroundJobStatus>.Failure("Keyword is required");
-
-        var access = await documents.EnsureAccessAsync(userId, documentId, ct);
-        if (!access.IsSuccess || access.Value is null)
-            return Result<BackgroundJobStatus>.Failure(access.Error ?? "Access denied");
-
-        var title = string.IsNullOrWhiteSpace(request.Title) ? request.Keyword.Trim() : request.Title.Trim();
-        var payload = JsonSerializer.Serialize(new ContentDraftJobPayload
-        {
-            DocumentId = documentId,
-            Mode = "keyword",
-            Keyword = request.Keyword.Trim(),
-            Location = string.IsNullOrWhiteSpace(request.Location) ? "United States" : request.Location.Trim(),
-            Title = title,
-        }, JsonOptions);
-
-        return await CreateJobAsync(userId, access.Value.ProjectId, payload, ct);
+        _ = userId;
+        _ = documentId;
+        _ = request;
+        _ = ct;
+        return Result<BackgroundJobStatus>.Failure(
+            $"{ContentWritingBlockMessage.Default} Complete Site Analyzer and attach a research pack.");
     }
 
     public async Task<Result<BackgroundJobStatus>> EnqueueResearchDraftAsync(
@@ -43,7 +31,7 @@ public sealed class ContentDraftJobService(
             return Result<BackgroundJobStatus>.Failure(access.Error ?? "Access denied");
 
         if (!ResearchBackedWriteGate.IsResearchBacked(access.Value))
-            return Result<BackgroundJobStatus>.Failure("Attach page research from URL Analyzer first.");
+            return Result<BackgroundJobStatus>.Failure(ContentWritingBlockMessage.Default);
 
         var payload = JsonSerializer.Serialize(new ContentDraftJobPayload
         {

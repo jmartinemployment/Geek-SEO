@@ -5,6 +5,9 @@ public sealed record CreateUrlResearchQueuedRequest
     public required Guid ProjectId { get; init; }
     public required string SourceUrl { get; init; }
     public Guid? SupersedesResearchId { get; init; }
+    public Guid? SiteResearchId { get; init; }
+    public string? DerivedKeyword { get; init; }
+    public string? SearchLocation { get; init; }
 }
 
 public sealed record UrlResearchStatusPatch

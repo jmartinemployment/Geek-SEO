@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function LegacyNicheAnalyzerRedirect() {
-  redirect('/url-analyzer');
+export default function NicheAnalyzerRedirectPage() {
+  redirect('/site-analyzer');
 }

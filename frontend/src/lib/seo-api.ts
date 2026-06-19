@@ -1753,6 +1753,9 @@ export type UrlResearchFull = UrlResearchSummary & {
   dataQualityNotes?: string | null;
   intentPrimary: string;
   intentJustification: string;
+  directAnswerInstruction?: string;
+  pafText?: string;
+  pafType?: string;
   medianWordCountTop5: number;
   medianTitleLengthTop10: number;
   medianH2CountTop5: number;
@@ -1824,6 +1827,151 @@ export async function listUrlResearch(
     },
   );
   return seoJson<UrlResearchSummary[]>(res);
+}
+
+// ─── Site Analyzer (manual step wizard) ─────────────────────────────────────
+
+export type SiteAnalyzerStepStatus = 'pending' | 'running' | 'green' | 'red';
+
+export type SiteAnalyzerStepState = {
+  stepNumber: number;
+  title: string;
+  status: SiteAnalyzerStepStatus;
+  message: string;
+  log?: string | null;
+  counts?: Record<string, unknown> | null;
+  updatedAt?: string | null;
+};
+
+export type SiteAnalyzerPackSummary = {
+  urlResearchId: string;
+  keyword: string;
+  location: string;
+  dataQuality?: string | null;
+  status: string;
+  steps: SiteAnalyzerStepState[];
+  firstRedStep?: number | null;
+  handoffReady: boolean;
+  researchedAt?: string | null;
+  createdAt: string;
+};
+
+export type SiteAnalyzerProjectState = {
+  projectId: string;
+  siteUrl: string;
+  siteResearchId?: string | null;
+  siteIndexSteps: SiteAnalyzerStepState[];
+  siteIndexComplete: boolean;
+  firstRedSiteIndexStep?: number | null;
+  packs: SiteAnalyzerPackSummary[];
+};
+
+export type SiteAnalyzerStepRunResponse = {
+  stepNumber: number;
+  status: SiteAnalyzerStepStatus;
+  message: string;
+  log?: string | null;
+  counts?: Record<string, unknown> | null;
+};
+
+export type SiteAnalyzerCreatePackResponse = {
+  urlResearchId: string;
+  keyword: string;
+  location: string;
+};
+
+export async function getSiteAnalyzerProjectState(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<SiteAnalyzerProjectState> {
+  const res = await fetch(
+    `${API_URL}/api/seo/site-analyzer/projects/${encodeURIComponent(projectId)}/state`,
+    {
+      headers: apiHeaders(accessToken),
+      cache: 'no-store',
+    },
+  );
+  return seoJson<SiteAnalyzerProjectState>(res);
+}
+
+export async function runSiteIndexStep(
+  projectId: string,
+  step: number,
+  accessToken?: string | null,
+): Promise<SiteAnalyzerStepRunResponse> {
+  const res = await fetch(
+    `${API_URL}/api/seo/site-analyzer/projects/${encodeURIComponent(projectId)}/site-index/steps/${step}/run`,
+    {
+      method: 'POST',
+      headers: apiHeaders(accessToken),
+      cache: 'no-store',
+    },
+  );
+  return seoJson<SiteAnalyzerStepRunResponse>(res);
+}
+
+export async function createSiteAnalyzerPack(
+  projectId: string,
+  body: { keyword: string; location?: string },
+  accessToken?: string | null,
+): Promise<SiteAnalyzerCreatePackResponse> {
+  const res = await fetch(
+    `${API_URL}/api/seo/site-analyzer/projects/${encodeURIComponent(projectId)}/packs`,
+    {
+      method: 'POST',
+      headers: apiHeaders(accessToken),
+      body: JSON.stringify(body),
+      cache: 'no-store',
+    },
+  );
+  return seoJson<SiteAnalyzerCreatePackResponse>(res);
+}
+
+export async function runSiteAnalyzerPackStep(
+  urlResearchId: string,
+  step: number,
+  accessToken?: string | null,
+): Promise<SiteAnalyzerStepRunResponse> {
+  const res = await fetch(
+    `${API_URL}/api/seo/site-analyzer/packs/${encodeURIComponent(urlResearchId)}/steps/${step}/run`,
+    {
+      method: 'POST',
+      headers: apiHeaders(accessToken),
+      cache: 'no-store',
+    },
+  );
+  return seoJson<SiteAnalyzerStepRunResponse>(res);
+}
+
+/** First failing step message for Content Writing gate UI. */
+export function siteAnalyzerBlockReason(state: SiteAnalyzerProjectState | null): string | null {
+  if (!state) return 'Site Analyzer state could not be loaded.';
+
+  if (!state.siteIndexComplete) {
+    const red = state.siteIndexSteps.find((s) => s.status === 'red');
+    if (red?.message) return red.message;
+    const pending = state.siteIndexSteps.find((s) => s.status !== 'green');
+    if (pending) {
+      return `Complete Site Analyzer step ${pending.stepNumber} (${pending.title}) first.`;
+    }
+    return 'Complete the site index (steps 1–4) in Site Analyzer first.';
+  }
+
+  const completePack = state.packs.find((p) => p.handoffReady || p.dataQuality === 'full');
+  if (completePack) return null;
+
+  const packWithRed = state.packs.find((p) => p.firstRedStep);
+  if (packWithRed?.firstRedStep) {
+    const step = packWithRed.steps.find((s) => s.stepNumber === packWithRed.firstRedStep);
+    if (step?.message) return step.message;
+    return `Keyword pack incomplete — step ${packWithRed.firstRedStep} is still red.`;
+  }
+
+  if (state.packs.length === 0) {
+    return 'Create a keyword research pack in Site Analyzer (steps 5–10).';
+  }
+
+  return 'No keyword pack has passed all gates yet. Finish steps 5–10 in Site Analyzer.';
 }
 
 // ─── Niche Analyzer (legacy API — UI removed) ────────────────────────────────

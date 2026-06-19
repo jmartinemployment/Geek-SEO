@@ -1,10 +1,8 @@
-using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Services.Seo;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Extensions;
-using GeekSeoBackend.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GeekSeoBackend.Controllers.Seo;
@@ -13,61 +11,16 @@ namespace GeekSeoBackend.Controllers.Seo;
 [Route("api/seo/url-research")]
 public sealed class UrlResearchController(
     IUrlResearchService research,
-    IProjectRepository projects,
-    UrlResearchJobChannel channel,
     ICurrentUserContext user) : ControllerBase
 {
     [HttpPost("analyze")]
-    public async Task<IActionResult> Analyze(
-        [FromBody] UrlResearchAnalyzeRequest request,
-        CancellationToken ct)
+    [Obsolete("Retired — use Site Analyzer (/api/seo/site-analyzer).")]
+    public IActionResult Analyze([FromBody] UrlResearchAnalyzeRequest request)
     {
-        if (request.ProjectId == Guid.Empty)
-            return BadRequest(new { error = "projectId is required" });
-        if (string.IsNullOrWhiteSpace(request.PageUrl))
-            return BadRequest(new { error = "pageUrl is required" });
-
-        var userId = user.RequireUserId();
-        var project = await projects.GetByIdAsync(request.ProjectId, userId, ct);
-        if (!project.IsSuccess || project.Value is null)
-            return project.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true
-                ? NotFound(new { error = "Project not found" })
-                : StatusCode(StatusCodes.Status403Forbidden, new { error = "Access denied" });
-
-        var pageUrl = UrlPageKeywordResolver.NormalizeUrl(request.PageUrl);
-        if (!Uri.TryCreate(pageUrl, UriKind.Absolute, out _))
-            return BadRequest(new { error = "pageUrl must be a valid absolute URL" });
-
-        if (!RegistrableDomainMatcher.SameRegistrableDomain(pageUrl, project.Value.Url))
+        _ = request;
+        return StatusCode(StatusCodes.Status410Gone, new
         {
-            return BadRequest(new
-            {
-                error = "pageUrl must be on the same domain as the project (subdomains allowed).",
-            });
-        }
-
-        var queued = await research.CreateQueuedAsync(
-            userId,
-            new CreateUrlResearchQueuedRequest
-            {
-                ProjectId = request.ProjectId,
-                SourceUrl = pageUrl,
-            },
-            ct);
-
-        if (!queued.IsSuccess || queued.Value is null)
-        {
-            var status = queued.Error?.Contains("Access denied", StringComparison.OrdinalIgnoreCase) == true
-                ? StatusCodes.Status403Forbidden
-                : StatusCodes.Status400BadRequest;
-            return StatusCode(status, new { error = queued.Error ?? "Could not enqueue page research" });
-        }
-
-        channel.Notify();
-        return Accepted(new
-        {
-            urlResearchId = queued.Value.Id,
-            status = "queued",
+            error = $"{ContentWritingBlockMessage.Default} Use Site Analyzer to build a complete research pack.",
         });
     }
 

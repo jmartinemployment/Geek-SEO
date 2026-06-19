@@ -1,32 +1,22 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
-import { UrlAnalyzerWorkspace } from '@/components/url-analyzer/url-analyzer-workspace';
-import { useAuthReady } from '@/hooks/use-auth-ready';
+type SearchParams = Record<string, string | string[] | undefined>;
 
-function UrlAnalyzerPageInner() {
-  const { accessToken, authLoading } = useAuthReady();
-  const searchParams = useSearchParams();
-  const initialProjectId = searchParams.get('projectId') ?? '';
-
-  const initialUrlResearchId = searchParams.get('urlResearchId') ?? '';
-
-  if (authLoading) return <div className="p-8">Loading…</div>;
-
-  return (
-    <UrlAnalyzerWorkspace
-      accessToken={accessToken}
-      initialProjectId={initialProjectId}
-      initialUrlResearchId={initialUrlResearchId}
-    />
-  );
+function buildQueryString(searchParams: SearchParams): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (typeof value === 'string') query.set(key, value);
+    else if (Array.isArray(value)) value.forEach((v) => query.set(key, v));
+  }
+  const qs = query.toString();
+  return qs ? `?${qs}` : '';
 }
 
-export default function UrlAnalyzerPage() {
-  return (
-    <Suspense fallback={<div className="p-8">Loading…</div>}>
-      <UrlAnalyzerPageInner />
-    </Suspense>
-  );
+type Props = {
+  searchParams: Promise<SearchParams>;
+};
+
+export default async function UrlAnalyzerRedirectPage({ searchParams }: Props) {
+  const params = await searchParams;
+  redirect(`/site-analyzer${buildQueryString(params)}`);
 }

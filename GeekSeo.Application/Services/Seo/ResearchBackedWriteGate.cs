@@ -11,10 +11,10 @@ public static class ResearchBackedWriteGate
     public static Result EnsureResearchReady(SeoContentDocument document, SeoUrlResearch? research)
     {
         if (!IsResearchBacked(document))
-            return Result.Failure("Attach page research from URL Analyzer first.");
+            return Result.Failure(ContentWritingBlockMessage.Default);
 
         if (research is null || research.Id != document.UrlResearchId)
-            return Result.Failure("Page research not found.");
+            return Result.Failure("Site Analyzer research pack not found.");
 
         return ValidateResearchForProject(document.ProjectId, research);
     }
@@ -23,10 +23,14 @@ public static class ResearchBackedWriteGate
     public static Result ValidateResearchForProject(Guid projectId, SeoUrlResearch research)
     {
         if (research.ProjectId != projectId)
-            return Result.Failure("Page research belongs to a different project.");
+            return Result.Failure("Site Analyzer pack belongs to a different project.");
 
         if (!string.Equals(research.Status, "completed", StringComparison.OrdinalIgnoreCase))
-            return Result.Failure("Page research is not complete yet. Wait for analyze to finish.");
+            return Result.Failure("Site Analyzer pack is not complete yet. Finish all 10 steps in Site Analyzer.");
+
+        var packGate = SiteAnalyzerPackValidator.ValidateCompletePack(research);
+        if (!packGate.Passed)
+            return Result.Failure($"{ContentWritingBlockMessage.Default} {packGate.Message}");
 
         return Result.Success();
     }

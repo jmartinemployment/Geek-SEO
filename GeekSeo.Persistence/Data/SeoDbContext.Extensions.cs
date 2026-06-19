@@ -422,6 +422,41 @@ public partial class SeoDbContext
             e.HasIndex(x => x.UrlResearchId);
         });
 
+        modelBuilder.Entity<SeoSiteResearch>(e =>
+        {
+            e.ToTable("seo_site_research");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(x => x.DiscoveredUrlsJson).HasColumnType("jsonb");
+            e.Property(x => x.InternalLinkMapJson).HasColumnType("jsonb");
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => x.UserId);
+        });
+
+        modelBuilder.Entity<SeoSiteResearchPage>(e =>
+        {
+            e.ToTable("seo_site_research_page");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.SiteResearch).WithMany(r => r.Pages).HasForeignKey(x => x.SiteResearchId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(x => x.HeadingsJson).HasColumnType("jsonb");
+            e.Property(x => x.JsonLdJson).HasColumnType("jsonb");
+            e.HasIndex(x => x.SiteResearchId);
+            e.HasIndex(x => new { x.SiteResearchId, x.Url }).IsUnique();
+        });
+
+        modelBuilder.Entity<SeoSiteAnalyzerStepRun>(e =>
+        {
+            e.ToTable("seo_site_analyzer_step_run");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.SiteResearch).WithMany(r => r.StepRuns).HasForeignKey(x => x.SiteResearchId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.UrlResearch).WithMany().HasForeignKey(x => x.UrlResearchId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.SiteResearchId, x.StepNumber });
+            e.HasIndex(x => new { x.UrlResearchId, x.StepNumber });
+        });
+
         modelBuilder.Entity<NicheCompetitor>(e =>
         {
             e.ToTable("niche_competitors");

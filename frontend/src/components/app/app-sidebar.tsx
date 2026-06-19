@@ -26,7 +26,7 @@ type SidebarItem = {
 const primaryItems: SidebarItem[] = [
   { href: '/app/dashboard', label: 'Home', icon: LayoutDashboard },
   { href: '/app/strategy/topical-map', label: 'Topical Map', icon: Map },
-  { href: '/url-analyzer', label: 'URL Analyzer', icon: Compass },
+  { href: '/site-analyzer', label: 'Site Analyzer', icon: Compass },
   { href: '/content-writing', label: 'Content Writing', icon: Globe },
   { href: '/app/keywords', label: 'Keyword Research', icon: Search },
   { href: '/app/cannibalization', label: 'Cannibalization', icon: TrendingUp },

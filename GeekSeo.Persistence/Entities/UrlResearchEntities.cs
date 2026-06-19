@@ -33,7 +33,7 @@ public sealed class SeoUrlResearch
     public string DominantContentFormat { get; set; } = string.Empty;
     public DateTimeOffset? ResearchedAt { get; set; }
     public Guid? SupersedesResearchId { get; set; }
-    /// <summary>Always null in v1.</summary>
+    /// <summary>FK to completed site index (<c>seo_site_research</c>).</summary>
     public Guid? SiteResearchId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }

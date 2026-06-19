@@ -61,12 +61,12 @@ export function buildTopicalMapCopilotSuggestions(
   }));
 }
 
-function buildUrlAnalyzerCopilotSuggestion(project: SeoProject): CopilotSuggestion {
+function buildSiteAnalyzerCopilotSuggestion(project: SeoProject): CopilotSuggestion {
   return {
-    id: `url-analyzer-${project.id}`,
-    title: `Research SERP for ${project.name}`,
-    detail: 'Run keyword-level SERP research (PAA, PASF, competitor outlines) for your next article.',
-    href: '/url-analyzer',
+    id: `site-analyzer-${project.id}`,
+    title: `Build research for ${project.name}`,
+    detail: 'Crawl your site and complete a keyword pack before writing content.',
+    href: `/projects/${project.id}/site-analyzer`,
   };
 }
 
@@ -149,7 +149,7 @@ async function loadPrimaryCopilotInputs(
   try {
     const map = await getTopicalMap(project.id, accessToken).catch(() => null);
     const topicalSuggestions = buildTopicalMapCopilotSuggestions(project, map);
-    const nicheSuggestion = buildUrlAnalyzerCopilotSuggestion(project);
+    const nicheSuggestion = buildSiteAnalyzerCopilotSuggestion(project);
     return { nicheSuggestion, topicalSuggestions };
   } catch {
     return { nicheSuggestion: null, topicalSuggestions: [] };

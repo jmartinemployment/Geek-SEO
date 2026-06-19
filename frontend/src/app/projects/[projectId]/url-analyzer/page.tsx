@@ -1,32 +1,24 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { useParams, useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
-import { UrlAnalyzerWorkspace } from '@/components/url-analyzer/url-analyzer-workspace';
-import { useAuthReady } from '@/hooks/use-auth-ready';
+type SearchParams = Record<string, string | string[] | undefined>;
 
-function ProjectUrlAnalyzerPageInner() {
-  const { accessToken, authLoading } = useAuthReady();
-  const params = useParams();
-  const searchParams = useSearchParams();
-  const projectId = typeof params.projectId === 'string' ? params.projectId : '';
-  const initialUrlResearchId = searchParams.get('urlResearchId') ?? '';
-
-  if (authLoading) return <div className="p-8">Loading…</div>;
-
-  return (
-    <UrlAnalyzerWorkspace
-      accessToken={accessToken}
-      initialProjectId={projectId}
-      initialUrlResearchId={initialUrlResearchId}
-    />
-  );
+function buildQueryString(searchParams: SearchParams): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (typeof value === 'string') query.set(key, value);
+    else if (Array.isArray(value)) value.forEach((v) => query.set(key, v));
+  }
+  const qs = query.toString();
+  return qs ? `?${qs}` : '';
 }
 
-export default function ProjectUrlAnalyzerPage() {
-  return (
-    <Suspense fallback={<div className="p-8">Loading…</div>}>
-      <ProjectUrlAnalyzerPageInner />
-    </Suspense>
-  );
+type Props = {
+  params: Promise<{ projectId: string }>;
+  searchParams: Promise<SearchParams>;
+};
+
+export default async function ProjectUrlAnalyzerRedirectPage({ params, searchParams }: Props) {
+  const { projectId } = await params;
+  const sp = await searchParams;
+  redirect(`/projects/${encodeURIComponent(projectId)}/site-analyzer${buildQueryString(sp)}`);
 }
