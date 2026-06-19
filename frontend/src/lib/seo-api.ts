@@ -316,10 +316,23 @@ export async function enqueueBulkArticles(
   return res.json() as Promise<BackgroundJobStatus>;
 }
 
-export function describeDraftJobProgress(status: BackgroundJobStatus): string {
+export type DraftJobProgressMode = 'keyword' | 'research';
+
+export function describeDraftJobProgress(
+  status: BackgroundJobStatus,
+  mode: DraftJobProgressMode = 'keyword',
+): string {
   if (status.status === 'failed') return status.errorMessage || 'Draft failed';
   if (status.status === 'completed' || status.status === 'complete') return 'Draft complete';
   if (status.progressPercent >= 90) return 'Saving draft…';
+
+  if (mode === 'research') {
+    if (status.progressPercent >= 20) return 'Drafting article from Site Analyzer pack…';
+    if (status.progressPercent >= 5) return 'Loading research pack…';
+    if (status.status === 'pending' || status.status === 'queued') return 'Queued…';
+    return 'Preparing draft…';
+  }
+
   if (status.progressPercent >= 55) return 'Drafting article…';
   if (status.progressPercent >= 25) return 'Writing outline…';
   if (status.progressPercent >= 5) return 'Researching SERP and building brief…';

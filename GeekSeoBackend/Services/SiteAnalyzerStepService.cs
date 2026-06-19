@@ -410,6 +410,7 @@ public sealed class SiteAnalyzerStepService(
         CancellationToken ct)
     {
         var log = new List<string>();
+        await ResetDownstreamPackStepRunsAsync(site.Id, pack.Id, fromStep: 6, ct);
         await MarkRunningAsync(site.Id, pack.Id, 5, ct);
 
         var built = await packService.BuildAsync(userId, new UrlAnalyzerResearchRequest
@@ -444,7 +445,6 @@ public sealed class SiteAnalyzerStepService(
 
         var write = UrlResearchPackMapper.ToStep5SerpWrite(p, "running");
         await urlResearch.PersistFullAsync(pack.Id, write, ct);
-        await ResetDownstreamPackStepRunsAsync(site.Id, pack.Id, fromStep: 6, ct);
 
         return await FinishStepAsync(
             site.Id,
@@ -463,6 +463,7 @@ public sealed class SiteAnalyzerStepService(
         CancellationToken ct)
     {
         var log = new List<string> { "Crawling competitor pages from SERP organic results." };
+        await ResetDownstreamPackStepRunsAsync(site.Id, pack.Id, fromStep: 7, ct);
         await MarkRunningAsync(site.Id, pack.Id, 6, ct);
 
         var full = await urlResearch.GetFullAsync(pack.Id, ct);
@@ -525,6 +526,7 @@ public sealed class SiteAnalyzerStepService(
         GeekSeo.Persistence.Entities.SeoSiteResearch site,
         CancellationToken ct)
     {
+        await ResetDownstreamPackStepRunsAsync(site.Id, pack.Id, fromStep: 8, ct);
         await MarkRunningAsync(site.Id, pack.Id, 7, ct);
         var built = await packService.BuildAsync(userId, new UrlAnalyzerResearchRequest
         {
@@ -553,6 +555,7 @@ public sealed class SiteAnalyzerStepService(
         GeekSeo.Persistence.Entities.SeoSiteResearch site,
         CancellationToken ct)
     {
+        await ResetDownstreamPackStepRunsAsync(site.Id, pack.Id, fromStep: 9, ct);
         await MarkRunningAsync(site.Id, pack.Id, 8, ct);
         var built = await packService.BuildAsync(userId, new UrlAnalyzerResearchRequest
         {
@@ -598,6 +601,7 @@ public sealed class SiteAnalyzerStepService(
         GeekSeo.Persistence.Entities.SeoSiteResearch site,
         CancellationToken ct)
     {
+        await ResetDownstreamPackStepRunsAsync(site.Id, pack.Id, fromStep: 10, ct);
         await MarkRunningAsync(site.Id, pack.Id, 9, ct);
         var full = await urlResearch.GetFullAsync(pack.Id, ct);
         if (!full.IsSuccess || full.Value is null)

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import type { ScoreSuggestion, ScoreUpdate } from '@/hooks/useContentScoring';
+import { selectVisibleInsights } from '@/lib/insight-suggestions';
 
 const GEO_COMPONENT_META: Record<string, { label: string; max: number }> = {
   authority: { label: 'Authority signals', max: 20 },
@@ -357,10 +358,7 @@ function ScoreActionsColumn({
             <div>
               <h3 className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>Proposed changes</h3>
               <ul className={`mt-2 space-y-2 ${compact ? 'text-xs' : 'text-sm'}`}>
-                {[...scoreUpdate.suggestions]
-                  .sort((a, b) => b.pointValue - a.pointValue)
-                  .slice(0, 5)
-                  .map((s) => (
+                {selectVisibleInsights(scoreUpdate.suggestions).map((s) => (
                     <li
                       key={s.id}
                       className={`rounded-lg border border-[var(--color-border)] bg-white shadow-sm ${compact ? 'p-2' : 'p-3'}`}

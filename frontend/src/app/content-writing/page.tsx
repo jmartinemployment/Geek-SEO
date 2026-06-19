@@ -231,7 +231,7 @@ function ContentWritingPageInner() {
     hub,
     onProgress: (status: Parameters<typeof describeDraftJobProgress>[0], elapsedMs: number) => {
       setDraftProgress({
-        label: describeDraftJobProgress(status),
+        label: describeDraftJobProgress(status, 'research'),
         percent: status.progressPercent,
         elapsedMs,
       });

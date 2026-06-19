@@ -83,6 +83,28 @@ public sealed class ScoreSuggestionApplicatorTests
     }
 
     [Fact]
+    public void TryApplyDeterministic_meta_description_replaces_weak_existing_meta()
+    {
+        const string keyword = "local seo checklist";
+        var html =
+            $"<meta name=\"description\" content=\"Short blurb without the phrase.\"><h1>Guide</h1><p>{keyword} helps small businesses improve visibility with a practical step-by-step checklist for maps, reviews, and on-page basics that drive local leads.</p>";
+        var plain = $"{keyword} helps small businesses improve visibility with a practical step-by-step checklist for maps, reviews, and on-page basics that drive local leads.";
+
+        var patched = ScoreSuggestionApplicator.TryApplyDeterministic(
+            "meta_description",
+            html,
+            keyword,
+            55,
+            plain,
+            []);
+
+        Assert.NotNull(patched);
+        Assert.Contains("name=\"description\"", patched!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(keyword, patched!, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Short blurb without the phrase.", patched!, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TryApplyDeterministic_serp_featured_snippet_inserts_paragraph_after_first_h2()
     {
         var html = "<h1>Guide</h1><h2>Overview</h2><p>Short intro.</p>";

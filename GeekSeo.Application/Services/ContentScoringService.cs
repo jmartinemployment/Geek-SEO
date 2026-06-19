@@ -698,16 +698,22 @@ public sealed class ContentScoringService(
                 ApplyMode = "deterministic",
             });
         }
-        if (metaScore < 8 && !ContentAutoEnricher.HasMetaDescription(contentHtml))
+        if (metaScore < 8)
         {
             var proposedMeta = ScoreSuggestionApplicator.ProposeMetaDescription(plainText, keyword);
+            var hasMeta = ContentAutoEnricher.HasMetaDescription(contentHtml);
+            var currentMeta = ExtractMeta(contentHtml, "description");
             list.Add(new ScoreSuggestion
             {
                 Id = "meta_description",
                 Component = "metaDescription",
                 PointValue = 10 - metaScore,
-                ActionText = "Add a meta description between 120–160 characters that includes the keyword.",
-                ProposedChange = $"Insert meta description: “{proposedMeta}” ({proposedMeta.Length} characters).",
+                ActionText = hasMeta
+                    ? "Update the meta description to 120–160 characters and include the target keyword."
+                    : "Add a meta description between 120–160 characters that includes the keyword.",
+                ProposedChange = hasMeta && !string.IsNullOrWhiteSpace(currentMeta)
+                    ? $"Replace meta description “{SummarizeMetaForSuggestion(currentMeta)}” with “{proposedMeta}” ({proposedMeta.Length} characters)."
+                    : $"Insert meta description: “{proposedMeta}” ({proposedMeta.Length} characters).",
                 ApplyMode = "deterministic",
             });
         }
@@ -754,18 +760,40 @@ public sealed class ContentScoringService(
     private static int CountOccurrences(string haystack, string needle) =>
         haystack.Split(needle, StringSplitOptions.None).Length - 1;
 
+    private static string SummarizeMetaForSuggestion(string meta)
+    {
+        var normalized = meta.Trim();
+        return normalized.Length <= 72 ? normalized : normalized[..69].TrimEnd() + "…";
+    }
+
     private static string? ExtractMeta(string html, string name)
     {
-        var marker = $"name=\"{name}\"";
-        var idx = html.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        var doubleQuoted = $"name=\"{name}\"";
+        var idx = html.IndexOf(doubleQuoted, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0)
+        {
+            var singleQuoted = $"name='{name}'";
+            idx = html.IndexOf(singleQuoted, StringComparison.OrdinalIgnoreCase);
+        }
+
         if (idx < 0)
             return null;
+
         var contentIdx = html.IndexOf("content=\"", idx, StringComparison.OrdinalIgnoreCase);
+        if (contentIdx >= 0)
+        {
+            var start = contentIdx + 9;
+            var end = html.IndexOf('"', start);
+            return end > start ? html[start..end] : null;
+        }
+
+        contentIdx = html.IndexOf("content='", idx, StringComparison.OrdinalIgnoreCase);
         if (contentIdx < 0)
             return null;
-        var start = contentIdx + 9;
-        var end = html.IndexOf('"', start);
-        return end > start ? html[start..end] : null;
+
+        var singleStart = contentIdx + 9;
+        var singleEnd = html.IndexOf('\'', singleStart);
+        return singleEnd > singleStart ? html[singleStart..singleEnd] : null;
     }
 
     private static string ExtractTag(string html, string tag)
