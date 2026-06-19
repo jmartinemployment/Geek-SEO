@@ -660,13 +660,32 @@ public sealed class SiteAnalyzerStepService(
             return await FinishStepAsync(site.Id, pack.Id, 10, gate, [gate.Message], null, ct);
 
         var now = DateTimeOffset.UtcNow;
-        var write = UrlResearchEntityMapper.ToFullWrite(full.Value, "completed", "full", now);
-        await urlResearch.PersistFullAsync(pack.Id, write, ct);
-        await urlResearch.UpdateStatusAsync(pack.Id, new UrlResearchStatusPatch
+        var status = await urlResearch.UpdateStatusAsync(pack.Id, new UrlResearchStatusPatch
         {
             Status = "completed",
+            DataQuality = "full",
             ResearchedAt = now,
         }, ct);
+        if (!status.IsSuccess)
+        {
+            logger.LogError(
+                "Site Analyzer step 10 could not finalize pack {PackId}: {Error}",
+                pack.Id,
+                status.Error);
+            var fail = SiteAnalyzerGateResult.Fail(status.Error ?? "Failed to finalize research pack.");
+            return await FinishStepAsync(site.Id, pack.Id, 10, fail, [fail.Message], null, ct);
+        }
+
+        var verified = await urlResearch.GetFullAsync(pack.Id, ct);
+        if (!verified.IsSuccess
+            || verified.Value is null
+            || !SiteAnalyzerPackValidator.IsHandoffReady(verified.Value))
+        {
+            const string message = "Pack finalize did not persist — data_quality must be full.";
+            logger.LogError("Site Analyzer step 10 handoff verification failed for pack {PackId}", pack.Id);
+            var fail = SiteAnalyzerGateResult.Fail(message);
+            return await FinishStepAsync(site.Id, pack.Id, 10, fail, [message], null, ct);
+        }
 
         return await FinishStepAsync(
             site.Id,

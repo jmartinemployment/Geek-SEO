@@ -14,6 +14,7 @@ public sealed record UrlResearchStatusPatch
 {
     public required string Status { get; init; }
     public string? ErrorMessage { get; init; }
+    public string? DataQuality { get; init; }
     public DateTimeOffset? ResearchedAt { get; init; }
 }
 
