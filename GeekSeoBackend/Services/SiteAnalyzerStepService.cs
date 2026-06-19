@@ -71,7 +71,9 @@ public sealed class SiteAnalyzerStepService(
                     ? step => step switch
                     {
                         >= 5 and <= 9 => SiteAnalyzerStepValidators.ValidatePackStep(step, full.Value),
-                        10 => SiteAnalyzerPackValidator.ValidateCompletePack(full.Value),
+                        10 => IsStep10Complete(full.Value)
+                            ? SiteAnalyzerGateResult.Pass()
+                            : SiteAnalyzerGateResult.Fail("Run when steps 5–9 are green to open Content Writing."),
                         _ => SiteAnalyzerGateResult.Pass(),
                     }
                     : null);
@@ -129,6 +131,15 @@ public sealed class SiteAnalyzerStepService(
         var prior = await siteResearch.GetStepRunsForSiteAsync(siteRow.Value.Id, ct);
         if (!ValidatePriorStepsGreen(step, prior.Value ?? []))
             return Result<SiteAnalyzerStepResponse>.Failure($"Step {step - 1} must be green before running step {step}.");
+
+        var siteWithPages = await siteResearch.GetWithPagesAsync(siteRow.Value.Id, ct);
+        if (!siteWithPages.IsSuccess || siteWithPages.Value is null)
+            return Result<SiteAnalyzerStepResponse>.Failure(siteWithPages.Error ?? "Could not load site index");
+
+        var blocked = await BlockIfPriorSiteStepsFailAsync(
+            siteRow.Value.Id, null, step, siteWithPages.Value, ct);
+        if (blocked is not null)
+            return blocked;
 
         return step switch
         {
@@ -212,6 +223,15 @@ public sealed class SiteAnalyzerStepService(
         var site = await siteResearch.GetWithPagesAsync(head.Value.SiteResearchId.Value, ct);
         if (!site.IsSuccess || site.Value is null)
             return Result<SiteAnalyzerStepResponse>.Failure(site.Error ?? "Site index not found");
+
+        var full = await urlResearch.GetFullAsync(urlResearchId, ct);
+        if (!full.IsSuccess || full.Value is null)
+            return Result<SiteAnalyzerStepResponse>.Failure(full.Error ?? "Keyword pack not found");
+
+        var blocked = await BlockIfPriorPackStepsFailAsync(
+            site.Value.Id, urlResearchId, step, full.Value, ct);
+        if (blocked is not null)
+            return blocked;
 
         return step switch
         {
@@ -545,51 +565,28 @@ public sealed class SiteAnalyzerStepService(
         CancellationToken ct)
     {
         await MarkRunningAsync(site.Id, pack.Id, 10, ct);
+
         var full = await urlResearch.GetFullAsync(pack.Id, ct);
         if (!full.IsSuccess || full.Value is null)
             return Result<SiteAnalyzerStepResponse>.Failure(full.Error ?? "Pack not found");
 
-        for (var step = 1; step <= 4; step++)
-        {
-            var siteCheck = SiteAnalyzerStepValidators.ValidateSiteIndexStep(step, site);
-            if (!siteCheck.Passed)
-            {
-                var gate = SiteAnalyzerGates.Step10(step, siteCheck.Message);
-                return await FinishStepAsync(site.Id, pack.Id, 10, gate, [gate.Message], null, ct);
-            }
-        }
-
-        for (var step = 5; step <= 9; step++)
-        {
-            var packCheck = SiteAnalyzerStepValidators.ValidatePackStep(step, full.Value);
-            if (!packCheck.Passed)
-            {
-                var gate = SiteAnalyzerGates.Step10(step, packCheck.Message);
-                return await FinishStepAsync(site.Id, pack.Id, 10, gate, [gate.Message], null, ct);
-            }
-        }
-
-        if (full.Value.SiteResearchId is null)
-        {
-            var linkGate = SiteAnalyzerGateResult.Fail("Site index not linked — complete Site Analyzer first.");
-            return await FinishStepAsync(site.Id, pack.Id, 10, linkGate, [linkGate.Message], null, ct);
-        }
-
-        var write = UrlResearchPackMapper.ToFullWrite(
-            await RebuildPackFromEntityAsync(userId, full.Value, full.Value.BusinessContext, ct),
-            "completed") with
-        {
-            DataQuality = "full",
-            ResearchedAt = DateTimeOffset.UtcNow,
-        };
+        var now = DateTimeOffset.UtcNow;
+        var write = UrlResearchEntityMapper.ToFullWrite(full.Value, "completed", "full", now);
         await urlResearch.PersistFullAsync(pack.Id, write, ct);
         await urlResearch.UpdateStatusAsync(pack.Id, new UrlResearchStatusPatch
         {
             Status = "completed",
-            ResearchedAt = DateTimeOffset.UtcNow,
+            ResearchedAt = now,
         }, ct);
 
-        return await FinishStepAsync(site.Id, pack.Id, 10, SiteAnalyzerGateResult.Pass(), ["Pack finalized — handoff enabled."], null, ct);
+        return await FinishStepAsync(
+            site.Id,
+            pack.Id,
+            10,
+            SiteAnalyzerGateResult.Pass(),
+            ["Ready for Content Writing."],
+            null,
+            ct);
     }
 
     private async Task<SerpResearchPack> RebuildPackFromEntityAsync(
@@ -653,6 +650,53 @@ public sealed class SiteAnalyzerStepService(
             Log = logText,
             Counts = counts,
         });
+    }
+
+    private static bool IsStep10Complete(GeekSeo.Persistence.Entities.SeoUrlResearch research) =>
+        string.Equals(research.Status, "completed", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(research.DataQuality, "full", StringComparison.OrdinalIgnoreCase);
+
+    private async Task<Result<SiteAnalyzerStepResponse>?> BlockIfPriorSiteStepsFailAsync(
+        Guid siteId,
+        Guid? packId,
+        int step,
+        GeekSeo.Persistence.Entities.SeoSiteResearch site,
+        CancellationToken ct)
+    {
+        for (var s = 1; s < step; s++)
+        {
+            var check = SiteAnalyzerStepValidators.ValidateSiteIndexStep(s, site);
+            if (check.Passed)
+                continue;
+
+            await FinishStepAsync(siteId, packId, s, check, [check.Message], null, ct);
+            return Result<SiteAnalyzerStepResponse>.Failure(
+                $"Step {s} must pass before running step {step}: {check.Message}");
+        }
+
+        return null;
+    }
+
+    private async Task<Result<SiteAnalyzerStepResponse>?> BlockIfPriorPackStepsFailAsync(
+        Guid siteId,
+        Guid packId,
+        int step,
+        GeekSeo.Persistence.Entities.SeoUrlResearch pack,
+        CancellationToken ct)
+    {
+        var minStep = 5;
+        for (var s = minStep; s < step; s++)
+        {
+            var check = SiteAnalyzerStepValidators.ValidatePackStep(s, pack);
+            if (check.Passed)
+                continue;
+
+            await FinishStepAsync(siteId, packId, s, check, [check.Message], null, ct);
+            return Result<SiteAnalyzerStepResponse>.Failure(
+                $"Step {s} must pass before running step {step}: {check.Message}");
+        }
+
+        return null;
     }
 
     private static bool ValidatePriorStepsGreen(int step, IReadOnlyList<SiteAnalyzerStepRunRow> runs, int minStep = 1)

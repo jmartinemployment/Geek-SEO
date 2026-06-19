@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
@@ -15,6 +16,7 @@ import {
   type SiteAnalyzerProjectState,
   type SiteAnalyzerStepState,
   type SiteAnalyzerStepStatus,
+  type SiteAnalyzerStepRunResponse,
 } from '@/lib/seo-api';
 
 const SITE_INDEX_STEPS: Array<{ step: number; title: string; subtitle: string }> = [
@@ -30,7 +32,7 @@ const PACK_STEPS: Array<{ step: number; title: string; subtitle: string }> = [
   { step: 7, title: 'Benchmarks & terms', subtitle: 'Length targets and recommended terms' },
   { step: 8, title: 'Structure', subtitle: 'Intent, section hints, and closing FAQs' },
   { step: 9, title: 'Merge site context', subtitle: 'Cross-reference site index with keyword pack' },
-  { step: 10, title: 'Finalize', subtitle: 'Validate all gates and mark pack complete' },
+  { step: 10, title: 'Open Content Writing', subtitle: 'Finalize frozen research and go to Content Writing (requires steps 5–9 green)' },
 ];
 
 function statusStyles(status: SiteAnalyzerStepStatus): string {
@@ -45,9 +47,14 @@ function stepUnlocked(
   stepNumber: number,
   priorComplete: boolean,
 ): boolean {
-  if (stepNumber === 1 || stepNumber === 5) return priorComplete;
-  const prev = steps.find((s) => s.stepNumber === stepNumber - 1);
-  return priorComplete && prev?.status === 'green';
+  if (!priorComplete) return false;
+  const minStep = stepNumber <= 4 ? 1 : 5;
+  if (stepNumber === minStep) return true;
+  for (let n = minStep; n < stepNumber; n++) {
+    const row = steps.find((s) => s.stepNumber === n);
+    if (!row || row.status === 'red' || row.status !== 'green') return false;
+  }
+  return true;
 }
 
 function mergeStepDefinitions(
@@ -82,8 +89,12 @@ function StepRow({
   running: boolean;
   onRun: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(step.status === 'red');
   const hasOutput = Boolean(step.log || step.message || step.counts);
+
+  useEffect(() => {
+    if (step.status === 'red') setExpanded(true);
+  }, [step.status]);
 
   return (
     <li className="rounded-lg border border-[var(--color-border)] bg-white">
@@ -161,6 +172,7 @@ export function SiteAnalyzerWorkspace({
   initialProjectId = '',
   initialPackId = '',
 }: SiteAnalyzerWorkspaceProps) {
+  const router = useRouter();
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [projectId, setProjectId] = useState(initialProjectId);
   const [state, setState] = useState<SiteAnalyzerProjectState | null>(null);
@@ -287,8 +299,21 @@ export function SiteAnalyzerWorkspace({
     setRunningStep(stepNumber);
     setError(null);
     try {
-      await runSiteAnalyzerPackStep(selectedPackId, stepNumber, accessToken);
+      const result: SiteAnalyzerStepRunResponse = await runSiteAnalyzerPackStep(
+        selectedPackId,
+        stepNumber,
+        accessToken,
+      );
       await refreshState();
+      if (
+        stepNumber === 10 &&
+        result.status === 'green' &&
+        projectId
+      ) {
+        router.push(
+          `/content-writing?projectId=${encodeURIComponent(projectId)}&urlResearchId=${encodeURIComponent(selectedPackId)}`,
+        );
+      }
     } catch (runError) {
       setError(runError);
       await refreshState();
@@ -303,8 +328,8 @@ export function SiteAnalyzerWorkspace({
     <div className="mx-auto max-w-4xl">
       <h1 className="text-2xl font-semibold">Site Analyzer</h1>
       <p className="mt-1 max-w-2xl text-sm text-[var(--color-text-secondary)]">
-        Crawl your site, then build keyword research packs step by step. Content Writing unlocks only
-        when a pack passes all gates (step 10 green).
+        Crawl your site, then build keyword research step by step. Each step must pass before the
+        next unlocks. Step 10 sends you to Content Writing — it does not re-validate earlier steps.
       </p>
 
       {error ? (
