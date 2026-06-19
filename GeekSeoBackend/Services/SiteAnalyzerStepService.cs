@@ -208,10 +208,6 @@ public sealed class SiteAnalyzerStepService(
         if (head.Value.UserId != userId)
             return Result<SiteAnalyzerStepResponse>.Failure("Access denied");
 
-        var packSteps = await siteResearch.GetStepRunsForPackAsync(urlResearchId, ct);
-        if (!SiteAnalyzerStepProgression.PriorStepsGreen(step, packSteps.Value ?? [], minStep: 5))
-            return Result<SiteAnalyzerStepResponse>.Failure($"Step {step - 1} must be green before running step {step}.");
-
         if (head.Value.SiteResearchId is null)
             return Result<SiteAnalyzerStepResponse>.Failure("Site index not linked to this pack.");
 
@@ -223,6 +219,12 @@ public sealed class SiteAnalyzerStepService(
         if (!full.IsSuccess || full.Value is null)
             return Result<SiteAnalyzerStepResponse>.Failure(full.Error ?? "Keyword pack not found");
 
+        await ReconcilePackStepRunsAsync(site.Value.Id, urlResearchId, step, full.Value, ct);
+
+        var packSteps = await siteResearch.GetStepRunsForPackAsync(urlResearchId, ct);
+        if (!SiteAnalyzerStepProgression.PriorStepsGreen(step, packSteps.Value ?? [], minStep: 5))
+            return Result<SiteAnalyzerStepResponse>.Failure($"Step {step - 1} must be green before running step {step}.");
+
         var blocked = step < 10
             ? await BlockIfPriorPackStepsFailAsync(site.Value.Id, urlResearchId, step, full.Value, ct)
             : null;
@@ -232,7 +234,7 @@ public sealed class SiteAnalyzerStepService(
         return step switch
         {
             5 => await RunStep5Async(userId, head.Value, site.Value, ct),
-            6 => await RunStep6Async(userId, head.Value, ct),
+            6 => await RunStep6Async(userId, head.Value, site.Value, ct),
             7 => await RunStep7Async(userId, head.Value, site.Value, ct),
             8 => await RunStep8Async(userId, head.Value, site.Value, ct),
             9 => await RunStep9Async(userId, head.Value, site.Value, ct),
@@ -455,20 +457,66 @@ public sealed class SiteAnalyzerStepService(
     }
 
     private async Task<Result<SiteAnalyzerStepResponse>> RunStep6Async(
-        Guid userId, GeekSeo.Persistence.Entities.SeoUrlResearch pack, CancellationToken ct)
+        Guid userId,
+        GeekSeo.Persistence.Entities.SeoUrlResearch pack,
+        GeekSeo.Persistence.Entities.SeoSiteResearch site,
+        CancellationToken ct)
     {
-        var log = new List<string> { "Validating competitor depth from persisted keyword research." };
-        await MarkRunningAsync(pack.SiteResearchId, pack.Id, 6, ct);
+        var log = new List<string> { "Crawling competitor pages from SERP organic results." };
+        await MarkRunningAsync(site.Id, pack.Id, 6, ct);
 
         var full = await urlResearch.GetFullAsync(pack.Id, ct);
         if (!full.IsSuccess || full.Value is null)
             return Result<SiteAnalyzerStepResponse>.Failure(full.Error ?? "Pack not found");
 
-        var competitors = full.Value.Competitors?.Count(c =>
-            !string.IsNullOrWhiteSpace(c.H1) || (c.Headings?.Count ?? 0) > 0) ?? 0;
-        log.Add($"Competitors with headings={competitors}.");
-        var gate = SiteAnalyzerStepValidators.ValidatePackStep(6, full.Value);
-        return await FinishStepAsync(pack.SiteResearchId, pack.Id, 6, gate, log, new Dictionary<string, int> { ["competitors"] = competitors }, ct);
+        var built = await packService.BuildAsync(userId, new UrlAnalyzerResearchRequest
+        {
+            Keyword = pack.DerivedKeyword,
+            Url = pack.SourceUrl,
+            Location = pack.SearchLocation,
+            BusinessContext = site.BusinessSummary,
+        }, ct);
+
+        if (!built.IsSuccess || built.Value is null)
+        {
+            var fail = SiteAnalyzerGateResult.Fail(built.Error ?? "Competitor crawl failed");
+            return await FinishStepAsync(site.Id, pack.Id, 6, fail, log, null, ct);
+        }
+
+        var p = built.Value;
+        var competitorCount = p.CompetitorOutlines.Count(c =>
+            !string.IsNullOrWhiteSpace(c.H1) || c.Headings.Count > 0);
+        log.Add($"Competitor outlines={p.CompetitorOutlines.Count}, with headings/H1={competitorCount}.");
+
+        var existingWrite = UrlResearchEntityMapper.ToFullWrite(
+            full.Value,
+            full.Value.Status,
+            full.Value.DataQuality ?? "partial");
+        var crawledWrite = UrlResearchPackMapper.ToFullWrite(p, full.Value.Status);
+        var mergedWrite = existingWrite with
+        {
+            Competitors = crawledWrite.Competitors,
+            MedianWordCountTop5 = crawledWrite.MedianWordCountTop5,
+            MedianTitleLengthTop10 = crawledWrite.MedianTitleLengthTop10,
+            MedianH2CountTop5 = crawledWrite.MedianH2CountTop5,
+            DominantContentFormat = crawledWrite.DominantContentFormat,
+            DataQualityNotes = crawledWrite.DataQualityNotes,
+        };
+        await urlResearch.PersistFullAsync(pack.Id, mergedWrite, ct);
+
+        var reloaded = await urlResearch.GetFullAsync(pack.Id, ct);
+        var gate = reloaded.IsSuccess && reloaded.Value is not null
+            ? SiteAnalyzerStepValidators.ValidatePackStep(6, reloaded.Value)
+            : SiteAnalyzerGateResult.Fail("Could not reload pack after competitor persist.");
+
+        return await FinishStepAsync(
+            site.Id,
+            pack.Id,
+            6,
+            gate,
+            log,
+            new Dictionary<string, int> { ["competitors"] = competitorCount },
+            ct);
     }
 
     private async Task<Result<SiteAnalyzerStepResponse>> RunStep7Async(
@@ -737,6 +785,47 @@ public sealed class SiteAnalyzerStepService(
         return null;
     }
 
+    private async Task ReconcilePackStepRunsAsync(
+        Guid siteId,
+        Guid packId,
+        int throughStep,
+        GeekSeo.Persistence.Entities.SeoUrlResearch pack,
+        CancellationToken ct)
+    {
+        var maxStep = Math.Min(throughStep - 1, 9);
+        for (var s = 5; s <= maxStep; s++)
+        {
+            var check = SiteAnalyzerStepValidators.ValidatePackStep(s, pack);
+            if (!check.Passed)
+                continue;
+
+            var runs = await siteResearch.GetStepRunsForPackAsync(packId, ct);
+            var row = runs.Value?.FirstOrDefault(r => r.StepNumber == s);
+            if (row is not null && string.Equals(row.Status, "green", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var upsert = await siteResearch.UpsertStepRunAsync(new SiteAnalyzerStepRunUpsert
+            {
+                SiteResearchId = siteId,
+                UrlResearchId = packId,
+                StepNumber = s,
+                Status = "green",
+                Message = $"Step {s} complete.",
+                Log = row?.Log ?? "Reconciled from persisted pack artifacts.",
+                CountsJson = row?.CountsJson,
+            }, ct);
+
+            if (!upsert.IsSuccess)
+            {
+                logger.LogWarning(
+                    "Could not reconcile Site Analyzer pack step {Step} for {PackId}: {Error}",
+                    s,
+                    packId,
+                    upsert.Error);
+            }
+        }
+    }
+
     private static IReadOnlyList<SiteAnalyzerStepResponse> BuildStepResponses(
         int fromStep,
         int toStep,
@@ -750,12 +839,18 @@ public sealed class SiteAnalyzerStepService(
             var status = row?.Status ?? "pending";
             var message = row?.Message ?? string.Empty;
 
-            if (validateStep is not null
-                && row is not null
-                && string.Equals(status, "green", StringComparison.OrdinalIgnoreCase))
+            if (validateStep is not null)
             {
                 var check = validateStep(s);
-                if (!check.Passed)
+                if (string.Equals(status, "pending", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (check.Passed)
+                    {
+                        status = "green";
+                        message = string.IsNullOrWhiteSpace(message) ? $"Step {s} complete." : message;
+                    }
+                }
+                else if (string.Equals(status, "green", StringComparison.OrdinalIgnoreCase) && !check.Passed)
                 {
                     status = "red";
                     message = check.Message;

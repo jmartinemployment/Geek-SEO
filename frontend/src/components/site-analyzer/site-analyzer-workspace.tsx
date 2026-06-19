@@ -199,9 +199,18 @@ function applyStepRunToProjectState(
 }
 
 function parseBlockedPriorStep(message: string): { priorStep: number; detail: string } | null {
-  const match = /^Step (\d+) must pass before running step \d+: (.+)$/.exec(message);
-  if (!match) return null;
-  return { priorStep: Number(match[1]), detail: match[2] };
+  const passMatch = /^Step (\d+) must pass before running step \d+: (.+)$/.exec(message);
+  if (passMatch) {
+    return { priorStep: Number(passMatch[1]), detail: passMatch[2] };
+  }
+  const greenMatch = /^Step (\d+) must be green before running step \d+\.?$/i.exec(message.trim());
+  if (greenMatch) {
+    return {
+      priorStep: Number(greenMatch[1]),
+      detail: `Step ${greenMatch[1]} is not recorded as complete on the server. Re-run step ${greenMatch[1]} or refresh after deploy.`,
+    };
+  }
+  return null;
 }
 
 function failureRunFromError(
