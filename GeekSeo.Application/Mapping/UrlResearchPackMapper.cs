@@ -103,6 +103,67 @@ public static class UrlResearchPackMapper
         };
     }
 
+    /// <summary>Step 5 persists SERP snapshot only — not competitors, terms, or structure.</summary>
+    public static UrlResearchFullWrite ToStep5SerpWrite(SerpResearchPack pack, string status = "running")
+    {
+        var researchedAt = DateTimeOffset.TryParse(pack.Meta.ResearchedAt, out var parsed)
+            ? parsed
+            : DateTimeOffset.UtcNow;
+
+        return new UrlResearchFullWrite
+        {
+            DerivedKeyword = pack.Meta.Keyword,
+            SearchLocation = pack.Meta.Location,
+            BusinessContext = pack.Meta.BusinessContext,
+            GbpSource = "none",
+            Status = status,
+            DataQuality = "partial",
+            DataQualityNotes = pack.Meta.Notes.Count > 0
+                ? string.Join(" ", pack.Meta.Notes)
+                : null,
+            IntentPrimary = string.Empty,
+            IntentJustification = string.Empty,
+            PafType = pack.Paf.Type,
+            PafFormat = pack.Paf.Format,
+            PafText = pack.Paf.Text,
+            PafSourceUrl = pack.Paf.SourceUrl,
+            PafBeatStrategy = pack.Paf.BeatStrategy,
+            DirectAnswerInstruction = string.Empty,
+            MustBeatPaf = false,
+            MedianWordCountTop5 = 0,
+            MedianTitleLengthTop10 = 0,
+            MedianH2CountTop5 = 0,
+            DominantContentFormat = string.Empty,
+            ResearchedAt = researchedAt,
+            Organic = pack.Organic.Select(o => new UrlResearchOrganicWrite
+            {
+                Position = o.Position,
+                Url = o.Url,
+                Domain = o.Domain,
+                Title = o.Title,
+                Snippet = o.Snippet,
+                ContentType = o.ContentType,
+            }).ToList(),
+            PeopleAlsoAsk = pack.Paa.Select((p, i) => new UrlResearchPaaWrite
+            {
+                Question = p.Question,
+                SerpAnswerPreview = p.SerpAnswerPreview,
+                Depth = p.Depth,
+                DisplayOrder = i,
+            }).ToList(),
+            RelatedSearches = pack.Pasf.Select((p, i) => new UrlResearchPasfWrite
+            {
+                SearchText = p,
+                DisplayOrder = i,
+            }).ToList(),
+            Competitors = [],
+            SourceHeadings = [],
+            RecommendedTerms = [],
+            ClosingFaqs = [],
+            SectionHints = [],
+        };
+    }
+
     private static string MapDataQuality(string packQuality) => packQuality switch
     {
         "live" => "full",

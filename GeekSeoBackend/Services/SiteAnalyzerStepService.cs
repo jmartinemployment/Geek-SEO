@@ -442,9 +442,9 @@ public sealed class SiteAnalyzerStepService(
                 ct);
         }
 
-        var write = UrlResearchPackMapper.ToFullWrite(p, "running");
-        write = write with { DataQuality = "partial", Status = "running" };
+        var write = UrlResearchPackMapper.ToStep5SerpWrite(p, "running");
         await urlResearch.PersistFullAsync(pack.Id, write, ct);
+        await ResetDownstreamPackStepRunsAsync(site.Id, pack.Id, fromStep: 6, ct);
 
         return await FinishStepAsync(
             site.Id,
@@ -785,6 +785,7 @@ public sealed class SiteAnalyzerStepService(
         return null;
     }
 
+    /// <summary>Heal a missing step-5 run row when SERP artifacts exist (legacy packs before step-run fix).</summary>
     private async Task ReconcilePackStepRunsAsync(
         Guid siteId,
         Guid packId,
@@ -792,37 +793,55 @@ public sealed class SiteAnalyzerStepService(
         GeekSeo.Persistence.Entities.SeoUrlResearch pack,
         CancellationToken ct)
     {
-        var maxStep = Math.Min(throughStep - 1, 9);
-        for (var s = 5; s <= maxStep; s++)
+        if (throughStep <= 5)
+            return;
+
+        var check = SiteAnalyzerStepValidators.ValidatePackStep(5, pack);
+        if (!check.Passed)
+            return;
+
+        var runs = await siteResearch.GetStepRunsForPackAsync(packId, ct);
+        var row = runs.Value?.FirstOrDefault(r => r.StepNumber == 5);
+        if (row is not null && string.Equals(row.Status, "green", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var upsert = await siteResearch.UpsertStepRunAsync(new SiteAnalyzerStepRunUpsert
         {
-            var check = SiteAnalyzerStepValidators.ValidatePackStep(s, pack);
-            if (!check.Passed)
-                continue;
+            SiteResearchId = siteId,
+            UrlResearchId = packId,
+            StepNumber = 5,
+            Status = "green",
+            Message = "Step 5 complete.",
+            Log = row?.Log ?? "Reconciled from persisted SERP artifacts.",
+            CountsJson = row?.CountsJson,
+        }, ct);
 
-            var runs = await siteResearch.GetStepRunsForPackAsync(packId, ct);
-            var row = runs.Value?.FirstOrDefault(r => r.StepNumber == s);
-            if (row is not null && string.Equals(row.Status, "green", StringComparison.OrdinalIgnoreCase))
-                continue;
+        if (!upsert.IsSuccess)
+        {
+            logger.LogWarning(
+                "Could not reconcile Site Analyzer pack step 5 for {PackId}: {Error}",
+                packId,
+                upsert.Error);
+        }
+    }
 
-            var upsert = await siteResearch.UpsertStepRunAsync(new SiteAnalyzerStepRunUpsert
+    private async Task ResetDownstreamPackStepRunsAsync(
+        Guid siteId,
+        Guid packId,
+        int fromStep,
+        CancellationToken ct)
+    {
+        for (var s = fromStep; s <= 10; s++)
+        {
+            await siteResearch.UpsertStepRunAsync(new SiteAnalyzerStepRunUpsert
             {
                 SiteResearchId = siteId,
                 UrlResearchId = packId,
                 StepNumber = s,
-                Status = "green",
-                Message = $"Step {s} complete.",
-                Log = row?.Log ?? "Reconciled from persisted pack artifacts.",
-                CountsJson = row?.CountsJson,
+                Status = "pending",
+                Message = string.Empty,
+                Log = string.Empty,
             }, ct);
-
-            if (!upsert.IsSuccess)
-            {
-                logger.LogWarning(
-                    "Could not reconcile Site Analyzer pack step {Step} for {PackId}: {Error}",
-                    s,
-                    packId,
-                    upsert.Error);
-            }
         }
     }
 
@@ -839,18 +858,12 @@ public sealed class SiteAnalyzerStepService(
             var status = row?.Status ?? "pending";
             var message = row?.Message ?? string.Empty;
 
-            if (validateStep is not null)
+            if (validateStep is not null
+                && row is not null
+                && string.Equals(status, "green", StringComparison.OrdinalIgnoreCase))
             {
                 var check = validateStep(s);
-                if (string.Equals(status, "pending", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (check.Passed)
-                    {
-                        status = "green";
-                        message = string.IsNullOrWhiteSpace(message) ? $"Step {s} complete." : message;
-                    }
-                }
-                else if (string.Equals(status, "green", StringComparison.OrdinalIgnoreCase) && !check.Passed)
+                if (!check.Passed)
                 {
                     status = "red";
                     message = check.Message;

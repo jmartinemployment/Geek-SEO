@@ -70,6 +70,41 @@ public sealed class UrlResearchPackMapperTests
         Assert.Equal("https://competitor.example/a", write.Competitors[0].Url);
     }
 
+    [Fact]
+    public void ToStep5SerpWrite_persists_serp_only_and_clears_downstream_artifacts()
+    {
+        var pack = SamplePack("live") with
+        {
+            RecommendedTerms = ["widget", "repair"],
+            ClosingFaqQuestions =
+            [
+                new SerpResearchClosingFaqItem { Question = "How much?", Source = "paa" },
+            ],
+            MethodologyHints =
+            [
+                new SerpResearchMethodologyHint
+                {
+                    Movement = 1,
+                    Label = "objectives",
+                    SuggestedH2 = "Business Objectives",
+                    SubtopicsFromSerp = ["ROI"],
+                },
+            ],
+        };
+
+        var write = UrlResearchPackMapper.ToStep5SerpWrite(pack);
+
+        Assert.Equal("partial", write.DataQuality);
+        Assert.Single(write.Organic);
+        Assert.Single(write.RelatedSearches);
+        Assert.Empty(write.Competitors);
+        Assert.Empty(write.RecommendedTerms);
+        Assert.Empty(write.ClosingFaqs);
+        Assert.Empty(write.SectionHints);
+        Assert.Equal(0, write.MedianWordCountTop5);
+        Assert.Equal(string.Empty, write.IntentPrimary);
+    }
+
     private static SerpResearchPack SamplePack(string dataQuality) => new()
     {
         Meta = new SerpResearchPackMeta
