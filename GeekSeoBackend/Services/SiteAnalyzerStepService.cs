@@ -68,9 +68,15 @@ public sealed class SiteAnalyzerStepService(
                 10,
                 packStepRuns.Value ?? [],
                 full.IsSuccess && full.Value is not null
-                    ? step => step is >= 5 and <= 9
-                        ? SiteAnalyzerStepValidators.ValidatePackStep(step, full.Value)
-                        : SiteAnalyzerGateResult.Pass()
+                    ? step => step switch
+                    {
+                        >= 5 and <= 9 => SiteAnalyzerStepValidators.ValidatePackStep(step, full.Value),
+                        10 => SiteAnalyzerPackValidator.IsHandoffReady(full.Value)
+                            ? SiteAnalyzerGateResult.Pass()
+                            : SiteAnalyzerGateResult.Fail(
+                                "Pack not finalized for Content Writing — run step 10 after steps 5–9 are green."),
+                        _ => SiteAnalyzerGateResult.Pass(),
+                    }
                     : null);
             var handoffReady = full.IsSuccess
                 && full.Value is not null
@@ -225,9 +231,7 @@ public sealed class SiteAnalyzerStepService(
         if (!SiteAnalyzerStepProgression.PriorStepsGreen(step, packSteps.Value ?? [], minStep: 5))
             return Result<SiteAnalyzerStepResponse>.Failure($"Step {step - 1} must be green before running step {step}.");
 
-        var blocked = step < 10
-            ? await BlockIfPriorPackStepsFailAsync(site.Value.Id, urlResearchId, step, full.Value, ct)
-            : null;
+        var blocked = await BlockIfPriorPackStepsFailAsync(site.Value.Id, urlResearchId, step, full.Value, ct);
         if (blocked is not null)
             return blocked;
 
@@ -650,6 +654,10 @@ public sealed class SiteAnalyzerStepService(
         var full = await urlResearch.GetFullAsync(pack.Id, ct);
         if (!full.IsSuccess || full.Value is null)
             return Result<SiteAnalyzerStepResponse>.Failure(full.Error ?? "Pack not found");
+
+        var gate = SiteAnalyzerPackValidator.ValidateGateMinimums(full.Value);
+        if (!gate.Passed)
+            return await FinishStepAsync(site.Id, pack.Id, 10, gate, [gate.Message], null, ct);
 
         var now = DateTimeOffset.UtcNow;
         var write = UrlResearchEntityMapper.ToFullWrite(full.Value, "completed", "full", now);

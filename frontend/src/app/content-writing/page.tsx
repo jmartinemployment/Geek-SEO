@@ -104,7 +104,10 @@ function ContentWritingPageInner() {
     [completePacks, selectedResearchId],
   );
 
-  const blockReason = useMemo(() => siteAnalyzerBlockReason(analyzerState), [analyzerState]);
+  const blockReason = useMemo(
+    () => siteAnalyzerBlockReason(analyzerState, selectedResearchId || initialUrlResearchId),
+    [analyzerState, selectedResearchId, initialUrlResearchId],
+  );
   const writingBlocked = Boolean(projectId && !analyzerLoading && blockReason);
 
   useEffect(() => {

@@ -2054,7 +2054,10 @@ export async function runSiteAnalyzerPackStep(
 }
 
 /** First failing step message for Content Writing gate UI. */
-export function siteAnalyzerBlockReason(state: SiteAnalyzerProjectState | null): string | null {
+export function siteAnalyzerBlockReason(
+  state: SiteAnalyzerProjectState | null,
+  preferredUrlResearchId?: string | null,
+): string | null {
   if (!state) return 'Site Analyzer state could not be loaded.';
 
   const packs = state.packs ?? [];
@@ -2074,6 +2077,22 @@ export function siteAnalyzerBlockReason(state: SiteAnalyzerProjectState | null):
 
   const completePack = packs.find((p) => p.handoffReady || p.dataQuality === 'full');
   if (completePack) return null;
+
+  if (preferredUrlResearchId) {
+    const targeted = packs.find((p) => p.urlResearchId === preferredUrlResearchId);
+    if (targeted && !targeted.handoffReady && targeted.dataQuality !== 'full') {
+      const step10 = targeted.steps.find((s) => s.stepNumber === 10);
+      if (step10?.status === 'green') {
+        return 'This keyword pack was updated after the last finalize. Re-run step 10 in Site Analyzer.';
+      }
+      if (step10?.status === 'pending' || step10?.status === 'running') {
+        return `Run step 10 for “${targeted.keyword}” in Site Analyzer to finalize the pack for Content Writing.`;
+      }
+      if (step10?.validationMessage) return step10.validationMessage;
+      if (step10?.message) return step10.message;
+      return 'Finish keyword pack steps 5–10 in Site Analyzer, then run step 10 to finalize.';
+    }
+  }
 
   const packWithRed = packs.find((p) => p.firstRedStep);
   if (packWithRed?.firstRedStep) {
