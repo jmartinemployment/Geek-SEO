@@ -120,10 +120,48 @@ function shouldKeepLocalStepRun(
   remote: SiteAnalyzerStepState | undefined,
   local: SiteAnalyzerStepState,
 ): boolean {
-  if (local.status !== 'red') return false;
+  if (local.status !== 'green' && local.status !== 'red') return false;
   if (!remote || remote.status === 'pending') return true;
   if (remote.status === 'running') return true;
   return false;
+}
+
+function stepRunLostOnServerMessage(
+  run: SiteAnalyzerStepRunResponse,
+  packId?: string,
+): string {
+  const scope = run.stepNumber <= 4 ? 'site index' : 'keyword pack';
+  const packHint = packId && run.stepNumber > 4 ? ` (pack ${packId})` : '';
+  const detail =
+    run.validationMessage ??
+    (run.status === 'red' ? run.message : null) ??
+    run.message;
+  const outcome = run.status === 'green' ? 'completed' : 'failed validation';
+  return `Step ${run.stepNumber} ${outcome} on the server, but step status was not saved${packHint}. ${scope} step-run could not be loaded after refresh — deploy GeekRepository step-runs if missing.${detail ? ` Response: ${detail}` : ''}`;
+}
+
+function reinforceStepRunAfterRefresh(
+  refreshed: SiteAnalyzerProjectState,
+  run: SiteAnalyzerStepRunResponse | null,
+  packId?: string,
+): { state: SiteAnalyzerProjectState; lostOnServer: boolean } {
+  if (!run || (run.status !== 'green' && run.status !== 'red')) {
+    return { state: refreshed, lostOnServer: false };
+  }
+  let remote: SiteAnalyzerStepState | undefined;
+  if (run.stepNumber <= 4) {
+    remote = refreshed.siteIndexSteps?.find((s) => s.stepNumber === run.stepNumber);
+  } else {
+    const pack = refreshed.packs.find((p) => p.urlResearchId === packId);
+    remote = pack?.steps?.find((s) => s.stepNumber === run.stepNumber);
+  }
+  if (!shouldKeepLocalStepRun(remote, stepRunToState(run))) {
+    return { state: refreshed, lostOnServer: false };
+  }
+  return {
+    state: applyStepRunToProjectState(refreshed, run, packId),
+    lostOnServer: true,
+  };
 }
 
 function applyStepRunToProjectState(
@@ -158,23 +196,6 @@ function applyStepRunToProjectState(
     return { ...pack, steps, firstRedStep };
   });
   return { ...state, packs };
-}
-
-function reinforceStepRunAfterRefresh(
-  refreshed: SiteAnalyzerProjectState,
-  run: SiteAnalyzerStepRunResponse | null,
-  packId?: string,
-): SiteAnalyzerProjectState {
-  if (!run || run.status !== 'red') return refreshed;
-  if (run.stepNumber <= 4) {
-    const remote = refreshed.siteIndexSteps?.find((s) => s.stepNumber === run.stepNumber);
-    if (!shouldKeepLocalStepRun(remote, stepRunToState(run))) return refreshed;
-  } else {
-    const pack = refreshed.packs.find((p) => p.urlResearchId === packId);
-    const remote = pack?.steps?.find((s) => s.stepNumber === run.stepNumber);
-    if (!shouldKeepLocalStepRun(remote, stepRunToState(run))) return refreshed;
-  }
-  return applyStepRunToProjectState(refreshed, run, packId);
 }
 
 function parseBlockedPriorStep(message: string): { priorStep: number; detail: string } | null {
@@ -324,11 +345,19 @@ export function SiteAnalyzerWorkspace({
       setLoadingState(true);
       try {
         const next = await getSiteAnalyzerProjectState(projectId, accessToken);
-        setState(
-          reinforceRun
-            ? reinforceStepRunAfterRefresh(next, reinforceRun, reinforcePackId)
-            : next,
-        );
+        if (reinforceRun) {
+          const { state: merged, lostOnServer } = reinforceStepRunAfterRefresh(
+            next,
+            reinforceRun,
+            reinforcePackId,
+          );
+          setState(merged);
+          if (lostOnServer) {
+            setError(new Error(stepRunLostOnServerMessage(reinforceRun, reinforcePackId)));
+          }
+        } else {
+          setState(next);
+        }
         const packs = next.packs ?? [];
         if (!selectedPackId && packs[0]) {
           setSelectedPackId(packs[0].urlResearchId);
@@ -401,6 +430,15 @@ export function SiteAnalyzerWorkspace({
       reinforceRun = result;
       setState((prev) => (prev ? applyStepRunToProjectState(prev, result) : prev));
       await refreshState(result);
+      if (result.status === 'red') {
+        setError(
+          new Error(
+            result.validationMessage ??
+              result.message ??
+              `Step ${stepNumber} failed validation.`,
+          ),
+        );
+      }
     } catch (runError) {
       setError(runError);
       const message = runError instanceof Error ? runError.message : 'Step failed';
@@ -451,6 +489,15 @@ export function SiteAnalyzerWorkspace({
         prev ? applyStepRunToProjectState(prev, result, selectedPackId) : prev,
       );
       await refreshState(result, selectedPackId);
+      if (result.status === 'red') {
+        setError(
+          new Error(
+            result.validationMessage ??
+              result.message ??
+              `Step ${stepNumber} failed validation.`,
+          ),
+        );
+      }
       if (
         stepNumber === 10 &&
         result.status === 'green' &&
