@@ -235,12 +235,16 @@ function StepRow({
   canRun,
   running,
   onRun,
+  allowRunWhenGreen = false,
+  greenRunLabel = 'Run',
 }: {
   step: SiteAnalyzerStepState;
   subtitle: string;
   canRun: boolean;
   running: boolean;
   onRun: () => void;
+  allowRunWhenGreen?: boolean;
+  greenRunLabel?: string;
 }) {
   const [expanded, setExpanded] = useState(step.status === 'red');
   const validationMessage =
@@ -250,6 +254,15 @@ function StepRow({
   useEffect(() => {
     if (step.status === 'red') setExpanded(true);
   }, [step.status]);
+
+  const runDisabled =
+    running || (!canRun && !(allowRunWhenGreen && step.status === 'green'));
+  const runLabel =
+    running
+      ? 'Running…'
+      : step.status === 'green' && allowRunWhenGreen
+        ? greenRunLabel
+        : 'Run';
 
   return (
     <li className="rounded-lg border border-[var(--color-border)] bg-white">
@@ -286,11 +299,11 @@ function StepRow({
           ) : null}
           <button
             type="button"
-            disabled={!canRun || running || step.status === 'green'}
+            disabled={runDisabled || (step.status === 'green' && !allowRunWhenGreen)}
             onClick={onRun}
             className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
           >
-            {running ? 'Running…' : 'Run'}
+            {runLabel}
           </button>
         </div>
       </div>
@@ -482,8 +495,22 @@ export function SiteAnalyzerWorkspace({
     }
   }
 
+  function openContentWriting(packId: string) {
+    if (!projectId) return;
+    router.push(
+      `/content-writing?projectId=${encodeURIComponent(projectId)}&urlResearchId=${encodeURIComponent(packId)}`,
+    );
+  }
+
   async function handleRunPackStep(stepNumber: number) {
     if (!selectedPackId) return;
+    if (stepNumber === 10) {
+      const step10 = packSteps.find((s) => s.stepNumber === 10);
+      if (step10?.status === 'green') {
+        openContentWriting(selectedPackId);
+        return;
+      }
+    }
     setRunningStep(stepNumber);
     setError(null);
     let reinforceRun: SiteAnalyzerStepRunResponse | null = null;
@@ -512,9 +539,7 @@ export function SiteAnalyzerWorkspace({
         result.status === 'green' &&
         projectId
       ) {
-        router.push(
-          `/content-writing?projectId=${encodeURIComponent(projectId)}&urlResearchId=${encodeURIComponent(selectedPackId)}`,
-        );
+        openContentWriting(selectedPackId);
       }
     } catch (runError) {
       setError(runError);
@@ -677,6 +702,8 @@ export function SiteAnalyzerWorkspace({
                       Boolean(state?.siteIndexComplete && selectedPackId),
                     )}
                     running={runningStep === step.stepNumber}
+                    allowRunWhenGreen={step.stepNumber === 10}
+                    greenRunLabel="Open Content Writing"
                     onRun={() => void handleRunPackStep(step.stepNumber)}
                   />
                 ))}
