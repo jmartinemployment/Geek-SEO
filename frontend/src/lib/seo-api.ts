@@ -1880,6 +1880,88 @@ export type SiteAnalyzerCreatePackResponse = {
   location: string;
 };
 
+type SiteAnalyzerStepApi = {
+  stepNumber: number;
+  status: SiteAnalyzerStepStatus;
+  message?: string;
+  log?: string | null;
+  counts?: Record<string, unknown> | null;
+  updatedAt?: string | null;
+};
+
+/** Legacy flat state shape (pre-packs array). */
+type SiteAnalyzerStateApiLegacy = {
+  siteResearchId?: string | null;
+  siteUrl?: string;
+  siteIndexSteps?: SiteAnalyzerStepApi[];
+  activeUrlResearchId?: string | null;
+  keyword?: string | null;
+  keywordPackSteps?: SiteAnalyzerStepApi[];
+  handoffEnabled?: boolean;
+};
+
+function mapStepApi(step: SiteAnalyzerStepApi, title: string): SiteAnalyzerStepState {
+  return {
+    stepNumber: step.stepNumber,
+    title,
+    status: step.status ?? 'pending',
+    message: step.message ?? '',
+    log: step.log ?? null,
+    counts: step.counts ?? null,
+    updatedAt: step.updatedAt ?? null,
+  };
+}
+
+function normalizeSiteAnalyzerProjectState(
+  raw: SiteAnalyzerProjectState & SiteAnalyzerStateApiLegacy,
+  projectId: string,
+): SiteAnalyzerProjectState {
+  if (Array.isArray(raw.packs)) {
+    return {
+      projectId: raw.projectId ?? projectId,
+      siteUrl: raw.siteUrl ?? '',
+      siteResearchId: raw.siteResearchId ?? null,
+      siteIndexSteps: raw.siteIndexSteps ?? [],
+      siteIndexComplete: raw.siteIndexComplete ?? false,
+      firstRedSiteIndexStep: raw.firstRedSiteIndexStep ?? null,
+      packs: raw.packs,
+    };
+  }
+
+  const siteIndexSteps = raw.siteIndexSteps ?? [];
+  const siteIndexComplete =
+    raw.siteIndexComplete ??
+    (siteIndexSteps.length >= 4 && siteIndexSteps.every((s) => s.status === 'green'));
+  const packs: SiteAnalyzerPackSummary[] = raw.activeUrlResearchId
+    ? [
+        {
+          urlResearchId: raw.activeUrlResearchId,
+          keyword: raw.keyword ?? '',
+          location: 'United States',
+          status: 'queued',
+          steps: (raw.keywordPackSteps ?? []).map((step) =>
+            mapStepApi(step, `Step ${step.stepNumber}`),
+          ),
+          handoffReady: raw.handoffEnabled ?? false,
+          createdAt: new Date().toISOString(),
+        },
+      ]
+    : [];
+
+  return {
+    projectId,
+    siteUrl: raw.siteUrl ?? '',
+    siteResearchId: raw.siteResearchId ?? null,
+    siteIndexSteps,
+    siteIndexComplete,
+    firstRedSiteIndexStep:
+      raw.firstRedSiteIndexStep ??
+      siteIndexSteps.find((s) => s.status === 'red')?.stepNumber ??
+      null,
+    packs,
+  };
+}
+
 export async function getSiteAnalyzerProjectState(
   projectId: string,
   accessToken?: string | null,
@@ -1891,7 +1973,8 @@ export async function getSiteAnalyzerProjectState(
       cache: 'no-store',
     },
   );
-  return seoJson<SiteAnalyzerProjectState>(res);
+  const raw = await seoJson<SiteAnalyzerProjectState & SiteAnalyzerStateApiLegacy>(res);
+  return normalizeSiteAnalyzerProjectState(raw, projectId);
 }
 
 export async function runSiteIndexStep(
@@ -1947,27 +2030,31 @@ export async function runSiteAnalyzerPackStep(
 export function siteAnalyzerBlockReason(state: SiteAnalyzerProjectState | null): string | null {
   if (!state) return 'Site Analyzer state could not be loaded.';
 
+  const packs = state.packs ?? [];
+  const siteIndexSteps = state.siteIndexSteps ?? [];
+
   if (!state.siteIndexComplete) {
-    const red = state.siteIndexSteps.find((s) => s.status === 'red');
+    const red = siteIndexSteps.find((s) => s.status === 'red');
     if (red?.message) return red.message;
-    const pending = state.siteIndexSteps.find((s) => s.status !== 'green');
+    const pending = siteIndexSteps.find((s) => s.status !== 'green');
     if (pending) {
-      return `Complete Site Analyzer step ${pending.stepNumber} (${pending.title}) first.`;
+      const label = pending.title ? ` (${pending.title})` : '';
+      return `Complete Site Analyzer step ${pending.stepNumber}${label} first.`;
     }
     return 'Complete the site index (steps 1–4) in Site Analyzer first.';
   }
 
-  const completePack = state.packs.find((p) => p.handoffReady || p.dataQuality === 'full');
+  const completePack = packs.find((p) => p.handoffReady || p.dataQuality === 'full');
   if (completePack) return null;
 
-  const packWithRed = state.packs.find((p) => p.firstRedStep);
+  const packWithRed = packs.find((p) => p.firstRedStep);
   if (packWithRed?.firstRedStep) {
     const step = packWithRed.steps.find((s) => s.stepNumber === packWithRed.firstRedStep);
     if (step?.message) return step.message;
     return `Keyword pack incomplete — step ${packWithRed.firstRedStep} is still red.`;
   }
 
-  if (state.packs.length === 0) {
+  if (packs.length === 0) {
     return 'Create a keyword research pack in Site Analyzer (steps 5–10).';
   }
 

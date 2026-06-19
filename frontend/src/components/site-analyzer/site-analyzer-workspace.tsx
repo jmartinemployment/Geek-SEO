@@ -52,20 +52,20 @@ function stepUnlocked(
 
 function mergeStepDefinitions(
   definitions: Array<{ step: number; title: string; subtitle: string }>,
-  remote: SiteAnalyzerStepState[],
+  remote: SiteAnalyzerStepState[] | undefined,
 ): SiteAnalyzerStepState[] {
+  const steps = remote ?? [];
   return definitions.map((def) => {
-    const existing = remote.find((s) => s.stepNumber === def.step);
-    return (
-      existing ?? {
-        stepNumber: def.step,
-        title: def.title,
-        status: 'pending' as const,
-        message: '',
-        log: null,
-        counts: null,
-      }
-    );
+    const existing = steps.find((s) => s.stepNumber === def.step);
+    return {
+      stepNumber: def.step,
+      title: def.title,
+      status: existing?.status ?? 'pending',
+      message: existing?.message ?? '',
+      log: existing?.log ?? null,
+      counts: existing?.counts ?? null,
+      updatedAt: existing?.updatedAt ?? null,
+    };
   });
 }
 
@@ -186,8 +186,9 @@ export function SiteAnalyzerWorkspace({
     try {
       const next = await getSiteAnalyzerProjectState(projectId, accessToken);
       setState(next);
-      if (!selectedPackId && next.packs[0]) {
-        setSelectedPackId(next.packs[0].urlResearchId);
+      const packs = next.packs ?? [];
+      if (!selectedPackId && packs[0]) {
+        setSelectedPackId(packs[0].urlResearchId);
       }
     } catch (loadError) {
       setError(loadError);
@@ -233,9 +234,11 @@ export function SiteAnalyzerWorkspace({
     [state?.siteIndexSteps],
   );
 
+  const packs = state?.packs ?? [];
+
   const selectedPack: SiteAnalyzerPackSummary | null = useMemo(
-    () => state?.packs.find((p) => p.urlResearchId === selectedPackId) ?? null,
-    [selectedPackId, state?.packs],
+    () => packs.find((p) => p.urlResearchId === selectedPackId) ?? null,
+    [packs, selectedPackId],
   );
 
   const packSteps = useMemo(
@@ -294,7 +297,7 @@ export function SiteAnalyzerWorkspace({
     }
   }
 
-  const handoffPack = state?.packs.find((p) => p.handoffReady || p.dataQuality === 'full') ?? null;
+  const handoffPack = packs.find((p) => p.handoffReady || p.dataQuality === 'full') ?? null;
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -410,7 +413,7 @@ export function SiteAnalyzerWorkspace({
               </form>
             )}
 
-            {state?.packs.length ? (
+            {packs.length ? (
               <label className="mt-4 block text-sm font-medium">
                 Active pack
                 <select
@@ -419,7 +422,7 @@ export function SiteAnalyzerWorkspace({
                   onChange={(e) => setSelectedPackId(e.target.value)}
                 >
                   <option value="">Select a pack</option>
-                  {state.packs.map((pack) => (
+                  {packs.map((pack) => (
                     <option key={pack.urlResearchId} value={pack.urlResearchId}>
                       {pack.keyword} — {pack.dataQuality ?? pack.status}
                     </option>

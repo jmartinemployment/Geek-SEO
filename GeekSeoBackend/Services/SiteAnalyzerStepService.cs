@@ -24,12 +24,12 @@ public sealed class SiteAnalyzerStepService(
 {
     private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
-    public async Task<Result<SiteAnalyzerStateResponse>> GetStateAsync(
+    public async Task<Result<SiteAnalyzerProjectStateResponse>> GetStateAsync(
         Guid userId, Guid projectId, CancellationToken ct = default)
     {
         var project = await projects.GetByIdAsync(projectId, userId, ct);
         if (!project.IsSuccess || project.Value is null)
-            return Result<SiteAnalyzerStateResponse>.Failure("Access denied");
+            return Result<SiteAnalyzerProjectStateResponse>.Failure("Access denied");
 
         var siteUrl = project.Value.Url.TrimEnd('/');
         var siteRow = await siteResearch.GetOrCreateForProjectAsync(
@@ -37,48 +37,56 @@ public sealed class SiteAnalyzerStepService(
             new CreateSiteResearchRequest { ProjectId = projectId, SiteUrl = siteUrl },
             ct);
         if (!siteRow.IsSuccess || siteRow.Value is null)
-            return Result<SiteAnalyzerStateResponse>.Failure(siteRow.Error ?? "Could not load site research");
+            return Result<SiteAnalyzerProjectStateResponse>.Failure(siteRow.Error ?? "Could not load site research");
 
         var siteSteps = await siteResearch.GetStepRunsForSiteAsync(siteRow.Value.Id, ct);
         var siteIndexSteps = BuildStepResponses(1, 4, siteSteps.Value ?? []);
+        var siteIndexComplete = siteIndexSteps.All(s =>
+            string.Equals(s.Status, "green", StringComparison.OrdinalIgnoreCase));
+        var firstRedSiteIndexStep = siteIndexSteps
+            .FirstOrDefault(s => string.Equals(s.Status, "red", StringComparison.OrdinalIgnoreCase))
+            ?.StepNumber;
 
-        var packs = await urlResearch.ListSummaryByProjectAsync(projectId, ct);
-        var activePack = (packs.Value ?? [])
-            .Where(p => p.Status is not "failed")
-            .OrderByDescending(p => p.CreatedAt)
-            .FirstOrDefault();
+        var packSummaries = await urlResearch.ListSummaryByProjectAsync(projectId, ct);
+        var packList = new List<SiteAnalyzerPackSummaryResponse>();
 
-        IReadOnlyList<SiteAnalyzerStepResponse> keywordSteps = [];
-        bool handoff = false;
-        string? blockReason = null;
-
-        if (activePack is not null)
+        foreach (var summary in (packSummaries.Value ?? [])
+                     .Where(p => p.Status is not "failed")
+                     .OrderByDescending(p => p.CreatedAt))
         {
-            var packSteps = await siteResearch.GetStepRunsForPackAsync(activePack.Id, ct);
-            keywordSteps = BuildStepResponses(5, 10, packSteps.Value ?? []);
+            var packStepRuns = await siteResearch.GetStepRunsForPackAsync(summary.Id, ct);
+            var steps = BuildStepResponses(5, 10, packStepRuns.Value ?? []);
+            var full = await urlResearch.GetFullAsync(summary.Id, ct);
+            var handoffReady = full.IsSuccess
+                && full.Value is not null
+                && SiteAnalyzerPackValidator.IsHandoffReady(full.Value);
 
-            var full = await urlResearch.GetFullAsync(activePack.Id, ct);
-            if (full.IsSuccess && full.Value is not null)
+            packList.Add(new SiteAnalyzerPackSummaryResponse
             {
-                handoff = SiteAnalyzerPackValidator.IsHandoffReady(full.Value);
-                if (!handoff)
-                {
-                    var validation = SiteAnalyzerPackValidator.ValidateCompletePack(full.Value);
-                    blockReason = validation.Passed ? null : validation.Message;
-                }
-            }
+                UrlResearchId = summary.Id,
+                Keyword = summary.DerivedKeyword,
+                Location = full.Value?.SearchLocation ?? "United States",
+                DataQuality = summary.DataQuality,
+                Status = summary.Status,
+                Steps = steps,
+                FirstRedStep = steps
+                    .FirstOrDefault(s => string.Equals(s.Status, "red", StringComparison.OrdinalIgnoreCase))
+                    ?.StepNumber,
+                HandoffReady = handoffReady,
+                ResearchedAt = summary.ResearchedAt,
+                CreatedAt = summary.CreatedAt,
+            });
         }
 
-        return Result<SiteAnalyzerStateResponse>.Success(new SiteAnalyzerStateResponse
+        return Result<SiteAnalyzerProjectStateResponse>.Success(new SiteAnalyzerProjectStateResponse
         {
+            ProjectId = projectId,
             SiteResearchId = siteRow.Value.Id,
             SiteUrl = siteUrl,
             SiteIndexSteps = siteIndexSteps,
-            ActiveUrlResearchId = activePack?.Id,
-            Keyword = activePack?.DerivedKeyword,
-            KeywordPackSteps = keywordSteps,
-            HandoffEnabled = handoff,
-            BlockReason = blockReason,
+            SiteIndexComplete = siteIndexComplete,
+            FirstRedSiteIndexStep = firstRedSiteIndexStep,
+            Packs = packList,
         });
     }
 
@@ -114,15 +122,15 @@ public sealed class SiteAnalyzerStepService(
         };
     }
 
-    public async Task<Result<SiteAnalyzerStepResponse>> CreatePackAsync(
+    public async Task<Result<CreateSiteAnalyzerPackResponse>> CreatePackAsync(
         Guid userId, Guid projectId, CreateSiteAnalyzerPackRequest request, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(request.Keyword))
-            return Result<SiteAnalyzerStepResponse>.Failure("Keyword is required.");
+            return Result<CreateSiteAnalyzerPackResponse>.Failure("Keyword is required.");
 
         var project = await projects.GetByIdAsync(projectId, userId, ct);
         if (!project.IsSuccess || project.Value is null)
-            return Result<SiteAnalyzerStepResponse>.Failure("Access denied");
+            return Result<CreateSiteAnalyzerPackResponse>.Failure("Access denied");
 
         var siteUrl = project.Value.Url.TrimEnd('/');
         var siteRow = await siteResearch.GetOrCreateForProjectAsync(
@@ -130,16 +138,18 @@ public sealed class SiteAnalyzerStepService(
             new CreateSiteResearchRequest { ProjectId = projectId, SiteUrl = siteUrl },
             ct);
         if (!siteRow.IsSuccess || siteRow.Value is null)
-            return Result<SiteAnalyzerStepResponse>.Failure(siteRow.Error ?? "Could not load site research");
+            return Result<CreateSiteAnalyzerPackResponse>.Failure(siteRow.Error ?? "Could not load site research");
 
         var siteSteps = await siteResearch.GetStepRunsForSiteAsync(siteRow.Value.Id, ct);
         for (var s = 1; s <= 4; s++)
         {
             var row = (siteSteps.Value ?? []).FirstOrDefault(r => r.StepNumber == s);
             if (row is null || !string.Equals(row.Status, "green", StringComparison.OrdinalIgnoreCase))
-                return Result<SiteAnalyzerStepResponse>.Failure($"Site index step {s} must be green before starting a keyword pack.");
+                return Result<CreateSiteAnalyzerPackResponse>.Failure($"Site index step {s} must be green before starting a keyword pack.");
         }
 
+        var location = string.IsNullOrWhiteSpace(request.Location) ? "United States" : request.Location.Trim();
+        var keyword = request.Keyword.Trim();
         var queued = await urlResearch.CreateQueuedAsync(
             userId,
             new CreateUrlResearchQueuedRequest
@@ -147,19 +157,18 @@ public sealed class SiteAnalyzerStepService(
                 ProjectId = projectId,
                 SourceUrl = siteUrl,
                 SiteResearchId = siteRow.Value.Id,
-                DerivedKeyword = request.Keyword.Trim(),
-                SearchLocation = string.IsNullOrWhiteSpace(request.Location) ? "United States" : request.Location.Trim(),
+                DerivedKeyword = keyword,
+                SearchLocation = location,
             },
             ct);
         if (!queued.IsSuccess || queued.Value is null)
-            return Result<SiteAnalyzerStepResponse>.Failure(queued.Error ?? "Could not create keyword pack");
+            return Result<CreateSiteAnalyzerPackResponse>.Failure(queued.Error ?? "Could not create keyword pack");
 
-        return Result<SiteAnalyzerStepResponse>.Success(new SiteAnalyzerStepResponse
+        return Result<CreateSiteAnalyzerPackResponse>.Success(new CreateSiteAnalyzerPackResponse
         {
-            StepNumber = 0,
-            Status = "green",
-            Message = $"Keyword pack created for \"{request.Keyword.Trim()}\".",
-            Log = $"urlResearchId={queued.Value.Id}",
+            UrlResearchId = queued.Value.Id,
+            Keyword = keyword,
+            Location = location,
         });
     }
 
@@ -610,10 +619,25 @@ public sealed class SiteAnalyzerStepService(
                 Status = row?.Status ?? "pending",
                 Message = row?.Message ?? string.Empty,
                 Log = row?.Log ?? string.Empty,
+                Counts = ParseCounts(row?.CountsJson),
             });
         }
 
         return list;
+    }
+
+    private static IReadOnlyDictionary<string, int>? ParseCounts(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return null;
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, int>>(json, Json);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static IReadOnlyList<string> ParseUrlList(string? json)

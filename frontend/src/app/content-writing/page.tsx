@@ -177,12 +177,14 @@ function ContentWritingPageInner() {
         const preferredId =
           selectedResearchId ||
           initialUrlResearchId ||
-          state.packs.find(isCompletePack)?.urlResearchId ||
+          (state.packs ?? []).find(isCompletePack)?.urlResearchId ||
           '';
         if (!selectedResearchId && preferredId) {
           setSelectedResearchId(preferredId);
         }
-        const picked = state.packs.find((pack) => pack.urlResearchId === (selectedResearchId || preferredId));
+        const picked = (state.packs ?? []).find(
+          (pack) => pack.urlResearchId === (selectedResearchId || preferredId),
+        );
         if (picked?.keyword && !initialTitle) {
           setKeyword(picked.keyword);
           setTitle(picked.keyword);

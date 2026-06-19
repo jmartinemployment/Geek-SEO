@@ -10,16 +10,36 @@ public sealed record SiteAnalyzerStepResponse
     public IReadOnlyDictionary<string, int>? Counts { get; init; }
 }
 
-public sealed record SiteAnalyzerStateResponse
+public sealed record SiteAnalyzerProjectStateResponse
 {
-    public Guid? SiteResearchId { get; init; }
+    public required Guid ProjectId { get; init; }
     public required string SiteUrl { get; init; }
+    public Guid? SiteResearchId { get; init; }
     public IReadOnlyList<SiteAnalyzerStepResponse> SiteIndexSteps { get; init; } = [];
-    public Guid? ActiveUrlResearchId { get; init; }
-    public string? Keyword { get; init; }
-    public IReadOnlyList<SiteAnalyzerStepResponse> KeywordPackSteps { get; init; } = [];
-    public bool HandoffEnabled { get; init; }
-    public string? BlockReason { get; init; }
+    public bool SiteIndexComplete { get; init; }
+    public int? FirstRedSiteIndexStep { get; init; }
+    public IReadOnlyList<SiteAnalyzerPackSummaryResponse> Packs { get; init; } = [];
+}
+
+public sealed record SiteAnalyzerPackSummaryResponse
+{
+    public required Guid UrlResearchId { get; init; }
+    public required string Keyword { get; init; }
+    public required string Location { get; init; }
+    public string? DataQuality { get; init; }
+    public required string Status { get; init; }
+    public IReadOnlyList<SiteAnalyzerStepResponse> Steps { get; init; } = [];
+    public int? FirstRedStep { get; init; }
+    public bool HandoffReady { get; init; }
+    public DateTimeOffset? ResearchedAt { get; init; }
+    public DateTimeOffset CreatedAt { get; init; }
+}
+
+public sealed record CreateSiteAnalyzerPackResponse
+{
+    public required Guid UrlResearchId { get; init; }
+    public required string Keyword { get; init; }
+    public required string Location { get; init; }
 }
 
 public sealed record CreateSiteAnalyzerPackRequest
