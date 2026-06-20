@@ -532,6 +532,11 @@ public sealed class SiteAnalyzerStepService(
     {
         await ResetDownstreamPackStepRunsAsync(site.Id, pack.Id, fromStep: 8, ct);
         await MarkRunningAsync(site.Id, pack.Id, 7, ct);
+
+        var full = await urlResearch.GetFullAsync(pack.Id, ct);
+        if (!full.IsSuccess || full.Value is null)
+            return Result<SiteAnalyzerStepResponse>.Failure(full.Error ?? "Pack not found");
+
         var built = await packService.BuildAsync(userId, new UrlAnalyzerResearchRequest
         {
             Keyword = pack.DerivedKeyword,
@@ -547,10 +552,35 @@ public sealed class SiteAnalyzerStepService(
         if (!gate.Passed)
             return await FinishStepAsync(site.Id, pack.Id, 7, gate, [$"Terms={terms}"], new Dictionary<string, int> { ["terms"] = terms }, ct);
 
-        var write = UrlResearchPackMapper.ToFullWrite(built.Value, "running") with { Status = "running", DataQuality = "partial" };
-        await urlResearch.PersistFullAsync(pack.Id, write, ct);
+        var existingWrite = UrlResearchEntityMapper.ToFullWrite(
+            full.Value,
+            full.Value.Status,
+            full.Value.DataQuality ?? "partial");
+        var builtWrite = UrlResearchPackMapper.ToFullWrite(built.Value, full.Value.Status);
+        var mergedWrite = existingWrite with
+        {
+            RecommendedTerms = builtWrite.RecommendedTerms,
+        };
+        var persisted = await urlResearch.PersistFullAsync(pack.Id, mergedWrite, ct);
+        if (!persisted.IsSuccess)
+        {
+            var fail = SiteAnalyzerGateResult.Fail(persisted.Error ?? "Failed to persist recommended terms.");
+            return await FinishStepAsync(site.Id, pack.Id, 7, fail, [fail.Message], null, ct);
+        }
 
-        return await FinishStepAsync(site.Id, pack.Id, 7, gate, [$"Terms={terms}"], new Dictionary<string, int> { ["terms"] = terms }, ct);
+        var reloaded = await urlResearch.GetFullAsync(pack.Id, ct);
+        var reloadGate = reloaded.IsSuccess && reloaded.Value is not null
+            ? SiteAnalyzerStepValidators.ValidatePackStep(7, reloaded.Value)
+            : SiteAnalyzerGateResult.Fail("Could not reload pack after terms persist.");
+
+        return await FinishStepAsync(
+            site.Id,
+            pack.Id,
+            7,
+            reloadGate,
+            [$"Terms={terms}"],
+            new Dictionary<string, int> { ["terms"] = terms },
+            ct);
     }
 
     private async Task<Result<SiteAnalyzerStepResponse>> RunStep8Async(
@@ -561,6 +591,11 @@ public sealed class SiteAnalyzerStepService(
     {
         await ResetDownstreamPackStepRunsAsync(site.Id, pack.Id, fromStep: 9, ct);
         await MarkRunningAsync(site.Id, pack.Id, 8, ct);
+
+        var full = await urlResearch.GetFullAsync(pack.Id, ct);
+        if (!full.IsSuccess || full.Value is null)
+            return Result<SiteAnalyzerStepResponse>.Failure(full.Error ?? "Pack not found");
+
         var built = await packService.BuildAsync(userId, new UrlAnalyzerResearchRequest
         {
             Keyword = pack.DerivedKeyword,
@@ -586,14 +621,33 @@ public sealed class SiteAnalyzerStepService(
                 ct);
         }
 
-        var write = UrlResearchPackMapper.ToFullWrite(built.Value, "running") with { Status = "running", DataQuality = "partial" };
-        await urlResearch.PersistFullAsync(pack.Id, write, ct);
+        var existingWrite = UrlResearchEntityMapper.ToFullWrite(
+            full.Value,
+            full.Value.Status,
+            full.Value.DataQuality ?? "partial");
+        var builtWrite = UrlResearchPackMapper.ToFullWrite(built.Value, full.Value.Status);
+        var mergedWrite = existingWrite with
+        {
+            SectionHints = builtWrite.SectionHints,
+            ClosingFaqs = builtWrite.ClosingFaqs,
+        };
+        var persisted = await urlResearch.PersistFullAsync(pack.Id, mergedWrite, ct);
+        if (!persisted.IsSuccess)
+        {
+            var fail = SiteAnalyzerGateResult.Fail(persisted.Error ?? "Failed to persist section hints and FAQs.");
+            return await FinishStepAsync(site.Id, pack.Id, 8, fail, [fail.Message], null, ct);
+        }
+
+        var reloaded = await urlResearch.GetFullAsync(pack.Id, ct);
+        var reloadGate = reloaded.IsSuccess && reloaded.Value is not null
+            ? SiteAnalyzerStepValidators.ValidatePackStep(8, reloaded.Value)
+            : SiteAnalyzerGateResult.Fail("Could not reload pack after structure persist.");
 
         return await FinishStepAsync(
             site.Id,
             pack.Id,
             8,
-            gate,
+            reloadGate,
             [$"Section hints={hints}, FAQs={faqs}"],
             new Dictionary<string, int> { ["sectionHints"] = hints, ["faqs"] = faqs },
             ct);
