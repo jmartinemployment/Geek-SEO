@@ -40,5 +40,6 @@ public static class WritingResearchBenchmarkResolver
     {
         HasPeopleAlsoAsk = research.PeopleAlsoAsk.Count > 0,
         HasFeaturedSnippet = !string.IsNullOrWhiteSpace(research.Paf.Text),
+        HasAiOverview = string.Equals(research.Paf.Type, "ai_overview", StringComparison.OrdinalIgnoreCase),
     };
 }

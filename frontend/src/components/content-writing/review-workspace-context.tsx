@@ -245,7 +245,7 @@ export function ReviewWorkspaceProvider({
     }
   }
 
-  const isResearchBacked = Boolean(doc.urlResearchId);
+  const isResearchBacked = Boolean(doc.analysisRunId);
 
   function refreshSerp() {
     if (isResearchBacked) return;
@@ -325,7 +325,7 @@ export function ReviewScoreLeft({ keyword }: { keyword: string }) {
       scoreError={scoreError}
       connected={connected}
       onRefreshSerp={refreshSerp}
-      serpRefreshEnabled={!doc.urlResearchId}
+      serpRefreshEnabled={!doc.analysisRunId}
     />
   );
 }
@@ -367,7 +367,7 @@ export function ReviewScoreRight({
         applyingSuggestionId={applyingSuggestionId}
         onApplySuggestion={handleApplySuggestion}
         onRefreshSerp={refreshSerp}
-        serpRefreshEnabled={!doc.urlResearchId}
+        serpRefreshEnabled={!doc.analysisRunId}
         onCopyHtml={copyRenderedHtml}
       />
 
@@ -399,8 +399,15 @@ export function ReviewScoreRight({
 
       <ReviewFeaturedImage />
 
-      {doc.urlResearchId ? (
-        <ResearchInsightsRail urlResearchId={doc.urlResearchId} accessToken={accessToken} />
+      {doc.analysisRunId ? (
+        <ResearchInsightsRail
+          keywordBundleJson={doc.keywordBundleJson}
+          keywordBundleCapturedAt={doc.keywordBundleCapturedAt}
+          siteFocusJson={doc.siteFocusJson}
+          siteFocusCapturedAt={doc.siteFocusCapturedAt}
+          articleKeyword={doc.targetKeyword}
+          serpKeyword={doc.serpKeyword}
+        />
       ) : null}
     </>
   );
@@ -437,7 +444,7 @@ export function ReviewEditorPane({
   } = useReviewWorkspace();
 
   const keywordRef = useRef(keyword);
-  const isResearchBacked = Boolean(doc.urlResearchId);
+  const isResearchBacked = Boolean(doc.analysisRunId);
 
   return (
     <section className="rounded-xl border bg-white shadow-sm">

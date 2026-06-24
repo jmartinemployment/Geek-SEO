@@ -10,11 +10,12 @@ public sealed class ContentResearchDraftPromptTests
     {
         var research = new WritingResearchContext
         {
-            UrlResearchId = Guid.NewGuid(),
+            AnalysisRunId = Guid.NewGuid(),
             ProjectId = Guid.NewGuid(),
             UserId = Guid.NewGuid(),
             SourceUrl = "https://example.com/widget-repair",
             DerivedKeyword = "widget repair",
+            SerpKeyword = "widget repair",
             SearchLocation = "Austin, TX",
             BusinessContext = "Local repair shop.",
             DataQuality = "partial",

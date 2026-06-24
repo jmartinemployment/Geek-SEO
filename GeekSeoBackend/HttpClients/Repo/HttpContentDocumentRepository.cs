@@ -55,9 +55,50 @@ public sealed class HttpContentDocumentRepository(IHttpClientFactory factory, IC
     {
         var response = await _http.PatchAsJsonAsync(
             $"api/seo/internal/content/{documentId}/url-research?userId={user.UserId}",
-            new AttachUrlResearchRequest { UrlResearchId = urlResearchId },
+            new { urlResearchId },
             ct);
         return await ReadOneAsync(response, ct);
+    }
+
+    public async Task<Result<SeoContentDocument>> AttachAnalysisRunAsync(
+        Guid documentId,
+        Guid analysisRunId,
+        string targetKeyword,
+        string serpKeyword,
+        Guid siteProfileId,
+        string? siteFocusJson = null,
+        DateTimeOffset? siteFocusCapturedAt = null,
+        string? keywordBundleJson = null,
+        DateTimeOffset? keywordBundleCapturedAt = null,
+        CancellationToken ct = default)
+    {
+        var response = await _http.PatchAsJsonAsync(
+            $"api/seo/internal/content/{documentId}/analysis-run?userId={user.UserId}",
+            new AttachAnalysisRunBody
+            {
+                AnalysisRunId = analysisRunId,
+                TargetKeyword = targetKeyword,
+                SerpKeyword = serpKeyword,
+                SiteProfileId = siteProfileId,
+                SiteFocusJson = siteFocusJson,
+                SiteFocusCapturedAt = siteFocusCapturedAt,
+                KeywordBundleJson = keywordBundleJson,
+                KeywordBundleCapturedAt = keywordBundleCapturedAt,
+            },
+            ct);
+        return await ReadOneAsync(response, ct);
+    }
+
+    private sealed record AttachAnalysisRunBody
+    {
+        public required Guid AnalysisRunId { get; init; }
+        public required string TargetKeyword { get; init; }
+        public required string SerpKeyword { get; init; }
+        public required Guid SiteProfileId { get; init; }
+        public string? SiteFocusJson { get; init; }
+        public DateTimeOffset? SiteFocusCapturedAt { get; init; }
+        public string? KeywordBundleJson { get; init; }
+        public DateTimeOffset? KeywordBundleCapturedAt { get; init; }
     }
 
     public async Task<Result<SeoContentDocument>> UpdateFeaturedImageAsync(

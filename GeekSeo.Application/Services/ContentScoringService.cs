@@ -11,7 +11,7 @@ namespace GeekSeo.Application.Services.Seo;
 public sealed class ContentScoringService(
     IContentDocumentService documents,
     IContentDocumentRepository documentRepo,
-    IUrlResearchRepository urlResearch,
+    WritingResearchContextLoader researchLoader,
     ISerpCacheRepository serpCache,
     ISerpProvider serpProvider,
     CompetitorCrawlService competitorCrawl,
@@ -125,7 +125,7 @@ public sealed class ContentScoringService(
         var baseHtml = string.IsNullOrWhiteSpace(contentHtml) ? doc.ContentHtml : contentHtml;
 
         var benchmarkResult = ResearchBackedWriteGate.IsResearchBacked(doc)
-            ? await ResolveBenchmarksFromResearchAsync(doc.UrlResearchId!.Value, ct)
+            ? await ResolveBenchmarksFromDocumentAsync(userId, doc, ct)
             : await ResolveBenchmarksAsync(keyword, location, languageCode, ct);
         if (!benchmarkResult.IsSuccess)
             return Result<ApplySuggestionResponse>.Failure(benchmarkResult.Error ?? "Benchmark error");
@@ -241,14 +241,11 @@ public sealed class ContentScoringService(
         string baseHtml,
         CancellationToken ct)
     {
-        if (ResearchBackedWriteGate.IsResearchBacked(doc) && doc.UrlResearchId is Guid researchId)
+        if (ResearchBackedWriteGate.IsResearchBacked(doc))
         {
-            var row = await urlResearch.GetFullAsync(researchId, ct);
-            if (row.IsSuccess && row.Value is not null)
-            {
-                var context = WritingResearchContextMapper.FromEntity(row.Value);
-                return await ArticleClosingFaqEnricher.EnsureClosingFaqDraftAsync(baseHtml, context, ai, ct);
-            }
+            var loaded = await researchLoader.LoadAsync(doc.UserId, doc, ct);
+            if (loaded.IsSuccess && loaded.Value is not null)
+                return await ArticleClosingFaqEnricher.EnsureClosingFaqDraftAsync(baseHtml, loaded.Value, ai, ct);
         }
 
         var keyword = doc.TargetKeyword;
@@ -321,7 +318,7 @@ public sealed class ContentScoringService(
         }
 
         var benchmarkResult = ResearchBackedWriteGate.IsResearchBacked(doc)
-            ? await ResolveBenchmarksFromResearchAsync(doc.UrlResearchId!.Value, ct)
+            ? await ResolveBenchmarksFromDocumentAsync(userId, doc, ct)
             : await ResolveBenchmarksAsync(keyword, location, languageCode, ct);
         if (!benchmarkResult.IsSuccess)
             return Result<ContentScoreHubResult>.Failure(benchmarkResult.Error ?? "Benchmark error");
@@ -403,17 +400,16 @@ public sealed class ContentScoringService(
         return Result<ContentScoreHubResult>.Success(new ContentScoreHubResult { ScoreUpdate = update });
     }
 
-    private async Task<Result<BenchmarkResolution>> ResolveBenchmarksFromResearchAsync(
-        Guid urlResearchId, CancellationToken ct)
+    private async Task<Result<BenchmarkResolution>> ResolveBenchmarksFromDocumentAsync(
+        Guid userId,
+        SeoContentDocument doc,
+        CancellationToken ct)
     {
-        var row = await urlResearch.GetFullAsync(urlResearchId, ct);
-        if (!row.IsSuccess || row.Value is null)
-            return Result<BenchmarkResolution>.Failure(row.Error ?? "Page research not found");
+        var loaded = await researchLoader.LoadAsync(userId, doc, ct);
+        if (!loaded.IsSuccess || loaded.Value is null)
+            return Result<BenchmarkResolution>.Failure(loaded.Error ?? "Research not found");
 
-        if (!string.Equals(row.Value.Status, "completed", StringComparison.OrdinalIgnoreCase))
-            return Result<BenchmarkResolution>.Failure("Page research is not complete yet.");
-
-        var context = WritingResearchContextMapper.FromEntity(row.Value);
+        var context = loaded.Value;
         var coverageTerms = context.RecommendedTerms
             .OrderBy(t => t.DisplayOrder)
             .Select(t => t.Term)
@@ -428,7 +424,7 @@ public sealed class ContentScoringService(
             Benchmarks = WritingResearchBenchmarkResolver.ToBenchmarks(context),
             SerpFeatures = WritingResearchBenchmarkResolver.ToSerpFeatures(context),
             CoverageTerms = coverageTerms,
-            ResearchedAt = context.ResearchedAt ?? row.Value.ResearchedAt,
+            ResearchedAt = context.ResearchedAt,
             FeaturedSnippetText = string.IsNullOrWhiteSpace(context.Paf.Text) ? null : context.Paf.Text,
         });
     }

@@ -1,17 +1,21 @@
 namespace GeekSeo.Application.Models.Seo;
 
 /// <summary>
-/// Single read DTO for research-backed writing — built from persisted <c>seo_url_research_*</c> rows.
+/// Single read DTO for research-backed writing — built from <c>analysis_runs</c> SERP export.
 /// </summary>
 public sealed record WritingResearchContext
 {
-    public required Guid UrlResearchId { get; init; }
+    public required Guid AnalysisRunId { get; init; }
     public required Guid ProjectId { get; init; }
     public required Guid UserId { get; init; }
     public required string SourceUrl { get; init; }
+    /// <summary>Keyword the article is written and scored for (may differ from <see cref="SerpKeyword"/>).</summary>
     public required string DerivedKeyword { get; init; }
+    /// <summary>Keyword the linked analysis run SERP export was fetched for.</summary>
+    public string SerpKeyword { get; init; } = string.Empty;
     public required string SearchLocation { get; init; }
     public string BusinessContext { get; init; } = string.Empty;
+    public SiteWritingFocus? SiteFocus { get; init; }
     public required string IntentPrimary { get; init; }
     public required string IntentJustification { get; init; }
     public required WritingResearchPaf Paf { get; init; }
@@ -117,7 +121,11 @@ public sealed record ResearchDraftRequest
     public int TargetWordCount { get; init; }
 }
 
-public sealed record AttachUrlResearchRequest
+public sealed record AttachAnalysisRunRequest
 {
-    public required Guid UrlResearchId { get; init; }
+    public required Guid AnalysisRunId { get; init; }
+    /// <summary>Article target keyword. When omitted, keeps the document keyword or falls back to the run SERP keyword.</summary>
+    public string? TargetKeyword { get; init; }
+    /// <summary>Site Analyzer 2 <c>sa2.site_profiles.Id</c>.</summary>
+    public Guid? SiteProfileId { get; init; }
 }

@@ -1,4 +1,5 @@
 using GeekSeo.Persistence.Entities;
+using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
 
 namespace GeekSeo.Application.Services.Seo;
@@ -6,31 +7,18 @@ namespace GeekSeo.Application.Services.Seo;
 public static class ResearchBackedWriteGate
 {
     public static bool IsResearchBacked(SeoContentDocument document) =>
-        document.UrlResearchId is not null;
+        document.AnalysisRunId is not null;
 
-    public static Result EnsureResearchReady(SeoContentDocument document, SeoUrlResearch? research)
+    public static Result ValidateAnalysisRunExport(ContentWriterSerpExport export)
     {
-        if (!IsResearchBacked(document))
-            return Result.Failure(ContentWritingBlockMessage.Default);
+        if (string.Equals(export.Status, "Failed", StringComparison.OrdinalIgnoreCase))
+            return Result.Failure("Analysis run failed — SERP data is not available for Content Writing.");
 
-        if (research is null || research.Id != document.UrlResearchId)
-            return Result.Failure("Site Analyzer research pack not found.");
+        var organicCount = export.Serp.Count(i =>
+            string.Equals(i.Type, "organic", StringComparison.OrdinalIgnoreCase));
 
-        return ValidateResearchForProject(document.ProjectId, research);
-    }
-
-    /// <summary>Shared rules for PATCH attach and POST create with <c>urlResearchId</c>.</summary>
-    public static Result ValidateResearchForProject(Guid projectId, SeoUrlResearch research)
-    {
-        if (research.ProjectId != projectId)
-            return Result.Failure("Site Analyzer pack belongs to a different project.");
-
-        if (!string.Equals(research.Status, "completed", StringComparison.OrdinalIgnoreCase))
-            return Result.Failure("Site Analyzer pack is not complete yet. Finish all 10 steps in Site Analyzer.");
-
-        var packGate = SiteAnalyzerPackValidator.ValidateCompletePack(research);
-        if (!packGate.Passed)
-            return Result.Failure($"{ContentWritingBlockMessage.Default} {packGate.Message}");
+        if (organicCount == 0)
+            return Result.Failure("Analysis run has no organic SERP results yet.");
 
         return Result.Success();
     }

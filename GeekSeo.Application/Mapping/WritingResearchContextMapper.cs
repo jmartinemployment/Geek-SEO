@@ -29,7 +29,7 @@ public static class WritingResearchContextMapper
 
         return new WritingResearchContext
         {
-            UrlResearchId = row.Id,
+            AnalysisRunId = row.Id,
             ProjectId = row.ProjectId,
             UserId = row.UserId,
             SourceUrl = row.SourceUrl,

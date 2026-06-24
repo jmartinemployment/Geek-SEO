@@ -28,7 +28,16 @@ public sealed record CreateContentDocumentRequest
     public string Title { get; init; } = "Untitled Document";
     public string TargetKeyword { get; init; } = string.Empty;
     public string TargetLocation { get; init; } = "United States";
-    public Guid? UrlResearchId { get; init; }
+    public Guid? AnalysisRunId { get; init; }
+    /// <summary>Site Analyzer 2 <c>sa2.site_profiles.Id</c> for frozen site focus.</summary>
+    public Guid? SiteProfileId { get; init; }
+    /// <summary>Set from analysis run export when <see cref="AnalysisRunId"/> is provided.</summary>
+    public string SerpKeyword { get; init; } = string.Empty;
+    public string? SiteFocusJson { get; init; }
+    public DateTimeOffset? SiteFocusCapturedAt { get; init; }
+    /// <summary>Frozen SA2 <c>content-writer-export</c> JSON at create/attach.</summary>
+    public string? KeywordBundleJson { get; init; }
+    public DateTimeOffset? KeywordBundleCapturedAt { get; init; }
 }
 
 public sealed record UpdateContentRequest

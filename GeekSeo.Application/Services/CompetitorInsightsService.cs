@@ -8,7 +8,7 @@ namespace GeekSeo.Application.Services.Seo;
 
 public sealed class CompetitorInsightsService(
     IContentDocumentService documents,
-    IUrlResearchRepository urlResearch,
+    WritingResearchContextLoader researchLoader,
     ISerpCacheRepository serpCache,
     ISerpProvider serpProvider,
     CompetitorCrawlService competitorCrawl,
@@ -110,12 +110,12 @@ public sealed class CompetitorInsightsService(
     private async Task<Result<CompetitorInsightsResult>> BuildInsightsFromResearchAsync(
         SeoContentDocument doc, CancellationToken ct)
     {
-        var row = await urlResearch.GetFullAsync(doc.UrlResearchId!.Value, ct);
-        if (!row.IsSuccess || row.Value is null)
-            return Result<CompetitorInsightsResult>.Failure(row.Error ?? "Page research not found");
+        var loaded = await researchLoader.LoadAsync(doc.UserId, doc, ct);
+        if (!loaded.IsSuccess || loaded.Value is null)
+            return Result<CompetitorInsightsResult>.Failure(loaded.Error ?? "Analysis run SERP export not found");
 
-        var research = row.Value;
-        var pages = research.Competitors
+        var context = loaded.Value;
+        var pages = context.Competitors
             .OrderBy(c => c.Position)
             .Select(c => new CompetitorPageInsight
             {
@@ -124,16 +124,16 @@ public sealed class CompetitorInsightsService(
                 Position = c.Position,
                 WordCount = c.EstimatedWordCount,
                 MetaTitle = string.IsNullOrWhiteSpace(c.H1) ? null : c.H1,
-                CrawledAt = research.ResearchedAt,
+                CrawledAt = context.ResearchedAt,
             })
             .ToList();
 
         return Result<CompetitorInsightsResult>.Success(new CompetitorInsightsResult
         {
-            Keyword = research.DerivedKeyword,
-            Location = research.SearchLocation,
+            Keyword = context.DerivedKeyword,
+            Location = context.SearchLocation,
             Pages = pages,
-            BenchmarkQuality = research.DataQuality == "full" ? "good" : "low_sample_count",
+            BenchmarkQuality = context.DataQuality == "live" ? "good" : "low_sample_count",
             CrawlStatus = "complete",
         });
     }

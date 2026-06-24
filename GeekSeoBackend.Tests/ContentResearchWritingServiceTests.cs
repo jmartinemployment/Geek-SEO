@@ -1,66 +1,114 @@
+using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
 using GeekSeo.Application.Services.Seo;
 using GeekSeo.Persistence.Entities;
 
+using static GeekSeoBackend.Tests.AnalysisRunTestData;
+
 namespace GeekSeoBackend.Tests;
 
 public sealed class ContentResearchWritingServiceTests
 {
-    private static readonly Guid UserId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-    private static readonly Guid DocumentId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
-    private static readonly Guid ResearchId = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
-    private static readonly Guid ProjectId = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd");
-
     [Fact]
-    public async Task AttachResearchAsync_rejects_incomplete_research()
+    public async Task AttachResearchAsync_rejects_failed_analysis_run()
     {
-        var research = CompletedResearch();
-        research.Status = "running";
-
+        var export = CompletedExport() with { Status = "Failed" };
+        var documents = new ContentDocumentService(
+            new NoOpContentDocumentRepository(),
+            new StubProjectRepository(),
+            CreateHandoffService(export));
         var sut = new ContentResearchWritingService(
-            new FakeDocumentService(ResearchDocument()),
-            new FakeUrlResearchService(research),
-            new FakeAiWritingService());
+            documents,
+            new FakeAiWritingService(),
+            new WritingResearchContextLoader());
 
         var result = await sut.AttachResearchAsync(
             UserId,
             DocumentId,
-            new AttachUrlResearchRequest { UrlResearchId = ResearchId });
+            new AttachAnalysisRunRequest
+            {
+                AnalysisRunId = RunId,
+                SiteProfileId = SiteProfileId,
+            });
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("not complete", result.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("failed", result.Error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task DraftFromResearchAsync_requires_attached_research()
+    public async Task AttachResearchAsync_requires_site_profile()
     {
-        var doc = ResearchDocument();
-        doc.UrlResearchId = null;
+        var sut = CreateSut(FrozenResearchDocument());
 
-        var sut = new ContentResearchWritingService(
-            new FakeDocumentService(doc),
-            new FakeUrlResearchService(CompletedResearch()),
-            new FakeAiWritingService());
+        var result = await sut.AttachResearchAsync(
+            UserId,
+            DocumentId,
+            new AttachAnalysisRunRequest { AnalysisRunId = RunId });
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("site_profile", result.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task DraftFromResearchAsync_requires_attached_analysis_run()
+    {
+        var doc = FrozenResearchDocument();
+        doc.AnalysisRunId = null;
+        doc.KeywordBundleJson = null;
+
+        var sut = CreateSut(doc);
 
         var result = await sut.DraftFromResearchAsync(UserId, DocumentId);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("Site must be crawled first", result.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("analysis run", result.Error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task DraftFromResearchAsync_persists_draft_from_research_context()
+    public async Task DraftFromResearchAsync_requires_frozen_keyword_bundle()
     {
-        var research = CompletedResearch();
-        var ai = new FakeAiWritingService();
-        var documents = new FakeDocumentService(ResearchDocument());
+        var doc = FrozenResearchDocument();
+        doc.KeywordBundleJson = null;
 
+        var sut = CreateSut(doc);
+
+        var result = await sut.DraftFromResearchAsync(UserId, DocumentId);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("Frozen keyword bundle", result.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task DraftFromResearchAsync_uses_document_target_keyword_over_serp_keyword()
+    {
+        var export = CompletedExport() with { Keyword = "widget repair" };
+        var doc = FrozenResearchDocument(export, "emergency widget repair");
+        var ai = new FakeAiWritingService();
+        var documents = new FakeDocumentService(doc);
         var sut = new ContentResearchWritingService(
             documents,
-            new FakeUrlResearchService(research),
-            ai);
+            ai,
+            new WritingResearchContextLoader());
+
+        var result = await sut.DraftFromResearchAsync(UserId, DocumentId);
+
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Equal("emergency widget repair", ai.LastDraftRequest?.Research.DerivedKeyword);
+        Assert.Equal("widget repair", ai.LastDraftRequest?.Research.SerpKeyword);
+        Assert.Equal("emergency widget repair", documents.LastSavedKeyword);
+    }
+
+    [Fact]
+    public async Task DraftFromResearchAsync_persists_draft_from_frozen_bundle()
+    {
+        var ai = new FakeAiWritingService();
+        var documents = new FakeDocumentService(FrozenResearchDocument());
+        var sut = new ContentResearchWritingService(
+            documents,
+            ai,
+            new WritingResearchContextLoader());
 
         var result = await sut.DraftFromResearchAsync(UserId, DocumentId);
 
@@ -72,32 +120,85 @@ public sealed class ContentResearchWritingServiceTests
         Assert.Equal("widget repair", documents.LastSavedKeyword);
     }
 
-    private static SeoContentDocument ResearchDocument() => new()
-    {
-        Id = DocumentId,
-        ProjectId = ProjectId,
-        UserId = UserId,
-        Title = "Widget repair",
-        TargetKeyword = "widget repair",
-        TargetLocation = "United States",
-        ContentHtml = "<h1>Widget repair</h1>",
-        UrlResearchId = ResearchId,
-    };
+    private static ContentResearchWritingService CreateSut(SeoContentDocument document) =>
+        new(
+            new FakeDocumentService(document),
+            new FakeAiWritingService(),
+            new WritingResearchContextLoader());
 
-    private static SeoUrlResearch CompletedResearch()
+    private sealed class StubProjectRepository : IProjectRepository
     {
-        var research = SiteAnalyzerPackValidatorTests.MinimalComplete();
-        research.Id = ResearchId;
-        research.ProjectId = ProjectId;
-        research.UserId = UserId;
-        research.SourceUrl = "https://example.com/widget-repair";
-        research.DerivedKeyword = "widget repair";
-        research.SearchLocation = "United States";
-        research.MedianWordCountTop5 = 1500;
-        research.MedianTitleLengthTop10 = 55;
-        research.MedianH2CountTop5 = 4;
-        research.ResearchedAt = DateTimeOffset.UtcNow;
-        return research;
+        public Task<Result<SeoProject>> GetByIdAsync(Guid id, CancellationToken ct = default) =>
+            id == ProjectId
+                ? Task.FromResult(Result<SeoProject>.Success(new SeoProject
+                {
+                    Id = ProjectId,
+                    UserId = UserId,
+                    Name = "Test",
+                    Url = "https://example.com",
+                }))
+                : Task.FromResult(Result<SeoProject>.NotFound("not found"));
+
+        public Task<Result<SeoProject>> GetByIdAsync(Guid id, Guid userId, CancellationToken ct = default) =>
+            GetByIdAsync(id, ct);
+
+        public Task<Result<IReadOnlyList<SeoProject>>> ListByUserAsync(Guid userId, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result<SeoProject>> CreateAsync(Guid userId, CreateProjectRequest request, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result<SeoProject>> UpdateAsync(Guid projectId, UpdateProjectRequest request, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result> DeleteAsync(Guid projectId, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class NoOpContentDocumentRepository : IContentDocumentRepository
+    {
+        public Task<Result<SeoContentDocument>> GetByIdAsync(Guid documentId, CancellationToken ct = default) =>
+            Task.FromResult(Result<SeoContentDocument>.Success(FrozenResearchDocument()));
+
+        public Task<Result<IReadOnlyList<SeoContentDocument>>> GetByProjectAsync(Guid projectId, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result<SeoContentDocument>> CreateAsync(Guid userId, CreateContentDocumentRequest request, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result<SeoContentDocument>> UpdateContentAsync(Guid documentId, UpdateContentRequest request, int wordCount, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result<SeoContentDocument>> UpdateStatusAsync(Guid documentId, string status, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result<SeoContentDocument>> AttachUrlResearchAsync(Guid documentId, Guid urlResearchId, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result<SeoContentDocument>> AttachAnalysisRunAsync(
+            Guid documentId,
+            Guid analysisRunId,
+            string targetKeyword,
+            string serpKeyword,
+            Guid siteProfileId,
+            string? siteFocusJson = null,
+            DateTimeOffset? siteFocusCapturedAt = null,
+            string? keywordBundleJson = null,
+            DateTimeOffset? keywordBundleCapturedAt = null,
+            CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result<SeoContentDocument>> UpdateFeaturedImageAsync(Guid documentId, string featuredImageUrl, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result> UpdateScoreAsync(Guid documentId, int score, string scoreComponentsJson, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result> UpdateAiDetectionScoreAsync(Guid documentId, decimal score, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result> DeleteAsync(Guid documentId, CancellationToken ct = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakeDocumentService(SeoContentDocument document) : IContentDocumentService
@@ -140,34 +241,11 @@ public sealed class ContentResearchWritingServiceTests
             Guid userId, Guid documentId, Guid urlResearchId, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
+        public Task<Result<SeoContentDocument>> AttachAnalysisRunAsync(
+            Guid userId, Guid documentId, Guid analysisRunId, string targetKeyword, string serpKeyword, Guid? siteProfileId = null, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
         public Task<Result> DeleteAsync(Guid userId, Guid documentId, CancellationToken ct = default) =>
-            throw new NotSupportedException();
-    }
-
-    private sealed class FakeUrlResearchService(SeoUrlResearch research) : IUrlResearchService
-    {
-        public Task<Result<SeoUrlResearch>> GetHeadAsync(Guid userId, Guid urlResearchId, CancellationToken ct = default) =>
-            GetFullAsync(userId, urlResearchId, ct);
-
-        public Task<Result<SeoUrlResearch>> GetFullAsync(Guid userId, Guid urlResearchId, CancellationToken ct = default) =>
-            urlResearchId == research.Id
-                ? Task.FromResult(Result<SeoUrlResearch>.Success(research))
-                : Task.FromResult(Result<SeoUrlResearch>.NotFound("not found"));
-
-        public Task<Result<SeoUrlResearch>> CreateQueuedAsync(
-            Guid userId, CreateUrlResearchQueuedRequest request, CancellationToken ct = default) =>
-            throw new NotSupportedException();
-
-        public Task<Result<IReadOnlyList<UrlResearchSummary>>> ListSummaryByProjectAsync(
-            Guid userId, Guid projectId, CancellationToken ct = default) =>
-            throw new NotSupportedException();
-
-        public Task<Result<SeoUrlResearch>> PersistFullAsync(
-            Guid userId, Guid urlResearchId, UrlResearchFullWrite body, CancellationToken ct = default) =>
-            throw new NotSupportedException();
-
-        public Task<Result<SeoUrlResearch>> UpdateStatusAsync(
-            Guid userId, Guid urlResearchId, UrlResearchStatusPatch patch, CancellationToken ct = default) =>
             throw new NotSupportedException();
     }
 

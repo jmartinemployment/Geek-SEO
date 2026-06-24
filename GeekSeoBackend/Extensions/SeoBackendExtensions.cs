@@ -101,6 +101,11 @@ public static class SeoBackendExtensions
         services.AddScoped<ISerpAnalysisService, SerpAnalysisService>();
         services.AddScoped<ISerpResearchPackService, SerpResearchPackService>();
         services.AddScoped<IUrlResearchRepository, HttpUrlResearchRepository>();
+        services.AddScoped<IAnalysisRunRepository, HttpAnalysisRunRepository>();
+        services.AddScoped<ISiteAnalyzer2SiteProfileRepository, HttpSiteAnalyzer2SiteProfileRepository>();
+        services.AddScoped<ContentWriterHandoffService>();
+        services.AddScoped<WritingResearchContextLoader>();
+        services.AddScoped<SiteWritingFocusAssembler>();
         services.AddScoped<ISiteResearchRepository, HttpSiteResearchRepository>();
         services.AddScoped<SiteAnalyzerStepService>();
         services.AddScoped<IUrlResearchService, UrlResearchService>();

@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using GeekSeo.Persistence.Entities;
+using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
@@ -9,7 +10,7 @@ namespace GeekSeo.Application.Services.Seo;
 public sealed partial class ContentDocumentService(
     IContentDocumentRepository documents,
     IProjectRepository projects,
-    IUrlResearchService urlResearch) : IContentDocumentService
+    ContentWriterHandoffService handoff) : IContentDocumentService
 {
     public async Task<Result<SeoContentDocument>> EnsureAccessAsync(
         Guid userId, Guid documentId, CancellationToken ct = default)
@@ -42,25 +43,32 @@ public sealed partial class ContentDocumentService(
             return Result<SeoContentDocument>.Failure("Access denied");
 
         var createRequest = request;
-        if (request.UrlResearchId is { } urlResearchId)
+        if (request.AnalysisRunId is { } analysisRunId)
         {
-            var research = await urlResearch.GetFullAsync(userId, urlResearchId, ct);
-            if (!research.IsSuccess || research.Value is null)
-                return Result<SeoContentDocument>.Failure(research.Error ?? "Page research not found");
+            if (request.SiteProfileId is not { } siteProfileId || siteProfileId == Guid.Empty)
+                return Result<SeoContentDocument>.Failure("site_profile is required for research-backed content.");
 
-            var validation = ResearchBackedWriteGate.ValidateResearchForProject(request.ProjectId, research.Value);
-            if (!validation.IsSuccess)
-                return Result<SeoContentDocument>.Failure(validation.Error ?? "Invalid page research");
+            var frozen = await handoff.FreezeAsync(
+                request.ProjectId,
+                analysisRunId,
+                siteProfileId,
+                request.TargetKeyword,
+                request.TargetLocation,
+                ct);
+            if (!frozen.IsSuccess || frozen.Value is null)
+                return Result<SeoContentDocument>.Failure(frozen.Error ?? "Failed to freeze research handoff");
 
+            var bundle = frozen.Value;
             createRequest = request with
             {
-                TargetKeyword = string.IsNullOrWhiteSpace(request.TargetKeyword)
-                    ? research.Value.DerivedKeyword
-                    : request.TargetKeyword,
-                TargetLocation = string.IsNullOrWhiteSpace(request.TargetLocation) ||
-                                 string.Equals(request.TargetLocation, "United States", StringComparison.Ordinal)
-                    ? research.Value.SearchLocation
-                    : request.TargetLocation,
+                TargetKeyword = bundle.TargetKeyword,
+                SerpKeyword = bundle.SerpKeyword,
+                AnalysisRunId = bundle.AnalysisRunId,
+                SiteProfileId = bundle.SiteProfileId,
+                SiteFocusJson = bundle.SiteFocusJson,
+                SiteFocusCapturedAt = bundle.SiteFocusCapturedAt,
+                KeywordBundleJson = bundle.KeywordBundleJson,
+                KeywordBundleCapturedAt = bundle.KeywordBundleCapturedAt,
             };
         }
 
@@ -86,13 +94,50 @@ public sealed partial class ContentDocumentService(
         return await documents.UpdateStatusAsync(documentId, status, ct);
     }
 
-    public async Task<Result<SeoContentDocument>> AttachUrlResearchAsync(
-        Guid userId, Guid documentId, Guid urlResearchId, CancellationToken ct = default)
+    public Task<Result<SeoContentDocument>> AttachUrlResearchAsync(
+        Guid userId, Guid documentId, Guid urlResearchId, CancellationToken ct = default) =>
+        Task.FromResult(Result<SeoContentDocument>.Failure(
+            "Content Writing requires an analysis run. Use analysisRunId instead of urlResearchId."));
+
+    public async Task<Result<SeoContentDocument>> AttachAnalysisRunAsync(
+        Guid userId,
+        Guid documentId,
+        Guid analysisRunId,
+        string targetKeyword,
+        string serpKeyword,
+        Guid? siteProfileId = null,
+        CancellationToken ct = default)
     {
         var access = await EnsureAccessAsync(userId, documentId, ct);
-        if (!access.IsSuccess)
+        if (!access.IsSuccess || access.Value is null)
             return access;
-        return await documents.AttachUrlResearchAsync(documentId, urlResearchId, ct);
+
+        var doc = access.Value;
+        if (siteProfileId is not { } profileId || profileId == Guid.Empty)
+            return Result<SeoContentDocument>.Failure("site_profile is required for research-backed content.");
+
+        var frozen = await handoff.FreezeAsync(
+            doc.ProjectId,
+            analysisRunId,
+            profileId,
+            targetKeyword,
+            doc.TargetLocation,
+            ct);
+        if (!frozen.IsSuccess || frozen.Value is null)
+            return Result<SeoContentDocument>.Failure(frozen.Error ?? "Failed to freeze research handoff");
+
+        var bundle = frozen.Value;
+        return await documents.AttachAnalysisRunAsync(
+            documentId,
+            bundle.AnalysisRunId,
+            bundle.TargetKeyword,
+            bundle.SerpKeyword,
+            bundle.SiteProfileId,
+            bundle.SiteFocusJson,
+            bundle.SiteFocusCapturedAt,
+            bundle.KeywordBundleJson,
+            bundle.KeywordBundleCapturedAt,
+            ct);
     }
 
     public async Task<Result> DeleteAsync(Guid userId, Guid documentId, CancellationToken ct = default)

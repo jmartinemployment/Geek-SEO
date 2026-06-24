@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import { useSeoHub } from '@/components/signalr/seo-hub-provider';
 import {
@@ -13,23 +13,27 @@ import {
 } from '@/components/content-writing/review-workspace-context';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import {
-  attachUrlResearch,
+  analysisRunBlockReason,
+  attachAnalysisRun,
   createContent,
   generateFeaturedImage,
   getContent,
-  getSiteAnalyzerProjectState,
+  listAnalysisRuns,
   listProjects,
   describeDraftJobProgress,
-  siteAnalyzerBlockReason,
   updateContentStatus,
+  type AnalysisRunSummary,
   type SeoContentDocument,
   type SeoProject,
-  type SiteAnalyzerPackSummary,
-  type SiteAnalyzerProjectState,
 } from '@/lib/seo-api';
+import {
+  CONTENT_WRITING_DEFAULT_LOCATION,
+  contentWritingPath,
+  defaultTitleForKeyword,
+  parseContentWritingSearchParams,
+  type ContentWritingSearchParams,
+} from '@/lib/content-writing-search-params';
 import { runResearchContentDraft } from '@/lib/draft-job-signalr';
-
-const DEFAULT_LOCATION = 'United States';
 
 function formatResearchWhen(iso?: string | null): string {
   if (!iso) return 'recently';
@@ -57,32 +61,31 @@ function draftLoadingLabel(
   return `${progress.label} (${formatDraftElapsed(progress.elapsedMs)}${pct})`;
 }
 
-function isCompletePack(pack: SiteAnalyzerPackSummary): boolean {
-  return pack.handoffReady || pack.dataQuality === 'full';
-}
-
 type Stage = 'setup' | 'review';
 
 function ContentWritingPageInner() {
   const { accessToken, isLoading: authLoading } = useAuth();
   const hub = useSeoHub();
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const initialTitle = searchParams.get('title') ?? '';
-  const initialProjectId = searchParams.get('projectId') ?? '';
-  const initialLocation = searchParams.get('location') ?? DEFAULT_LOCATION;
-  const initialDocumentId = searchParams.get('documentId') ?? '';
-  const initialUrlResearchId = searchParams.get('urlResearchId') ?? '';
+  const urlParams = useMemo(
+    () => parseContentWritingSearchParams(searchParams),
+    [searchParams],
+  );
+  const skipUrlSyncRef = useRef(false);
 
   const [projects, setProjects] = useState<SeoProject[]>([]);
-  const [projectId, setProjectId] = useState(initialProjectId);
-  const [title, setTitle] = useState(initialTitle || 'New article');
-  const [keyword, setKeyword] = useState('');
-  const [location, setLocation] = useState(initialLocation);
+  const [projectId, setProjectId] = useState(urlParams.projectId);
+  const [title, setTitle] = useState(
+    urlParams.title || defaultTitleForKeyword(urlParams.keyword, 'New article'),
+  );
+  const [keyword, setKeyword] = useState(urlParams.keyword);
+  const [location, setLocation] = useState(urlParams.location);
   const [doc, setDoc] = useState<SeoContentDocument | null>(null);
   const [stage, setStage] = useState<Stage>('setup');
-  const [selectedResearchId, setSelectedResearchId] = useState(initialUrlResearchId);
-  const [analyzerState, setAnalyzerState] = useState<SiteAnalyzerProjectState | null>(null);
-  const [analyzerLoading, setAnalyzerLoading] = useState(false);
+  const [selectedRunId, setSelectedRunId] = useState(urlParams.analysisRunId);
+  const [analysisRuns, setAnalysisRuns] = useState<AnalysisRunSummary[]>([]);
+  const [runsLoading, setRunsLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -92,23 +95,68 @@ function ContentWritingPageInner() {
     percent: number;
     elapsedMs: number;
   } | null>(null);
-  const [documentLoading, setDocumentLoading] = useState(!!initialDocumentId);
+  const [documentLoading, setDocumentLoading] = useState(!!urlParams.documentId);
 
-  const completePacks = useMemo(
-    () => (analyzerState?.packs ?? []).filter(isCompletePack),
-    [analyzerState?.packs],
+  const replaceUrlParams = useCallback(
+    (patch: Partial<ContentWritingSearchParams>) => {
+      skipUrlSyncRef.current = true;
+      router.replace(
+        contentWritingPath({
+          ...urlParams,
+          ...patch,
+          documentId: '',
+        }),
+        { scroll: false },
+      );
+    },
+    [router, urlParams],
   );
 
-  const selectedPack = useMemo(
-    () => completePacks.find((pack) => pack.urlResearchId === selectedResearchId) ?? null,
-    [completePacks, selectedResearchId],
+  useEffect(() => {
+    if (skipUrlSyncRef.current) {
+      skipUrlSyncRef.current = false;
+      return;
+    }
+    if (urlParams.documentId) return;
+
+    if (urlParams.projectId) setProjectId(urlParams.projectId);
+    if (urlParams.analysisRunId) setSelectedRunId(urlParams.analysisRunId);
+    if (urlParams.keyword) {
+      setKeyword(urlParams.keyword);
+      setTitle((current) =>
+        urlParams.title
+          ? urlParams.title
+          : defaultTitleForKeyword(urlParams.keyword, current),
+      );
+    } else if (urlParams.title) {
+      setTitle(urlParams.title);
+    }
+    if (urlParams.location) setLocation(urlParams.location);
+  }, [urlParams]);
+
+  const readyRuns = useMemo(
+    () => analysisRuns.filter((run) => run.contentWritingReady),
+    [analysisRuns],
+  );
+
+  const selectableRuns = useMemo(() => {
+    if (!selectedRunId || readyRuns.some((run) => run.id === selectedRunId)) {
+      return readyRuns;
+    }
+    const pinned = analysisRuns.find((run) => run.id === selectedRunId);
+    return pinned ? [pinned, ...readyRuns] : readyRuns;
+  }, [analysisRuns, readyRuns, selectedRunId]);
+
+  const selectedRun = useMemo(
+    () => analysisRuns.find((run) => run.id === selectedRunId) ?? null,
+    [analysisRuns, selectedRunId],
   );
 
   const blockReason = useMemo(
-    () => siteAnalyzerBlockReason(analyzerState, selectedResearchId || initialUrlResearchId),
-    [analyzerState, selectedResearchId, initialUrlResearchId],
+    () => analysisRunBlockReason(analysisRuns, selectedRunId || urlParams.analysisRunId),
+    [analysisRuns, selectedRunId, urlParams.analysisRunId],
   );
-  const writingBlocked = Boolean(projectId && !analyzerLoading && blockReason);
+  const writingBlocked = Boolean(projectId && !runsLoading && blockReason);
 
   useEffect(() => {
     if (authLoading) return;
@@ -119,10 +167,10 @@ function ContentWritingPageInner() {
         const list = await listProjects(accessToken);
         if (cancelled) return;
         setProjects(list);
-        if (!projectId && list[0]) {
+        if (!urlParams.projectId && list[0]) {
           setProjectId(list[0].id);
           if (!searchParams.get('location')) {
-            setLocation(list[0].defaultLocation || DEFAULT_LOCATION);
+            setLocation(list[0].defaultLocation || CONTENT_WRITING_DEFAULT_LOCATION);
           }
         }
       } catch (loadError) {
@@ -134,24 +182,24 @@ function ContentWritingPageInner() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, authLoading, projectId, searchParams]);
+  }, [accessToken, authLoading, searchParams, urlParams.projectId]);
 
   useEffect(() => {
-    if (!initialDocumentId || authLoading) return;
+    if (!urlParams.documentId || authLoading) return;
     let cancelled = false;
 
     async function loadDocument() {
       setDocumentLoading(true);
       try {
-        const loaded = await getContent(initialDocumentId, accessToken);
+        const loaded = await getContent(urlParams.documentId, accessToken);
         if (cancelled) return;
         setDoc(loaded);
         setTitle(loaded.title);
         setKeyword(loaded.targetKeyword);
-        setLocation(loaded.targetLocation || DEFAULT_LOCATION);
+        setLocation(loaded.targetLocation || CONTENT_WRITING_DEFAULT_LOCATION);
         setProjectId(loaded.projectId);
-        if (loaded.urlResearchId) {
-          setSelectedResearchId(loaded.urlResearchId);
+        if (loaded.analysisRunId) {
+          setSelectedRunId(loaded.analysisRunId);
         }
         setStage('review');
       } catch (loadError) {
@@ -165,45 +213,56 @@ function ContentWritingPageInner() {
     return () => {
       cancelled = true;
     };
-  }, [initialDocumentId, accessToken, authLoading]);
+  }, [urlParams.documentId, accessToken, authLoading]);
 
   useEffect(() => {
-    if (!projectId || authLoading) return;
+    if (!projectId || authLoading || urlParams.documentId) return;
     let cancelled = false;
 
-    async function loadAnalyzerState() {
-      setAnalyzerLoading(true);
+    async function loadRuns() {
+      setRunsLoading(true);
       try {
-        const state = await getSiteAnalyzerProjectState(projectId, accessToken);
+        const runs = await listAnalysisRuns(projectId, accessToken);
         if (cancelled) return;
-        setAnalyzerState(state);
+        setAnalysisRuns(runs);
+
         const preferredId =
-          selectedResearchId ||
-          initialUrlResearchId ||
-          (state.packs ?? []).find(isCompletePack)?.urlResearchId ||
+          urlParams.analysisRunId ||
+          runs.find((run) => run.contentWritingReady)?.id ||
           '';
-        if (!selectedResearchId && preferredId) {
-          setSelectedResearchId(preferredId);
+
+        if (urlParams.analysisRunId) {
+          setSelectedRunId(urlParams.analysisRunId);
+        } else {
+          setSelectedRunId((current) => current || preferredId);
         }
-        const picked = (state.packs ?? []).find(
-          (pack) => pack.urlResearchId === (selectedResearchId || preferredId),
-        );
-        if (picked?.keyword && !initialTitle) {
+
+        const activeRunId = urlParams.analysisRunId || preferredId;
+        const picked = runs.find((run) => run.id === activeRunId);
+        if (picked?.keyword && !urlParams.keyword && !keyword) {
           setKeyword(picked.keyword);
-          setTitle(picked.keyword);
+          setTitle((current) => defaultTitleForKeyword(picked.keyword, current));
         }
       } catch (loadError) {
         if (!cancelled) setError(loadError);
       } finally {
-        if (!cancelled) setAnalyzerLoading(false);
+        if (!cancelled) setRunsLoading(false);
       }
     }
 
-    void loadAnalyzerState();
+    void loadRuns();
     return () => {
       cancelled = true;
     };
-  }, [accessToken, authLoading, initialTitle, initialUrlResearchId, projectId, selectedResearchId]);
+  }, [
+    accessToken,
+    authLoading,
+    keyword,
+    projectId,
+    urlParams.analysisRunId,
+    urlParams.documentId,
+    urlParams.keyword,
+  ]);
 
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === projectId) ?? null,
@@ -211,9 +270,6 @@ function ContentWritingPageInner() {
   );
 
   const inReview = stage === 'review' && !!doc;
-  const siteAnalyzerHref = projectId
-    ? `/projects/${projectId}/site-analyzer`
-    : '/site-analyzer';
 
   async function run(action: string, fn: () => Promise<void>) {
     setLoadingAction(action);
@@ -282,24 +338,16 @@ function ContentWritingPageInner() {
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">Content Writing</h1>
               <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-                Attach a complete Site Analyzer keyword pack, then generate a draft from frozen research.
+                Link an analysis run with SERP data, then generate a draft from frozen keyword research.
               </p>
             </div>
             {selectedProject ? (
-              <div className="flex flex-col items-end gap-1 text-sm">
-                <Link
-                  href={siteAnalyzerHref}
-                  className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-                >
-                  Site Analyzer
-                </Link>
-                <Link
-                  href={`/content-writing?projectId=${selectedProject.id}`}
-                  className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-                >
-                  Project documents
-                </Link>
-              </div>
+              <Link
+                href={contentWritingPath({ projectId: selectedProject.id })}
+                className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+              >
+                Project documents
+              </Link>
             ) : null}
           </div>
 
@@ -312,15 +360,13 @@ function ContentWritingPageInner() {
           ) : null}
 
           {writingBlocked && !inReview ? (
-            <section className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-950">
-              <p className="font-semibold">Site must be crawled first</p>
-              <p className="mt-2 text-red-900">{blockReason}</p>
-              <Link
-                href={siteAnalyzerHref}
-                className="mt-3 inline-block rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-accent-hover)]"
-              >
-                Open Site Analyzer
-              </Link>
+            <section className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
+              <p className="font-semibold">SERP research not ready</p>
+              <p className="mt-2 text-amber-900">{blockReason}</p>
+              <p className="mt-2 text-xs text-amber-800">
+                Content Writing uses organic SERP results from an analysis run. Site crawl and business
+                context are not included in this export yet.
+              </p>
             </section>
           ) : null}
 
@@ -330,11 +376,12 @@ function ContentWritingPageInner() {
                 <div>
                   <h2 className="font-semibold">Article setup</h2>
                   <p className="text-sm text-[var(--color-text-secondary)]">
-                    Select a completed keyword pack from Site Analyzer — all 10 steps must be green.
+                    Pick SERP research from an analysis run, then specify the keyword this article
+                    should target (they can differ).
                   </p>
                 </div>
                 <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-1 text-xs font-medium text-[var(--color-text-secondary)]">
-                  Site Analyzer pack → draft
+                  Analysis run → draft
                 </span>
               </div>
 
@@ -345,11 +392,22 @@ function ContentWritingPageInner() {
                     className="mt-1 block w-full rounded-lg border border-[var(--color-border-strong)] px-3 py-2"
                     value={projectId}
                     onChange={(event) => {
-                      setProjectId(event.target.value);
-                      const nextProject = projects.find((project) => project.id === event.target.value);
+                      const nextProjectId = event.target.value;
+                      setProjectId(nextProjectId);
+                      setSelectedRunId('');
+                      const nextProject = projects.find((project) => project.id === nextProjectId);
+                      const nextLocation =
+                        nextProject && !searchParams.get('location')
+                          ? nextProject.defaultLocation || CONTENT_WRITING_DEFAULT_LOCATION
+                          : location;
                       if (nextProject && !searchParams.get('location')) {
-                        setLocation(nextProject.defaultLocation || DEFAULT_LOCATION);
+                        setLocation(nextLocation);
                       }
+                      replaceUrlParams({
+                        projectId: nextProjectId,
+                        analysisRunId: '',
+                        location: nextLocation,
+                      });
                     }}
                   >
                     <option value="">Select a project</option>
@@ -366,35 +424,74 @@ function ContentWritingPageInner() {
                   <input
                     className="mt-1 block w-full rounded-lg border border-[var(--color-border-strong)] px-3 py-2"
                     value={title}
-                    onChange={(event) => setTitle(event.target.value)}
+                    onChange={(event) => {
+                      const nextTitle = event.target.value;
+                      setTitle(nextTitle);
+                      replaceUrlParams({ title: nextTitle });
+                    }}
                   />
                 </label>
 
                 <label className="text-sm font-medium text-[var(--color-text-primary)] md:col-span-2">
-                  Keyword pack
+                  SERP research (analysis run)
                   <select
                     className="mt-1 block w-full rounded-lg border border-[var(--color-border-strong)] px-3 py-2"
-                    value={selectedResearchId}
+                    value={selectedRunId}
                     onChange={(event) => {
                       const nextId = event.target.value;
-                      setSelectedResearchId(nextId);
-                      const pack = completePacks.find((item) => item.urlResearchId === nextId);
-                      if (pack?.keyword) {
-                        setKeyword(pack.keyword);
-                        if (!initialTitle) setTitle(pack.keyword);
+                      setSelectedRunId(nextId);
+                      const run = readyRuns.find((item) => item.id === nextId);
+                      const nextKeyword =
+                        run?.keyword && !keyword.trim() ? run.keyword : keyword;
+                      if (run?.keyword && !keyword.trim()) {
+                        setKeyword(run.keyword);
+                        setTitle((current) => defaultTitleForKeyword(run.keyword, current));
                       }
+                      replaceUrlParams({
+                        analysisRunId: nextId,
+                        keyword: nextKeyword,
+                        title: defaultTitleForKeyword(nextKeyword, title),
+                      });
                     }}
-                    disabled={analyzerLoading || completePacks.length === 0}
+                    disabled={runsLoading || selectableRuns.length === 0}
                   >
                     <option value="">
-                      {analyzerLoading ? 'Loading packs…' : 'Select a complete pack'}
+                      {runsLoading ? 'Loading analysis runs…' : 'Select an analysis run with SERP data'}
                     </option>
-                    {completePacks.map((pack) => (
-                      <option key={pack.urlResearchId} value={pack.urlResearchId}>
-                        {pack.keyword} — {formatResearchWhen(pack.researchedAt ?? pack.createdAt)}
+                    {selectableRuns.map((run) => (
+                      <option key={run.id} value={run.id}>
+                        SERP: {run.keyword} — {formatResearchWhen(run.createdAt)}
+                        {run.status ? ` (${run.status})` : ''}
                       </option>
                     ))}
                   </select>
+                </label>
+
+                <label className="text-sm font-medium text-[var(--color-text-primary)] md:col-span-2">
+                  Article keyword
+                  <input
+                    className="mt-1 block w-full rounded-lg border border-[var(--color-border-strong)] px-3 py-2"
+                    value={keyword}
+                    onChange={(event) => {
+                      const nextKeyword = event.target.value;
+                      setKeyword(nextKeyword);
+                      replaceUrlParams({
+                        keyword: nextKeyword,
+                      });
+                    }}
+                    placeholder="Keyword to write and score this article for"
+                  />
+                  {selectedRun?.keyword &&
+                  keyword.trim() &&
+                  keyword.trim().toLowerCase() !== selectedRun.keyword.trim().toLowerCase() ? (
+                    <span className="mt-1 block text-xs text-[var(--color-text-muted)]">
+                      SERP data is from “{selectedRun.keyword}”; this article targets “{keyword.trim()}”.
+                    </span>
+                  ) : selectedRun?.keyword ? (
+                    <span className="mt-1 block text-xs text-[var(--color-text-muted)]">
+                      Using SERP research for “{selectedRun.keyword}”.
+                    </span>
+                  ) : null}
                 </label>
               </div>
 
@@ -410,12 +507,16 @@ function ContentWritingPageInner() {
               <div className="mt-5 flex flex-wrap gap-3">
                 <button
                   type="button"
-                  disabled={!projectId || !selectedResearchId || !!loadingAction}
+                  disabled={!projectId || !selectedRunId || !keyword.trim() || !!loadingAction}
                   className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                   onClick={() =>
                     void run('research-draft', async () => {
-                      if (!selectedResearchId) {
-                        throw new Error('Select a complete keyword pack from Site Analyzer first.');
+                      if (!selectedRunId) {
+                        throw new Error('Select an analysis run with SERP data first.');
+                      }
+                      const articleKeyword = keyword.trim() || selectedRun?.keyword || '';
+                      if (!articleKeyword) {
+                        throw new Error('Enter the article keyword you want to write for.');
                       }
                       let workingDoc = doc;
                       if (!workingDoc) {
@@ -423,22 +524,27 @@ function ContentWritingPageInner() {
                           {
                             projectId,
                             title,
-                            targetKeyword: keyword || selectedPack?.keyword || '',
+                            targetKeyword: articleKeyword,
                             targetLocation: location,
-                            urlResearchId: selectedResearchId,
+                            analysisRunId: selectedRunId,
+                            siteProfileId: urlParams.siteProfile || undefined,
                           },
                           accessToken,
                         );
                         setDoc(workingDoc);
-                      } else if (!workingDoc.urlResearchId) {
-                        workingDoc = await attachUrlResearch(
+                      } else if (!workingDoc.analysisRunId) {
+                        workingDoc = await attachAnalysisRun(
                           workingDoc.id,
-                          selectedResearchId,
+                          {
+                            analysisRunId: selectedRunId,
+                            targetKeyword: articleKeyword,
+                            siteProfileId: urlParams.siteProfile || undefined,
+                          },
                           accessToken,
                         );
                         setDoc(workingDoc);
-                      } else if (workingDoc.urlResearchId !== selectedResearchId) {
-                        throw new Error('This document is already linked to different research.');
+                      } else if (workingDoc.analysisRunId !== selectedRunId) {
+                        throw new Error('This document is already linked to a different analysis run.');
                       }
 
                       const saved = await runResearchContentDraft(
@@ -455,14 +561,6 @@ function ContentWritingPageInner() {
                     ? draftLoadingLabel(loadingAction, draftProgress, 'Drafting from research…')
                     : 'Generate draft'}
                 </button>
-                {!selectedResearchId ? (
-                  <Link
-                    href={siteAnalyzerHref}
-                    className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-[var(--color-surface-muted)]"
-                  >
-                    Complete Site Analyzer first
-                  </Link>
-                ) : null}
               </div>
 
               {selectedProject ? (

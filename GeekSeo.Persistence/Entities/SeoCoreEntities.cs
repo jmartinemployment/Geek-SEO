@@ -29,6 +29,18 @@ public sealed class SeoContentDocument
     public Guid ProjectId { get; set; }
     public Guid UserId { get; set; }
     public Guid? UrlResearchId { get; set; }
+    /// <summary>When set, SERP-dependent writing input is loaded from <c>analysis_runs</c> export.</summary>
+    public Guid? AnalysisRunId { get; set; }
+    /// <summary>Keyword the linked analysis run SERP was fetched for (frozen at attach/create).</summary>
+    public string SerpKeyword { get; set; } = string.Empty;
+    /// <summary>JSON snapshot of <see cref="GeekSeo.Application.Models.Seo.SiteWritingFocus"/> at attach/create.</summary>
+    public string? SiteFocusJson { get; set; }
+    public DateTimeOffset? SiteFocusCapturedAt { get; set; }
+    /// <summary>SA2 <c>sa2.site_profiles.Id</c> frozen at handoff.</summary>
+    public Guid? SiteProfileId { get; set; }
+    /// <summary>Frozen SA2 keyword bundle JSON (<c>content-writer-export</c>).</summary>
+    public string? KeywordBundleJson { get; set; }
+    public DateTimeOffset? KeywordBundleCapturedAt { get; set; }
     public string Title { get; set; } = "Untitled Document";
     public string ContentHtml { get; set; } = string.Empty;
     /// <summary>Data URL or HTTPS URL for the article hero / OG image.</summary>

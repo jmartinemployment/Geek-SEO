@@ -9,6 +9,7 @@ import {
   createSiteAnalyzerPack,
   getSiteAnalyzerProjectState,
   listProjects,
+  resolveAnalysisRunIdForHandoff,
   runSiteAnalyzerPackStep,
   runSiteIndexStep,
   type SeoProject,
@@ -18,6 +19,7 @@ import {
   type SiteAnalyzerStepStatus,
   type SiteAnalyzerStepRunResponse,
 } from '@/lib/seo-api';
+import { contentWritingPath } from '@/lib/content-writing-search-params';
 
 const SITE_INDEX_STEPS: Array<{ step: number; title: string; subtitle: string }> = [
   { step: 1, title: 'Discover URLs', subtitle: 'Sitemap and seed URL discovery' },
@@ -498,10 +500,20 @@ export function SiteAnalyzerWorkspace({
     }
   }
 
-  function openContentWriting(packId: string) {
+  async function openContentWriting(packId: string, packKeyword: string) {
     if (!projectId) return;
+    const analysisRunId = await resolveAnalysisRunIdForHandoff(
+      projectId,
+      packId,
+      packKeyword,
+      accessToken,
+    );
     router.push(
-      `/content-writing?projectId=${encodeURIComponent(projectId)}&urlResearchId=${encodeURIComponent(packId)}`,
+      contentWritingPath({
+        projectId,
+        analysisRunId,
+        keyword: packKeyword,
+      }),
     );
   }
 
@@ -510,7 +522,7 @@ export function SiteAnalyzerWorkspace({
     if (stepNumber === 10) {
       const step10 = packSteps.find((s) => s.stepNumber === 10);
       if (step10?.status === 'green') {
-        openContentWriting(selectedPackId);
+        openContentWriting(selectedPackId, selectedPack?.keyword ?? keyword);
         return;
       }
     }
@@ -542,7 +554,7 @@ export function SiteAnalyzerWorkspace({
         result.status === 'green' &&
         projectId
       ) {
-        openContentWriting(selectedPackId);
+        openContentWriting(selectedPackId, selectedPack?.keyword ?? keyword);
       }
     } catch (runError) {
       setError(runError);
@@ -709,8 +721,13 @@ export function SiteAnalyzerWorkspace({
                       step.stepNumber === 10 &&
                       step.status === 'green' &&
                       projectId &&
-                      selectedPackId
-                        ? `/content-writing?projectId=${encodeURIComponent(projectId)}&urlResearchId=${encodeURIComponent(selectedPackId)}`
+                      selectedPackId &&
+                      selectedPack
+                        ? contentWritingPath({
+                            projectId,
+                            analysisRunId: selectedPackId,
+                            keyword: selectedPack.keyword,
+                          })
                         : null
                     }
                     onRun={() => void handleRunPackStep(step.stepNumber)}
@@ -728,7 +745,11 @@ export function SiteAnalyzerWorkspace({
                   </p>
                 </div>
                 <Link
-                  href={`/content-writing?projectId=${encodeURIComponent(projectId)}&urlResearchId=${encodeURIComponent(handoffPack.urlResearchId)}`}
+                  href={contentWritingPath({
+                    projectId,
+                    analysisRunId: handoffPack.urlResearchId,
+                    keyword: handoffPack.keyword,
+                  })}
                   className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-sm text-white hover:bg-[var(--color-accent-hover)]"
                 >
                   Write with this research

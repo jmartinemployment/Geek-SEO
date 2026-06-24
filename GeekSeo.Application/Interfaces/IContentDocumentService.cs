@@ -14,5 +14,7 @@ public interface IContentDocumentService
     Task<Result<SeoContentDocument>> UpdateStatusAsync(Guid userId, Guid documentId, string status, CancellationToken ct = default);
     Task<Result<SeoContentDocument>> AttachUrlResearchAsync(
         Guid userId, Guid documentId, Guid urlResearchId, CancellationToken ct = default);
+    Task<Result<SeoContentDocument>> AttachAnalysisRunAsync(
+        Guid userId, Guid documentId, Guid analysisRunId, string targetKeyword, string serpKeyword, Guid? siteProfileId = null, CancellationToken ct = default);
     Task<Result> DeleteAsync(Guid userId, Guid documentId, CancellationToken ct = default);
 }

@@ -61,7 +61,7 @@ public sealed class ContentWritingRenderTests
         var service = new ArticleRenderService(
             new FakeContentDocumentService(document),
             new FakeContentBriefService(brief),
-            new FakeUrlResearchService());
+            new WritingResearchContextLoader());
 
         var result = await service.RenderAsync(userId, document.Id);
 
@@ -137,35 +137,28 @@ public sealed class ContentWritingRenderTests
             Guid userId, Guid documentId, Guid urlResearchId, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
+        public Task<Result<SeoContentDocument>> AttachAnalysisRunAsync(
+            Guid userId, Guid documentId, Guid analysisRunId, string targetKeyword, string serpKeyword, Guid? siteProfileId = null, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
         public Task<Result> DeleteAsync(Guid userId, Guid documentId, CancellationToken ct = default) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class NoOpAnalysisRunRepository : IAnalysisRunRepository
+    {
+        public Task<Result<ContentWriterSerpExport>> GetContentWriterExportAsync(Guid runId, CancellationToken ct = default) =>
+            Task.FromResult(Result<ContentWriterSerpExport>.NotFound("not found"));
+
+        public Task<Result<IReadOnlyList<AnalysisRunSummary>>> ListByProjectAsync(
+            Guid projectId, CancellationToken ct = default) =>
+            Task.FromResult(Result<IReadOnlyList<AnalysisRunSummary>>.Success([]));
     }
 
     private sealed class FakeContentBriefService(ContentBrief brief) : IContentBriefService
     {
         public Task<Result<ContentBrief>> GenerateBriefAsync(Guid userId, GenerateBriefRequest request, CancellationToken ct = default) =>
             Task.FromResult(Result<ContentBrief>.Success(brief));
-    }
-
-    private sealed class FakeUrlResearchService : IUrlResearchService
-    {
-        public Task<Result<SeoUrlResearch>> CreateQueuedAsync(Guid userId, CreateUrlResearchQueuedRequest request, CancellationToken ct = default) =>
-            throw new NotSupportedException();
-
-        public Task<Result<SeoUrlResearch>> GetHeadAsync(Guid userId, Guid urlResearchId, CancellationToken ct = default) =>
-            throw new NotSupportedException();
-
-        public Task<Result<SeoUrlResearch>> GetFullAsync(Guid userId, Guid urlResearchId, CancellationToken ct = default) =>
-            throw new NotSupportedException();
-
-        public Task<Result<IReadOnlyList<UrlResearchSummary>>> ListSummaryByProjectAsync(Guid userId, Guid projectId, CancellationToken ct = default) =>
-            throw new NotSupportedException();
-
-        public Task<Result<SeoUrlResearch>> PersistFullAsync(Guid userId, Guid urlResearchId, UrlResearchFullWrite body, CancellationToken ct = default) =>
-            throw new NotSupportedException();
-
-        public Task<Result<SeoUrlResearch>> UpdateStatusAsync(Guid userId, Guid urlResearchId, UrlResearchStatusPatch patch, CancellationToken ct = default) =>
-            throw new NotSupportedException();
     }
 
     private sealed class FakeProjectRepository(Guid projectId, Guid userId) : IProjectRepository

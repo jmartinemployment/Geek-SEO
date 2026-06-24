@@ -9,7 +9,7 @@ namespace GeekSeo.Application.Services.Seo;
 public sealed class ArticleRenderService(
     IContentDocumentService documents,
     IContentBriefService briefs,
-    IUrlResearchService urlResearch) : IArticleRenderService
+    WritingResearchContextLoader researchLoader) : IArticleRenderService
 {
     public async Task<Result<RenderedArticleResult>> RenderAsync(
         Guid userId,
@@ -26,15 +26,11 @@ public sealed class ArticleRenderService(
 
         if (ResearchBackedWriteGate.IsResearchBacked(doc))
         {
-            var research = await urlResearch.GetFullAsync(userId, doc.UrlResearchId!.Value, ct);
-            if (!research.IsSuccess || research.Value is null)
-                return Result<RenderedArticleResult>.Failure(research.Error ?? "Page research not found");
+            var loaded = await researchLoader.LoadAsync(userId, doc, ct);
+            if (!loaded.IsSuccess || loaded.Value is null)
+                return Result<RenderedArticleResult>.Failure(loaded.Error ?? "Research not ready");
 
-            var gate = ResearchBackedWriteGate.EnsureResearchReady(doc, research.Value);
-            if (!gate.IsSuccess)
-                return Result<RenderedArticleResult>.Failure(gate.Error ?? "Research not ready");
-
-            var context = WritingResearchContextMapper.FromEntity(research.Value);
+            var context = loaded.Value;
             schemaScripts = ArticleSchemaBuilder.BuildScripts(context, doc.Title, doc.ContentHtml);
             schemaTypes = ["TechArticle", "FAQPage"];
         }

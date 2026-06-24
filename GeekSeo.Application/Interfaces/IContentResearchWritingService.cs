@@ -7,7 +7,7 @@ namespace GeekSeo.Application.Interfaces.Seo;
 public interface IContentResearchWritingService
 {
     Task<Result<SeoContentDocument>> AttachResearchAsync(
-        Guid userId, Guid documentId, AttachUrlResearchRequest request, CancellationToken ct = default);
+        Guid userId, Guid documentId, AttachAnalysisRunRequest request, CancellationToken ct = default);
 
     Task<Result<WritingTextResult>> DraftFromResearchAsync(
         Guid userId, Guid documentId, CancellationToken ct = default);

@@ -34,11 +34,59 @@ export type SeoProject = {
   localSeoEnabled?: boolean;
 };
 
+export type SiteWritingFocus = {
+  siteName: string;
+  siteUrl: string;
+  primaryNiche?: string;
+  nicheDescription?: string;
+  nicheTags?: string[];
+  businessSummary?: string;
+  matchedPillarTopic?: string | null;
+  matchedPillarIntent?: string | null;
+  matchedPillarAngle?: string | null;
+  geoAnchorNodes?: string[];
+  serviceAreaDescription?: string;
+  gapTopics?: string[];
+  competitorDomains?: string[];
+  authorityPageUrls?: string[];
+  nicheProfileId?: string | null;
+  nicheProfileUpdatedAt?: string | null;
+  capturedAt?: string;
+  writingInstructions?: string;
+};
+
+export function parseSiteWritingFocus(json?: string | null): SiteWritingFocus | null {
+  if (!json?.trim()) return null;
+  try {
+    return JSON.parse(json) as SiteWritingFocus;
+  } catch {
+    return null;
+  }
+}
+
+export function parseContentWriterKeywordBundle(
+  json?: string | null,
+): ContentWriterSerpExport | null {
+  if (!json?.trim()) return null;
+  try {
+    return JSON.parse(json) as ContentWriterSerpExport;
+  } catch {
+    return null;
+  }
+}
+
 export type SeoContentDocument = {
   id: string;
   projectId: string;
   userId: string;
   urlResearchId?: string | null;
+  analysisRunId?: string | null;
+  siteProfileId?: string | null;
+  serpKeyword?: string | null;
+  siteFocusJson?: string | null;
+  siteFocusCapturedAt?: string | null;
+  keywordBundleJson?: string | null;
+  keywordBundleCapturedAt?: string | null;
   title: string;
   contentHtml: string;
   featuredImageUrl?: string | null;
@@ -153,7 +201,8 @@ export async function createContent(
     title?: string;
     targetKeyword?: string;
     targetLocation?: string;
-    urlResearchId?: string;
+    analysisRunId?: string;
+    siteProfileId?: string;
   },
   accessToken?: string | null,
 ): Promise<SeoContentDocument> {
@@ -233,16 +282,132 @@ export async function updateContentStatus(
 
 export async function attachUrlResearch(
   documentId: string,
-  urlResearchId: string,
+  analysisRunId: string,
+  accessToken?: string | null,
+  targetKeyword?: string,
+): Promise<SeoContentDocument> {
+  return attachAnalysisRun(documentId, { analysisRunId, targetKeyword }, accessToken);
+}
+
+export type AnalysisRunSummary = {
+  id: string;
+  projectId: string;
+  keyword: string;
+  targetSiteUrl: string;
+  status: string;
+  serpSeResultsCount: number;
+  organicResultCount: number;
+  createdAt: string;
+  contentWritingReady: boolean;
+};
+
+export type ContentWriterSerpItem = {
+  position: number;
+  type: string;
+  title?: string | null;
+  url?: string | null;
+  domain?: string | null;
+  snippet?: string | null;
+  relatedQuestions?: string[];
+};
+
+export type ContentWriterSerpExport = {
+  runId: string;
+  projectId: string;
+  keyword: string;
+  targetSiteUrl: string;
+  status: string;
+  serpSeResultsCount: number;
+  serp: ContentWriterSerpItem[];
+};
+
+export async function listAnalysisRuns(
+  projectId: string,
+  accessToken?: string | null,
+): Promise<AnalysisRunSummary[]> {
+  const res = await fetch(
+    `${API_URL}/api/seo/analysis-runs?projectId=${encodeURIComponent(projectId)}`,
+    { headers: apiHeaders(accessToken), cache: 'no-store' },
+  );
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<AnalysisRunSummary[]>;
+}
+
+/** Prefer a real analysis run id when handing off from legacy pack ids. */
+export async function resolveAnalysisRunIdForHandoff(
+  projectId: string,
+  packId: string,
+  keyword: string,
+  accessToken?: string | null,
+): Promise<string> {
+  try {
+    const runs = await listAnalysisRuns(projectId, accessToken);
+    const byId = runs.find((run) => run.id === packId);
+    if (byId) return byId.id;
+
+    const normalized = keyword.trim().toLowerCase();
+    const byKeyword = runs.find(
+      (run) =>
+        run.contentWritingReady &&
+        run.keyword.trim().toLowerCase() === normalized,
+    );
+    if (byKeyword) return byKeyword.id;
+
+    const firstReady = runs.find((run) => run.contentWritingReady);
+    if (firstReady) return firstReady.id;
+  } catch {
+    // Fall back to the caller-provided id for legacy handoffs.
+  }
+
+  return packId;
+}
+
+export async function getContentWriterExport(
+  runId: string,
+  accessToken?: string | null,
+): Promise<ContentWriterSerpExport> {
+  const res = await fetch(
+    `${API_URL}/api/seo/analysis-runs/${encodeURIComponent(runId)}/content-writer-export`,
+    { headers: apiHeaders(accessToken), cache: 'no-store' },
+  );
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<ContentWriterSerpExport>;
+}
+
+export async function attachAnalysisRun(
+  documentId: string,
+  body: { analysisRunId: string; targetKeyword?: string; siteProfileId?: string },
   accessToken?: string | null,
 ): Promise<SeoContentDocument> {
-  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/url-research`, {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/analysis-run`, {
     method: 'PATCH',
     headers: apiHeaders(accessToken),
-    body: JSON.stringify({ urlResearchId }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<SeoContentDocument>;
+}
+
+/** SERP-only readiness — does not require Site Analyzer / site crawl data. */
+export function analysisRunBlockReason(
+  runs: AnalysisRunSummary[] | null | undefined,
+  preferredRunId?: string,
+): string | null {
+  if (!runs) return null;
+  const ready = runs.filter((run) => run.contentWritingReady);
+  if (ready.length === 0) {
+    return 'No analysis run with organic SERP results is ready for Content Writing yet.';
+  }
+  if (preferredRunId) {
+    const targeted = runs.find((run) => run.id === preferredRunId);
+    if (targeted && !targeted.contentWritingReady) {
+      if (targeted.status?.toLowerCase() === 'failed') {
+        return 'Selected analysis run failed — SERP data is not available.';
+      }
+      return 'Selected analysis run has no organic SERP results yet.';
+    }
+  }
+  return null;
 }
 
 export async function draftContentFromResearch(

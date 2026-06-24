@@ -151,6 +151,28 @@ public static class ArticlePromptBuilder
         if (!string.IsNullOrWhiteSpace(research.BusinessContext))
             builder.AppendLine($"Business context: {research.BusinessContext}");
 
+        if (research.SiteFocus is { } siteFocus)
+        {
+            builder.AppendLine();
+            builder.AppendLine("Site writing focus:");
+            if (!string.IsNullOrWhiteSpace(siteFocus.SiteName))
+                builder.AppendLine($"- Site: {siteFocus.SiteName} ({siteFocus.SiteUrl})");
+            if (!string.IsNullOrWhiteSpace(siteFocus.PrimaryNiche))
+                builder.AppendLine($"- Primary niche: {siteFocus.PrimaryNiche}");
+            if (!string.IsNullOrWhiteSpace(siteFocus.MatchedPillarTopic))
+                builder.AppendLine($"- Pillar cluster: {siteFocus.MatchedPillarTopic}");
+            if (siteFocus.GeoAnchorNodes.Count > 0)
+                builder.AppendLine($"- Geo: {string.Join("; ", siteFocus.GeoAnchorNodes.Take(4))}");
+            if (siteFocus.GapTopics.Count > 0)
+                builder.AppendLine($"- Reinforce gaps: {string.Join(", ", siteFocus.GapTopics)}");
+            if (!string.IsNullOrWhiteSpace(research.SerpKeyword)
+                && !string.Equals(research.DerivedKeyword, research.SerpKeyword, StringComparison.OrdinalIgnoreCase))
+            {
+                builder.AppendLine(
+                    $"- Note: article keyword \"{research.DerivedKeyword}\" differs from SERP keyword \"{research.SerpKeyword}\".");
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(research.DataQualityNotes))
         {
             builder.AppendLine();

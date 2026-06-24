@@ -1219,6 +1219,9 @@ namespace GeekSeo.Persistence.Migrations
                     b.Property<decimal?>("AiDetectionScore")
                         .HasColumnType("numeric");
 
+                    b.Property<Guid?>("AnalysisRunId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("ContentHtml")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1227,6 +1230,12 @@ namespace GeekSeo.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("FeaturedImageUrl")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("KeywordBundleCapturedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("KeywordBundleJson")
                         .HasColumnType("text");
 
                     b.Property<DateTimeOffset?>("LastScoredAt")
@@ -1250,6 +1259,19 @@ namespace GeekSeo.Persistence.Migrations
 
                     b.Property<int>("SeoScore")
                         .HasColumnType("integer");
+
+                    b.Property<string>("SerpKeyword")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("SiteFocusCapturedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SiteFocusJson")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("SiteProfileId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Status")
                         .IsRequired()

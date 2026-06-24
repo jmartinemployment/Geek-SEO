@@ -53,7 +53,7 @@ public sealed class WritingResearchContextMapperTests
 
         var context = WritingResearchContextMapper.FromEntity(row);
 
-        Assert.Equal(researchId, context.UrlResearchId);
+        Assert.Equal(researchId, context.AnalysisRunId);
         Assert.Equal("example keyword", context.DerivedKeyword);
         Assert.Single(context.RecommendedTerms);
         Assert.Equal("widget", context.RecommendedTerms[0].Term);

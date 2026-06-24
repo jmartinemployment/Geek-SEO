@@ -69,12 +69,17 @@ public sealed class ContentController(
         return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
     }
 
-    [HttpPatch("{id:guid}/url-research")]
-    public async Task<IActionResult> AttachUrlResearch(Guid id, [FromBody] AttachUrlResearchRequest request, CancellationToken ct)
+    [HttpPatch("{id:guid}/analysis-run")]
+    public async Task<IActionResult> AttachAnalysisRun(Guid id, [FromBody] AttachAnalysisRunRequest request, CancellationToken ct)
     {
         var result = await researchWriting.AttachResearchAsync(user.RequireUserId(), id, request, ct);
         return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
     }
+
+    [HttpPatch("{id:guid}/url-research")]
+    [Obsolete("Use PATCH /api/seo/content/{id}/analysis-run with analysisRunId.")]
+    public Task<IActionResult> AttachUrlResearch(Guid id, [FromBody] AttachAnalysisRunRequest request, CancellationToken ct) =>
+        AttachAnalysisRun(id, request, ct);
 
     [HttpPost("{id:guid}/draft")]
     public async Task<IActionResult> DraftFromResearch(Guid id, CancellationToken ct)
@@ -207,3 +212,4 @@ public sealed record UpdateDocumentStatusBody
 {
     public required string Status { get; init; }
 }
+

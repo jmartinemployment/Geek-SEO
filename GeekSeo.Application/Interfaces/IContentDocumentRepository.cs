@@ -12,6 +12,17 @@ public interface IContentDocumentRepository
     Task<Result<SeoContentDocument>> UpdateContentAsync(Guid documentId, UpdateContentRequest request, int wordCount, CancellationToken ct = default);
     Task<Result<SeoContentDocument>> UpdateStatusAsync(Guid documentId, string status, CancellationToken ct = default);
     Task<Result<SeoContentDocument>> AttachUrlResearchAsync(Guid documentId, Guid urlResearchId, CancellationToken ct = default);
+    Task<Result<SeoContentDocument>> AttachAnalysisRunAsync(
+        Guid documentId,
+        Guid analysisRunId,
+        string targetKeyword,
+        string serpKeyword,
+        Guid siteProfileId,
+        string? siteFocusJson = null,
+        DateTimeOffset? siteFocusCapturedAt = null,
+        string? keywordBundleJson = null,
+        DateTimeOffset? keywordBundleCapturedAt = null,
+        CancellationToken ct = default);
     Task<Result<SeoContentDocument>> UpdateFeaturedImageAsync(Guid documentId, string featuredImageUrl, CancellationToken ct = default);
     Task<Result> UpdateScoreAsync(Guid documentId, int score, string scoreComponentsJson, CancellationToken ct = default);
     Task<Result> UpdateAiDetectionScoreAsync(Guid documentId, decimal score, CancellationToken ct = default);

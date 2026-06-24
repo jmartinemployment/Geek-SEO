@@ -1,6 +1,5 @@
 using GeekSeo.Persistence.Entities;
 using GeekSeo.Application.Interfaces.Seo;
-using GeekSeo.Application.Mapping;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
 
@@ -8,25 +7,32 @@ namespace GeekSeo.Application.Services.Seo;
 
 public sealed class ContentResearchWritingService(
     IContentDocumentService documents,
-    IUrlResearchService urlResearch,
-    IAIWritingService writing) : IContentResearchWritingService
+    IAIWritingService writing,
+    WritingResearchContextLoader researchLoader) : IContentResearchWritingService
 {
     public async Task<Result<SeoContentDocument>> AttachResearchAsync(
-        Guid userId, Guid documentId, AttachUrlResearchRequest request, CancellationToken ct = default)
+        Guid userId, Guid documentId, AttachAnalysisRunRequest request, CancellationToken ct = default)
     {
+        if (request.SiteProfileId is not { } siteProfileId || siteProfileId == Guid.Empty)
+            return Result<SeoContentDocument>.Failure(
+                "site_profile is required for research-backed content.");
+
         var access = await documents.EnsureAccessAsync(userId, documentId, ct);
         if (!access.IsSuccess || access.Value is null)
             return Result<SeoContentDocument>.Failure(access.Error ?? "Access denied");
 
-        var research = await urlResearch.GetFullAsync(userId, request.UrlResearchId, ct);
-        if (!research.IsSuccess || research.Value is null)
-            return Result<SeoContentDocument>.Failure(research.Error ?? "Page research not found");
+        var targetKeyword = string.IsNullOrWhiteSpace(request.TargetKeyword)
+            ? access.Value.TargetKeyword
+            : request.TargetKeyword.Trim();
 
-        var validation = ResearchBackedWriteGate.ValidateResearchForProject(access.Value.ProjectId, research.Value);
-        if (!validation.IsSuccess)
-            return Result<SeoContentDocument>.Failure(validation.Error ?? "Invalid page research");
-
-        return await documents.AttachUrlResearchAsync(userId, documentId, request.UrlResearchId, ct);
+        return await documents.AttachAnalysisRunAsync(
+            userId,
+            documentId,
+            request.AnalysisRunId,
+            targetKeyword,
+            string.Empty,
+            siteProfileId,
+            ct);
     }
 
     public async Task<Result<WritingTextResult>> DraftFromResearchAsync(
@@ -40,15 +46,12 @@ public sealed class ContentResearchWritingService(
         if (!ResearchBackedWriteGate.IsResearchBacked(doc))
             return Result<WritingTextResult>.Failure(ContentWritingBlockMessage.Default);
 
-        var research = await urlResearch.GetFullAsync(userId, doc.UrlResearchId!.Value, ct);
-        if (!research.IsSuccess || research.Value is null)
-            return Result<WritingTextResult>.Failure(research.Error ?? "Page research not found");
+        var contextResult = researchLoader.LoadAsync(userId, doc, ct);
+        var contextResultValue = await contextResult;
+        if (!contextResultValue.IsSuccess || contextResultValue.Value is null)
+            return Result<WritingTextResult>.Failure(contextResultValue.Error ?? "Research not ready");
 
-        var gate = ResearchBackedWriteGate.EnsureResearchReady(doc, research.Value);
-        if (!gate.IsSuccess)
-            return Result<WritingTextResult>.Failure(gate.Error ?? "Research not ready");
-
-        var context = WritingResearchContextMapper.FromEntity(research.Value);
+        var context = contextResultValue.Value;
         var draft = await writing.GenerateDraftFromResearchAsync(userId, new ResearchDraftRequest
         {
             Research = context,
