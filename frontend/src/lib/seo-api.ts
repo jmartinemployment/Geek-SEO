@@ -64,6 +64,43 @@ export function parseSiteWritingFocus(json?: string | null): SiteWritingFocus | 
   }
 }
 
+export type ContentWriterHeading = {
+  level: number;
+  text: string;
+  sequence: number;
+};
+
+export type ContentWriterExportBenchmarks = {
+  medianH2CountTop5: number;
+  medianWordCountTop5: number;
+  competitorDomainCount: number;
+  competitorPageCount: number;
+};
+
+export type ContentWriterSerpItem = {
+  position: number;
+  type: string;
+  title?: string | null;
+  url?: string | null;
+  domain?: string | null;
+  snippet?: string | null;
+  relatedQuestions?: string[];
+};
+
+export type ContentWriterSerpExport = {
+  runId: string;
+  projectId: string;
+  keyword: string;
+  targetSiteUrl: string;
+  status: string;
+  serpSeResultsCount: number;
+  serp: ContentWriterSerpItem[];
+  writingInstructions?: string;
+  writingRecommendations?: string[];
+  sourceHeadings?: ContentWriterHeading[];
+  benchmarks?: ContentWriterExportBenchmarks;
+};
+
 export function parseContentWriterKeywordBundle(
   json?: string | null,
 ): ContentWriterSerpExport | null {
@@ -301,26 +338,6 @@ export type AnalysisRunSummary = {
   contentWritingReady: boolean;
 };
 
-export type ContentWriterSerpItem = {
-  position: number;
-  type: string;
-  title?: string | null;
-  url?: string | null;
-  domain?: string | null;
-  snippet?: string | null;
-  relatedQuestions?: string[];
-};
-
-export type ContentWriterSerpExport = {
-  runId: string;
-  projectId: string;
-  keyword: string;
-  targetSiteUrl: string;
-  status: string;
-  serpSeResultsCount: number;
-  serp: ContentWriterSerpItem[];
-};
-
 export async function listAnalysisRuns(
   projectId: string,
   accessToken?: string | null,
@@ -360,18 +377,6 @@ export async function resolveAnalysisRunIdForHandoff(
   }
 
   return packId;
-}
-
-export async function getContentWriterExport(
-  runId: string,
-  accessToken?: string | null,
-): Promise<ContentWriterSerpExport> {
-  const res = await fetch(
-    `${API_URL}/api/seo/analysis-runs/${encodeURIComponent(runId)}/content-writer-export`,
-    { headers: apiHeaders(accessToken), cache: 'no-store' },
-  );
-  if (!res.ok) throw await parseSeoApiErrorResponse(res);
-  return res.json() as Promise<ContentWriterSerpExport>;
 }
 
 export async function attachAnalysisRun(

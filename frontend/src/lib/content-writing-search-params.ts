@@ -62,6 +62,29 @@ export function contentWritingPath(
   return query ? `/content-writing?${query}` : '/content-writing';
 }
 
+/** SA2 handoff must include all four fields before Content Writing can start. */
+export function isCompleteContentWritingHandoff(
+  params: ContentWritingSearchParams,
+): boolean {
+  return Boolean(
+    params.projectId &&
+      params.analysisRunId &&
+      params.keyword.trim() &&
+      params.siteProfile,
+  );
+}
+
+export function missingContentWritingHandoffFields(
+  params: ContentWritingSearchParams,
+): string[] {
+  const missing: string[] = [];
+  if (!params.projectId) missing.push('project');
+  if (!params.analysisRunId) missing.push('analysis run');
+  if (!params.keyword.trim()) missing.push('keyword');
+  if (!params.siteProfile) missing.push('site profile');
+  return missing;
+}
+
 export function defaultTitleForKeyword(
   keyword: string,
   currentTitle?: string | null,

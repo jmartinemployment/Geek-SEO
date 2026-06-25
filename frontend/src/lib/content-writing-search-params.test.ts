@@ -3,6 +3,8 @@ import {
   buildContentWritingSearchParams,
   contentWritingPath,
   defaultTitleForKeyword,
+  isCompleteContentWritingHandoff,
+  missingContentWritingHandoffFields,
   parseContentWritingSearchParams,
 } from './content-writing-search-params';
 
@@ -70,5 +72,49 @@ describe('buildContentWritingSearchParams', () => {
         location: 'United States',
       }).toString(),
     ).toBe('projectId=abc');
+  });
+});
+
+describe('isCompleteContentWritingHandoff', () => {
+  it('requires project, run, keyword, and site profile', () => {
+    expect(
+      isCompleteContentWritingHandoff({
+        projectId: 'p',
+        analysisRunId: 'r',
+        keyword: 'kw',
+        siteProfile: 'sp',
+        title: '',
+        location: 'United States',
+        documentId: '',
+      }),
+    ).toBe(true);
+
+    expect(
+      isCompleteContentWritingHandoff({
+        projectId: 'p',
+        analysisRunId: 'r',
+        keyword: 'kw',
+        siteProfile: '',
+        title: '',
+        location: 'United States',
+        documentId: '',
+      }),
+    ).toBe(false);
+  });
+});
+
+describe('missingContentWritingHandoffFields', () => {
+  it('lists absent handoff fields', () => {
+    expect(
+      missingContentWritingHandoffFields({
+        projectId: '',
+        analysisRunId: 'r',
+        keyword: '',
+        siteProfile: '',
+        title: '',
+        location: 'United States',
+        documentId: '',
+      }),
+    ).toEqual(['project', 'keyword', 'site profile']);
   });
 });

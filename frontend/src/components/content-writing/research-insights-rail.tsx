@@ -98,7 +98,7 @@ export function ResearchInsightsRail({
 
   return (
     <div className="space-y-3 border-t px-3 py-4 xl:px-4">
-      <h3 className="text-xs font-semibold xl:text-sm">SERP insights</h3>
+      <h3 className="text-xs font-semibold xl:text-sm">SERP research</h3>
       <p className="text-xs text-[var(--color-text-muted)]">
         Frozen at handoff · {exportData.keyword}
         {exportData.status ? ` · ${exportData.status}` : ''}
@@ -118,10 +118,32 @@ export function ResearchInsightsRail({
         </p>
       )}
 
+      {exportData.writingInstructions ? (
+        <InsightCard title="Writing brief">
+          <p>{exportData.writingInstructions}</p>
+        </InsightCard>
+      ) : null}
+
+      {exportData.writingRecommendations?.length ? (
+        <InsightCard title="Recommendations">
+          <ul className="list-disc space-y-1 pl-4">
+            {exportData.writingRecommendations.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </InsightCard>
+      ) : null}
+
       <InsightCard title="SERP overview">
         <ul className="space-y-1">
           <li>Results: {exportData.serpSeResultsCount?.toLocaleString() ?? '—'}</li>
           <li>Organic captured: {organic.length}</li>
+          {exportData.benchmarks?.medianWordCountTop5 ? (
+            <li>Median words (top 5): {exportData.benchmarks.medianWordCountTop5.toLocaleString()}</li>
+          ) : null}
+          {exportData.benchmarks?.medianH2CountTop5 ? (
+            <li>Median H2s (top 5): {exportData.benchmarks.medianH2CountTop5}</li>
+          ) : null}
         </ul>
       </InsightCard>
 
@@ -136,7 +158,7 @@ export function ResearchInsightsRail({
       ) : null}
 
       {pasf.length ? (
-        <InsightCard title="Related searches (PASF)">
+        <InsightCard title="Related searches">
           <ul className="list-disc space-y-1 pl-4">
             {pasf.map((search) => (
               <li key={search}>{search}</li>

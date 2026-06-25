@@ -11,8 +11,9 @@ import {
 import { ContentEditor, type ContentEditorHandle } from '@/components/editor/content-editor';
 import { EditorAiToolbar } from '@/components/editor/editor-ai-toolbar';
 import { ScoreSidebar } from '@/components/editor/score-sidebar';
-import { ReviewFeaturedImage } from '@/components/content-writing/review-featured-image';
 import { ResearchInsightsRail } from '@/components/content-writing/research-insights-rail';
+import { JsonLdPanel } from '@/components/content-writing/json-ld-panel';
+import { ContentGuidelinesPanel } from '@/components/content-writing/content-guidelines-panel';
 import { useContentScoring, type ScoreSuggestion } from '@/hooks/useContentScoring';
 import {
   applyScoreSuggestion,
@@ -22,7 +23,6 @@ import {
   getRenderedContentHtml,
   scoreContentDocument,
   updateContent,
-  updateContentStatus,
   type SeoContentDocument,
 } from '@/lib/seo-api';
 import { beginDraftJobWait } from '@/lib/draft-job-signalr';
@@ -31,7 +31,7 @@ import { copyTextFromPromise } from '@/lib/copy-to-clipboard';
 
 const DEFAULT_DRAFT_HTML = '<h1>Article title</h1><p>Start writing your article.</p>';
 
-type ReviewWorkspaceContextValue = {
+type WritingWorkspaceContextValue = {
   doc: SeoContentDocument;
   accessToken: string | null;
   html: string;
@@ -46,7 +46,6 @@ type ReviewWorkspaceContextValue = {
   scoreError: ReturnType<typeof useContentScoring>['error'];
   connected: ReturnType<typeof useContentScoring>['connected'];
   applyingSuggestionId: string | null;
-  statusUpdating: string | null;
   copyHint: string | null;
   save: (
     nextHtml: string,
@@ -56,62 +55,42 @@ type ReviewWorkspaceContextValue = {
     options?: { scheduleScore?: boolean },
   ) => Promise<void>;
   handleApplySuggestion: (suggestion: ScoreSuggestion) => Promise<void>;
-  changeStatus: (nextStatus: string) => Promise<void>;
   refreshSerp: () => void;
   copyRenderedHtml: () => void;
   scheduleScore: (nextHtml: string, nextKeyword: string) => void;
   notifyKeywordChanged: ReturnType<typeof useContentScoring>['notifyKeywordChanged'];
-  setFeaturedImageUrl: (featuredImageUrl: string) => void;
 };
 
-const ReviewWorkspaceContext = createContext<ReviewWorkspaceContextValue | null>(null);
+const WritingWorkspaceContext = createContext<WritingWorkspaceContextValue | null>(null);
 
-export function useReviewWorkspace(): ReviewWorkspaceContextValue {
-  const value = use(ReviewWorkspaceContext);
+export function useWritingWorkspace(): WritingWorkspaceContextValue {
+  const value = use(WritingWorkspaceContext);
   if (!value) {
-    throw new Error('useReviewWorkspace must be used within ReviewWorkspaceProvider');
+    throw new Error('useWritingWorkspace must be used within WritingWorkspaceProvider');
   }
   return value;
 }
 
-export function useReviewWorkspaceOptional(): ReviewWorkspaceContextValue | null {
-  return use(ReviewWorkspaceContext);
-}
+/** @deprecated Use useWritingWorkspace */
+export const useReviewWorkspace = useWritingWorkspace;
 
-export function ReviewWorkspaceProvider({
+export function WritingWorkspaceProvider({
   doc,
   accessToken,
-  title,
-  setTitle,
-  keyword,
-  setKeyword,
-  location,
-  setLocation,
   onDocumentChange,
   onError,
-  statusMessage,
-  setStatusMessage,
   children,
 }: {
   doc: SeoContentDocument;
   accessToken: string | null;
-  title: string;
-  setTitle: (value: string) => void;
-  keyword: string;
-  setKeyword: (value: string) => void;
-  location: string;
-  setLocation: (value: string) => void;
   onDocumentChange: (value: SeoContentDocument) => void;
   onError: (value: unknown) => void;
-  statusMessage: string | null;
-  setStatusMessage: (value: string | null) => void;
   children: ReactNode;
 }) {
   const [html, setHtml] = useState(doc.contentHtml || DEFAULT_DRAFT_HTML);
   const [saving, setSaving] = useState(false);
   const [copyHint, setCopyHint] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
-  const [statusUpdating, setStatusUpdating] = useState<string | null>(null);
   const [applyingSuggestionId, setApplyingSuggestionId] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialScoreSentRef = useRef(false);
@@ -132,8 +111,8 @@ export function ReviewWorkspaceProvider({
   useEffect(() => {
     if (!connected || initialScoreSentRef.current) return;
     initialScoreSentRef.current = true;
-    void notifyContentChanged(html, keyword);
-  }, [connected, html, keyword, notifyContentChanged]);
+    void notifyContentChanged(html, doc.targetKeyword);
+  }, [connected, doc.targetKeyword, html, notifyContentChanged]);
 
   function scheduleScore(nextHtml: string, nextKeyword: string) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -173,25 +152,6 @@ export function ReviewWorkspaceProvider({
     }
   }
 
-  async function changeStatus(nextStatus: string) {
-    setStatusUpdating(nextStatus);
-    try {
-      const updated = await updateContentStatus(doc.id, nextStatus, accessToken);
-      onDocumentChange(updated);
-      setStatusMessage(
-        nextStatus === 'approved_for_publish'
-          ? 'Approved for publish. Copy rendered HTML from the sidebar when ready.'
-          : nextStatus === 'awaiting_review'
-            ? 'Marked as awaiting review.'
-            : `Status updated to ${nextStatus}.`,
-      );
-    } catch (statusError) {
-      onError(statusError);
-    } finally {
-      setStatusUpdating(null);
-    }
-  }
-
   async function handleApplySuggestion(suggestion: ScoreSuggestion) {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -208,8 +168,15 @@ export function ReviewWorkspaceProvider({
       if (listener) {
         await listener.whenReady();
       }
-      await save(html, keyword, title, location, { scheduleScore: false });
-      const outcome = await applyScoreSuggestion(doc.id, suggestion.id, accessToken, html);
+      await save(html, doc.targetKeyword, doc.title, doc.targetLocation ?? '', {
+        scheduleScore: false,
+      });
+      const outcome = await applyScoreSuggestion(
+        doc.id,
+        suggestion.id,
+        accessToken,
+        html,
+      );
       if (outcome.kind === 'queued') {
         const terminal = await listener!.waitFor(outcome.job.jobId);
         if (terminal.status === 'failed') {
@@ -220,13 +187,19 @@ export function ReviewWorkspaceProvider({
         onDocumentChange(updated);
         const scored = await scoreContentDocument(
           doc.id,
-          { contentHtml: updated.contentHtml, targetKeyword: keyword },
+          { contentHtml: updated.contentHtml, targetKeyword: doc.targetKeyword },
           accessToken,
         );
         if (scored.scoreUpdate) {
           receiveScoreUpdate(scored.scoreUpdate);
         }
-        await save(updated.contentHtml, keyword, title, location, { scheduleScore: false });
+        await save(
+          updated.contentHtml,
+          doc.targetKeyword,
+          doc.title,
+          doc.targetLocation ?? '',
+          { scheduleScore: false },
+        );
         return;
       }
 
@@ -234,7 +207,13 @@ export function ReviewWorkspaceProvider({
       if (outcome.result.scoreUpdate) {
         receiveScoreUpdate(outcome.result.scoreUpdate);
       }
-      await save(outcome.result.contentHtml, keyword, title, location, { scheduleScore: false });
+      await save(
+        outcome.result.contentHtml,
+        doc.targetKeyword,
+        doc.title,
+        doc.targetLocation ?? '',
+        { scheduleScore: false },
+      );
     } catch (applyError) {
       const detail = applyError instanceof Error ? applyError.message : 'Apply failed';
       setAiError(`Could not apply “${suggestion.proposedChange}”: ${detail}`);
@@ -249,8 +228,10 @@ export function ReviewWorkspaceProvider({
 
   function refreshSerp() {
     if (isResearchBacked) return;
-    void deleteSerpCache(keyword, location, accessToken)
-      .then(() => notifyKeywordChanged(html, keyword, location))
+    void deleteSerpCache(doc.targetKeyword, doc.targetLocation ?? '', accessToken)
+      .then(() =>
+        notifyKeywordChanged(html, doc.targetKeyword, doc.targetLocation ?? ''),
+      )
       .catch(onError);
   }
 
@@ -260,17 +241,13 @@ export function ReviewWorkspaceProvider({
       return formatRenderedArticleForClipboard(result);
     })
       .then(() => {
-        setCopyHint('Rendered HTML with schema copied');
+        setCopyHint('HTML + JSON-LD copied');
         setTimeout(() => setCopyHint(null), 3000);
       })
       .catch(onError);
   }
 
-  function setFeaturedImageUrl(featuredImageUrl: string) {
-    onDocumentChange({ ...doc, featuredImageUrl });
-  }
-
-  const value: ReviewWorkspaceContextValue = {
+  const value: WritingWorkspaceContextValue = {
     doc,
     accessToken,
     html,
@@ -285,26 +262,26 @@ export function ReviewWorkspaceProvider({
     scoreError,
     connected,
     applyingSuggestionId,
-    statusUpdating,
     copyHint,
     save,
     handleApplySuggestion,
-    changeStatus,
     refreshSerp,
     copyRenderedHtml,
     scheduleScore,
     notifyKeywordChanged,
-    setFeaturedImageUrl,
   };
 
   return (
-    <ReviewWorkspaceContext value={value}>
+    <WritingWorkspaceContext value={value}>
       {children}
-    </ReviewWorkspaceContext>
+    </WritingWorkspaceContext>
   );
 }
 
-export function ReviewScoreLeft({ keyword }: { keyword: string }) {
+/** @deprecated Use WritingWorkspaceProvider */
+export const ReviewWorkspaceProvider = WritingWorkspaceProvider;
+
+export function WritingScoreLeft({ keyword }: { keyword: string }) {
   const {
     doc,
     scoreUpdate,
@@ -313,33 +290,31 @@ export function ReviewScoreLeft({ keyword }: { keyword: string }) {
     scoreError,
     connected,
     refreshSerp,
-  } = useReviewWorkspace();
+  } = useWritingWorkspace();
 
   return (
-    <ScoreSidebar
-      placement="left"
-      keyword={keyword}
-      scoreUpdate={scoreUpdate}
-      pendingReason={pendingReason}
-      benchmarkRefreshing={benchmarkRefreshing}
-      scoreError={scoreError}
-      connected={connected}
-      onRefreshSerp={refreshSerp}
-      serpRefreshEnabled={!doc.analysisRunId}
-    />
+    <div className="sticky top-4 min-w-0 rounded-xl border bg-white shadow-sm">
+      <ScoreSidebar
+        placement="left"
+        keyword={keyword}
+        scoreUpdate={scoreUpdate}
+        pendingReason={pendingReason}
+        benchmarkRefreshing={benchmarkRefreshing}
+        scoreError={scoreError}
+        connected={connected}
+        onRefreshSerp={refreshSerp}
+        serpRefreshEnabled={!doc.analysisRunId}
+      />
+    </div>
   );
 }
 
-export function ReviewScoreRight({
-  keyword,
-  statusMessage,
-}: {
-  keyword: string;
-  statusMessage: string | null;
-}) {
+/** @deprecated Use WritingScoreLeft */
+export const ReviewScoreLeft = WritingScoreLeft;
+
+export function WritingInsightsRight({ keyword }: { keyword: string }) {
   const {
     doc,
-    accessToken,
     scoreUpdate,
     pendingReason,
     benchmarkRefreshing,
@@ -349,13 +324,11 @@ export function ReviewScoreRight({
     handleApplySuggestion,
     refreshSerp,
     copyRenderedHtml,
-    changeStatus,
-    statusUpdating,
     copyHint,
-  } = useReviewWorkspace();
+  } = useWritingWorkspace();
 
   return (
-    <>
+    <div className="sticky top-4 min-w-0 rounded-xl border bg-white shadow-sm">
       <ScoreSidebar
         placement="right"
         keyword={keyword}
@@ -370,35 +343,11 @@ export function ReviewScoreRight({
         serpRefreshEnabled={!doc.analysisRunId}
         onCopyHtml={copyRenderedHtml}
       />
-
-      <div className="space-y-3 border-t px-3 py-4 xl:px-4">
-        <h3 className="text-xs font-semibold xl:text-sm">Review gate</h3>
-        <button
-          type="button"
-          disabled={!!statusUpdating}
-          className="w-full rounded-lg border px-2 py-1.5 text-xs font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50 xl:px-3 xl:py-2 xl:text-sm"
-          onClick={() => void changeStatus('awaiting_review')}
-        >
-          {statusUpdating === 'awaiting_review' ? 'Updating…' : 'Mark awaiting review'}
-        </button>
-        <button
-          type="button"
-          disabled={!!statusUpdating}
-          className="w-full rounded-lg border px-2 py-1.5 text-xs font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50 xl:px-3 xl:py-2 xl:text-sm"
-          onClick={() => void changeStatus('approved_for_publish')}
-        >
-          {statusUpdating === 'approved_for_publish' ? 'Updating…' : 'Approve for publish'}
-        </button>
-        {statusMessage ? (
-          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-            {statusMessage}
-          </p>
-        ) : null}
-        {copyHint ? <p className="text-xs text-emerald-700">{copyHint}</p> : null}
-      </div>
-
-      <ReviewFeaturedImage />
-
+      {copyHint ? (
+        <p className="border-t px-3 py-2 text-xs text-emerald-700 xl:px-4">{copyHint}</p>
+      ) : null}
+      <ContentGuidelinesPanel keyword={keyword} />
+      <JsonLdPanel />
       {doc.analysisRunId ? (
         <ResearchInsightsRail
           keywordBundleJson={doc.keywordBundleJson}
@@ -409,11 +358,14 @@ export function ReviewScoreRight({
           serpKeyword={doc.serpKeyword}
         />
       ) : null}
-    </>
+    </div>
   );
 }
 
-export function ReviewEditorPane({
+/** @deprecated Use WritingInsightsRight */
+export const ReviewScoreRight = WritingInsightsRight;
+
+export function WritingEditorPane({
   title,
   setTitle,
   keyword,
@@ -441,7 +393,7 @@ export function ReviewEditorPane({
     save,
     scheduleScore,
     notifyKeywordChanged,
-  } = useReviewWorkspace();
+  } = useWritingWorkspace();
 
   const keywordRef = useRef(keyword);
   const isResearchBacked = Boolean(doc.analysisRunId);
@@ -451,14 +403,12 @@ export function ReviewEditorPane({
       <div className="border-b px-5 py-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-semibold">Review workspace</h2>
+            <h2 className="font-semibold">Content editor</h2>
             <p className="text-sm text-[var(--color-text-secondary)]">
-              Edit the draft, review score, then approve and export HTML.
+              Write against live score, guidelines, and SERP research.
             </p>
           </div>
-          <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-1 text-xs font-medium text-[var(--color-text-secondary)]">
-            {doc.status}
-          </span>
+          <span className="text-xs text-[var(--color-text-muted)]">{saving ? 'Saving…' : 'Saved'}</span>
         </div>
       </div>
 
@@ -470,13 +420,12 @@ export function ReviewEditorPane({
           onBlur={() => void save(html, keyword, title, location)}
           aria-label="Document title"
         />
-        <span className="text-xs text-[var(--color-text-muted)]">{saving ? 'Saving…' : null}</span>
       </header>
 
       <div className="space-y-4 p-5">
         {isResearchBacked ? (
           <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-[var(--color-text-secondary)]">
-            Keyword and location come from attached page research and cannot be changed here.
+            Keyword and location are fixed from your Site Analyzer handoff.
           </p>
         ) : null}
 
@@ -538,3 +487,6 @@ export function ReviewEditorPane({
     </section>
   );
 }
+
+/** @deprecated Use WritingEditorPane */
+export const ReviewEditorPane = WritingEditorPane;
