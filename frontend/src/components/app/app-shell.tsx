@@ -3,6 +3,8 @@
 import { usePathname } from 'next/navigation';
 import { AppHeader } from '@/components/app/app-header';
 import { SidebarLayout, useSidebarLayout } from '@/components/app/app-sidebar';
+import { SiteFooter } from '@/components/layout/site-footer';
+import { SiteNavbar } from '@/components/layout/site-navbar';
 import { cn } from '@/lib/utils';
 
 function AppMain({
@@ -16,8 +18,10 @@ function AppMain({
 
   return (
     <div className="flex min-h-screen flex-col" style={{ paddingLeft: totalWidth }}>
+      <SiteNavbar />
       <AppHeader />
       <main className={cn('flex-1 px-4 py-8 md:px-10', mainClassName)}>{children}</main>
+      <SiteFooter />
     </div>
   );
 }
