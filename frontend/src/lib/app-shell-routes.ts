@@ -1,5 +1,10 @@
 export function usesAppShell(pathname: string): boolean {
+  if (pathname.startsWith('/auth')) {
+    return false;
+  }
+
   return (
+    pathname === '/' ||
     pathname.startsWith('/app') ||
     pathname.startsWith('/site-analyzer') ||
     pathname.startsWith('/content-writing') ||
