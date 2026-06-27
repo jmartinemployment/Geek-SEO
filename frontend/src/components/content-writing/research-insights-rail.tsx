@@ -185,6 +185,18 @@ export function ResearchInsightsRail({
         </InsightCard>
       ) : null}
 
+      {exportData.sourceHeadings?.length ? (
+        <InsightCard title="Your page structure">
+          <ul className="list-disc space-y-1 pl-4">
+            {exportData.sourceHeadings.slice(0, 8).map((heading) => (
+              <li key={`${heading.sequence}-${heading.text}`}>
+                H{heading.level}: {heading.text}
+              </li>
+            ))}
+          </ul>
+        </InsightCard>
+      ) : null}
+
       {exportData.competitors?.length ? (
         <InsightCard title="Competitor seed pages">
           <ul className="space-y-2">
