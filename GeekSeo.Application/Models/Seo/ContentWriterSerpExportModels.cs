@@ -30,6 +30,15 @@ public sealed record ContentWriterSerpExport
     public IReadOnlyList<ContentWriterHeading> SourceHeadings { get; init; } = [];
     public IReadOnlyList<ContentWriterCompetitorExport> Competitors { get; init; } = [];
     public ContentWriterExportBenchmarks Benchmarks { get; init; } = new();
+    public IReadOnlyList<ContentWriterCitationCandidate> CitationCandidates { get; init; } = [];
+}
+
+public sealed record ContentWriterCitationCandidate
+{
+    public required string Url { get; init; }
+    public string? Title { get; init; }
+    public string? Domain { get; init; }
+    public string Source { get; init; } = "organic";
 }
 
 public sealed record ContentWriterHeading
@@ -49,6 +58,7 @@ public sealed record ContentWriterCompetitorExport
     public int WordCountEstimate { get; init; }
     public string WordCountSource { get; init; } = "headings";
     public IReadOnlyList<string> SchemaTypes { get; init; } = [];
+    public bool HasFaqSchema { get; init; }
 }
 
 public sealed record ContentWriterExportBenchmarks

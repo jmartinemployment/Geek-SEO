@@ -113,6 +113,15 @@ public static class ContentWriterSerpExportMapper
             RecommendedTerms = recommendedTerms,
             ClosingFaqs = closingFaqs,
             SectionHints = sectionHints,
+            CitationCandidates = export.CitationCandidates
+                .Select(c => new WritingResearchCitationCandidate
+                {
+                    Url = c.Url,
+                    Title = c.Title ?? string.Empty,
+                    Domain = c.Domain ?? string.Empty,
+                    Source = string.IsNullOrWhiteSpace(c.Source) ? "organic" : c.Source.Trim(),
+                })
+                .ToList(),
         };
     }
 
@@ -211,23 +220,35 @@ public static class ContentWriterSerpExportMapper
         IReadOnlyList<ContentWriterCompetitorExport> competitors) =>
         competitors
             .OrderBy(c => c.SeedRankAbsolute)
-            .Select(c => new WritingResearchCompetitor
+            .Select(c =>
             {
-                Url = c.Url,
-                Position = c.SeedRankAbsolute,
-                H1 = c.Headings.FirstOrDefault(h => h.Level == 1)?.Text
-                    ?? c.Headings.FirstOrDefault()?.Text
-                    ?? string.Empty,
-                EstimatedWordCount = c.WordCountEstimate > 0 ? c.WordCountEstimate : 1200,
-                Headings = c.Headings
-                    .OrderBy(h => h.Sequence)
-                    .Select((h, index) => new WritingResearchHeading
-                    {
-                        Level = h.Level,
-                        Text = h.Text,
-                        DisplayOrder = h.Sequence > 0 ? h.Sequence : index + 1,
-                    })
-                    .ToList(),
+                var schemaTypes = c.SchemaTypes
+                    .Where(t => !string.IsNullOrWhiteSpace(t))
+                    .Select(t => t.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                return new WritingResearchCompetitor
+                {
+                    Url = c.Url,
+                    Position = c.SeedRankAbsolute,
+                    H1 = c.Headings.FirstOrDefault(h => h.Level == 1)?.Text
+                        ?? c.Headings.FirstOrDefault()?.Text
+                        ?? string.Empty,
+                    EstimatedWordCount = c.WordCountEstimate > 0 ? c.WordCountEstimate : 1200,
+                    Headings = c.Headings
+                        .OrderBy(h => h.Sequence)
+                        .Select((h, index) => new WritingResearchHeading
+                        {
+                            Level = h.Level,
+                            Text = h.Text,
+                            DisplayOrder = h.Sequence > 0 ? h.Sequence : index + 1,
+                        })
+                        .ToList(),
+                    SchemaTypes = schemaTypes,
+                    HasFaqSchema = c.HasFaqSchema
+                        || schemaTypes.Any(t => string.Equals(t, "FAQPage", StringComparison.OrdinalIgnoreCase)),
+                };
             })
             .ToList();
 

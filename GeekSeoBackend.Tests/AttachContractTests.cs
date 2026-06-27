@@ -37,6 +37,47 @@ public sealed class AttachContractTests
     }
 
     [Fact]
+    public void ValidateAnalysisRunExport_rejects_without_gap_topics()
+    {
+        var export = AnalysisRunTestData.CompletedExport() with { GapTopics = [] };
+
+        var result = ResearchBackedWriteGate.ValidateAnalysisRunExport(export);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("gap topics", result.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ValidateAnalysisRunExport_rejects_without_source_headings()
+    {
+        var export = AnalysisRunTestData.CompletedExport() with { SourceHeadings = [] };
+
+        var result = ResearchBackedWriteGate.ValidateAnalysisRunExport(export);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("headings", result.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ValidateAnalysisRunExport_rejects_without_competitor_headings()
+    {
+        var export = AnalysisRunTestData.CompletedExport() with { Competitors = [] };
+
+        var result = ResearchBackedWriteGate.ValidateAnalysisRunExport(export);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("competitor", result.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ValidateAnalysisRunExport_accepts_full_research_pack()
+    {
+        var result = ResearchBackedWriteGate.ValidateAnalysisRunExport(AnalysisRunTestData.CompletedExport());
+
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
     public async Task CreateAsync_rejects_analysis_run_without_organic_serp()
     {
         var export = AnalysisRunTestData.CompletedExport() with { Serp = [] };

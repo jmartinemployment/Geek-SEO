@@ -77,6 +77,22 @@ export type ContentWriterExportBenchmarks = {
   competitorPageCount: number;
 };
 
+export type ContentWriterCitationCandidate = {
+  url: string;
+  title?: string | null;
+  domain?: string | null;
+  source: string;
+};
+
+export type ContentWriterCompetitorExport = {
+  domain: string;
+  url: string;
+  seedRankAbsolute?: number;
+  headings?: ContentWriterHeading[];
+  schemaTypes?: string[];
+  hasFaqSchema?: boolean;
+};
+
 export type ContentWriterSerpItem = {
   position: number;
   type: string;
@@ -95,9 +111,12 @@ export type ContentWriterSerpExport = {
   status: string;
   serpSeResultsCount: number;
   serp: ContentWriterSerpItem[];
+  gapTopics?: string[];
   writingInstructions?: string;
   writingRecommendations?: string[];
   sourceHeadings?: ContentWriterHeading[];
+  competitors?: ContentWriterCompetitorExport[];
+  citationCandidates?: ContentWriterCitationCandidate[];
   benchmarks?: ContentWriterExportBenchmarks;
 };
 

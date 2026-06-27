@@ -72,6 +72,38 @@ internal static class AnalysisRunTestData
                 Snippet = "Widget repair is often cheaper than replacement when parts are available.",
             },
         ],
+        GapTopics = ["widget repair", "calibration", "warranty"],
+        WritingInstructions = "Target keyword: widget repair. Quality bar: fully answer this pillar better than the seed pages.",
+        SourceHeadings =
+        [
+            new ContentWriterHeading { Level = 2, Text = "Our widget repair services", Sequence = 1 },
+        ],
+        Competitors =
+        [
+            new ContentWriterCompetitorExport
+            {
+                Domain = "c1.com",
+                Url = "https://c1.com/widget-repair",
+                SeedRankAbsolute = 1,
+                Headings =
+                [
+                    new ContentWriterHeading { Level = 2, Text = "Pricing", Sequence = 1 },
+                    new ContentWriterHeading { Level = 2, Text = "Calibration", Sequence = 2 },
+                ],
+                SchemaTypes = ["Article", "FAQPage"],
+                HasFaqSchema = true,
+            },
+        ],
+        CitationCandidates =
+        [
+            new ContentWriterCitationCandidate
+            {
+                Url = "https://c1.com/widget-repair",
+                Title = "Widget Repair Services",
+                Domain = "c1.com",
+                Source = "organic",
+            },
+        ],
     };
 
     /// <summary>Realistic export shape from analysis_runs (PASF-only SERP, no people_also_ask rows).</summary>

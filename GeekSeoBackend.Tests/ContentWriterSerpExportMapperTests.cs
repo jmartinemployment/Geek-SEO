@@ -145,4 +145,19 @@ public sealed class ContentWriterSerpExportMapperTests
         Assert.Equal("How much does Zapier QuickBooks integration cost?", context.PeopleAlsoAsk[0].Question);
         Assert.NotEmpty(context.ClosingFaqs);
     }
+
+    [Fact]
+    public void ToWritingResearchContext_maps_citation_candidates_and_faq_schema()
+    {
+        var export = AnalysisRunTestData.CompletedExport();
+
+        var context = ContentWriterSerpExportMapper.ToWritingResearchContext(export, UserId);
+
+        Assert.Single(context.Competitors);
+        Assert.True(context.Competitors[0].HasFaqSchema);
+        Assert.Contains("FAQPage", context.Competitors[0].SchemaTypes);
+        Assert.Equal(2, context.Competitors[0].Headings.Count);
+        Assert.NotEmpty(context.CitationCandidates);
+        Assert.Contains(context.CitationCandidates, c => c.Source == "organic");
+    }
 }

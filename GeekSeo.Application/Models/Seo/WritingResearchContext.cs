@@ -33,6 +33,7 @@ public sealed record WritingResearchContext
     public IReadOnlyList<WritingResearchTerm> RecommendedTerms { get; init; } = [];
     public IReadOnlyList<WritingResearchClosingFaq> ClosingFaqs { get; init; } = [];
     public IReadOnlyList<WritingResearchSectionHint> SectionHints { get; init; } = [];
+    public IReadOnlyList<WritingResearchCitationCandidate> CitationCandidates { get; init; } = [];
 }
 
 public sealed record WritingResearchPaf
@@ -83,6 +84,16 @@ public sealed record WritingResearchCompetitor
     public string H1 { get; init; } = string.Empty;
     public int EstimatedWordCount { get; init; }
     public IReadOnlyList<WritingResearchHeading> Headings { get; init; } = [];
+    public IReadOnlyList<string> SchemaTypes { get; init; } = [];
+    public bool HasFaqSchema { get; init; }
+}
+
+public sealed record WritingResearchCitationCandidate
+{
+    public required string Url { get; init; }
+    public string Title { get; init; } = string.Empty;
+    public string Domain { get; init; } = string.Empty;
+    public string Source { get; init; } = "organic";
 }
 
 public sealed record WritingResearchHeading

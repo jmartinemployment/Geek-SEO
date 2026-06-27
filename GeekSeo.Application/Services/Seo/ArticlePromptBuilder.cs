@@ -233,6 +233,29 @@ public static class ArticlePromptBuilder
         if (competitorHeadings.Count > 0)
             builder.AppendLine($"Competitor heading patterns: {string.Join("; ", competitorHeadings)}");
 
+        var competitorSchema = research.Competitors
+            .SelectMany(c => c.SchemaTypes)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(8)
+            .ToList();
+        if (competitorSchema.Count > 0)
+            builder.AppendLine($"Competitor schema signals: {string.Join(", ", competitorSchema)}");
+
+        var faqCompetitors = research.Competitors.Count(c => c.HasFaqSchema);
+        if (faqCompetitors > 0)
+            builder.AppendLine($"{faqCompetitors} competitor seed page(s) use FAQPage schema — include a strong closing FAQ section.");
+
+        if (research.CitationCandidates.Count > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine("Named citation candidates (prefer these for factual claims):");
+            foreach (var candidate in research.CitationCandidates.Take(10))
+            {
+                var label = string.IsNullOrWhiteSpace(candidate.Title) ? candidate.Url : candidate.Title;
+                builder.AppendLine($"- [{candidate.Source}] {label} ({candidate.Url})");
+            }
+        }
+
         AppendResearchClosingFaqInstructions(builder, research);
 
         return builder.ToString().Trim();

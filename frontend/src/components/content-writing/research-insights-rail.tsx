@@ -184,6 +184,41 @@ export function ResearchInsightsRail({
           </ul>
         </InsightCard>
       ) : null}
+
+      {exportData.competitors?.length ? (
+        <InsightCard title="Competitor seed pages">
+          <ul className="space-y-2">
+            {exportData.competitors.slice(0, 5).map((competitor) => (
+              <li key={competitor.url}>
+                <span className="font-medium text-[var(--color-text-primary)]">{competitor.domain}</span>
+                {competitor.hasFaqSchema ? (
+                  <span className="ml-1 text-[10px] text-[var(--color-text-muted)]">· FAQ schema</span>
+                ) : null}
+                {competitor.headings?.length ? (
+                  <p className="mt-1 text-[10px] text-[var(--color-text-muted)]">
+                    Headings: {competitor.headings.slice(0, 4).map((h) => h.text).join(' · ')}
+                  </p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </InsightCard>
+      ) : null}
+
+      {exportData.citationCandidates?.length ? (
+        <InsightCard title="Citation candidates">
+          <ul className="list-disc space-y-1 pl-4">
+            {exportData.citationCandidates.slice(0, 8).map((candidate) => (
+              <li key={candidate.url}>
+                <span className="text-[10px] uppercase text-[var(--color-text-muted)]">
+                  {candidate.source}
+                </span>{' '}
+                {candidate.title || candidate.url}
+              </li>
+            ))}
+          </ul>
+        </InsightCard>
+      ) : null}
     </div>
   );
 }
