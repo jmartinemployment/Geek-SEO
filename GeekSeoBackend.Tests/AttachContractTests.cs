@@ -228,7 +228,18 @@ public sealed class AttachContractTests
             GetByIdAsync(id, ct);
 
         public Task<Result<IReadOnlyList<SeoProject>>> ListByUserAsync(Guid userId, CancellationToken ct = default) =>
-            throw new NotSupportedException();
+            Task.FromResult(Result<IReadOnlyList<SeoProject>>.Success(
+                (IReadOnlyList<SeoProject>)
+                [
+                    new SeoProject
+                    {
+                        Id = projectId,
+                        UserId = UserId,
+                        Name = "Test",
+                        Url = "https://example.com",
+                        DefaultLocation = "United States",
+                    }
+                ]));
 
         public Task<Result<SeoProject>> CreateAsync(Guid userId, CreateProjectRequest request, CancellationToken ct = default) =>
             throw new NotSupportedException();

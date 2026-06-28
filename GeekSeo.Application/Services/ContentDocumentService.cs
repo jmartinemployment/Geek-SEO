@@ -58,14 +58,28 @@ public sealed partial class ContentDocumentService(
                 return Result<SeoContentDocument>.Failure(handoff.Error ?? "Site Analyzer research is not ready");
 
             var resolved = handoff.Value;
-            var project = await projects.GetByIdAsync(resolved.GeekSeoProjectId, ct);
-            if (!project.IsSuccess || project.Value is null || project.Value.UserId != userId)
-                return Result<SeoContentDocument>.Failure("Access denied");
+            SeoProject? projectValue = null;
+
+            if (resolved.GeekSeoProjectId is Guid linkedProjectId && linkedProjectId != Guid.Empty)
+            {
+                var byId = await projects.GetByIdAsync(linkedProjectId, ct);
+                if (byId.IsSuccess && byId.Value is not null && byId.Value.UserId == userId)
+                    projectValue = byId.Value;
+            }
+
+            if (projectValue is null)
+            {
+                var userProjects = await projects.ListByUserAsync(userId, ct);
+                projectValue = userProjects.IsSuccess ? userProjects.Value?.FirstOrDefault() : null;
+            }
+
+            if (projectValue is null)
+                return Result<SeoContentDocument>.Failure("No Geek-SEO project found for this user. Create a project first.");
 
             var createRequest = request with
             {
-                ProjectId = resolved.GeekSeoProjectId,
-                TargetLocation = ResolveTargetLocation(request.TargetLocation, project.Value.DefaultLocation),
+                ProjectId = projectValue.Id,
+                TargetLocation = ResolveTargetLocation(request.TargetLocation, projectValue.DefaultLocation),
                 TargetKeyword = resolved.TargetKeyword,
                 SerpKeyword = resolved.SerpKeyword,
                 AnalysisRunId = resolved.AnalysisRunId,
@@ -128,7 +142,7 @@ public sealed partial class ContentDocumentService(
             return Result<SeoContentDocument>.Failure(handoff.Error ?? "Site Analyzer research is not ready");
 
         var resolved = handoff.Value;
-        if (doc.ProjectId != resolved.GeekSeoProjectId)
+        if (resolved.GeekSeoProjectId is Guid linkedId && linkedId != Guid.Empty && doc.ProjectId != linkedId)
             return Result<SeoContentDocument>.Failure("Document project does not match analysis run link.");
 
         return await documents.AttachAnalysisRunAsync(

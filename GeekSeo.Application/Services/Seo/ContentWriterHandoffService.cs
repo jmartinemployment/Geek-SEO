@@ -26,14 +26,11 @@ public sealed class ContentWriterHandoffService(IAnalysisRunRepository analysisR
         if (!runGate.IsSuccess)
             return Result<ContentWriterHandoffResult>.Failure(runGate.Error ?? "Analysis run is not ready");
 
-        if (export.ProjectId == Guid.Empty)
-            return Result<ContentWriterHandoffResult>.Failure("Analysis run is not linked to a Geek-SEO project.");
-
         var targetKeyword = string.IsNullOrWhiteSpace(articleKeyword) ? export.Keyword : articleKeyword.Trim();
 
         return Result<ContentWriterHandoffResult>.Success(new ContentWriterHandoffResult
         {
-            GeekSeoProjectId = export.ProjectId,
+            GeekSeoProjectId = export.GeekSeoProjectId,
             TargetKeyword = targetKeyword,
             SerpKeyword = export.Keyword,
             AnalysisRunId = analysisRunId,
@@ -43,7 +40,7 @@ public sealed class ContentWriterHandoffService(IAnalysisRunRepository analysisR
 
 public sealed record ContentWriterHandoffResult
 {
-    public required Guid GeekSeoProjectId { get; init; }
+    public Guid? GeekSeoProjectId { get; init; }
     public required string TargetKeyword { get; init; }
     public required string SerpKeyword { get; init; }
     public required Guid AnalysisRunId { get; init; }

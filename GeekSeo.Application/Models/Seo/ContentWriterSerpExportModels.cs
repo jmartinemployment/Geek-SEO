@@ -11,6 +11,8 @@ public sealed record ContentWriterSerpExport
     public DateTimeOffset CapturedAt { get; init; }
     public required Guid RunId { get; init; }
     public Guid ProjectId { get; init; }
+    /// <summary>sa2.site_profiles.GeekSeoProjectId — the linked geek_seo project UUID (null if not yet linked).</summary>
+    public Guid? GeekSeoProjectId { get; init; }
     public required string Keyword { get; init; }
     public string TargetSiteUrl { get; init; } = string.Empty;
     public string Status { get; init; } = string.Empty;
