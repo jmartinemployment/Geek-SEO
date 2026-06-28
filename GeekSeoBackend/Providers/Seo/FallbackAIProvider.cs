@@ -5,22 +5,22 @@ using GeekSeo.Application.Results;
 namespace GeekSeoBackend.Providers.Seo;
 
 /// <summary>
-/// Tries the primary provider (Claude); falls back to OpenAI on rate-limit (429) or quota error (400).
+/// Tries the primary provider (OpenAI); falls back to Claude on rate-limit or quota error.
 /// </summary>
-public sealed class FallbackAIProvider(ClaudeProvider claude, OpenAIProvider openai) : IAIProvider
+public sealed class FallbackAIProvider(OpenAIProvider openai, ClaudeProvider claude) : IAIProvider
 {
     public string ProviderName => "fallback";
 
     public async Task<Result<AIResponse>> CompleteAsync(AIRequest request, CancellationToken ct = default)
     {
-        var primary = await claude.CompleteAsync(request, ct);
+        var primary = await openai.CompleteAsync(request, ct);
 
         if (primary.IsSuccess)
             return primary;
 
         if (IsRateLimitOrQuotaError(primary.Error))
         {
-            var fallback = await openai.CompleteAsync(request, ct);
+            var fallback = await claude.CompleteAsync(request, ct);
             return fallback;
         }
 
