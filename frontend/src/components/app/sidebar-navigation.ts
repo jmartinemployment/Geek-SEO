@@ -1,11 +1,13 @@
 import type { ComponentType } from 'react';
 import {
-  BarChart3,
   FileText,
-  FolderKanban,
   Home,
-  Map,
-  Settings,
+  LayoutGrid,
+  LineChart,
+  MapPin,
+  Megaphone,
+  Share2,
+  Sparkles,
   TrendingUp,
 } from 'lucide-react';
 
@@ -15,7 +17,7 @@ export type SidebarNavItem = {
 };
 
 export type SidebarNavSection = {
-  title: string;
+  title?: string;
   items: SidebarNavItem[];
 };
 
@@ -29,17 +31,15 @@ export type SidebarPrimaryNav = {
 export const SIDEBAR_PRIMARY_WIDTH = 64;
 export const SIDEBAR_SECONDARY_WIDTH = 220;
 
+const PLACEHOLDER_HREF = '#';
+
+/** Semrush SEO sidebar — labels and structure duplicated verbatim; hrefs are placeholders only. */
 export const sidebarPrimaryNav: SidebarPrimaryNav[] = [
   {
     id: 'home',
     label: 'Home',
     icon: Home,
-    sections: [
-      {
-        title: 'Overview',
-        items: [{ href: '/app/dashboard', label: 'Dashboard' }],
-      },
-    ],
+    sections: [],
   },
   {
     id: 'seo',
@@ -47,131 +47,117 @@ export const sidebarPrimaryNav: SidebarPrimaryNav[] = [
     icon: TrendingUp,
     sections: [
       {
+        items: [{ href: PLACEHOLDER_HREF, label: 'Dashboard' }],
+      },
+      {
         title: 'Site Performance',
         items: [
-          { href: '/app/audit', label: 'Site Audit' },
-          { href: '/app/rankings', label: 'Rank Tracker' },
+          { href: PLACEHOLDER_HREF, label: 'Site Audit' },
+          { href: PLACEHOLDER_HREF, label: 'Position Tracking' },
         ],
       },
       {
         title: 'Competitive Analysis',
         items: [
-          { href: '/site-analyzer', label: 'Site Analyzer' },
-          { href: '/url-analyzer', label: 'URL Analyzer' },
-          { href: '/app/cannibalization', label: 'Cannibalization' },
+          { href: PLACEHOLDER_HREF, label: 'Domain Overview' },
+          { href: PLACEHOLDER_HREF, label: 'Organic Rankings' },
+          { href: PLACEHOLDER_HREF, label: 'Top Pages' },
+          { href: PLACEHOLDER_HREF, label: 'Compare Domains' },
+          { href: PLACEHOLDER_HREF, label: 'Keyword Gap' },
+          { href: PLACEHOLDER_HREF, label: 'Backlink Gap' },
         ],
       },
       {
         title: 'Keyword Research',
         items: [
-          { href: '/app/keywords', label: 'Keyword Research' },
-          { href: '/app/serp', label: 'Deep SERP' },
+          { href: PLACEHOLDER_HREF, label: 'Keyword Overview' },
+          { href: PLACEHOLDER_HREF, label: 'Keyword Magic Tool' },
+          { href: PLACEHOLDER_HREF, label: 'Keyword Strategy Builder' },
+        ],
+      },
+      {
+        title: 'Content Ideas',
+        items: [
+          { href: PLACEHOLDER_HREF, label: 'SEO Writing Assistant' },
+          { href: PLACEHOLDER_HREF, label: 'Topic Research' },
+          { href: PLACEHOLDER_HREF, label: 'SEO Content Template' },
+        ],
+      },
+      {
+        title: 'Link Building',
+        items: [
+          { href: PLACEHOLDER_HREF, label: 'Backlinks' },
+          { href: PLACEHOLDER_HREF, label: 'Referring Domains' },
+          { href: PLACEHOLDER_HREF, label: 'Backlink Audit' },
         ],
       },
     ],
+  },
+  {
+    id: 'ai',
+    label: 'AI',
+    icon: Sparkles,
+    sections: [],
+  },
+  {
+    id: 'traffic',
+    label: 'Traffic & Market',
+    icon: LineChart,
+    sections: [],
+  },
+  {
+    id: 'local',
+    label: 'Local',
+    icon: MapPin,
+    sections: [],
   },
   {
     id: 'content',
     label: 'Content',
     icon: FileText,
-    sections: [
-      {
-        title: 'Content Studio',
-        items: [
-          { href: '/content-writing', label: 'Content Writing' },
-          { href: '/app/content-guard', label: 'Content Guard' },
-          { href: '/app/brand-voice', label: 'Brand Voice' },
-        ],
-      },
-      {
-        title: 'Production',
-        items: [
-          { href: '/app/bulk', label: 'Bulk Articles' },
-          { href: '/app/calendar', label: 'Content Calendar' },
-          { href: '/app/briefs/new', label: 'New Brief' },
-        ],
-      },
-    ],
+    sections: [],
   },
   {
-    id: 'strategy',
-    label: 'Strategy',
-    icon: Map,
-    sections: [
-      {
-        title: 'Planning',
-        items: [
-          { href: '/app/strategy/topical-map', label: 'Topical Map' },
-          { href: '/app/strategy/niche-analyzer', label: 'Niche Analyzer' },
-          { href: '/app/planner', label: 'Planner' },
-          { href: '/app/guided', label: 'Guided Workflow' },
-        ],
-      },
-    ],
+    id: 'ad',
+    label: 'Ad',
+    icon: Megaphone,
+    sections: [],
   },
   {
-    id: 'analytics',
-    label: 'Analytics',
-    icon: BarChart3,
-    sections: [
-      {
-        title: 'Performance',
-        items: [
-          { href: '/app/analytics', label: 'Analytics' },
-          { href: '/app/geo', label: 'GEO' },
-        ],
-      },
-    ],
+    id: 'ai-pr',
+    label: 'AI PR',
+    icon: Sparkles,
+    sections: [],
   },
   {
-    id: 'projects',
-    label: 'Projects',
-    icon: FolderKanban,
-    sections: [
-      {
-        title: 'Workspace',
-        items: [{ href: '/app/projects', label: 'All Projects' }],
-      },
-    ],
+    id: 'social',
+    label: 'Social',
+    icon: Share2,
+    sections: [],
+  },
+  {
+    id: 'reports',
+    label: 'Reports',
+    icon: FileText,
+    sections: [],
+  },
+  {
+    id: 'app-center',
+    label: 'App Center',
+    icon: LayoutGrid,
+    sections: [],
   },
 ];
 
-export const sidebarBottomNav = {
-  href: '/app/settings',
-  label: 'Settings',
-  icon: Settings,
-};
-
-function hrefMatchesPath(href: string, pathname: string) {
-  if (pathname === href) return true;
-  if (href === '/app/dashboard') return false;
-  return pathname.startsWith(`${href}/`);
+export function defaultActivePrimaryId(): string {
+  return 'seo';
 }
 
-export function resolveActivePrimaryId(pathname: string): string {
-  if (pathname.startsWith('/app/settings')) {
-    return 'home';
-  }
-
-  for (const primary of sidebarPrimaryNav) {
-    for (const section of primary.sections) {
-      for (const item of section.items) {
-        if (hrefMatchesPath(item.href, pathname)) {
-          return primary.id;
-        }
-      }
-    }
-  }
-
-  if (pathname.startsWith('/projects/')) {
-    if (pathname.includes('/site-analyzer')) return 'seo';
-    if (pathname.includes('/url-analyzer')) return 'seo';
-    return 'projects';
-  }
-
-  return 'home';
+export function defaultActiveSecondaryLabel(primaryId: string): string | null {
+  const primary = sidebarPrimaryNav.find((item) => item.id === primaryId);
+  return primary?.sections[0]?.items[0]?.label ?? null;
 }
 
-export function isSidebarItemActive(href: string, pathname: string) {
-  return hrefMatchesPath(href, pathname);
+export function isPlaceholderHref(href: string): boolean {
+  return href === PLACEHOLDER_HREF;
 }

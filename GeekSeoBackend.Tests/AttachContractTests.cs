@@ -89,7 +89,7 @@ public sealed class AttachContractTests
 
         var result = await sut.CreateAsync(UserId, new CreateContentDocumentRequest
         {
-            ProjectId = ProjectId,
+            ProjectId = Guid.Empty,
             AnalysisRunId = RunId,
             SiteProfileId = SiteProfileId,
         });
@@ -111,7 +111,7 @@ public sealed class AttachContractTests
 
         var result = await sut.CreateAsync(UserId, new CreateContentDocumentRequest
         {
-            ProjectId = ProjectId,
+            ProjectId = Guid.Empty,
             AnalysisRunId = RunId,
             SiteProfileId = SiteProfileId,
             TargetKeyword = "emergency widget repair cost",
@@ -136,7 +136,7 @@ public sealed class AttachContractTests
 
         var result = await sut.CreateAsync(UserId, new CreateContentDocumentRequest
         {
-            ProjectId = ProjectId,
+            ProjectId = Guid.Empty,
             AnalysisRunId = RunId,
             SiteProfileId = SiteProfileId,
         });
@@ -150,6 +150,66 @@ public sealed class AttachContractTests
         Assert.False(string.IsNullOrWhiteSpace(repo.LastCreateRequest.KeywordBundleJson));
         Assert.NotNull(repo.LastCreateRequest.KeywordBundleCapturedAt);
         Assert.Equal(SiteProfileId, repo.LastCreateRequest.SiteProfileId);
+    }
+
+    [Fact]
+    public async Task CreateAsync_resolves_geek_seo_project_from_site_profile_without_url_projectId()
+    {
+        var repo = new FakeContentDocumentRepository();
+        var export = AnalysisRunTestData.CompletedExport();
+        var projects = new FakeProjectRepository(ProjectId);
+        var sut = new ContentDocumentService(
+            repo,
+            projects,
+            CreateHandoffService(export));
+
+        var result = await sut.CreateAsync(UserId, new CreateContentDocumentRequest
+        {
+            ProjectId = Guid.Empty,
+            AnalysisRunId = RunId,
+            SiteProfileId = SiteProfileId,
+        });
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(repo.LastCreateRequest);
+        Assert.Equal(ProjectId, repo.LastCreateRequest.ProjectId);
+    }
+
+    [Fact]
+    public async Task CreateAsync_rejects_projectId_on_handoff()
+    {
+        var export = AnalysisRunTestData.CompletedExport();
+        var sut = new ContentDocumentService(
+            new FakeContentDocumentRepository(),
+            new FakeProjectRepository(ProjectId),
+            CreateHandoffService(export));
+
+        var result = await sut.CreateAsync(UserId, new CreateContentDocumentRequest
+        {
+            ProjectId = ProjectId,
+            AnalysisRunId = RunId,
+            SiteProfileId = SiteProfileId,
+        });
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("projectId is not accepted", result.Error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task CreateAsync_rejects_partial_handoff()
+    {
+        var sut = new ContentDocumentService(
+            new FakeContentDocumentRepository(),
+            new FakeProjectRepository(ProjectId),
+            CreateHandoffService());
+
+        var result = await sut.CreateAsync(UserId, new CreateContentDocumentRequest
+        {
+            AnalysisRunId = RunId,
+        });
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("site_profile", result.Error, StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class FakeProjectRepository(Guid projectId) : IProjectRepository

@@ -1,7 +1,5 @@
 'use client';
 
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
@@ -9,7 +7,6 @@ import {
   createSiteAnalyzerPack,
   getSiteAnalyzerProjectState,
   listProjects,
-  resolveAnalysisRunIdForHandoff,
   runSiteAnalyzerPackStep,
   runSiteIndexStep,
   type SeoProject,
@@ -19,7 +16,6 @@ import {
   type SiteAnalyzerStepStatus,
   type SiteAnalyzerStepRunResponse,
 } from '@/lib/seo-api';
-import { contentWritingPath } from '@/lib/content-writing-search-params';
 
 const SITE_INDEX_STEPS: Array<{ step: number; title: string; subtitle: string }> = [
   { step: 1, title: 'Discover URLs', subtitle: 'Sitemap and seed URL discovery' },
@@ -237,16 +233,12 @@ function StepRow({
   canRun,
   running,
   onRun,
-  handoffHref,
-  handoffLabel = 'Open Content Writing',
 }: {
   step: SiteAnalyzerStepState;
   subtitle: string;
   canRun: boolean;
   running: boolean;
   onRun: () => void;
-  handoffHref?: string | null;
-  handoffLabel?: string;
 }) {
   const [expanded, setExpanded] = useState(step.status === 'red');
   const validationMessage =
@@ -257,8 +249,7 @@ function StepRow({
     if (step.status === 'red') setExpanded(true);
   }, [step.status]);
 
-  const showHandoffLink = step.status === 'green' && Boolean(handoffHref);
-  const runDisabled = running || !canRun || (step.status === 'green' && !showHandoffLink);
+  const runDisabled = running || !canRun || step.status === 'green';
 
   return (
     <li className="rounded-lg border border-[var(--color-border)] bg-white">
@@ -293,23 +284,14 @@ function StepRow({
               Log
             </button>
           ) : null}
-          {showHandoffLink ? (
-            <Link
-              href={handoffHref!}
-              className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--color-accent-hover)]"
-            >
-              {handoffLabel}
-            </Link>
-          ) : (
-            <button
-              type="button"
-              disabled={runDisabled}
-              onClick={onRun}
-              className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
-            >
-              {running ? 'Running…' : 'Run'}
-            </button>
-          )}
+          <button
+            type="button"
+            disabled={runDisabled}
+            onClick={onRun}
+            className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
+          >
+            {running ? 'Running…' : step.status === 'green' ? 'Complete' : 'Run'}
+          </button>
         </div>
       </div>
       {expanded && hasOutput ? (
@@ -346,7 +328,6 @@ export function SiteAnalyzerWorkspace({
   initialProjectId = '',
   initialPackId = '',
 }: SiteAnalyzerWorkspaceProps) {
-  const router = useRouter();
   const [projects, setProjects] = useState<SeoProject[]>([]);
   const [projectId, setProjectId] = useState(initialProjectId);
   const [state, setState] = useState<SiteAnalyzerProjectState | null>(null);
@@ -500,32 +481,8 @@ export function SiteAnalyzerWorkspace({
     }
   }
 
-  async function openContentWriting(packId: string, packKeyword: string) {
-    if (!projectId) return;
-    const analysisRunId = await resolveAnalysisRunIdForHandoff(
-      projectId,
-      packId,
-      packKeyword,
-      accessToken,
-    );
-    router.push(
-      contentWritingPath({
-        projectId,
-        analysisRunId,
-        keyword: packKeyword,
-      }),
-    );
-  }
-
   async function handleRunPackStep(stepNumber: number) {
     if (!selectedPackId) return;
-    if (stepNumber === 10) {
-      const step10 = packSteps.find((s) => s.stepNumber === 10);
-      if (step10?.status === 'green') {
-        openContentWriting(selectedPackId, selectedPack?.keyword ?? keyword);
-        return;
-      }
-    }
     setRunningStep(stepNumber);
     setError(null);
     let reinforceRun: SiteAnalyzerStepRunResponse | null = null;
@@ -549,13 +506,6 @@ export function SiteAnalyzerWorkspace({
           ),
         );
       }
-      if (
-        stepNumber === 10 &&
-        result.status === 'green' &&
-        projectId
-      ) {
-        openContentWriting(selectedPackId, selectedPack?.keyword ?? keyword);
-      }
     } catch (runError) {
       setError(runError);
       const message = runError instanceof Error ? runError.message : 'Step failed';
@@ -568,8 +518,6 @@ export function SiteAnalyzerWorkspace({
       setRunningStep(null);
     }
   }
-
-  const handoffPack = packs.find((p) => p.handoffReady || p.dataQuality === 'full') ?? null;
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -717,44 +665,10 @@ export function SiteAnalyzerWorkspace({
                       Boolean(state?.siteIndexComplete && selectedPackId),
                     )}
                     running={runningStep === step.stepNumber}
-                    handoffHref={
-                      step.stepNumber === 10 &&
-                      step.status === 'green' &&
-                      projectId &&
-                      selectedPackId &&
-                      selectedPack
-                        ? contentWritingPath({
-                            projectId,
-                            analysisRunId: selectedPackId,
-                            keyword: selectedPack.keyword,
-                          })
-                        : null
-                    }
                     onRun={() => void handleRunPackStep(step.stepNumber)}
                   />
                 ))}
               </ul>
-            ) : null}
-
-            {handoffPack && projectId ? (
-              <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-emerald-950">Pack ready for Content Writing</p>
-                  <p className="text-xs text-emerald-800">
-                    Keyword: {handoffPack.keyword} · quality: {handoffPack.dataQuality ?? 'full'}
-                  </p>
-                </div>
-                <Link
-                  href={contentWritingPath({
-                    projectId,
-                    analysisRunId: handoffPack.urlResearchId,
-                    keyword: handoffPack.keyword,
-                  })}
-                  className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-sm text-white hover:bg-[var(--color-accent-hover)]"
-                >
-                  Write with this research
-                </Link>
-              </div>
             ) : null}
           </section>
         </>

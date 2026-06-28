@@ -24,7 +24,8 @@ public sealed record UpdateProjectRequest
 
 public sealed record CreateContentDocumentRequest
 {
-    public required Guid ProjectId { get; init; }
+    /// <summary>Server-resolved on SA2 handoff — do not send from Site Analyzer.</summary>
+    public Guid ProjectId { get; init; }
     public string Title { get; init; } = "Untitled Document";
     public string TargetKeyword { get; init; } = string.Empty;
     public string TargetLocation { get; init; } = "United States";

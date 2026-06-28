@@ -6,52 +6,52 @@ import {
   isCompleteContentWritingHandoff,
   missingContentWritingHandoffFields,
   parseContentWritingSearchParams,
+  rejectedLegacyHandoffParams,
 } from './content-writing-search-params';
 
 describe('parseContentWritingSearchParams', () => {
-  it('reads projectId, analysisRunId, and keyword from the query string', () => {
+  it('reads SA2 handoff params only', () => {
     const params = new URLSearchParams(
-      'projectId=d3012e49-2f5d-4b3d-a235-fc7c4b56bcd0&analysisRunId=40695b16-f5d4-4fc0-a05d-c85df54236ca&keyword=how+you+implement+AI+Content+Marketing',
+      'analysisRunId=40695b16-f5d4-4fc0-a05d-c85df54236ca&keyword=how+you+implement+AI+Content+Marketing&site_profile=sp-uuid',
     );
 
     expect(parseContentWritingSearchParams(params)).toEqual({
-      projectId: 'd3012e49-2f5d-4b3d-a235-fc7c4b56bcd0',
       analysisRunId: '40695b16-f5d4-4fc0-a05d-c85df54236ca',
       keyword: 'how you implement AI Content Marketing',
+      siteProfile: 'sp-uuid',
       title: '',
       location: 'United States',
       documentId: '',
-      siteProfile: '',
     });
   });
 
-  it('reads site_profile from the query string', () => {
+  it('does not read dropped projectId or urlResearchId', () => {
     const params = new URLSearchParams(
-      'projectId=abc&site_profile=sp-uuid&analysisRunId=run-1',
+      'projectId=abc&urlResearchId=legacy-run-id&analysisRunId=run-1&keyword=test',
     );
 
-    expect(parseContentWritingSearchParams(params).siteProfile).toBe('sp-uuid');
+    expect(parseContentWritingSearchParams(params).analysisRunId).toBe('run-1');
+    expect(rejectedLegacyHandoffParams(params)).toEqual(['projectId', 'urlResearchId']);
   });
+});
 
-  it('falls back from legacy urlResearchId to analysisRunId', () => {
-    const params = new URLSearchParams(
-      'projectId=abc&urlResearchId=legacy-run-id&keyword=test',
-    );
-
-    expect(parseContentWritingSearchParams(params).analysisRunId).toBe('legacy-run-id');
+describe('rejectedLegacyHandoffParams', () => {
+  it('flags camelCase siteProfile', () => {
+    const params = new URLSearchParams('siteProfile=bad&site_profile=good');
+    expect(rejectedLegacyHandoffParams(params)).toContain('siteProfile');
   });
 });
 
 describe('contentWritingPath', () => {
-  it('builds a shareable deep link', () => {
+  it('builds SA2 handoff deep link', () => {
     expect(
       contentWritingPath({
-        projectId: 'd3012e49-2f5d-4b3d-a235-fc7c4b56bcd0',
         analysisRunId: '40695b16-f5d4-4fc0-a05d-c85df54236ca',
         keyword: 'how you implement AI Content Marketing',
+        siteProfile: 'sp-uuid',
       }),
     ).toBe(
-      '/content-writing?projectId=d3012e49-2f5d-4b3d-a235-fc7c4b56bcd0&analysisRunId=40695b16-f5d4-4fc0-a05d-c85df54236ca&keyword=how+you+implement+AI+Content+Marketing',
+      '/content-writing?analysisRunId=40695b16-f5d4-4fc0-a05d-c85df54236ca&keyword=how+you+implement+AI+Content+Marketing&site_profile=sp-uuid',
     );
   });
 });
@@ -68,18 +68,17 @@ describe('buildContentWritingSearchParams', () => {
   it('omits default location from the query string', () => {
     expect(
       buildContentWritingSearchParams({
-        projectId: 'abc',
+        analysisRunId: 'run-1',
         location: 'United States',
       }).toString(),
-    ).toBe('projectId=abc');
+    ).toBe('analysisRunId=run-1');
   });
 });
 
 describe('isCompleteContentWritingHandoff', () => {
-  it('requires project, run, keyword, and site profile', () => {
+  it('requires run, keyword, and site profile', () => {
     expect(
       isCompleteContentWritingHandoff({
-        projectId: 'p',
         analysisRunId: 'r',
         keyword: 'kw',
         siteProfile: 'sp',
@@ -91,7 +90,6 @@ describe('isCompleteContentWritingHandoff', () => {
 
     expect(
       isCompleteContentWritingHandoff({
-        projectId: 'p',
         analysisRunId: 'r',
         keyword: 'kw',
         siteProfile: '',
@@ -107,14 +105,13 @@ describe('missingContentWritingHandoffFields', () => {
   it('lists absent handoff fields', () => {
     expect(
       missingContentWritingHandoffFields({
-        projectId: '',
-        analysisRunId: 'r',
+        analysisRunId: '',
         keyword: '',
         siteProfile: '',
         title: '',
         location: 'United States',
         documentId: '',
       }),
-    ).toEqual(['project', 'keyword', 'site profile']);
+    ).toEqual(['analysis run', 'keyword', 'site profile']);
   });
 });

@@ -27,6 +27,10 @@
   --radius-search: 24px;
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06);
   --shadow-card-hover: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --app-site-navbar-height: 4rem;
+  --app-header-height: 3.5rem;
+  --app-workspace-sticky-top: calc(var(--app-site-navbar-height) + var(--app-header-height) + 0.5rem);
+  --app-workspace-sticky-bottom: 1rem;
 }
 
 @theme inline {
@@ -89,6 +93,21 @@ body {
 
 .shadow-text {
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.app-sidebar-viewport {
+  position: sticky;
+  top: var(--app-site-navbar-height);
+  max-height: calc(100svh - var(--app-site-navbar-height));
+  align-self: flex-start;
+}
+
+.content-writing-sticky-rail {
+  position: sticky;
+  top: var(--app-workspace-sticky-top);
+  max-height: calc(100svh - var(--app-workspace-sticky-top) - var(--app-workspace-sticky-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 @utility container {

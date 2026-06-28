@@ -16,7 +16,6 @@ import {
   createContent,
   describeDraftJobProgress,
   getContent,
-  getProject,
   type SeoContentDocument,
 } from '@/lib/seo-api';
 import {
@@ -26,6 +25,7 @@ import {
   isCompleteContentWritingHandoff,
   missingContentWritingHandoffFields,
   parseContentWritingSearchParams,
+  rejectedLegacyHandoffParams,
 } from '@/lib/content-writing-search-params';
 import { runResearchContentDraft } from '@/lib/draft-job-signalr';
 
@@ -47,20 +47,27 @@ function draftLoadingLabel(
 
 function ContentWritingGate({
   missingFields,
+  legacyFields,
 }: {
   missingFields: string[];
+  legacyFields: string[];
 }) {
   return (
     <section className="rounded-xl border bg-white p-6 shadow-sm">
       <h2 className="text-lg font-semibold">Open from Site Analyzer</h2>
       <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-        Content Writing does not run keyword research here. Site Analyzer prepares your
-        project, analysis run, keyword, and site profile, then sends you here to write.
+        Content Writing does not run keyword research here. Site Analyzer sends
+        analysisRunId, keyword, and site_profile — nothing else.
       </p>
+      {legacyFields.length > 0 ? (
+        <p className="mt-3 text-sm text-red-800">
+          This link uses removed parameters ({legacyFields.join(', ')}). Use Write
+          article in Site Analyzer again — old bookmarks will not work.
+        </p>
+      ) : null}
       {missingFields.length > 0 ? (
         <p className="mt-3 text-sm text-amber-900">
-          This link is missing: {missingFields.join(', ')}. Use the Write article action in
-          Site Analyzer so the full handoff URL is included.
+          This link is missing: {missingFields.join(', ')}.
         </p>
       ) : null}
       <p className="mt-4">
@@ -102,7 +109,12 @@ function ContentWritingPageInner() {
 
   const handoffStartedRef = useRef<string | null>(null);
 
-  const completeHandoff = isCompleteContentWritingHandoff(urlParams);
+  const legacyHandoff = useMemo(
+    () => rejectedLegacyHandoffParams(searchParams),
+    [searchParams],
+  );
+  const completeHandoff =
+    legacyHandoff.length === 0 && isCompleteContentWritingHandoff(urlParams);
   const missingHandoff = useMemo(
     () => missingContentWritingHandoffFields(urlParams),
     [urlParams],
@@ -129,7 +141,6 @@ function ContentWritingPageInner() {
     if (!completeHandoff) return;
 
     const handoffKey = [
-      urlParams.projectId,
       urlParams.analysisRunId,
       urlParams.keyword,
       urlParams.siteProfile,
@@ -143,20 +154,7 @@ function ContentWritingPageInner() {
     setDraftProgress(null);
 
     try {
-      let targetLocation = urlParams.location;
-      if (
-        urlParams.projectId &&
-        (!searchParams.get('location') ||
-          targetLocation === CONTENT_WRITING_DEFAULT_LOCATION)
-      ) {
-        try {
-          const project = await getProject(urlParams.projectId, accessToken);
-          targetLocation = project.defaultLocation || targetLocation;
-        } catch {
-          // Keep URL/default location when project lookup fails.
-        }
-      }
-
+      const targetLocation = urlParams.location;
       const articleTitle =
         urlParams.title ||
         defaultTitleForKeyword(urlParams.keyword, 'New article');
@@ -164,7 +162,6 @@ function ContentWritingPageInner() {
 
       const created = await createContent(
         {
-          projectId: urlParams.projectId,
           title: articleTitle,
           targetKeyword: articleKeyword,
           targetLocation,
@@ -197,7 +194,6 @@ function ContentWritingPageInner() {
     completeHandoff,
     draftJobOptions,
     router,
-    searchParams,
     urlParams,
   ]);
 
@@ -244,7 +240,7 @@ function ContentWritingPageInner() {
   const showGate = !inWriting && !handoffRunning;
 
   const workspace = inWriting ? (
-    <div className="grid min-h-[calc(100vh-8rem)] grid-cols-12 gap-4">
+    <div className="grid grid-cols-12 items-start gap-4">
       <aside className="col-span-12 hidden min-w-0 xl:col-span-2 xl:block">
         <WritingScoreLeft keyword={keyword} />
       </aside>
@@ -291,7 +287,12 @@ function ContentWritingPageInner() {
         </section>
       ) : null}
 
-      {showGate ? <ContentWritingGate missingFields={missingHandoff} /> : null}
+      {showGate ? (
+        <ContentWritingGate
+          missingFields={missingHandoff}
+          legacyFields={legacyHandoff}
+        />
+      ) : null}
 
       {workspace}
     </div>

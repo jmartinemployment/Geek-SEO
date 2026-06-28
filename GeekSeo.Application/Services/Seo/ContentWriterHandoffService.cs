@@ -15,7 +15,6 @@ public sealed class ContentWriterHandoffService(
     ISiteAnalyzer2SiteProfileRepository siteProfiles)
 {
     public async Task<Result<ContentWriterHandoffFreeze>> FreezeAsync(
-        Guid projectId,
         Guid analysisRunId,
         Guid siteProfileId,
         string articleKeyword,
@@ -38,22 +37,20 @@ public sealed class ContentWriterHandoffService(
         if (!runGate.IsSuccess)
             return Result<ContentWriterHandoffFreeze>.Failure(runGate.Error ?? "Analysis run is not ready");
 
-        if (export.ProjectId != Guid.Empty && export.ProjectId != projectId)
-            return Result<ContentWriterHandoffFreeze>.Failure("Analysis run does not belong to this project.");
-
         var siteBundleResult = siteBundleTask.Result;
         if (!siteBundleResult.IsSuccess || siteBundleResult.Value is null)
             return Result<ContentWriterHandoffFreeze>.Failure(siteBundleResult.Error ?? "Site profile not found");
 
         var siteBundle = siteBundleResult.Value;
-        if (siteBundle.GeekSeoProjectId is { } linkedProject && linkedProject != projectId)
-            return Result<ContentWriterHandoffFreeze>.Failure("Site profile does not belong to this project.");
+        if (siteBundle.GeekSeoProjectId is not Guid geekSeoProjectId || geekSeoProjectId == Guid.Empty)
+            return Result<ContentWriterHandoffFreeze>.Failure("Site profile is not linked to a Geek-SEO project.");
 
         var targetKeyword = string.IsNullOrWhiteSpace(articleKeyword) ? export.Keyword : articleKeyword.Trim();
         var focus = SiteWritingFocusFromBundlesMapper.Map(siteBundle, export, targetKeyword);
 
         return Result<ContentWriterHandoffFreeze>.Success(new ContentWriterHandoffFreeze
         {
+            GeekSeoProjectId = geekSeoProjectId,
             TargetKeyword = targetKeyword,
             SerpKeyword = export.Keyword,
             SiteFocusJson = SiteWritingFocusSerializer.Serialize(focus),
@@ -68,6 +65,7 @@ public sealed class ContentWriterHandoffService(
 
 public sealed record ContentWriterHandoffFreeze
 {
+    public required Guid GeekSeoProjectId { get; init; }
     public required string TargetKeyword { get; init; }
     public required string SerpKeyword { get; init; }
     public required string SiteFocusJson { get; init; }

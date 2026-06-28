@@ -1,30 +1,10 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
 import { AppHeader } from '@/components/app/app-header';
-import { SidebarLayout, useSidebarLayout } from '@/components/app/app-sidebar';
+import { SidebarLayout } from '@/components/app/app-sidebar';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { SiteNavbar } from '@/components/layout/site-navbar';
 import { cn } from '@/lib/utils';
-
-function AppMain({
-  children,
-  mainClassName,
-}: {
-  children: React.ReactNode;
-  mainClassName?: string;
-}) {
-  const { totalWidth } = useSidebarLayout();
-
-  return (
-    <div className="flex min-h-screen flex-col" style={{ paddingLeft: totalWidth }}>
-      <SiteNavbar />
-      <AppHeader />
-      <main className={cn('flex-1 px-4 py-8 md:px-10', mainClassName)}>{children}</main>
-      <SiteFooter />
-    </div>
-  );
-}
 
 export function AppShell({
   children,
@@ -33,13 +13,14 @@ export function AppShell({
   children: React.ReactNode;
   mainClassName?: string;
 }) {
-  const pathname = usePathname();
-
   return (
-    <div className="min-h-screen bg-[var(--color-bg)]">
-      <SidebarLayout pathname={pathname}>
-        <AppMain mainClassName={mainClassName}>{children}</AppMain>
+    <div className="flex min-h-screen flex-col bg-[var(--color-bg)]">
+      <SiteNavbar />
+      <SidebarLayout>
+        <AppHeader />
+        <main className={cn('flex-1 px-4 py-8 md:px-10', mainClassName)}>{children}</main>
       </SidebarLayout>
+      <SiteFooter />
     </div>
   );
 }

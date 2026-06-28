@@ -293,7 +293,7 @@ export function WritingScoreLeft({ keyword }: { keyword: string }) {
   } = useWritingWorkspace();
 
   return (
-    <div className="sticky top-4 min-w-0 rounded-xl border bg-white shadow-sm">
+    <div className="content-writing-sticky-rail min-w-0 rounded-xl border bg-white shadow-sm">
       <ScoreSidebar
         placement="left"
         keyword={keyword}
@@ -328,7 +328,7 @@ export function WritingInsightsRight({ keyword }: { keyword: string }) {
   } = useWritingWorkspace();
 
   return (
-    <div className="sticky top-4 min-w-0 rounded-xl border bg-white shadow-sm">
+    <div className="content-writing-sticky-rail min-w-0 rounded-xl border bg-white shadow-sm">
       <ScoreSidebar
         placement="right"
         keyword={keyword}

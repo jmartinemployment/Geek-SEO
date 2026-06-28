@@ -12,6 +12,8 @@ public sealed partial class ContentDocumentService(
     IProjectRepository projects,
     ContentWriterHandoffService handoff) : IContentDocumentService
 {
+    private const string DefaultTargetLocation = "United States";
+
     public async Task<Result<SeoContentDocument>> EnsureAccessAsync(
         Guid userId, Guid documentId, CancellationToken ct = default)
     {
@@ -38,20 +40,26 @@ public sealed partial class ContentDocumentService(
     public async Task<Result<SeoContentDocument>> CreateAsync(
         Guid userId, CreateContentDocumentRequest request, CancellationToken ct = default)
     {
-        var project = await projects.GetByIdAsync(request.ProjectId, ct);
-        if (!project.IsSuccess || project.Value is null || project.Value.UserId != userId)
-            return Result<SeoContentDocument>.Failure("Access denied");
+        var hasRun = request.AnalysisRunId is { } analysisRunId && analysisRunId != Guid.Empty;
+        var hasProfile = request.SiteProfileId is { } siteProfileId && siteProfileId != Guid.Empty;
 
-        var createRequest = request;
-        if (request.AnalysisRunId is { } analysisRunId)
+        if (hasRun != hasProfile)
         {
-            if (request.SiteProfileId is not { } siteProfileId || siteProfileId == Guid.Empty)
-                return Result<SeoContentDocument>.Failure("site_profile is required for research-backed content.");
+            return Result<SeoContentDocument>.Failure(
+                "analysisRunId and site_profile are both required for Content Writing handoff.");
+        }
+
+        if (hasRun)
+        {
+            if (request.ProjectId != Guid.Empty)
+            {
+                return Result<SeoContentDocument>.Failure(
+                    "projectId is not accepted on SA2 handoff. Open Content Writing from Site Analyzer with site_profile.");
+            }
 
             var frozen = await handoff.FreezeAsync(
-                request.ProjectId,
-                analysisRunId,
-                siteProfileId,
+                request.AnalysisRunId!.Value,
+                request.SiteProfileId!.Value,
                 request.TargetKeyword,
                 request.TargetLocation,
                 ct);
@@ -59,8 +67,14 @@ public sealed partial class ContentDocumentService(
                 return Result<SeoContentDocument>.Failure(frozen.Error ?? "Failed to freeze research handoff");
 
             var bundle = frozen.Value;
-            createRequest = request with
+            var project = await projects.GetByIdAsync(bundle.GeekSeoProjectId, ct);
+            if (!project.IsSuccess || project.Value is null || project.Value.UserId != userId)
+                return Result<SeoContentDocument>.Failure("Access denied");
+
+            var createRequest = request with
             {
+                ProjectId = bundle.GeekSeoProjectId,
+                TargetLocation = ResolveTargetLocation(request.TargetLocation, project.Value.DefaultLocation),
                 TargetKeyword = bundle.TargetKeyword,
                 SerpKeyword = bundle.SerpKeyword,
                 AnalysisRunId = bundle.AnalysisRunId,
@@ -70,9 +84,18 @@ public sealed partial class ContentDocumentService(
                 KeywordBundleJson = bundle.KeywordBundleJson,
                 KeywordBundleCapturedAt = bundle.KeywordBundleCapturedAt,
             };
+
+            return await documents.CreateAsync(userId, createRequest, ct);
         }
 
-        return await documents.CreateAsync(userId, createRequest, ct);
+        if (request.ProjectId == Guid.Empty)
+            return Result<SeoContentDocument>.Failure("projectId is required.");
+
+        var standaloneProject = await projects.GetByIdAsync(request.ProjectId, ct);
+        if (!standaloneProject.IsSuccess || standaloneProject.Value is null || standaloneProject.Value.UserId != userId)
+            return Result<SeoContentDocument>.Failure("Access denied");
+
+        return await documents.CreateAsync(userId, request, ct);
     }
 
     public async Task<Result<SeoContentDocument>> UpdateContentAsync(
@@ -97,7 +120,7 @@ public sealed partial class ContentDocumentService(
     public Task<Result<SeoContentDocument>> AttachUrlResearchAsync(
         Guid userId, Guid documentId, Guid urlResearchId, CancellationToken ct = default) =>
         Task.FromResult(Result<SeoContentDocument>.Failure(
-            "Content Writing requires an analysis run. Use analysisRunId instead of urlResearchId."));
+            "urlResearchId handoff was removed. Open Content Writing from Site Analyzer with analysisRunId and site_profile."));
 
     public async Task<Result<SeoContentDocument>> AttachAnalysisRunAsync(
         Guid userId,
@@ -117,7 +140,6 @@ public sealed partial class ContentDocumentService(
             return Result<SeoContentDocument>.Failure("site_profile is required for research-backed content.");
 
         var frozen = await handoff.FreezeAsync(
-            doc.ProjectId,
             analysisRunId,
             profileId,
             targetKeyword,
@@ -127,6 +149,9 @@ public sealed partial class ContentDocumentService(
             return Result<SeoContentDocument>.Failure(frozen.Error ?? "Failed to freeze research handoff");
 
         var bundle = frozen.Value;
+        if (doc.ProjectId != bundle.GeekSeoProjectId)
+            return Result<SeoContentDocument>.Failure("Document project does not match site_profile link.");
+
         return await documents.AttachAnalysisRunAsync(
             documentId,
             bundle.AnalysisRunId,
@@ -146,6 +171,17 @@ public sealed partial class ContentDocumentService(
         if (!access.IsSuccess)
             return Result.Failure(access.Error ?? "Access denied");
         return await documents.DeleteAsync(documentId, ct);
+    }
+
+    private static string ResolveTargetLocation(string requested, string? projectDefault)
+    {
+        if (!string.IsNullOrWhiteSpace(projectDefault) &&
+            (string.IsNullOrWhiteSpace(requested) || requested == DefaultTargetLocation))
+        {
+            return projectDefault;
+        }
+
+        return string.IsNullOrWhiteSpace(requested) ? DefaultTargetLocation : requested;
     }
 
     private static int CountWords(string html)

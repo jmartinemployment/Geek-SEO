@@ -1,37 +1,44 @@
 export const CONTENT_WRITING_DEFAULT_LOCATION = 'United States';
 
+/** SA2 handoff query string — exactly three pointers plus optional in-app fields. */
 export type ContentWritingSearchParams = {
-  projectId: string;
   analysisRunId: string;
   keyword: string;
+  siteProfile: string;
   title: string;
   location: string;
   documentId: string;
-  siteProfile: string;
 };
 
-type SearchParamsReader = Pick<URLSearchParams, 'get'>;
+type SearchParamsReader = Pick<URLSearchParams, 'get' | 'has'>;
+
+const LEGACY_HANDOFF_PARAMS = [
+  'projectId',
+  'urlResearchId',
+  'siteProfile',
+  'url_research_id',
+] as const;
+
+/** Params from dropped handoff contracts — presence means the link is invalid. */
+export function rejectedLegacyHandoffParams(
+  searchParams: SearchParamsReader,
+): string[] {
+  return LEGACY_HANDOFF_PARAMS.filter((name) => Boolean(searchParams.get(name)?.trim()));
+}
 
 /** Read Content Writing deep-link params from the page query string. */
 export function parseContentWritingSearchParams(
   searchParams: SearchParamsReader,
 ): ContentWritingSearchParams {
-  const projectId = searchParams.get('projectId')?.trim() ?? '';
-  const analysisRunId =
-    searchParams.get('analysisRunId')?.trim() ??
-    searchParams.get('urlResearchId')?.trim() ??
-    '';
-  const keyword = searchParams.get('keyword')?.trim() ?? '';
-  const title = searchParams.get('title')?.trim() ?? '';
-  const location =
-    searchParams.get('location')?.trim() || CONTENT_WRITING_DEFAULT_LOCATION;
-  const documentId = searchParams.get('documentId')?.trim() ?? '';
-  const siteProfile =
-    searchParams.get('site_profile')?.trim() ??
-    searchParams.get('siteProfile')?.trim() ??
-    '';
-
-  return { projectId, analysisRunId, keyword, title, location, documentId, siteProfile };
+  return {
+    analysisRunId: searchParams.get('analysisRunId')?.trim() ?? '',
+    keyword: searchParams.get('keyword')?.trim() ?? '',
+    siteProfile: searchParams.get('site_profile')?.trim() ?? '',
+    title: searchParams.get('title')?.trim() ?? '',
+    location:
+      searchParams.get('location')?.trim() || CONTENT_WRITING_DEFAULT_LOCATION,
+    documentId: searchParams.get('documentId')?.trim() ?? '',
+  };
 }
 
 export function buildContentWritingSearchParams(
@@ -39,9 +46,9 @@ export function buildContentWritingSearchParams(
 ): URLSearchParams {
   const query = new URLSearchParams();
 
-  if (params.projectId) query.set('projectId', params.projectId);
   if (params.analysisRunId) query.set('analysisRunId', params.analysisRunId);
   if (params.keyword) query.set('keyword', params.keyword);
+  if (params.siteProfile) query.set('site_profile', params.siteProfile);
   if (params.title) query.set('title', params.title);
   if (
     params.location &&
@@ -50,7 +57,6 @@ export function buildContentWritingSearchParams(
     query.set('location', params.location);
   }
   if (params.documentId) query.set('documentId', params.documentId);
-  if (params.siteProfile) query.set('site_profile', params.siteProfile);
 
   return query;
 }
@@ -62,15 +68,11 @@ export function contentWritingPath(
   return query ? `/content-writing?${query}` : '/content-writing';
 }
 
-/** SA2 handoff must include all four fields before Content Writing can start. */
 export function isCompleteContentWritingHandoff(
   params: ContentWritingSearchParams,
 ): boolean {
   return Boolean(
-    params.projectId &&
-      params.analysisRunId &&
-      params.keyword.trim() &&
-      params.siteProfile,
+    params.analysisRunId && params.keyword.trim() && params.siteProfile,
   );
 }
 
@@ -78,7 +80,6 @@ export function missingContentWritingHandoffFields(
   params: ContentWritingSearchParams,
 ): string[] {
   const missing: string[] = [];
-  if (!params.projectId) missing.push('project');
   if (!params.analysisRunId) missing.push('analysis run');
   if (!params.keyword.trim()) missing.push('keyword');
   if (!params.siteProfile) missing.push('site profile');

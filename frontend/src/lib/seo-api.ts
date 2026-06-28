@@ -253,7 +253,7 @@ export async function listContent(
 
 export async function createContent(
   body: {
-    projectId: string;
+    projectId?: string;
     title?: string;
     targetKeyword?: string;
     targetLocation?: string;
@@ -367,35 +367,6 @@ export async function listAnalysisRuns(
   );
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<AnalysisRunSummary[]>;
-}
-
-/** Prefer a real analysis run id when handing off from legacy pack ids. */
-export async function resolveAnalysisRunIdForHandoff(
-  projectId: string,
-  packId: string,
-  keyword: string,
-  accessToken?: string | null,
-): Promise<string> {
-  try {
-    const runs = await listAnalysisRuns(projectId, accessToken);
-    const byId = runs.find((run) => run.id === packId);
-    if (byId) return byId.id;
-
-    const normalized = keyword.trim().toLowerCase();
-    const byKeyword = runs.find(
-      (run) =>
-        run.contentWritingReady &&
-        run.keyword.trim().toLowerCase() === normalized,
-    );
-    if (byKeyword) return byKeyword.id;
-
-    const firstReady = runs.find((run) => run.contentWritingReady);
-    if (firstReady) return firstReady.id;
-  } catch {
-    // Fall back to the caller-provided id for legacy handoffs.
-  }
-
-  return packId;
 }
 
 export async function attachAnalysisRun(

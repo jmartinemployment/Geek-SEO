@@ -76,11 +76,6 @@ public sealed class ContentController(
         return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
     }
 
-    [HttpPatch("{id:guid}/url-research")]
-    [Obsolete("Use PATCH /api/seo/content/{id}/analysis-run with analysisRunId.")]
-    public Task<IActionResult> AttachUrlResearch(Guid id, [FromBody] AttachAnalysisRunRequest request, CancellationToken ct) =>
-        AttachAnalysisRun(id, request, ct);
-
     [HttpPost("{id:guid}/draft")]
     public async Task<IActionResult> DraftFromResearch(Guid id, CancellationToken ct)
     {
