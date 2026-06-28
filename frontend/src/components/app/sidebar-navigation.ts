@@ -4,9 +4,7 @@ import {
   Home,
   LayoutGrid,
   LineChart,
-  MapPin,
-  Megaphone,
-  Share2,
+  Search,
   Sparkles,
   TrendingUp,
 } from 'lucide-react';
@@ -33,111 +31,70 @@ export const SIDEBAR_SECONDARY_WIDTH = 220;
 
 const PLACEHOLDER_HREF = '#';
 
-/** Semrush SEO sidebar — labels and structure duplicated verbatim; hrefs are placeholders only. */
 export const sidebarPrimaryNav: SidebarPrimaryNav[] = [
   {
     id: 'home',
     label: 'Home',
     icon: Home,
-    sections: [],
-  },
-  {
-    id: 'seo',
-    label: 'SEO',
-    icon: TrendingUp,
     sections: [
       {
-        items: [{ href: PLACEHOLDER_HREF, label: 'Dashboard' }],
+        items: [{ href: '/app/dashboard', label: 'Home' }],
       },
+    ],
+  },
+  {
+    id: 'create',
+    label: 'Create',
+    icon: Sparkles,
+    sections: [
       {
-        title: 'Site Performance',
         items: [
-          { href: PLACEHOLDER_HREF, label: 'Site Audit' },
-          { href: PLACEHOLDER_HREF, label: 'Position Tracking' },
-        ],
-      },
-      {
-        title: 'Competitive Analysis',
-        items: [
-          { href: PLACEHOLDER_HREF, label: 'Domain Overview' },
-          { href: PLACEHOLDER_HREF, label: 'Organic Rankings' },
-          { href: PLACEHOLDER_HREF, label: 'Top Pages' },
-          { href: PLACEHOLDER_HREF, label: 'Compare Domains' },
-          { href: PLACEHOLDER_HREF, label: 'Keyword Gap' },
-          { href: PLACEHOLDER_HREF, label: 'Backlink Gap' },
-        ],
-      },
-      {
-        title: 'Keyword Research',
-        items: [
-          { href: PLACEHOLDER_HREF, label: 'Keyword Overview' },
-          { href: PLACEHOLDER_HREF, label: 'Keyword Magic Tool' },
-          { href: PLACEHOLDER_HREF, label: 'Keyword Strategy Builder' },
-        ],
-      },
-      {
-        title: 'Content Ideas',
-        items: [
-          { href: PLACEHOLDER_HREF, label: 'SEO Writing Assistant' },
-          { href: PLACEHOLDER_HREF, label: 'Topic Research' },
-          { href: PLACEHOLDER_HREF, label: 'SEO Content Template' },
-        ],
-      },
-      {
-        title: 'Link Building',
-        items: [
-          { href: PLACEHOLDER_HREF, label: 'Backlinks' },
-          { href: PLACEHOLDER_HREF, label: 'Referring Domains' },
-          { href: PLACEHOLDER_HREF, label: 'Backlink Audit' },
+          { href: '/content-writing', label: 'Research' },
+          { href: '/content-writing', label: 'Content' },
+          { href: PLACEHOLDER_HREF, label: 'Opportunities' },
+          { href: PLACEHOLDER_HREF, label: 'Clusters' },
         ],
       },
     ],
   },
   {
-    id: 'ai',
-    label: 'AI',
-    icon: Sparkles,
-    sections: [],
+    id: 'site',
+    label: 'Site',
+    icon: TrendingUp,
+    sections: [
+      {
+        items: [
+          { href: PLACEHOLDER_HREF, label: 'Audits' },
+          { href: PLACEHOLDER_HREF, label: 'Health' },
+          { href: PLACEHOLDER_HREF, label: 'Issues' },
+          { href: PLACEHOLDER_HREF, label: 'Content Guard' },
+          { href: PLACEHOLDER_HREF, label: 'Answers' },
+        ],
+      },
+    ],
   },
   {
-    id: 'traffic',
-    label: 'Traffic & Market',
+    id: 'analyze',
+    label: 'Analyze',
     icon: LineChart,
-    sections: [],
+    sections: [
+      {
+        items: [
+          { href: PLACEHOLDER_HREF, label: 'SEO Analytics' },
+          { href: PLACEHOLDER_HREF, label: 'AI Visibility' },
+        ],
+      },
+    ],
   },
   {
-    id: 'local',
-    label: 'Local',
-    icon: MapPin,
+    id: 'search',
+    label: 'Search',
+    icon: Search,
     sections: [],
   },
   {
     id: 'content',
     label: 'Content',
-    icon: FileText,
-    sections: [],
-  },
-  {
-    id: 'ad',
-    label: 'Ad',
-    icon: Megaphone,
-    sections: [],
-  },
-  {
-    id: 'ai-pr',
-    label: 'AI PR',
-    icon: Sparkles,
-    sections: [],
-  },
-  {
-    id: 'social',
-    label: 'Social',
-    icon: Share2,
-    sections: [],
-  },
-  {
-    id: 'reports',
-    label: 'Reports',
     icon: FileText,
     sections: [],
   },
@@ -150,7 +107,7 @@ export const sidebarPrimaryNav: SidebarPrimaryNav[] = [
 ];
 
 export function defaultActivePrimaryId(): string {
-  return 'seo';
+  return 'create';
 }
 
 export function defaultActiveSecondaryLabel(primaryId: string): string | null {
