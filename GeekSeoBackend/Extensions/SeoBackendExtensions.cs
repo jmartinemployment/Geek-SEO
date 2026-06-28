@@ -84,9 +84,7 @@ public static class SeoBackendExtensions
             client.Timeout = TimeSpan.FromMinutes(10);
         });
         services.AddHttpClient("WordPress");
-        services.AddScoped<ClaudeProvider>();
-        services.AddScoped<OpenAIProvider>();
-        services.AddScoped<IAIProvider, FallbackAIProvider>();
+        services.AddScoped<IAIProvider, OpenAIProvider>();
         services.AddScoped<IOpenAIImageGenerator, OpenAIImageGenerator>();
         services.AddScoped<IWordPressProvider, WordPressRestProvider>();
 
