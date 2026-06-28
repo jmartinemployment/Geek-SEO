@@ -283,6 +283,18 @@ export async function getContent(
   return res.json() as Promise<SeoContentDocument>;
 }
 
+export async function getResearchPack(
+  documentId: string,
+  accessToken?: string | null,
+): Promise<ContentWriterSerpExport | null> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/research-pack`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (!res.ok) return null;
+  return res.json() as Promise<ContentWriterSerpExport>;
+}
+
 export async function getRenderedContentHtml(
   id: string,
   accessToken?: string | null,

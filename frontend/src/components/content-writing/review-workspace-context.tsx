@@ -350,10 +350,6 @@ export function WritingInsightsRight({ keyword }: { keyword: string }) {
       <JsonLdPanel />
       {doc.analysisRunId ? (
         <ResearchInsightsRail
-          keywordBundleJson={doc.keywordBundleJson}
-          keywordBundleCapturedAt={doc.keywordBundleCapturedAt}
-          siteFocusJson={doc.siteFocusJson}
-          siteFocusCapturedAt={doc.siteFocusCapturedAt}
           articleKeyword={doc.targetKeyword}
           serpKeyword={doc.serpKeyword}
         />

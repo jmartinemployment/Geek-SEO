@@ -21,6 +21,7 @@ public sealed class ContentController(
     IArticleRenderService renderer,
     ICompetitorInsightsService competitors,
     IContentScoringService scoring,
+    IAnalysisRunRepository analysisRuns,
     ICurrentUserContext user) : ControllerBase
 {
     [HttpGet]
@@ -37,6 +38,21 @@ public sealed class ContentController(
         if (!result.IsSuccess)
             return result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true ? NotFound() : BadRequest(result.Error);
         return Ok(result.Value);
+    }
+
+    [HttpGet("{id:guid}/research-pack")]
+    public async Task<IActionResult> GetResearchPack(Guid id, CancellationToken ct)
+    {
+        var access = await content.EnsureAccessAsync(user.RequireUserId(), id, ct);
+        if (!access.IsSuccess || access.Value is null)
+            return access.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true ? NotFound() : BadRequest(access.Error);
+
+        var doc = access.Value;
+        if (doc.AnalysisRunId is not Guid runId || runId == Guid.Empty)
+            return NotFound(new { error = "Document has no analysis run." });
+
+        var result = await analysisRuns.GetContentWriterExportAsync(runId, ct);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
     }
 
     [HttpGet("{id:guid}/rendered-html")]

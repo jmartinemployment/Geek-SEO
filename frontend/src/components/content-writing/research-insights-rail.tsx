@@ -1,19 +1,14 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '@/components/auth/auth-provider';
 import {
-  parseContentWriterKeywordBundle,
-  parseSiteWritingFocus,
+  getResearchPack,
   type ContentWriterSerpExport,
-  type SiteWritingFocus,
 } from '@/lib/seo-api';
-import { SiteFocusCard } from '@/components/content-writing/site-focus-card';
+import { useWritingWorkspace } from '@/components/content-writing/review-workspace-context';
 
 type Props = {
-  keywordBundleJson?: string | null;
-  keywordBundleCapturedAt?: string | null;
-  siteFocusJson?: string | null;
-  siteFocusCapturedAt?: string | null;
   articleKeyword?: string;
   serpKeyword?: string | null;
 };
@@ -55,43 +50,43 @@ function relatedSearches(exportData: ContentWriterSerpExport) {
     .flatMap((item) => item.relatedQuestions ?? []);
 }
 
-export function ResearchInsightsRail({
-  keywordBundleJson,
-  keywordBundleCapturedAt,
-  siteFocusJson,
-  siteFocusCapturedAt,
-  articleKeyword,
-  serpKeyword,
-}: Props) {
-  const exportData = useMemo(
-    () => parseContentWriterKeywordBundle(keywordBundleJson),
-    [keywordBundleJson],
-  );
+export function ResearchInsightsRail({ articleKeyword, serpKeyword }: Props) {
+  const { doc } = useWritingWorkspace();
+  const { accessToken } = useAuth();
+  const [exportData, setExportData] = useState<ContentWriterSerpExport | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const organic = useMemo(
-    () => (exportData ? organicItems(exportData) : []),
-    [exportData],
-  );
+  useEffect(() => {
+    if (!doc.id || !doc.analysisRunId) return;
+    let cancelled = false;
+    setLoading(true);
+    void getResearchPack(doc.id, accessToken).then((data) => {
+      if (!cancelled) {
+        setExportData(data);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [doc.id, doc.analysisRunId, accessToken]);
+
+  const organic = useMemo(() => (exportData ? organicItems(exportData) : []), [exportData]);
   const paa = useMemo(() => (exportData ? paaQuestions(exportData) : []), [exportData]);
-  const pasf = useMemo(
-    () => (exportData ? relatedSearches(exportData) : []),
-    [exportData],
-  );
-  const siteFocus: SiteWritingFocus | null = useMemo(
-    () => parseSiteWritingFocus(siteFocusJson),
-    [siteFocusJson],
-  );
+  const pasf = useMemo(() => (exportData ? relatedSearches(exportData) : []), [exportData]);
 
-  const bundleCapturedLabel = keywordBundleCapturedAt
-    ? new Date(keywordBundleCapturedAt).toLocaleString()
-    : null;
+  if (loading) {
+    return (
+      <div className="border-t px-3 py-4 text-xs text-[var(--color-text-muted)] xl:px-4">
+        Loading research…
+      </div>
+    );
+  }
 
   if (!exportData || organic.length === 0) {
     return (
       <div className="border-t px-3 py-4 text-xs text-amber-800 xl:px-4">
         {exportData
-          ? 'Frozen keyword bundle has no organic SERP results for insights.'
-          : 'Frozen keyword bundle is missing — re-open Content Writing from Site Analyzer with site_profile.'}
+          ? 'No organic SERP results found in research pack.'
+          : 'Research pack not available — ensure Site Analyzer research is complete.'}
       </div>
     );
   }
@@ -100,23 +95,9 @@ export function ResearchInsightsRail({
     <div className="space-y-3 border-t px-3 py-4 xl:px-4">
       <h3 className="text-xs font-semibold xl:text-sm">SERP research</h3>
       <p className="text-xs text-[var(--color-text-muted)]">
-        Frozen at handoff · {exportData.keyword}
+        Live from sa2 · {exportData.keyword}
         {exportData.status ? ` · ${exportData.status}` : ''}
-        {bundleCapturedLabel ? ` · ${bundleCapturedLabel}` : ''}
       </p>
-
-      {siteFocus ? (
-        <SiteFocusCard
-          siteFocus={siteFocus}
-          capturedAt={siteFocusCapturedAt}
-          articleKeyword={articleKeyword}
-          serpKeyword={serpKeyword ?? exportData.keyword}
-        />
-      ) : (
-        <p className="text-[10px] text-[var(--color-text-muted)]">
-          Site focus snapshot not captured — re-handoff from Site Analyzer with site_profile.
-        </p>
-      )}
 
       {exportData.writingInstructions ? (
         <InsightCard title="Writing brief">
