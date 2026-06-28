@@ -70,6 +70,9 @@ internal static class ContentWritingTestFixtures
 
         public Task<Result<ContentWriterSiteBundle>> GetContentWriterBundleAsync(Guid siteProfileId, CancellationToken ct = default) =>
             Task.FromResult(Result<ContentWriterSiteBundle>.NotFound("Site profile not found"));
+
+        public Task<Result<ContentWriterSiteBundle>> GetContentWriterBundleByGeekSeoProjectIdAsync(Guid geekSeoProjectId, CancellationToken ct = default) =>
+            Task.FromResult(Result<ContentWriterSiteBundle>.NotFound("Site profile not found"));
     }
 
     internal sealed class NullNicheAnalyticsRepository : INicheAnalyticsDapperRepository

@@ -107,7 +107,7 @@ public sealed class ContentScoringForbiddenTests
     public async Task RefreshCrawlForDocumentAsync_forbids_live_serp_on_research_document()
     {
         var serp = new ThrowingSerpProvider();
-        var loader = new WritingResearchContextLoader();
+        var loader = AnalysisRunTestData.CreateContextLoader();
         var insights = new CompetitorInsightsService(
             new FakeDocumentService(ResearchDocument()),
             loader,
@@ -127,7 +127,7 @@ public sealed class ContentScoringForbiddenTests
     public async Task GetForDocumentAsync_returns_frozen_competitors_without_live_serp()
     {
         var serp = new ThrowingSerpProvider();
-        var loader = new WritingResearchContextLoader();
+        var loader = AnalysisRunTestData.CreateContextLoader();
         var insights = new CompetitorInsightsService(
             new FakeDocumentService(ResearchDocument()),
             loader,
@@ -154,7 +154,7 @@ public sealed class ContentScoringForbiddenTests
         return new ContentScoringService(
             new FakeDocumentService(document),
             repo,
-            new WritingResearchContextLoader(),
+            AnalysisRunTestData.CreateContextLoader(),
             new NoOpSerpCacheRepository(),
             serp,
             new CompetitorCrawlService(new FakeCrawlerProvider(), new FakeCompetitorPageRepository()),
@@ -294,10 +294,6 @@ public sealed class ContentScoringForbiddenTests
             string targetKeyword,
             string serpKeyword,
             Guid siteProfileId,
-            string? siteFocusJson = null,
-            DateTimeOffset? siteFocusCapturedAt = null,
-            string? keywordBundleJson = null,
-            DateTimeOffset? keywordBundleCapturedAt = null,
             CancellationToken ct = default) =>
             throw new NotSupportedException();
 

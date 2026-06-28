@@ -18,10 +18,6 @@ public interface IContentDocumentRepository
         string targetKeyword,
         string serpKeyword,
         Guid siteProfileId,
-        string? siteFocusJson = null,
-        DateTimeOffset? siteFocusCapturedAt = null,
-        string? keywordBundleJson = null,
-        DateTimeOffset? keywordBundleCapturedAt = null,
         CancellationToken ct = default);
     Task<Result<SeoContentDocument>> UpdateFeaturedImageAsync(Guid documentId, string featuredImageUrl, CancellationToken ct = default);
     Task<Result> UpdateScoreAsync(Guid documentId, int score, string scoreComponentsJson, CancellationToken ct = default);

@@ -204,6 +204,11 @@ internal static class AnalysisRunTestData
     internal static ContentWriterHandoffService CreateHandoffService(
         ContentWriterSerpExport? export = null,
         ContentWriterSiteBundle? siteBundle = null) =>
+        new(new FakeAnalysisRunRepository(export ?? CompletedExport()));
+
+    internal static GeekSeo.Application.Services.Seo.WritingResearchContextLoader CreateContextLoader(
+        ContentWriterSerpExport? export = null,
+        ContentWriterSiteBundle? siteBundle = null) =>
         new(
             new FakeAnalysisRunRepository(export ?? CompletedExport()),
             new FakeSiteAnalyzer2SiteProfileRepository(siteBundle));
@@ -219,6 +224,12 @@ internal static class AnalysisRunTestData
         public Task<Result<ContentWriterSiteBundle>> GetContentWriterBundleAsync(
             Guid siteProfileId, CancellationToken ct = default) =>
             siteProfileId == _bundle.SiteProfileId
+                ? Task.FromResult(Result<ContentWriterSiteBundle>.Success(_bundle))
+                : Task.FromResult(Result<ContentWriterSiteBundle>.NotFound("not found"));
+
+        public Task<Result<ContentWriterSiteBundle>> GetContentWriterBundleByGeekSeoProjectIdAsync(
+            Guid geekSeoProjectId, CancellationToken ct = default) =>
+            geekSeoProjectId == _bundle.GeekSeoProjectId
                 ? Task.FromResult(Result<ContentWriterSiteBundle>.Success(_bundle))
                 : Task.FromResult(Result<ContentWriterSiteBundle>.NotFound("not found"));
     }

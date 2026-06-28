@@ -9,4 +9,7 @@ public interface ISiteAnalyzer2SiteProfileRepository
 
     Task<Result<ContentWriterSiteBundle>> GetContentWriterBundleAsync(
         Guid siteProfileId, CancellationToken ct = default);
+
+    Task<Result<ContentWriterSiteBundle>> GetContentWriterBundleByGeekSeoProjectIdAsync(
+        Guid geekSeoProjectId, CancellationToken ct = default);
 }

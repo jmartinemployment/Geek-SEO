@@ -145,11 +145,6 @@ public sealed class AttachContractTests
         Assert.NotNull(repo.LastCreateRequest);
         Assert.Equal("custom widget repair", repo.LastCreateRequest.TargetKeyword);
         Assert.Equal("custom widget repair", repo.LastCreateRequest.SerpKeyword);
-        Assert.False(string.IsNullOrWhiteSpace(repo.LastCreateRequest.SiteFocusJson));
-        Assert.NotNull(repo.LastCreateRequest.SiteFocusCapturedAt);
-        Assert.False(string.IsNullOrWhiteSpace(repo.LastCreateRequest.KeywordBundleJson));
-        Assert.NotNull(repo.LastCreateRequest.KeywordBundleCapturedAt);
-        Assert.Equal(SiteProfileId, repo.LastCreateRequest.SiteProfileId);
     }
 
     [Fact]
@@ -196,20 +191,23 @@ public sealed class AttachContractTests
     }
 
     [Fact]
-    public async Task CreateAsync_rejects_partial_handoff()
+    public async Task CreateAsync_accepts_analysisRunId_without_siteProfileId()
     {
+        var repo = new FakeContentDocumentRepository();
+        var export = AnalysisRunTestData.CompletedExport();
         var sut = new ContentDocumentService(
-            new FakeContentDocumentRepository(),
+            repo,
             new FakeProjectRepository(ProjectId),
-            CreateHandoffService());
+            CreateHandoffService(export));
 
         var result = await sut.CreateAsync(UserId, new CreateContentDocumentRequest
         {
             AnalysisRunId = RunId,
         });
 
-        Assert.False(result.IsSuccess);
-        Assert.Contains("site_profile", result.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(repo.LastCreateRequest);
+        Assert.Equal(ProjectId, repo.LastCreateRequest.ProjectId);
     }
 
     private sealed class FakeProjectRepository(Guid projectId) : IProjectRepository
@@ -282,10 +280,6 @@ public sealed class AttachContractTests
             string targetKeyword,
             string serpKeyword,
             Guid siteProfileId,
-            string? siteFocusJson = null,
-            DateTimeOffset? siteFocusCapturedAt = null,
-            string? keywordBundleJson = null,
-            DateTimeOffset? keywordBundleCapturedAt = null,
             CancellationToken ct = default) =>
             throw new NotSupportedException();
 

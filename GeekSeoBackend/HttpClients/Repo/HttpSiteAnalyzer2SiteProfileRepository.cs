@@ -53,4 +53,23 @@ public sealed class HttpSiteAnalyzer2SiteProfileRepository(
             ? Result<ContentWriterSiteBundle>.Failure("Empty site bundle response")
             : Result<ContentWriterSiteBundle>.Success(value);
     }
+
+    public async Task<Result<ContentWriterSiteBundle>> GetContentWriterBundleByGeekSeoProjectIdAsync(
+        Guid geekSeoProjectId, CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/site-profiles/by-project/{geekSeoProjectId}/content-writer-bundle?userId={user.UserId}",
+            ct);
+
+        if (res.StatusCode is HttpStatusCode.NotFound)
+            return Result<ContentWriterSiteBundle>.NotFound("Site profile not found for project");
+
+        if (!res.IsSuccessStatusCode)
+            return Result<ContentWriterSiteBundle>.Failure(await res.Content.ReadAsStringAsync(ct));
+
+        var value = await res.Content.ReadFromJsonAsync<ContentWriterSiteBundle>(Json, ct);
+        return value is null
+            ? Result<ContentWriterSiteBundle>.Failure("Empty site bundle response")
+            : Result<ContentWriterSiteBundle>.Success(value);
+    }
 }

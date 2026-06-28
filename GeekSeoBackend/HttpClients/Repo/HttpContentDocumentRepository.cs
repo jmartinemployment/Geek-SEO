@@ -66,10 +66,6 @@ public sealed class HttpContentDocumentRepository(IHttpClientFactory factory, IC
         string targetKeyword,
         string serpKeyword,
         Guid siteProfileId,
-        string? siteFocusJson = null,
-        DateTimeOffset? siteFocusCapturedAt = null,
-        string? keywordBundleJson = null,
-        DateTimeOffset? keywordBundleCapturedAt = null,
         CancellationToken ct = default)
     {
         var response = await _http.PatchAsJsonAsync(
@@ -80,10 +76,6 @@ public sealed class HttpContentDocumentRepository(IHttpClientFactory factory, IC
                 TargetKeyword = targetKeyword,
                 SerpKeyword = serpKeyword,
                 SiteProfileId = siteProfileId,
-                SiteFocusJson = siteFocusJson,
-                SiteFocusCapturedAt = siteFocusCapturedAt,
-                KeywordBundleJson = keywordBundleJson,
-                KeywordBundleCapturedAt = keywordBundleCapturedAt,
             },
             ct);
         return await ReadOneAsync(response, ct);
@@ -95,10 +87,6 @@ public sealed class HttpContentDocumentRepository(IHttpClientFactory factory, IC
         public required string TargetKeyword { get; init; }
         public required string SerpKeyword { get; init; }
         public required Guid SiteProfileId { get; init; }
-        public string? SiteFocusJson { get; init; }
-        public DateTimeOffset? SiteFocusCapturedAt { get; init; }
-        public string? KeywordBundleJson { get; init; }
-        public DateTimeOffset? KeywordBundleCapturedAt { get; init; }
     }
 
     public async Task<Result<SeoContentDocument>> UpdateFeaturedImageAsync(

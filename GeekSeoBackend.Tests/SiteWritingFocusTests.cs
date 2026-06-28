@@ -61,7 +61,7 @@ public sealed class SiteWritingFocusTests
         };
         var context = AnalysisRunTestData.MinimalWritingContext();
 
-        var merged = WritingResearchContextLoader.ApplySiteFocus(context, document);
+        var merged = WritingResearchContextLoader.ApplySiteFocus(context, focus);
 
         Assert.NotNull(merged.SiteFocus);
         Assert.Equal("Geek at Your Spot", merged.SiteFocus.SiteName);

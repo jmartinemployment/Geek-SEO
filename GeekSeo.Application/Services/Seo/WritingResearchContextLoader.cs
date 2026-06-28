@@ -1,33 +1,42 @@
 using GeekSeo.Persistence.Entities;
+using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Mapping;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
-using GeekSeo.Application.Services.Seo;
 
 namespace GeekSeo.Application.Services.Seo;
 
-public sealed class WritingResearchContextLoader
+public sealed class WritingResearchContextLoader(
+    IAnalysisRunRepository analysisRuns,
+    ISiteAnalyzer2SiteProfileRepository siteProfiles)
 {
-    public Task<Result<WritingResearchContext>> LoadAsync(
+    public async Task<Result<WritingResearchContext>> LoadAsync(
         Guid userId,
         SeoContentDocument document,
-        CancellationToken ct = default) =>
-        Task.FromResult(Load(document, userId));
-
-    public static Result<WritingResearchContext> Load(SeoContentDocument document, Guid userId)
+        CancellationToken ct = default)
     {
         if (!ResearchBackedWriteGate.IsResearchBacked(document))
             return Result<WritingResearchContext>.Failure(ContentWritingBlockMessage.Default);
 
-        var export = ContentWriterKeywordBundleSerializer.TryDeserialize(document.KeywordBundleJson);
-        if (export is null)
-            return Result<WritingResearchContext>.Failure(
-                "Frozen keyword bundle is missing. Re-open Content Writing from Site Analyzer with site_profile.");
+        if (document.AnalysisRunId is not Guid runId || runId == Guid.Empty)
+            return Result<WritingResearchContext>.Failure("Analysis run is required for research-backed content.");
 
+        if (document.SiteProfileId is not Guid siteProfileId || siteProfileId == Guid.Empty)
+            return Result<WritingResearchContext>.Failure("site_profile is required for research-backed content.");
+
+        var exportResult = await analysisRuns.GetContentWriterExportAsync(runId, ct);
+        if (!exportResult.IsSuccess || exportResult.Value is null)
+            return Result<WritingResearchContext>.Failure(exportResult.Error ?? "Analysis run not found");
+
+        var export = exportResult.Value;
         var gate = ResearchBackedWriteGate.ValidateAnalysisRunExport(export);
         if (!gate.IsSuccess)
-            return Result<WritingResearchContext>.Failure(gate.Error ?? "Frozen keyword bundle is not valid for writing.");
+            return Result<WritingResearchContext>.Failure(gate.Error ?? "Analysis run is not ready for writing.");
+
+        var siteBundleResult = await siteProfiles.GetContentWriterBundleAsync(siteProfileId, ct);
+        if (!siteBundleResult.IsSuccess || siteBundleResult.Value is null)
+            return Result<WritingResearchContext>.Failure(siteBundleResult.Error ?? "Site profile not found");
 
         var location = string.IsNullOrWhiteSpace(document.TargetLocation)
             ? "United States"
@@ -39,21 +48,20 @@ public sealed class WritingResearchContextLoader
             location,
             document.TargetKeyword);
 
-        return Result<WritingResearchContext>.Success(ApplySiteFocus(context, document));
+        var focus = SiteWritingFocusFromBundlesMapper.Map(
+            siteBundleResult.Value,
+            export,
+            document.TargetKeyword);
+
+        return Result<WritingResearchContext>.Success(ApplySiteFocus(context, focus));
     }
 
     public static WritingResearchContext ApplySiteFocus(
         WritingResearchContext context,
-        SeoContentDocument document)
-    {
-        var focus = SiteWritingFocusSerializer.TryDeserialize(document.SiteFocusJson);
-        if (focus is null)
-            return context;
-
-        return context with
+        SiteWritingFocus focus) =>
+        context with
         {
             SiteFocus = focus,
             BusinessContext = SiteWritingFocusSerializer.ToBusinessContext(focus),
         };
-    }
 }

@@ -61,7 +61,7 @@ public sealed class ContentWritingRenderTests
         var service = new ArticleRenderService(
             new FakeContentDocumentService(document),
             new FakeContentBriefService(brief),
-            new WritingResearchContextLoader());
+            AnalysisRunTestData.CreateContextLoader());
 
         var result = await service.RenderAsync(userId, document.Id);
 

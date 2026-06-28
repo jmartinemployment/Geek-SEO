@@ -10,7 +10,7 @@ namespace GeekSeo.Application.Services.Seo;
 public sealed partial class ContentDocumentService(
     IContentDocumentRepository documents,
     IProjectRepository projects,
-    ContentWriterHandoffService handoff) : IContentDocumentService
+    ContentWriterHandoffService handoffService) : IContentDocumentService
 {
     private const string DefaultTargetLocation = "United States";
 
@@ -41,48 +41,34 @@ public sealed partial class ContentDocumentService(
         Guid userId, CreateContentDocumentRequest request, CancellationToken ct = default)
     {
         var hasRun = request.AnalysisRunId is { } analysisRunId && analysisRunId != Guid.Empty;
-        var hasProfile = request.SiteProfileId is { } siteProfileId && siteProfileId != Guid.Empty;
-
-        if (hasRun != hasProfile)
-        {
-            return Result<SeoContentDocument>.Failure(
-                "analysisRunId and site_profile are both required for Content Writing handoff.");
-        }
 
         if (hasRun)
         {
             if (request.ProjectId != Guid.Empty)
             {
                 return Result<SeoContentDocument>.Failure(
-                    "projectId is not accepted on SA2 handoff. Open Content Writing from Site Analyzer with site_profile.");
+                    "projectId is not accepted on SA2 handoff. Open Content Writing from Site Analyzer.");
             }
 
-            var frozen = await handoff.FreezeAsync(
+            var handoff = await handoffService.ValidateAsync(
                 request.AnalysisRunId!.Value,
-                request.SiteProfileId!.Value,
                 request.TargetKeyword,
-                request.TargetLocation,
                 ct);
-            if (!frozen.IsSuccess || frozen.Value is null)
-                return Result<SeoContentDocument>.Failure(frozen.Error ?? "Failed to freeze research handoff");
+            if (!handoff.IsSuccess || handoff.Value is null)
+                return Result<SeoContentDocument>.Failure(handoff.Error ?? "Site Analyzer research is not ready");
 
-            var bundle = frozen.Value;
-            var project = await projects.GetByIdAsync(bundle.GeekSeoProjectId, ct);
+            var resolved = handoff.Value;
+            var project = await projects.GetByIdAsync(resolved.GeekSeoProjectId, ct);
             if (!project.IsSuccess || project.Value is null || project.Value.UserId != userId)
                 return Result<SeoContentDocument>.Failure("Access denied");
 
             var createRequest = request with
             {
-                ProjectId = bundle.GeekSeoProjectId,
+                ProjectId = resolved.GeekSeoProjectId,
                 TargetLocation = ResolveTargetLocation(request.TargetLocation, project.Value.DefaultLocation),
-                TargetKeyword = bundle.TargetKeyword,
-                SerpKeyword = bundle.SerpKeyword,
-                AnalysisRunId = bundle.AnalysisRunId,
-                SiteProfileId = bundle.SiteProfileId,
-                SiteFocusJson = bundle.SiteFocusJson,
-                SiteFocusCapturedAt = bundle.SiteFocusCapturedAt,
-                KeywordBundleJson = bundle.KeywordBundleJson,
-                KeywordBundleCapturedAt = bundle.KeywordBundleCapturedAt,
+                TargetKeyword = resolved.TargetKeyword,
+                SerpKeyword = resolved.SerpKeyword,
+                AnalysisRunId = resolved.AnalysisRunId,
             };
 
             return await documents.CreateAsync(userId, createRequest, ct);
@@ -136,32 +122,21 @@ public sealed partial class ContentDocumentService(
             return access;
 
         var doc = access.Value;
-        if (siteProfileId is not { } profileId || profileId == Guid.Empty)
-            return Result<SeoContentDocument>.Failure("site_profile is required for research-backed content.");
 
-        var frozen = await handoff.FreezeAsync(
-            analysisRunId,
-            profileId,
-            targetKeyword,
-            doc.TargetLocation,
-            ct);
-        if (!frozen.IsSuccess || frozen.Value is null)
-            return Result<SeoContentDocument>.Failure(frozen.Error ?? "Failed to freeze research handoff");
+        var handoff = await handoffService.ValidateAsync(analysisRunId, targetKeyword, ct);
+        if (!handoff.IsSuccess || handoff.Value is null)
+            return Result<SeoContentDocument>.Failure(handoff.Error ?? "Site Analyzer research is not ready");
 
-        var bundle = frozen.Value;
-        if (doc.ProjectId != bundle.GeekSeoProjectId)
-            return Result<SeoContentDocument>.Failure("Document project does not match site_profile link.");
+        var resolved = handoff.Value;
+        if (doc.ProjectId != resolved.GeekSeoProjectId)
+            return Result<SeoContentDocument>.Failure("Document project does not match analysis run link.");
 
         return await documents.AttachAnalysisRunAsync(
             documentId,
-            bundle.AnalysisRunId,
-            bundle.TargetKeyword,
-            bundle.SerpKeyword,
-            bundle.SiteProfileId,
-            bundle.SiteFocusJson,
-            bundle.SiteFocusCapturedAt,
-            bundle.KeywordBundleJson,
-            bundle.KeywordBundleCapturedAt,
+            resolved.AnalysisRunId,
+            resolved.TargetKeyword,
+            resolved.SerpKeyword,
+            siteProfileId ?? Guid.Empty,
             ct);
     }
 

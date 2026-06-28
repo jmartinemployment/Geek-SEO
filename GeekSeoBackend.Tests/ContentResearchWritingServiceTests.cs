@@ -22,7 +22,7 @@ public sealed class ContentResearchWritingServiceTests
         var sut = new ContentResearchWritingService(
             documents,
             new FakeAiWritingService(),
-            new WritingResearchContextLoader());
+            CreateContextLoader());
 
         var result = await sut.AttachResearchAsync(
             UserId,
@@ -38,7 +38,7 @@ public sealed class ContentResearchWritingServiceTests
     }
 
     [Fact]
-    public async Task AttachResearchAsync_requires_site_profile()
+    public async Task AttachResearchAsync_accepts_analysisRunId_without_siteProfileId()
     {
         var sut = CreateSut(FrozenResearchDocument());
 
@@ -47,8 +47,7 @@ public sealed class ContentResearchWritingServiceTests
             DocumentId,
             new AttachAnalysisRunRequest { AnalysisRunId = RunId });
 
-        Assert.False(result.IsSuccess);
-        Assert.Contains("site_profile", result.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.True(result.IsSuccess);
     }
 
     [Fact]
@@ -63,21 +62,7 @@ public sealed class ContentResearchWritingServiceTests
         var result = await sut.DraftFromResearchAsync(UserId, DocumentId);
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("analysis run", result.Error, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task DraftFromResearchAsync_requires_frozen_keyword_bundle()
-    {
-        var doc = FrozenResearchDocument();
-        doc.KeywordBundleJson = null;
-
-        var sut = CreateSut(doc);
-
-        var result = await sut.DraftFromResearchAsync(UserId, DocumentId);
-
-        Assert.False(result.IsSuccess);
-        Assert.Contains("Frozen keyword bundle", result.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Complete research in Site Analyzer", result.Error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -90,7 +75,7 @@ public sealed class ContentResearchWritingServiceTests
         var sut = new ContentResearchWritingService(
             documents,
             ai,
-            new WritingResearchContextLoader());
+            CreateContextLoader());
 
         var result = await sut.DraftFromResearchAsync(UserId, DocumentId);
 
@@ -108,7 +93,7 @@ public sealed class ContentResearchWritingServiceTests
         var sut = new ContentResearchWritingService(
             documents,
             ai,
-            new WritingResearchContextLoader());
+            CreateContextLoader());
 
         var result = await sut.DraftFromResearchAsync(UserId, DocumentId);
 
@@ -124,7 +109,7 @@ public sealed class ContentResearchWritingServiceTests
         new(
             new FakeDocumentService(document),
             new FakeAiWritingService(),
-            new WritingResearchContextLoader());
+            CreateContextLoader());
 
     private sealed class StubProjectRepository : IProjectRepository
     {
@@ -181,10 +166,6 @@ public sealed class ContentResearchWritingServiceTests
             string targetKeyword,
             string serpKeyword,
             Guid siteProfileId,
-            string? siteFocusJson = null,
-            DateTimeOffset? siteFocusCapturedAt = null,
-            string? keywordBundleJson = null,
-            DateTimeOffset? keywordBundleCapturedAt = null,
             CancellationToken ct = default) =>
             throw new NotSupportedException();
 
@@ -243,7 +224,7 @@ public sealed class ContentResearchWritingServiceTests
 
         public Task<Result<SeoContentDocument>> AttachAnalysisRunAsync(
             Guid userId, Guid documentId, Guid analysisRunId, string targetKeyword, string serpKeyword, Guid? siteProfileId = null, CancellationToken ct = default) =>
-            throw new NotSupportedException();
+            Task.FromResult(Result<SeoContentDocument>.Success(document));
 
         public Task<Result> DeleteAsync(Guid userId, Guid documentId, CancellationToken ct = default) =>
             throw new NotSupportedException();

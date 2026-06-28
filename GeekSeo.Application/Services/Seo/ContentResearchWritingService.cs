@@ -13,10 +13,6 @@ public sealed class ContentResearchWritingService(
     public async Task<Result<SeoContentDocument>> AttachResearchAsync(
         Guid userId, Guid documentId, AttachAnalysisRunRequest request, CancellationToken ct = default)
     {
-        if (request.SiteProfileId is not { } siteProfileId || siteProfileId == Guid.Empty)
-            return Result<SeoContentDocument>.Failure(
-                "site_profile is required for research-backed content.");
-
         var access = await documents.EnsureAccessAsync(userId, documentId, ct);
         if (!access.IsSuccess || access.Value is null)
             return Result<SeoContentDocument>.Failure(access.Error ?? "Access denied");
@@ -31,7 +27,7 @@ public sealed class ContentResearchWritingService(
             request.AnalysisRunId,
             targetKeyword,
             string.Empty,
-            siteProfileId,
+            request.SiteProfileId,
             ct);
     }
 
