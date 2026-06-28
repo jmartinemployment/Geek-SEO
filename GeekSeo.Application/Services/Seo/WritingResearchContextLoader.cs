@@ -22,9 +22,6 @@ public sealed class WritingResearchContextLoader(
         if (document.AnalysisRunId is not Guid runId || runId == Guid.Empty)
             return Result<WritingResearchContext>.Failure("Analysis run is required for research-backed content.");
 
-        if (document.SiteProfileId is not Guid siteProfileId || siteProfileId == Guid.Empty)
-            return Result<WritingResearchContext>.Failure("site_profile is required for research-backed content.");
-
         var exportResult = await analysisRuns.GetContentWriterExportAsync(runId, ct);
         if (!exportResult.IsSuccess || exportResult.Value is null)
             return Result<WritingResearchContext>.Failure(exportResult.Error ?? "Analysis run not found");
@@ -34,7 +31,21 @@ public sealed class WritingResearchContextLoader(
         if (!gate.IsSuccess)
             return Result<WritingResearchContext>.Failure(gate.Error ?? "Analysis run is not ready for writing.");
 
-        var siteBundleResult = await siteProfiles.GetContentWriterBundleAsync(siteProfileId, ct);
+        // Resolve site bundle: prefer frozen SiteProfileId on document, fall back to GeekSeoProjectId from sa2.
+        Result<ContentWriterSiteBundle> siteBundleResult;
+        if (document.SiteProfileId is Guid siteProfileId && siteProfileId != Guid.Empty)
+        {
+            siteBundleResult = await siteProfiles.GetContentWriterBundleAsync(siteProfileId, ct);
+        }
+        else if (export.GeekSeoProjectId is Guid geekProjectId && geekProjectId != Guid.Empty)
+        {
+            siteBundleResult = await siteProfiles.GetContentWriterBundleByGeekSeoProjectIdAsync(geekProjectId, ct);
+        }
+        else
+        {
+            siteBundleResult = Result<ContentWriterSiteBundle>.NotFound("No site profile linked to this analysis run.");
+        }
+
         if (!siteBundleResult.IsSuccess || siteBundleResult.Value is null)
             return Result<WritingResearchContext>.Failure(siteBundleResult.Error ?? "Site profile not found");
 
