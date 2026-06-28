@@ -1,6 +1,5 @@
 'use client';
 
-import { AppHeader } from '@/components/app/app-header';
 import { SidebarLayout } from '@/components/app/app-sidebar';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { SiteNavbar } from '@/components/layout/site-navbar';
@@ -17,7 +16,6 @@ export function AppShell({
     <div className="flex min-h-screen flex-col bg-[var(--color-bg)]">
       <SiteNavbar />
       <SidebarLayout>
-        <AppHeader />
         <main className={cn('flex-1 px-4 py-8 md:px-10', mainClassName)}>{children}</main>
       </SidebarLayout>
       <SiteFooter />
