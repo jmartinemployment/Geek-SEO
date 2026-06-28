@@ -78,9 +78,15 @@ public static class SeoBackendExtensions
             client.BaseAddress = new Uri("https://api.anthropic.com");
             client.Timeout = TimeSpan.FromMinutes(10);
         });
-        services.AddHttpClient("OpenAI", client => client.BaseAddress = new Uri("https://api.openai.com/"));
+        services.AddHttpClient("OpenAI", client =>
+        {
+            client.BaseAddress = new Uri("https://api.openai.com/");
+            client.Timeout = TimeSpan.FromMinutes(10);
+        });
         services.AddHttpClient("WordPress");
-        services.AddScoped<IAIProvider, ClaudeProvider>();
+        services.AddScoped<ClaudeProvider>();
+        services.AddScoped<OpenAIProvider>();
+        services.AddScoped<IAIProvider, FallbackAIProvider>();
         services.AddScoped<IOpenAIImageGenerator, OpenAIImageGenerator>();
         services.AddScoped<IWordPressProvider, WordPressRestProvider>();
 
