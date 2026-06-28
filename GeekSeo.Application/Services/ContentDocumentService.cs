@@ -44,12 +44,6 @@ public sealed partial class ContentDocumentService(
 
         if (hasRun)
         {
-            if (request.ProjectId != Guid.Empty)
-            {
-                return Result<SeoContentDocument>.Failure(
-                    "projectId is not accepted on SA2 handoff. Open Content Writing from Site Analyzer.");
-            }
-
             var handoff = await handoffService.ValidateAsync(
                 request.AnalysisRunId!.Value,
                 request.TargetKeyword,

@@ -170,25 +170,6 @@ public sealed class AttachContractTests
         Assert.Equal(ProjectId, repo.LastCreateRequest.ProjectId);
     }
 
-    [Fact]
-    public async Task CreateAsync_rejects_projectId_on_handoff()
-    {
-        var export = AnalysisRunTestData.CompletedExport();
-        var sut = new ContentDocumentService(
-            new FakeContentDocumentRepository(),
-            new FakeProjectRepository(ProjectId),
-            CreateHandoffService(export));
-
-        var result = await sut.CreateAsync(UserId, new CreateContentDocumentRequest
-        {
-            ProjectId = ProjectId,
-            AnalysisRunId = RunId,
-            SiteProfileId = SiteProfileId,
-        });
-
-        Assert.False(result.IsSuccess);
-        Assert.Contains("projectId is not accepted", result.Error, StringComparison.OrdinalIgnoreCase);
-    }
 
     [Fact]
     public async Task CreateAsync_accepts_analysisRunId_without_siteProfileId()
