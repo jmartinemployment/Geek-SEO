@@ -37,21 +37,24 @@ describe('parseContentWritingSearchParams', () => {
 
 describe('rejectedLegacyHandoffParams', () => {
   it('flags camelCase siteProfile', () => {
-    const params = new URLSearchParams('siteProfile=bad&site_profile=good');
+    const params = new URLSearchParams('siteProfile=bad');
     expect(rejectedLegacyHandoffParams(params)).toContain('siteProfile');
+  });
+
+  it('flags snake_case site_profile', () => {
+    const params = new URLSearchParams('analysisRunId=r&site_profile=sp-uuid');
+    expect(rejectedLegacyHandoffParams(params)).toContain('site_profile');
   });
 });
 
 describe('contentWritingPath', () => {
-  it('builds SA2 handoff deep link', () => {
+  it('builds SA2 handoff deep link with analysisRunId only', () => {
     expect(
       contentWritingPath({
         analysisRunId: '40695b16-f5d4-4fc0-a05d-c85df54236ca',
-        keyword: 'how you implement AI Content Marketing',
-        siteProfile: 'sp-uuid',
       }),
     ).toBe(
-      '/content-writing?analysisRunId=40695b16-f5d4-4fc0-a05d-c85df54236ca&keyword=how+you+implement+AI+Content+Marketing&site_profile=sp-uuid',
+      '/content-writing?analysisRunId=40695b16-f5d4-4fc0-a05d-c85df54236ca',
     );
   });
 });
@@ -76,12 +79,12 @@ describe('buildContentWritingSearchParams', () => {
 });
 
 describe('isCompleteContentWritingHandoff', () => {
-  it('requires run, keyword, and site profile', () => {
+  it('requires only analysisRunId', () => {
     expect(
       isCompleteContentWritingHandoff({
         analysisRunId: 'r',
-        keyword: 'kw',
-        siteProfile: 'sp',
+        keyword: '',
+        siteProfile: '',
         title: '',
         location: 'United States',
         documentId: '',
@@ -90,9 +93,9 @@ describe('isCompleteContentWritingHandoff', () => {
 
     expect(
       isCompleteContentWritingHandoff({
-        analysisRunId: 'r',
+        analysisRunId: '',
         keyword: 'kw',
-        siteProfile: '',
+        siteProfile: 'sp',
         title: '',
         location: 'United States',
         documentId: '',
@@ -102,7 +105,7 @@ describe('isCompleteContentWritingHandoff', () => {
 });
 
 describe('missingContentWritingHandoffFields', () => {
-  it('lists absent handoff fields', () => {
+  it('reports missing analysis run', () => {
     expect(
       missingContentWritingHandoffFields({
         analysisRunId: '',
@@ -112,6 +115,19 @@ describe('missingContentWritingHandoffFields', () => {
         location: 'United States',
         documentId: '',
       }),
-    ).toEqual(['analysis run', 'keyword', 'site profile']);
+    ).toEqual(['analysis run']);
+  });
+
+  it('returns empty when analysisRunId present', () => {
+    expect(
+      missingContentWritingHandoffFields({
+        analysisRunId: 'r',
+        keyword: '',
+        siteProfile: '',
+        title: '',
+        location: 'United States',
+        documentId: '',
+      }),
+    ).toEqual([]);
   });
 });

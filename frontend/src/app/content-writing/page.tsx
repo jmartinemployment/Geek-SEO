@@ -57,7 +57,7 @@ function ContentWritingGate({
       <h2 className="text-lg font-semibold">Open from Site Analyzer</h2>
       <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
         Content Writing does not run keyword research here. Site Analyzer sends
-        analysisRunId, keyword, and site_profile — nothing else.
+        analysisRunId only — keyword and site context are resolved from sa2.
       </p>
       {legacyFields.length > 0 ? (
         <p className="mt-3 text-sm text-red-800">
@@ -140,11 +140,7 @@ function ContentWritingPageInner() {
   const runHandoff = useCallback(async () => {
     if (!completeHandoff) return;
 
-    const handoffKey = [
-      urlParams.analysisRunId,
-      urlParams.keyword,
-      urlParams.siteProfile,
-    ].join('|');
+    const handoffKey = urlParams.analysisRunId;
 
     if (handoffStartedRef.current === handoffKey) return;
     handoffStartedRef.current = handoffKey;
@@ -163,10 +159,9 @@ function ContentWritingPageInner() {
       const created = await createContent(
         {
           title: articleTitle,
-          targetKeyword: articleKeyword,
+          targetKeyword: articleKeyword || undefined,
           targetLocation,
           analysisRunId: urlParams.analysisRunId,
-          siteProfileId: urlParams.siteProfile,
         },
         accessToken,
       );
@@ -282,7 +277,7 @@ function ContentWritingPageInner() {
             {draftLoadingLabel(draftProgress, 'Starting draft…')}
           </p>
           <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-            Keyword: {urlParams.keyword}
+            Run: {urlParams.analysisRunId}
           </p>
         </section>
       ) : null}

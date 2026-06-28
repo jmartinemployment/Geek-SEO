@@ -16,6 +16,7 @@ const LEGACY_HANDOFF_PARAMS = [
   'projectId',
   'urlResearchId',
   'siteProfile',
+  'site_profile',
   'url_research_id',
 ] as const;
 
@@ -71,19 +72,14 @@ export function contentWritingPath(
 export function isCompleteContentWritingHandoff(
   params: ContentWritingSearchParams,
 ): boolean {
-  return Boolean(
-    params.analysisRunId && params.keyword.trim() && params.siteProfile,
-  );
+  return Boolean(params.analysisRunId);
 }
 
 export function missingContentWritingHandoffFields(
   params: ContentWritingSearchParams,
 ): string[] {
-  const missing: string[] = [];
-  if (!params.analysisRunId) missing.push('analysis run');
-  if (!params.keyword.trim()) missing.push('keyword');
-  if (!params.siteProfile) missing.push('site profile');
-  return missing;
+  if (!params.analysisRunId) return ['analysis run'];
+  return [];
 }
 
 export function defaultTitleForKeyword(
