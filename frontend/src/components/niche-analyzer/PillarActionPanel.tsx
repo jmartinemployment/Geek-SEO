@@ -48,7 +48,7 @@ function topicalMapHref(projectId: string | undefined, seed: string): string {
   if (projectId) params.set('projectId', projectId);
   params.set('seed', seed);
   const query = params.toString();
-  return query ? `/app/strategy/topical-map?${query}` : '/app/strategy/topical-map';
+  return query ? `/strategy/topical-map?${query}` : '/strategy/topical-map';
 }
 
 function ActionRow({

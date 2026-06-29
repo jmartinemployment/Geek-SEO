@@ -27,19 +27,19 @@ export function IntegrationRequired({
       </div>
       <div className="mt-8 flex flex-wrap gap-4 text-sm">
         <Link
-          href="/app/projects"
+          href="/projects"
           className="font-medium text-[var(--color-text-primary)] underline-offset-2 hover:underline"
         >
           ← Projects (connect Google)
         </Link>
         <Link
-          href="/app/rankings"
+          href="/rankings"
           className="font-medium text-[var(--color-text-primary)] underline-offset-2 hover:underline"
         >
           GSC rankings
         </Link>
         <Link
-          href="/app/analytics"
+          href="/analytics"
           className="font-medium text-[var(--color-text-primary)] underline-offset-2 hover:underline"
         >
           GA4 analytics

@@ -72,7 +72,7 @@ function ProjectDocumentsPageInner() {
 
   return (
     <main className="mx-auto max-w-3xl p-8">
-      <Link href="/app/projects" className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
+      <Link href="/projects" className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
         ← Projects
       </Link>
       <h1 className="mt-4 text-2xl font-semibold tracking-tight">
@@ -86,10 +86,10 @@ function ProjectDocumentsPageInner() {
         <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
           <p>Google Search Console and Analytics are connected for this project.</p>
           <p className="mt-2 flex flex-wrap gap-4">
-            <Link href="/app/rankings" className="font-medium underline-offset-2 hover:underline">
+            <Link href="/rankings" className="font-medium underline-offset-2 hover:underline">
               View GSC rankings →
             </Link>
-            <Link href="/app/analytics" className="font-medium underline-offset-2 hover:underline">
+            <Link href="/analytics" className="font-medium underline-offset-2 hover:underline">
               View GA4 analytics →
             </Link>
           </p>

@@ -86,7 +86,7 @@ function SiteRow({ project }: { project: ProjectWithDocuments }) {
               Open content
             </Link>
             <Link
-              href={`/app/audit/${project.id}`}
+              href={`/audit/${project.id}`}
               className="inline-flex h-8 items-center rounded-[var(--radius-button)] bg-[var(--color-accent)] px-3 text-xs font-semibold text-white hover:bg-[var(--color-accent-hover)]"
             >
               Site audit
@@ -129,7 +129,7 @@ export function DashboardSitesSection({ projects }: { projects: ProjectWithDocum
               </EmptyHeader>
               <EmptyContent>
                 <Link
-                  href="/app/projects"
+                  href="/projects"
                   className="inline-flex h-9 items-center rounded-[var(--radius-button)] bg-[var(--color-accent)] px-5 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover)]"
                 >
                   Add your first site

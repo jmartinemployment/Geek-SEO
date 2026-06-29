@@ -20,13 +20,13 @@ export default function SettingsPage() {
           <CardDescription>Google Search Console and GA4 are configured per project.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Link href="/app/projects" className="text-sm font-semibold text-[var(--color-accent)]">
+          <Link href="/projects" className="text-sm font-semibold text-[var(--color-accent)]">
             Open projects →
           </Link>
         </CardContent>
       </Card>
 
-      <Link href="/app/dashboard" className="inline-block text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
+      <Link href="/dashboard" className="inline-block text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
         ← Back to dashboard
       </Link>
     </div>

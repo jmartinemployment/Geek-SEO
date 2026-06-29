@@ -120,7 +120,7 @@ export default function CannibalizationPage() {
         >
           {loading ? 'Analyzing…' : 'Analyze'}
         </button>
-        <Link href="/app/rankings" className="text-sm text-[var(--color-brand)] hover:underline">
+        <Link href="/rankings" className="text-sm text-[var(--color-brand)] hover:underline">
           Rankings →
         </Link>
       </div>
@@ -128,7 +128,7 @@ export default function CannibalizationPage() {
       {selectedProject && !selectedProject.gscConnected ? (
         <p className="mt-4 text-sm text-amber-800">
           This project does not show GSC as connected. Connect Search Console under{' '}
-          <Link href="/app/rankings" className="font-medium underline">
+          <Link href="/rankings" className="font-medium underline">
             Rankings
           </Link>{' '}
           before analyzing.

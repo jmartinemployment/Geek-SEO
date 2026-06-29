@@ -12,7 +12,7 @@ export function DashboardRecentDocuments({ documents }: { documents: RecentDocum
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <CardTitle>Recent documents</CardTitle>
-          <Link href="/app/projects" className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
+          <Link href="/projects" className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
             View all →
           </Link>
         </CardHeader>

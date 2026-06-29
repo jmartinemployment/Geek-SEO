@@ -9,7 +9,7 @@ const MAIN_SITE = 'https://www.geekatyourspot.com';
 
 export const geekSiteNavLinks: GeekSiteNavLink[] = [
   { label: 'Home', href: `${MAIN_SITE}/`, external: true },
-  { label: 'Geek SEO', href: '/app/dashboard' },
+  { label: 'Geek SEO', href: '/dashboard' },
   {
     label: 'Use Cases',
     href: `${MAIN_SITE}/use-cases`,

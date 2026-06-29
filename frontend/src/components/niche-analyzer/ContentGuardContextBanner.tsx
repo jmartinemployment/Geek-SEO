@@ -7,7 +7,7 @@ type Props = {
 };
 
 export function ContentGuardContextBanner({ projectId }: Readonly<Props>) {
-  const href = `/app/content-guard?projectId=${encodeURIComponent(projectId)}`;
+  const href = `/content-guard?projectId=${encodeURIComponent(projectId)}`;
 
   return (
     <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)]/30 px-5 py-3">

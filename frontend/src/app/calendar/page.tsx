@@ -115,7 +115,7 @@ export default function ContentCalendarPage() {
               Content Writing
             </Link>
             <Link
-              href="/app/projects"
+              href="/projects"
               className="rounded-lg border bg-white px-4 py-2 text-sm hover:bg-[var(--color-surface-muted)]"
             >
               Projects

@@ -1,30 +1,27 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
-import { SiteAnalyzerWorkspace } from '@/components/site-analyzer/site-analyzer-workspace';
+import { SiteAnalyzer2Workspace } from '@/components/site-analyzer2/site-analyzer2-workspace';
+import { CrawlStreamProvider } from '@/context/crawl-stream-context';
 import { useAuthReady } from '@/hooks/use-auth-ready';
 
 function SiteAnalyzerPageInner() {
   const { accessToken, authLoading } = useAuthReady();
-  const searchParams = useSearchParams();
-  const initialProjectId = searchParams.get('projectId') ?? '';
-  const initialPackId = searchParams.get('urlResearchId') ?? '';
 
-  if (authLoading) return <div className="p-8">Loading…</div>;
+  if (authLoading) {
+    return <main className="p-8 text-[var(--color-text-secondary)]">Loading…</main>;
+  }
 
   return (
-    <SiteAnalyzerWorkspace
-      accessToken={accessToken}
-      initialProjectId={initialProjectId}
-      initialPackId={initialPackId}
-    />
+    <CrawlStreamProvider accessToken={accessToken}>
+      <SiteAnalyzer2Workspace accessToken={accessToken} />
+    </CrawlStreamProvider>
   );
 }
 
 export default function SiteAnalyzerPage() {
   return (
-    <Suspense fallback={<div className="p-8">Loading…</div>}>
+    <Suspense fallback={<main className="p-8 text-[var(--color-text-secondary)]">Loading…</main>}>
       <SiteAnalyzerPageInner />
     </Suspense>
   );

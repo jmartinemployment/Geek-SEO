@@ -53,7 +53,7 @@ export function NicheStrategyContextBanner({ projectId, accessToken }: Readonly<
     );
   }
 
-  const topicalMapHref = `/app/strategy/topical-map?projectId=${projectId}&mode=niche&autogen=1`;
+  const topicalMapHref = `/strategy/topical-map?projectId=${projectId}&mode=niche&autogen=1`;
 
   return (
     <section className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)]/30 px-5 py-4">

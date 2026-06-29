@@ -317,11 +317,11 @@ export function SiteAuditView({ initialProjectId }: SiteAuditViewProps) {
       )}
 
       <p className="mt-12 text-sm">
-        <Link href="/app/planner" className="text-[var(--color-brand)] underline-offset-2 hover:underline">
+        <Link href="/planner" className="text-[var(--color-brand)] underline-offset-2 hover:underline">
           Content planner
         </Link>
         {' · '}
-        <Link href="/app/dashboard" className="text-[var(--color-brand)] underline-offset-2 hover:underline">
+        <Link href="/dashboard" className="text-[var(--color-brand)] underline-offset-2 hover:underline">
           Dashboard
         </Link>
       </p>

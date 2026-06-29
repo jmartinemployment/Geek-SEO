@@ -283,10 +283,10 @@ export function TopicalMapWorkspace({
           >
             {loading ? 'Working…' : result ? 'Refresh map' : 'Generate map'}
           </button>
-          <Link href="/app/planner" prefetch={false} className="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50">
+          <Link href="/planner" prefetch={false} className="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50">
             Keyword planner
           </Link>
-          <Link href="/app/rankings" prefetch={false} className="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50">
+          <Link href="/rankings" prefetch={false} className="rounded-lg border px-4 py-2 text-sm hover:bg-slate-50">
             Rankings / GSC
           </Link>
         </div>
@@ -297,7 +297,7 @@ export function TopicalMapWorkspace({
       {gscConnected === false ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Google Search Console is not connected for this project.{' '}
-          <Link href="/app/rankings" prefetch={false} className="font-medium underline">
+          <Link href="/rankings" prefetch={false} className="font-medium underline">
             Connect GSC
           </Link>{' '}
           to build a topical map from real query data.
@@ -649,7 +649,7 @@ export function TopicalMapWorkspace({
                   ) : null}
                   {selected.mainKeyword ? (
                     <Link
-                      href={`/app/serp?q=${encodeURIComponent(selected.mainKeyword)}`}
+                      href={`/serp?q=${encodeURIComponent(selected.mainKeyword)}`}
                       className="mt-2 block text-center text-xs text-[var(--color-brand)] hover:underline"
                     >
                       Deep SERP →

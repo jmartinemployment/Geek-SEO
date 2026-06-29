@@ -89,7 +89,7 @@ export function GoogleProjectPanel({ title, description, mode }: GoogleProjectPa
       <main className="mx-auto max-w-2xl px-6 py-16">
         <h1 className="text-2xl font-semibold">{title}</h1>
         <p className="mt-2 text-sm text-[var(--color-text-secondary)]">Create a project first, then connect Google.</p>
-        <Link href="/app/projects" className="mt-6 inline-block text-sm underline">
+        <Link href="/projects" className="mt-6 inline-block text-sm underline">
           Go to projects
         </Link>
       </main>

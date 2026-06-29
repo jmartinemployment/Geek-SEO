@@ -51,7 +51,7 @@ function CallbackInner() {
         }
         const data = (await res.json()) as { accessToken: string; expiresIn: number };
         setAccessToken(data.accessToken, data.expiresIn);
-        router.replace('/app/projects');
+        router.replace('/projects');
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Sign-in failed');
       }

@@ -32,10 +32,10 @@ export function SiteHeader({ variant, className }: SiteHeaderProps) {
     }
 
     if (isUrl) {
-      router.push('/app/dashboard');
+      router.push('/dashboard');
       return;
     }
-    router.push(`/app/keywords?q=${encodeURIComponent(value)}`);
+    router.push(`/keywords?q=${encodeURIComponent(value)}`);
   }
 
   const showCenterSearch = variant === 'app';
@@ -49,7 +49,7 @@ export function SiteHeader({ variant, className }: SiteHeaderProps) {
       )}
     >
       <Link
-        href={isAuthenticated ? '/app/dashboard' : '/'}
+        href={isAuthenticated ? '/dashboard' : '/'}
         className="shrink-0 text-lg font-bold tracking-[-0.02em] text-[var(--color-text-primary)]"
       >
         Geek SEO

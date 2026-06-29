@@ -22,10 +22,10 @@ export function AppHeaderSearch() {
       const host = normalizeSiteHost(value);
       const match = projects.find((p) => projectHost(p.url) === host);
       if (match) {
-        router.push(`/app/audit/${match.id}`);
+        router.push(`/audit/${match.id}`);
         return;
       }
-      router.push('/app/projects');
+      router.push('/projects');
     },
     [accessToken, router],
   );
@@ -40,21 +40,21 @@ export function AppHeaderSearch() {
     const isUrl = /^https?:\/\//i.test(value) || value.includes('.');
     if (isUrl) {
       if (!isAuthenticated) {
-        router.push('/app/dashboard');
+        router.push('/dashboard');
         return;
       }
       setBusy(true);
       try {
         await resolveUrlToAudit(value);
       } catch {
-        router.push('/app/projects');
+        router.push('/projects');
       } finally {
         setBusy(false);
       }
       return;
     }
 
-    router.push(`/app/keywords?q=${encodeURIComponent(value)}`);
+    router.push(`/keywords?q=${encodeURIComponent(value)}`);
   }
 
   return (

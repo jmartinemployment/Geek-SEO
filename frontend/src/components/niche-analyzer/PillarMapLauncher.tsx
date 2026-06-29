@@ -18,7 +18,7 @@ function topicalMapHref(
   if (options.mode) params.set('mode', options.mode);
   if (options.autogen) params.set('autogen', '1');
   const query = params.toString();
-  return query ? `/app/strategy/topical-map?${query}` : '/app/strategy/topical-map';
+  return query ? `/strategy/topical-map?${query}` : '/strategy/topical-map';
 }
 
 function pickMapSeed(fusion: SiteTopicProfile): string | null {

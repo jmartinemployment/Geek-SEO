@@ -38,7 +38,7 @@ export const sidebarPrimaryNav: SidebarPrimaryNav[] = [
     icon: Home,
     sections: [
       {
-        items: [{ href: '/app/dashboard', label: 'Home' }],
+        items: [{ href: '/dashboard', label: 'Home' }],
       },
     ],
   },

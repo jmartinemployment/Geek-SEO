@@ -16,7 +16,7 @@ export function FeaturePlaceholder({ title, description, planStep }: FeaturePlac
         See <code className="rounded bg-[var(--color-surface-muted)] px-1">plan-documents/TODO.md</code> ({planStep}).
       </p>
       <Link
-        href="/app/dashboard"
+        href="/dashboard"
         className="mt-8 inline-flex rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-accent-hover)]"
       >
         Back to dashboard

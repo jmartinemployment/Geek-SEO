@@ -22,5 +22,26 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/app/:path*', '/content-writing', '/content-writing/:path*'],
+  matcher: [
+    '/dashboard/:path*',
+    '/analytics/:path*',
+    '/audit/:path*',
+    '/brand-voice/:path*',
+    '/briefs/:path*',
+    '/bulk/:path*',
+    '/calendar/:path*',
+    '/cannibalization/:path*',
+    '/content-guard/:path*',
+    '/content-writing',
+    '/content-writing/:path*',
+    '/geo/:path*',
+    '/guided/:path*',
+    '/keywords/:path*',
+    '/planner/:path*',
+    '/projects/:path*',
+    '/rankings/:path*',
+    '/serp/:path*',
+    '/settings/:path*',
+    '/strategy/:path*',
+  ],
 };

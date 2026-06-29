@@ -14,8 +14,8 @@ describe('session-policy', () => {
 
   it('skips bootstrap on auth routes and dev mode', () => {
     expect(shouldBootstrapSession('/auth/callback', null)).toBe(false);
-    expect(shouldBootstrapSession('/app/dashboard', 'dev-user')).toBe(false);
-    expect(shouldBootstrapSession('/app/dashboard', null)).toBe(true);
+    expect(shouldBootstrapSession('/dashboard', 'dev-user')).toBe(false);
+    expect(shouldBootstrapSession('/dashboard', null)).toBe(true);
   });
 
   it('detects authenticated state from token or dev user', () => {
@@ -25,9 +25,9 @@ describe('session-policy', () => {
   });
 
   it('requires refresh cookie for protected app routes', () => {
-    expect(requiresAppAuth('/app/dashboard', false, null)).toBe(true);
-    expect(requiresAppAuth('/app/dashboard', true, null)).toBe(false);
-    expect(requiresAppAuth('/app/dashboard', false, 'dev-user')).toBe(false);
+    expect(requiresAppAuth('/dashboard', false, null)).toBe(true);
+    expect(requiresAppAuth('/dashboard', true, null)).toBe(false);
+    expect(requiresAppAuth('/dashboard', false, 'dev-user')).toBe(false);
     expect(requiresAppAuth('/content-writing', false, null)).toBe(true);
     expect(requiresAppAuth('/content-writing', true, null)).toBe(false);
     expect(requiresAppAuth('/pricing', false, null)).toBe(false);

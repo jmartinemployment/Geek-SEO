@@ -10,7 +10,7 @@ export default function PricingPage() {
       </p>
       <PricingCheckout />
       <Link
-        href="/app/dashboard"
+        href="/dashboard"
         className="mt-10 inline-block text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
       >
         ← Back to app

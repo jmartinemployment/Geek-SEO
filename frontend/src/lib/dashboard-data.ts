@@ -57,7 +57,7 @@ export function buildTopicalMapCopilotSuggestions(
     id: `topical-rec-${project.id}-${index}-${topic.name}`,
     title: `Write next: ${topic.suggestedTitle ?? topic.name}`,
     detail: topicalRecommendationDetail(project.name, topic),
-    href: `/app/strategy/topical-map?projectId=${encodeURIComponent(project.id)}`,
+    href: `/strategy/topical-map?projectId=${encodeURIComponent(project.id)}`,
   }));
 }
 
@@ -93,7 +93,7 @@ function buildCopilotSuggestions(
               id: 'welcome',
               title: 'Add your first site',
               detail: 'Create a project to unlock topical maps, audits, and content scoring.',
-              href: '/app/projects',
+              href: '/projects',
             },
           ]
         : []

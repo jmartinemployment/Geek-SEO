@@ -1,12 +1,14 @@
 # Geek SEO — TODO (all remaining work)
 
-**Single planning queue** after retiring `geekseo-plan.md` (June 2026).
+**Ordered sequence:** [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md)  
+**Single checklist** after retiring `geekseo-plan.md` (June 2026).
 
 | Read this | When you need |
 |-----------|----------------|
-| **[`TODO.md`](TODO.md)** (this file) | What to build next |
+| **[`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md)** | What to build next (phases 1–3) |
+| **[`TODO.md`](TODO.md)** (this file) | Granular tasks, tests, env, waivers |
 | **[`PROJECT_STATUS.md`](../PROJECT_STATUS.md)** | What is live in production; parity #1–27 status |
-| **[`ARCHITECTURE.md`](ARCHITECTURE.md)** | Services, ports, data flow, API surface |
+| **[`ARCHITECTURE.md`](../ARCHITECTURE.md)** | Services, ports, data flow, API surface |
 | **[`docs/ROADMAP.md`](../docs/ROADMAP.md)** | One-screen index |
 | **[`SEO-PROVIDER-STRATEGY.md`](SEO-PROVIDER-STRATEGY.md)** | **Provider strategy** — interfaces, SerpApi bridge, DataForSEO → zero |
 
@@ -109,7 +111,7 @@ Competitors win on **SERP term checklist + score that moves when you add specifi
 
 **Direction (2026-06-06):** Global local via **business address** + **adjustable service radius** (default **20 miles**). **Google Maps Platform** (Geocoding/Places, server API key) for geocode — **not** Google My Business OAuth.
 
-Full spec: [`LOCAL-SERVICE-AREA.md`](LOCAL-SERVICE-AREA.md). Implementation: [`LOCAL-SERVICE-AREA-IMPLEMENTATION.md`](LOCAL-SERVICE-AREA-IMPLEMENTATION.md). My Business deferred: [`LOCAL-GBP-INTEGRATION.md`](LOCAL-GBP-INTEGRATION.md).
+Full spec: [`LOCAL-SERVICE-AREA.md`](LOCAL-SERVICE-AREA.md). My Business deferred: [`LOCAL-GBP-INTEGRATION.md`](LOCAL-GBP-INTEGRATION.md).
 
 | Phase | Scope | Status |
 |-------|--------|--------|
@@ -132,6 +134,14 @@ Build order when picked up: **#31 public API** → **#28 WP plugin** → **#29 C
 | 29 | Chrome extension MV3 (SERP popup, WP editor overlay) |
 | 30 | Google Docs add-on (sidebar score + top 5 terms) |
 | 31 | OpenAPI + `/api/seo/v1/*` + Agency API keys (120 req/min) |
+
+---
+
+## URL cleanup — deferred
+
+| Item | Detail |
+|------|--------|
+| Drop `/app/` segment from all tool routes | Move `app/app/strategy/*`, `app/app/dashboard`, etc. → `app/strategy/*`, `app/dashboard/*` etc. Target URL: `seo.geekatyourspot.com/strategy/site-analyzer` not `/app/strategy/site-analyzer` |
 
 ---
 

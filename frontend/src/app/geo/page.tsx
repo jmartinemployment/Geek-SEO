@@ -270,7 +270,7 @@ export default function GeoPage() {
               {result.snippet}
             </p>
           ) : null}
-          <Link href="/app/serp" className="mt-4 inline-flex text-sm text-[var(--color-brand)] hover:underline">
+          <Link href="/serp" className="mt-4 inline-flex text-sm text-[var(--color-brand)] hover:underline">
             Open deep SERP analyzer →
           </Link>
         </section>

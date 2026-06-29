@@ -237,7 +237,7 @@ function ContentGuardPageInner() {
         >
           {loading ? 'Scanning…' : 'Scan for decay'}
         </button>
-        <Link href="/app/rankings" className="text-sm text-[var(--color-brand)] hover:underline">
+        <Link href="/rankings" className="text-sm text-[var(--color-brand)] hover:underline">
           Rankings →
         </Link>
       </div>
