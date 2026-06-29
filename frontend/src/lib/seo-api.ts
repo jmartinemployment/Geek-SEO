@@ -328,6 +328,21 @@ export async function buildClusterPlan(
   return normalizeClusterPlanResult(body);
 }
 
+export async function saveClusterPlan(
+  documentId: string,
+  plan: ContentLinkPlan,
+  accessToken?: string | null,
+): Promise<ContentLinkPlan> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/cluster/plan`, {
+    method: 'PUT',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(plan),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  const body = (await res.json()) as Record<string, unknown>;
+  return normalizeLinkPlan(body);
+}
+
 export type GenerateLinkedFaqsResponse = {
   contentHtml: string;
   linkedCount: number;

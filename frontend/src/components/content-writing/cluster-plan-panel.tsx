@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { ClusterFaqPlanEditor } from '@/components/content-writing/cluster-faq-plan-editor';
 import { useWritingWorkspace } from '@/components/content-writing/review-workspace-context';
 import { contentWritingPath } from '@/lib/content-writing-search-params';
 import {
@@ -11,7 +12,10 @@ import {
   generateLinkedFaqs,
   getClusterPlan,
   listContentSpokes,
+  saveClusterPlan,
   type ContentClusterPlanResult,
+  type ContentLinkFaqItem,
+  type ContentLinkPlan,
   type ContentSpokeSummary,
 } from '@/lib/seo-api';
 
@@ -19,9 +23,16 @@ function isSpokeGenerated(spoke: ContentSpokeSummary): boolean {
   return spoke.status === 'body_generated' || spoke.wordCount > 80;
 }
 
+function plansEqual(a: ContentLinkFaqItem[], b: ContentLinkFaqItem[]): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 export function ClusterPlanPanel() {
   const { doc, accessToken, reloadDocument } = useWritingWorkspace();
-  const [savedFaqCount, setSavedFaqCount] = useState(0);
+  const [savedPlan, setSavedPlan] = useState<ContentLinkPlan>({ faqItems: [], bodyLinks: [] });
+  const [faqPlan, setFaqPlan] = useState<ContentLinkFaqItem[]>([]);
+  const [planDirty, setPlanDirty] = useState(false);
+  const [savingPlan, setSavingPlan] = useState(false);
   const [result, setResult] = useState<ContentClusterPlanResult | null>(null);
   const [spokes, setSpokes] = useState<ContentSpokeSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +45,7 @@ export function ClusterPlanPanel() {
 
   const researchReady = Boolean(doc.analysisRunId);
   const isPillar = doc.documentKind !== 'spoke';
+  const savedFaqCount = savedPlan.faqItems.length;
 
   const load = useCallback(async () => {
     if (!accessToken || !researchReady || !isPillar) {
@@ -47,10 +59,14 @@ export function ClusterPlanPanel() {
         getClusterPlan(doc.id, accessToken),
         listContentSpokes(doc.id, accessToken),
       ]);
-      setSavedFaqCount(plan.faqItems?.length ?? 0);
+      setSavedPlan(plan);
+      setFaqPlan(plan.faqItems);
+      setPlanDirty(false);
       setSpokes(spokeList);
     } catch {
-      setSavedFaqCount(0);
+      setSavedPlan({ faqItems: [], bodyLinks: [] });
+      setFaqPlan([]);
+      setPlanDirty(false);
       setSpokes([]);
     } finally {
       setLoading(false);
@@ -61,6 +77,31 @@ export function ClusterPlanPanel() {
     void load();
   }, [load]);
 
+  function handleFaqPlanChange(items: ContentLinkFaqItem[]) {
+    setFaqPlan(items);
+    setPlanDirty(!plansEqual(items, savedPlan.faqItems));
+  }
+
+  async function handleSavePlan() {
+    if (!accessToken) return;
+    setSavingPlan(true);
+    setError(null);
+    try {
+      const saved = await saveClusterPlan(
+        doc.id,
+        { faqItems: faqPlan, bodyLinks: savedPlan.bodyLinks },
+        accessToken,
+      );
+      setSavedPlan(saved);
+      setFaqPlan(saved.faqItems);
+      setPlanDirty(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save FAQ plan');
+    } finally {
+      setSavingPlan(false);
+    }
+  }
+
   async function handleBuild() {
     if (!accessToken) return;
     setBusy(true);
@@ -68,7 +109,9 @@ export function ClusterPlanPanel() {
     try {
       const built = await buildClusterPlan(doc.id, accessToken);
       setResult(built);
-      setSavedFaqCount(built.faqItems.length);
+      setSavedPlan((prev) => ({ ...prev, faqItems: built.faqItems }));
+      setFaqPlan(built.faqItems);
+      setPlanDirty(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not build cluster plan');
     } finally {
@@ -120,6 +163,10 @@ export function ClusterPlanPanel() {
 
   async function handleGenerateLinkedFaqs() {
     if (!accessToken) return;
+    if (planDirty) {
+      setError('Save FAQ plan changes before generating linked FAQs.');
+      return;
+    }
     setGeneratingFaqs(true);
     setError(null);
     setFaqGenSummary(null);
@@ -178,18 +225,29 @@ export function ClusterPlanPanel() {
       {error ? <p className="mb-3 text-xs text-red-700">{error}</p> : null}
       {faqGenSummary ? <p className="mb-3 text-xs text-emerald-700">{faqGenSummary}</p> : null}
 
+      <ClusterFaqPlanEditor
+        items={faqPlan}
+        spokes={spokes}
+        dirty={planDirty}
+        saving={savingPlan}
+        onChange={handleFaqPlanChange}
+        onSave={() => void handleSavePlan()}
+      />
+
       {savedFaqCount > 0 ? (
         <div className="mb-4">
           <button
             type="button"
             onClick={() => void handleGenerateLinkedFaqs()}
-            disabled={generatingFaqs || busy}
+            disabled={generatingFaqs || busy || planDirty}
             className="w-full rounded-lg border border-[var(--color-accent)] px-3 py-2 text-xs font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/5 disabled:opacity-50"
           >
             {generatingFaqs ? 'Generating linked FAQs…' : 'Generate linked FAQs'}
           </button>
           <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">
-            Links appear only for spokes with generated bodies; others stay plain text.
+            {planDirty
+              ? 'Save FAQ plan changes first.'
+              : 'Links appear only for spokes with generated bodies; others stay plain text.'}
           </p>
         </div>
       ) : null}
@@ -283,23 +341,6 @@ export function ClusterPlanPanel() {
                 })}
               </ul>
             )}
-          </section>
-
-          <section>
-            <h4 className="mb-1 font-medium text-[var(--color-text-primary)]">
-              Pillar FAQs ({result.faqItems.length})
-            </h4>
-            <ul className="space-y-2">
-              {result.faqItems.map((item) => (
-                <li key={item.question} className="rounded-md border px-2 py-1.5">
-                  <p className="text-[var(--color-text-primary)]">{item.question}</p>
-                  <p className="text-[var(--color-text-secondary)]">
-                    {item.source ?? 'unknown'}
-                    {item.targetPath ? ` → ${item.targetPath}` : ''}
-                  </p>
-                </li>
-              ))}
-            </ul>
           </section>
 
           <section>
