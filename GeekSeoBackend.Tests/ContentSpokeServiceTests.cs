@@ -14,7 +14,7 @@ public sealed class ContentSpokeServiceTests
     {
         var pillar = PillarDocument();
         var repo = new TrackingDocumentRepository(pillar);
-        var service = new ContentSpokeService(new FakeDocumentService(pillar, repo), repo);
+        var service = new ContentSpokeService(new FakeDocumentService(pillar, repo), repo, new NoOpAiProvider());
 
         var result = await service.CreateAsync(
             pillar.UserId,
@@ -41,7 +41,7 @@ public sealed class ContentSpokeServiceTests
     {
         var pillar = PillarDocument();
         var repo = new TrackingDocumentRepository(pillar);
-        var service = new ContentSpokeService(new FakeDocumentService(pillar, repo), repo);
+        var service = new ContentSpokeService(new FakeDocumentService(pillar, repo), repo, new NoOpAiProvider());
         var request = new CreateContentSpokeRequest
         {
             Phrase = "ai market research companies",
@@ -60,7 +60,7 @@ public sealed class ContentSpokeServiceTests
     {
         var pillar = PillarDocument();
         var repo = new TrackingDocumentRepository(pillar);
-        var service = new ContentSpokeService(new FakeDocumentService(pillar, repo), repo);
+        var service = new ContentSpokeService(new FakeDocumentService(pillar, repo), repo, new NoOpAiProvider());
 
         await service.CreateAsync(
             pillar.UserId,
@@ -85,6 +85,113 @@ public sealed class ContentSpokeServiceTests
         Assert.True(result.IsSuccess);
         Assert.Single(result.Value!);
         Assert.Equal("ai market research report", result.Value![0].SpokeSourcePhrase);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_writes_body_and_marks_spoke_generated()
+    {
+        var pillar = PillarDocument();
+        pillar.ContentHtml = "<p>" + new string('x', 220) + "</p>";
+        pillar.PublishSlug = "ai-market-research-tools";
+        var repo = new TrackingDocumentRepository(pillar);
+        var service = new ContentSpokeService(
+            new FakeDocumentService(pillar, repo),
+            repo,
+            new SequencedAiProvider(
+                "<h2>Overview</h2><p>" + string.Join(' ', Enumerable.Repeat("insight", 50)) + "</p>",
+                """{"title":"Best AI for market analysis","slug":"best-ai-for-market-analysis","primaryKeyword":"best ai market analysis tools","excerpt":"A guide.","metaDescription":"Learn the best AI market analysis tools for research teams."}"""));
+
+        var created = await service.CreateAsync(
+            pillar.UserId,
+            pillar.Id,
+            new CreateContentSpokeRequest
+            {
+                Phrase = "best ai for market analysis",
+                SourceType = SpokeSourceTypes.Pasf,
+            });
+        Assert.True(created.IsSuccess);
+
+        var generated = await service.GenerateAsync(
+            pillar.UserId,
+            pillar.Id,
+            created.Value!.Id,
+            null);
+
+        if (!generated.IsSuccess)
+            Assert.Fail(generated.Error ?? "generate failed");
+        Assert.Equal(SpokeLinkStatuses.BodyGenerated, generated.Value!.Status);
+        Assert.True(generated.Value.WordCount > 20);
+        var child = repo.Documents.Single(d => d.Id == created.Value.Id);
+        Assert.Contains("Overview", child.ContentHtml, StringComparison.Ordinal);
+        Assert.Equal("best ai market analysis tools", child.TargetKeyword);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_rejects_keyword_collision_with_pillar()
+    {
+        var pillar = PillarDocument();
+        pillar.ContentHtml = "<p>" + new string('x', 220) + "</p>";
+        var repo = new TrackingDocumentRepository(pillar);
+        var service = new ContentSpokeService(
+            new FakeDocumentService(pillar, repo),
+            repo,
+            new SequencedAiProvider(
+                "<h2>Overview</h2><p>" + string.Join(' ', Enumerable.Repeat("insight", 50)) + "</p>",
+                """{"title":"AI market research tools guide","slug":"ai-market-research-tools-guide","primaryKeyword":"ai market research tools","excerpt":"A guide.","metaDescription":"A guide to AI market research tools."}"""));
+
+        var created = await service.CreateAsync(
+            pillar.UserId,
+            pillar.Id,
+            new CreateContentSpokeRequest
+            {
+                Phrase = "ai market research companies",
+                SourceType = SpokeSourceTypes.Pasf,
+            });
+        Assert.True(created.IsSuccess);
+
+        var generated = await service.GenerateAsync(
+            pillar.UserId,
+            pillar.Id,
+            created.Value!.Id,
+            null);
+
+        Assert.False(generated.IsSuccess);
+        Assert.Contains("collides", generated.Error!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_rejects_spoke_from_wrong_pillar()
+    {
+        var pillar = PillarDocument();
+        pillar.ContentHtml = "<p>" + new string('x', 220) + "</p>";
+        var otherPillar = PillarDocument();
+        otherPillar.Id = Guid.NewGuid();
+        otherPillar.ContentHtml = "<p>" + new string('z', 220) + "</p>";
+        var repo = new TrackingDocumentRepository(pillar);
+        repo.Documents.Add(otherPillar);
+        var service = new ContentSpokeService(
+            new FakeDocumentService(pillar, repo),
+            repo,
+            new NoOpAiProvider());
+
+        var created = await service.CreateAsync(
+            pillar.UserId,
+            pillar.Id,
+            new CreateContentSpokeRequest
+            {
+                Phrase = "ai market research report",
+                SourceType = SpokeSourceTypes.Pasf,
+            });
+        Assert.True(created.IsSuccess);
+
+        var generated = await service.GenerateAsync(
+            pillar.UserId,
+            otherPillar.Id,
+            created.Value!.Id,
+            null);
+
+        Assert.False(generated.IsSuccess);
+        Assert.Contains("does not belong", generated.Error!, StringComparison.OrdinalIgnoreCase);
     }
 
     private static SeoContentDocument PillarDocument() =>
@@ -201,8 +308,13 @@ public sealed class ContentSpokeServiceTests
         }
 
         public Task<Result<SeoContentDocument>> UpdateStatusAsync(
-            Guid documentId, string status, CancellationToken ct = default) =>
-            throw new NotImplementedException();
+            Guid documentId, string status, CancellationToken ct = default)
+        {
+            var doc = Documents.First(d => d.Id == documentId);
+            doc.Status = status;
+            doc.UpdatedAt = DateTimeOffset.UtcNow;
+            return Task.FromResult(Result<SeoContentDocument>.Success(doc));
+        }
 
         public Task<Result<SeoContentDocument>> AttachUrlResearchAsync(
             Guid documentId, Guid urlResearchId, CancellationToken ct = default) =>
@@ -239,5 +351,34 @@ public sealed class ContentSpokeServiceTests
 
         public Task<Result> DeleteAsync(Guid documentId, CancellationToken ct = default) =>
             throw new NotImplementedException();
+    }
+
+    private sealed class NoOpAiProvider : IAIProvider
+    {
+        public string ProviderName => "noop";
+
+        public Task<Result<AIResponse>> CompleteAsync(AIRequest request, CancellationToken ct = default) =>
+            Task.FromResult(Result<AIResponse>.Failure("AI not configured"));
+    }
+
+    private sealed class SequencedAiProvider(params string[] responses) : IAIProvider
+    {
+        private int _index;
+
+        public string ProviderName => "sequenced";
+
+        public Task<Result<AIResponse>> CompleteAsync(AIRequest request, CancellationToken ct = default)
+        {
+            var content = responses[Math.Min(_index, responses.Length - 1)];
+            _index++;
+            return Task.FromResult(Result<AIResponse>.Success(new AIResponse
+            {
+                Content = content,
+                Model = "fake-model",
+                InputTokens = 0,
+                OutputTokens = 0,
+                StopReason = "end_turn",
+            }));
+        }
     }
 }

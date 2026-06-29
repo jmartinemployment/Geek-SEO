@@ -64,6 +64,7 @@ type WritingWorkspaceContextValue = {
   notifyKeywordChanged: ReturnType<typeof useContentScoring>['notifyKeywordChanged'];
   blogSpokeRevision: number;
   refreshBlogSpoke: () => void;
+  reloadDocument: () => Promise<void>;
 };
 
 const WritingWorkspaceContext = createContext<WritingWorkspaceContextValue | null>(null);
@@ -253,6 +254,13 @@ export function WritingWorkspaceProvider({
       .catch(onError);
   }
 
+  async function reloadDocument() {
+    if (!accessToken) return;
+    const refreshed = await getContent(doc.id, accessToken);
+    onDocumentChange(refreshed);
+    setHtml(refreshed.contentHtml || DEFAULT_DRAFT_HTML);
+  }
+
   const value: WritingWorkspaceContextValue = {
     doc,
     accessToken,
@@ -277,6 +285,7 @@ export function WritingWorkspaceProvider({
     notifyKeywordChanged,
     blogSpokeRevision,
     refreshBlogSpoke: () => setBlogSpokeRevision((n) => n + 1),
+    reloadDocument,
   };
 
   return (

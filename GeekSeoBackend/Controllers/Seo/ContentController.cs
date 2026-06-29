@@ -202,6 +202,24 @@ public sealed class ContentController(
         return CreatedAtAction(nameof(Get), new { id = result.Value!.Id }, result.Value);
     }
 
+    [HttpPost("{id:guid}/spokes/{spokeId:guid}/generate")]
+    public async Task<IActionResult> GenerateSpoke(
+        Guid id,
+        Guid spokeId,
+        [FromBody] GenerateContentSpokeRequest? request,
+        CancellationToken ct)
+    {
+        var result = await spokes.GenerateAsync(user.RequireUserId(), id, spokeId, request, ct);
+        if (!result.IsSuccess)
+        {
+            return result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true
+                ? NotFound(new { error = result.Error })
+                : BadRequest(new { error = result.Error });
+        }
+
+        return Ok(result.Value);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateContentDocumentRequest request, CancellationToken ct)
     {

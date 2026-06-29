@@ -1,4 +1,6 @@
 using System.Net;
+using System.Text.Json;
+using GeekSeo.Application.Infrastructure;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
@@ -8,7 +10,8 @@ namespace GeekSeo.Application.Services.Seo;
 
 public sealed class ContentSpokeService(
     IContentDocumentService documents,
-    IContentDocumentRepository documentRepo) : IContentSpokeService
+    IContentDocumentRepository documentRepo,
+    IAIProvider ai) : IContentSpokeService
 {
     public async Task<Result<IReadOnlyList<ContentSpokeSummary>>> ListAsync(
         Guid userId,
@@ -131,6 +134,131 @@ public sealed class ContentSpokeService(
         return Result<ContentSpokeSummary>.Success(ToSummary(updated.Value));
     }
 
+    public async Task<Result<ContentSpokeSummary>> GenerateAsync(
+        Guid userId,
+        Guid pillarDocumentId,
+        Guid spokeDocumentId,
+        GenerateContentSpokeRequest? request,
+        CancellationToken ct = default)
+    {
+        var pillarResult = await RequirePillarAsync(userId, pillarDocumentId, ct);
+        if (!pillarResult.IsSuccess || pillarResult.Value is null)
+            return Result<ContentSpokeSummary>.Failure(pillarResult.Error ?? "Access denied");
+
+        var pillar = pillarResult.Value;
+        if (string.IsNullOrWhiteSpace(pillar.ContentHtml) || pillar.ContentHtml.Length < 200)
+        {
+            return Result<ContentSpokeSummary>.Failure(
+                "Write or generate the pillar article before generating cluster spokes.");
+        }
+
+        var spokeAccess = await documents.EnsureAccessAsync(userId, spokeDocumentId, ct);
+        if (!spokeAccess.IsSuccess || spokeAccess.Value is null)
+            return Result<ContentSpokeSummary>.Failure(spokeAccess.Error ?? "Access denied");
+
+        var spoke = spokeAccess.Value;
+        if (!string.Equals(spoke.DocumentKind, ContentDocumentKinds.Spoke, StringComparison.OrdinalIgnoreCase))
+            return Result<ContentSpokeSummary>.Failure("Document is not a cluster spoke.");
+
+        if (spoke.ParentDocumentId != pillarDocumentId)
+            return Result<ContentSpokeSummary>.Failure("Spoke does not belong to this pillar.");
+
+        var sourcePhrase = spoke.SpokeSourcePhrase?.Trim();
+        if (string.IsNullOrWhiteSpace(sourcePhrase))
+            return Result<ContentSpokeSummary>.Failure("Spoke is missing its source phrase.");
+
+        var spokeType = ResolveSpokeType(request?.SpokeType, spoke.SpokeSourceType);
+        var pillarBackLink = ContentPublishPathResolver.ResolveRelativePath(pillar.PublishSlug) ?? string.Empty;
+        var businessContext = SiteWritingFocusSerializer.TryDeserialize(pillar.SiteFocusJson) is { } focus
+            ? SiteWritingFocusSerializer.ToBusinessContext(focus)
+            : null;
+
+        var draft = await ai.CompleteAsync(new AIRequest
+        {
+            SystemPrompt = ContentBlogSpokePromptBuilder.BuildClusterSpokeSystemPrompt(pillarBackLink),
+            UserPrompt = ContentBlogSpokePromptBuilder.BuildClusterSpokeUserPrompt(
+                pillar.Title,
+                pillar.TargetKeyword,
+                spokeType,
+                sourcePhrase,
+                spoke.Title,
+                spoke.TargetKeyword,
+                businessContext,
+                pillar.ContentHtml),
+            MaxTokens = 8192,
+            Temperature = 0.7,
+        }, ct);
+
+        if (!draft.IsSuccess || draft.Value is null)
+            return Result<ContentSpokeSummary>.Failure(draft.Error ?? "Spoke generation failed");
+
+        var spokeHtml = AiHtmlSanitizer.ToHtmlFragment(draft.Value.Content);
+
+        var metaResponse = await ai.CompleteAsync(new AIRequest
+        {
+            SystemPrompt = ContentBlogSpokePromptBuilder.BuildMetadataSystemPrompt(),
+            UserPrompt = ContentBlogSpokePromptBuilder.BuildMetadataUserPrompt(
+                spokeType, pillar.TargetKeyword, spokeHtml),
+            MaxTokens = 512,
+            Temperature = 0.3,
+        }, ct);
+
+        if (!metaResponse.IsSuccess || metaResponse.Value is null)
+            return Result<ContentSpokeSummary>.Failure(metaResponse.Error ?? "Spoke metadata generation failed");
+
+        if (!TryParseMetadata(
+                metaResponse.Value.Content,
+                out var title,
+                out _,
+                out var keyword,
+                out _,
+                out _))
+        {
+            return Result<ContentSpokeSummary>.Failure("Could not parse spoke metadata JSON from AI response.");
+        }
+
+        var validation = ContentBlogSpokeValidator.Validate(
+            pillar.TargetKeyword,
+            new ContentBlogSpoke
+            {
+                Title = title,
+                Slug = spoke.PublishSlug ?? "spoke",
+                PrimaryKeyword = string.IsNullOrWhiteSpace(keyword) ? spoke.TargetKeyword : keyword,
+                SpokeType = spokeType,
+                ContentHtml = spokeHtml,
+            });
+
+        if (!validation.IsValid)
+            return Result<ContentSpokeSummary>.Failure(string.Join(' ', validation.Errors));
+
+        var primaryKeyword = string.IsNullOrWhiteSpace(keyword) ? spoke.TargetKeyword : keyword.Trim();
+        var wordCount = spokeHtml.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+        var updated = await documentRepo.UpdateContentAsync(
+            spoke.Id,
+            new UpdateContentRequest
+            {
+                ContentHtml = spokeHtml,
+                Title = title,
+                TargetKeyword = primaryKeyword,
+                TargetLocation = spoke.TargetLocation,
+            },
+            wordCount,
+            ct);
+
+        if (!updated.IsSuccess || updated.Value is null)
+            return Result<ContentSpokeSummary>.Failure(updated.Error ?? "Failed to save generated spoke content");
+
+        var statusUpdated = await documentRepo.UpdateStatusAsync(
+            spoke.Id,
+            SpokeLinkStatuses.BodyGenerated,
+            ct);
+
+        if (!statusUpdated.IsSuccess || statusUpdated.Value is null)
+            return Result<ContentSpokeSummary>.Failure(statusUpdated.Error ?? "Failed to update spoke status");
+
+        return Result<ContentSpokeSummary>.Success(ToSummary(statusUpdated.Value));
+    }
+
     private async Task<Result<SeoContentDocument>> RequirePillarAsync(
         Guid userId, Guid documentId, CancellationToken ct)
     {
@@ -145,6 +273,16 @@ public sealed class ContentSpokeService(
         }
 
         return access;
+    }
+
+    private static string ResolveSpokeType(string? requestedType, string? sourceType)
+    {
+        if (!string.IsNullOrWhiteSpace(requestedType))
+            return requestedType.Trim();
+
+        return string.Equals(sourceType, SpokeSourceTypes.Paa, StringComparison.OrdinalIgnoreCase)
+            ? "guide"
+            : "comparison";
     }
 
     private static ContentSpokeSummary ToSummary(SeoContentDocument doc) => new()
@@ -162,4 +300,47 @@ public sealed class ContentSpokeService(
 
     private static string BuildShellHtml(string title) =>
         $"<h1>{WebUtility.HtmlEncode(title)}</h1><p>Spoke draft shell. Generate full content in a later step.</p>";
+
+    private static bool TryParseMetadata(
+        string raw,
+        out string title,
+        out string slug,
+        out string keyword,
+        out string excerpt,
+        out string metaDescription)
+    {
+        title = slug = keyword = excerpt = metaDescription = string.Empty;
+        if (!TryParseJsonObject(raw, out var root))
+            return false;
+
+        title = root.GetProperty("title").GetString()?.Trim() ?? string.Empty;
+        slug = root.GetProperty("slug").GetString()?.Trim() ?? string.Empty;
+        keyword = root.GetProperty("primaryKeyword").GetString()?.Trim() ?? string.Empty;
+        excerpt = root.TryGetProperty("excerpt", out var ex) ? ex.GetString()?.Trim() ?? string.Empty : string.Empty;
+        metaDescription = root.TryGetProperty("metaDescription", out var md)
+            ? md.GetString()?.Trim() ?? string.Empty
+            : string.Empty;
+        return title.Length > 0 && slug.Length > 0 && keyword.Length > 0;
+    }
+
+    private static bool TryParseJsonObject(string raw, out JsonElement root)
+    {
+        root = default;
+        var trimmed = raw.Trim();
+        var start = trimmed.IndexOf('{');
+        var end = trimmed.LastIndexOf('}');
+        if (start < 0 || end <= start)
+            return false;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(trimmed[start..(end + 1)]);
+            root = doc.RootElement.Clone();
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
 }

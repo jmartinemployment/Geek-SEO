@@ -7,11 +7,16 @@ import { contentWritingPath } from '@/lib/content-writing-search-params';
 import {
   buildClusterPlan,
   createContentSpoke,
+  generateContentSpoke,
   getClusterPlan,
   listContentSpokes,
   type ContentClusterPlanResult,
   type ContentSpokeSummary,
 } from '@/lib/seo-api';
+
+function isSpokeGenerated(spoke: ContentSpokeSummary): boolean {
+  return spoke.status === 'body_generated' || spoke.wordCount > 80;
+}
 
 export function ClusterPlanPanel() {
   const { doc, accessToken } = useWritingWorkspace();
@@ -21,6 +26,7 @@ export function ClusterPlanPanel() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [creatingPhrase, setCreatingPhrase] = useState<string | null>(null);
+  const [generatingSpokeId, setGeneratingSpokeId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const researchReady = Boolean(doc.analysisRunId);
@@ -95,6 +101,20 @@ export function ClusterPlanPanel() {
     }
   }
 
+  async function handleGenerateSpoke(spoke: ContentSpokeSummary) {
+    if (!accessToken) return;
+    setGeneratingSpokeId(spoke.id);
+    setError(null);
+    try {
+      const generated = await generateContentSpoke(doc.id, spoke.id, accessToken);
+      setSpokes((prev) => prev.map((s) => (s.id === generated.id ? generated : s)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not generate spoke');
+    } finally {
+      setGeneratingSpokeId(null);
+    }
+  }
+
   function spokeExists(phrase: string): ContentSpokeSummary | undefined {
     return spokes.find(
       (s) => s.spokeSourcePhrase?.toLowerCase() === phrase.toLowerCase(),
@@ -139,17 +159,30 @@ export function ClusterPlanPanel() {
       {spokes.length > 0 ? (
         <section className="mb-4 space-y-2 text-xs">
           <h4 className="font-medium text-[var(--color-text-primary)]">Created spokes</h4>
-          <ul className="space-y-1">
+          <ul className="space-y-2">
             {spokes.map((spoke) => (
-              <li key={spoke.id}>
+              <li key={spoke.id} className="rounded-md border px-2 py-1.5">
                 <Link
                   href={contentWritingPath({ documentId: spoke.id })}
-                  className="text-[var(--color-accent)] underline"
+                  className="font-medium text-[var(--color-accent)] underline"
                 >
                   {spoke.title}
                 </Link>
                 {spoke.publishSlug ? (
                   <span className="text-[var(--color-text-secondary)]"> · /blog/{spoke.publishSlug}</span>
+                ) : null}
+                <p className="text-[var(--color-text-secondary)]">
+                  {isSpokeGenerated(spoke) ? 'Generated' : 'Shell only'} · {spoke.wordCount} words
+                </p>
+                {!isSpokeGenerated(spoke) ? (
+                  <button
+                    type="button"
+                    disabled={generatingSpokeId === spoke.id}
+                    onClick={() => void handleGenerateSpoke(spoke)}
+                    className="mt-1 rounded border px-2 py-0.5 text-[var(--color-text-primary)] disabled:opacity-50"
+                  >
+                    {generatingSpokeId === spoke.id ? 'Generating…' : 'Generate spoke'}
+                  </button>
                 ) : null}
               </li>
             ))}
@@ -179,12 +212,24 @@ export function ClusterPlanPanel() {
                         <p className="text-[var(--color-text-secondary)]">/blog/{item.suggestedSlug}</p>
                       ) : null}
                       {existing ? (
-                        <Link
-                          href={contentWritingPath({ documentId: existing.id })}
-                          className="mt-1 inline-block text-[var(--color-accent)] underline"
-                        >
-                          Open spoke
-                        </Link>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <Link
+                            href={contentWritingPath({ documentId: existing.id })}
+                            className="text-[var(--color-accent)] underline"
+                          >
+                            Open spoke
+                          </Link>
+                          {!isSpokeGenerated(existing) ? (
+                            <button
+                              type="button"
+                              disabled={generatingSpokeId === existing.id}
+                              onClick={() => void handleGenerateSpoke(existing)}
+                              className="rounded border px-2 py-0.5 text-[var(--color-text-primary)] disabled:opacity-50"
+                            >
+                              {generatingSpokeId === existing.id ? 'Generating…' : 'Generate spoke'}
+                            </button>
+                          ) : null}
+                        </div>
                       ) : (
                         <button
                           type="button"

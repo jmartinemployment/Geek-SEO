@@ -9,6 +9,11 @@ public sealed record CreateContentSpokeRequest
     public string? PublishSlug { get; init; }
 }
 
+public sealed record GenerateContentSpokeRequest
+{
+    public string SpokeType { get; init; } = string.Empty;
+}
+
 public sealed record ContentSpokeSummary
 {
     public required Guid Id { get; init; }

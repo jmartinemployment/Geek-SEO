@@ -367,6 +367,25 @@ export async function createContentSpoke(
   return normalizeSpokeSummary(payload);
 }
 
+export async function generateContentSpoke(
+  pillarDocumentId: string,
+  spokeDocumentId: string,
+  accessToken?: string | null,
+  body?: { spokeType?: string },
+): Promise<ContentSpokeSummary> {
+  const res = await fetch(
+    `${API_URL}/api/seo/content/${pillarDocumentId}/spokes/${spokeDocumentId}/generate`,
+    {
+      method: 'POST',
+      headers: apiHeaders(accessToken),
+      body: JSON.stringify(body ?? {}),
+    },
+  );
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  const payload = (await res.json()) as Record<string, unknown>;
+  return normalizeSpokeSummary(payload);
+}
+
 export async function listProjects(accessToken?: string | null): Promise<SeoProject[]> {
   if (!hasAuthContext(accessToken)) return [];
   const res = await fetch(`${API_URL}/api/seo/projects`, {

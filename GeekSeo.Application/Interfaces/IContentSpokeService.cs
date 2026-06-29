@@ -15,4 +15,11 @@ public interface IContentSpokeService
         Guid pillarDocumentId,
         CreateContentSpokeRequest request,
         CancellationToken ct = default);
+
+    Task<Result<ContentSpokeSummary>> GenerateAsync(
+        Guid userId,
+        Guid pillarDocumentId,
+        Guid spokeDocumentId,
+        GenerateContentSpokeRequest? request,
+        CancellationToken ct = default);
 }

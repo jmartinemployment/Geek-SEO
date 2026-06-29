@@ -31,6 +31,47 @@ public static class ContentBlogSpokePromptBuilder
         return builder.ToString();
     }
 
+    public static string BuildClusterSpokeSystemPrompt(string pillarBackLinkPath) =>
+        BuildSystemPrompt() +
+        " Include one natural contextual link back to the pillar guide" +
+        (string.IsNullOrWhiteSpace(pillarBackLinkPath)
+            ? " (use the pillar title as anchor text)."
+            : $" at {pillarBackLinkPath} (use the pillar title as anchor text).");
+
+    public static string BuildClusterSpokeUserPrompt(
+        string pillarTitle,
+        string pillarKeyword,
+        string spokeType,
+        string spokeSourcePhrase,
+        string spokeTitle,
+        string? spokeKeyword,
+        string? businessContext,
+        string pillarHtml)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine($"Pillar title: {pillarTitle}");
+        builder.AppendLine($"Pillar primary keyword (do NOT target this): {pillarKeyword}");
+        builder.AppendLine($"Spoke type: {spokeType}");
+        builder.AppendLine($"Spoke source phrase / topic outline: {spokeSourcePhrase}");
+        builder.AppendLine($"Spoke article title: {spokeTitle}");
+        if (!string.IsNullOrWhiteSpace(spokeKeyword))
+            builder.AppendLine($"Spoke primary keyword (target this): {spokeKeyword}");
+        else
+            builder.AppendLine(
+                "Choose a distinct spoke primary keyword from the source phrase and use it naturally in the article.");
+        if (!string.IsNullOrWhiteSpace(businessContext))
+        {
+            builder.AppendLine();
+            builder.AppendLine("Business context:");
+            builder.AppendLine(businessContext.Trim());
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("Pillar article for context:");
+        builder.AppendLine(TruncatePlain(pillarHtml, 8000));
+        return builder.ToString();
+    }
+
     public static string BuildMetadataSystemPrompt() =>
         "Reply ONLY with JSON: {\"title\":\"...\",\"slug\":\"kebab-case\",\"primaryKeyword\":\"...\",\"excerpt\":\"...\",\"metaDescription\":\"...\"}. " +
         "slug must be lowercase kebab-case. excerpt ~120 chars. metaDescription 150-160 chars.";
