@@ -121,7 +121,7 @@ public static class SeoBackendExtensions
         services.AddMemoryCache();
         services.AddHttpClient("GoogleOAuth");
         services.AddHttpClient("GoogleApis");
-        services.AddSingleton<IGoogleOAuthStateStore, InMemoryGoogleOAuthStateStore>();
+        services.AddSingleton<IGoogleOAuthStateStore, SignedGoogleOAuthStateStore>();
         services.AddSingleton(_ => new GoogleOAuthOptions
         {
             ClientId = ReadEnv("GOOGLE_CLIENT_ID"),
