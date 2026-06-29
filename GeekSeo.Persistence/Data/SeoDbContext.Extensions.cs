@@ -22,10 +22,22 @@ public partial class SeoDbContext
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
             e.HasOne(x => x.Project).WithMany(p => p.ContentDocuments).HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.UrlResearch).WithMany().HasForeignKey(x => x.UrlResearchId).OnDelete(DeleteBehavior.SetNull);
+            e.Property(x => x.DocumentKind).HasMaxLength(32).HasDefaultValue("standalone");
+            e.Property(x => x.PublishSlug).HasMaxLength(200);
+            e.Property(x => x.SpokeSourceType).HasMaxLength(32);
+            e.HasOne(x => x.ParentDocument)
+                .WithMany(x => x.ChildDocuments)
+                .HasForeignKey(x => x.ParentDocumentId)
+                .OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => x.ProjectId);
             e.HasIndex(x => x.UserId);
             e.HasIndex(x => x.Status);
             e.HasIndex(x => x.UrlResearchId);
+            e.HasIndex(x => x.ParentDocumentId);
+            e.HasIndex(x => new { x.ProjectId, x.DocumentKind });
+            e.HasIndex(x => new { x.ProjectId, x.PublishSlug })
+                .IsUnique()
+                .HasFilter("\"PublishSlug\" IS NOT NULL");
         });
 
         modelBuilder.Entity<SeoKeywordCluster>(e =>

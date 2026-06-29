@@ -3,6 +3,7 @@ using System;
 using GeekSeo.Persistence.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GeekSeo.Persistence.Migrations
 {
     [DbContext(typeof(SeoDbContext))]
-    partial class SeoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260629185456_AddContentDocumentClusterSlice1")]
+    partial class AddContentDocumentClusterSlice1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1257,10 +1260,6 @@ namespace GeekSeo.Persistence.Migrations
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("PublishSlug")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
                     b.Property<DateTimeOffset?>("PublishedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1289,13 +1288,6 @@ namespace GeekSeo.Persistence.Migrations
 
                     b.Property<Guid?>("SiteProfileId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("SpokeSourcePhrase")
-                        .HasColumnType("text");
-
-                    b.Property<string>("SpokeSourceType")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1338,10 +1330,6 @@ namespace GeekSeo.Persistence.Migrations
                     b.HasIndex("UserId");
 
                     b.HasIndex("ProjectId", "DocumentKind");
-
-                    b.HasIndex("ProjectId", "PublishSlug")
-                        .IsUnique()
-                        .HasFilter("\"PublishSlug\" IS NOT NULL");
 
                     b.ToTable("seo_content_documents", "geek_seo");
                 });

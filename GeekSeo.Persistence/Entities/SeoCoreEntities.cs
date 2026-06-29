@@ -43,6 +43,16 @@ public sealed class SeoContentDocument
     public DateTimeOffset? KeywordBundleCapturedAt { get; set; }
     /// <summary>Generated blog spoke JSON (distinct intent from pillar).</summary>
     public string? BlogSpokeJson { get; set; }
+    /// <summary>When set, this document is a spoke child of the pillar document.</summary>
+    public Guid? ParentDocumentId { get; set; }
+    /// <summary><see cref="GeekSeo.Application.Models.Seo.ContentDocumentKinds"/> — pillar, spoke, or standalone.</summary>
+    public string DocumentKind { get; set; } = "standalone";
+    /// <summary>Kebab-case blog path segment, unique per project when set.</summary>
+    public string? PublishSlug { get; set; }
+    /// <summary><see cref="GeekSeo.Application.Models.Seo.SpokeSourceTypes"/> when document is a spoke.</summary>
+    public string? SpokeSourceType { get; set; }
+    /// <summary>Original PAA/PASF phrase or manual label for spoke provenance.</summary>
+    public string? SpokeSourcePhrase { get; set; }
     public string Title { get; set; } = "Untitled Document";
     public string ContentHtml { get; set; } = string.Empty;
     /// <summary>Data URL or HTTPS URL for the article hero / OG image.</summary>
@@ -63,6 +73,8 @@ public sealed class SeoContentDocument
 
     public SeoProject? Project { get; set; }
     public SeoUrlResearch? UrlResearch { get; set; }
+    public SeoContentDocument? ParentDocument { get; set; }
+    public ICollection<SeoContentDocument> ChildDocuments { get; set; } = [];
 }
 
 public sealed class SeoKeywordCluster

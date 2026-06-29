@@ -39,6 +39,15 @@ public sealed record CreateContentDocumentRequest
     /// <summary>Frozen SA2 <c>content-writer-export</c> JSON at create/attach.</summary>
     public string? KeywordBundleJson { get; init; }
     public DateTimeOffset? KeywordBundleCapturedAt { get; init; }
+    /// <summary>Pillar document when creating a spoke child (Slice 1+).</summary>
+    public Guid? ParentDocumentId { get; init; }
+    /// <summary><see cref="ContentDocumentKinds"/> — defaults to standalone or spoke when parent is set.</summary>
+    public string? DocumentKind { get; init; }
+    /// <summary>Kebab-case publish path segment; unique per project when set.</summary>
+    public string? PublishSlug { get; init; }
+    /// <summary><see cref="SpokeSourceTypes"/> for spoke provenance.</summary>
+    public string? SpokeSourceType { get; init; }
+    public string? SpokeSourcePhrase { get; init; }
 }
 
 public sealed record UpdateContentRequest
