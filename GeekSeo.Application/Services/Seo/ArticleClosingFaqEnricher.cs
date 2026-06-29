@@ -9,6 +9,50 @@ namespace GeekSeo.Application.Services.Seo;
 
 public static partial class ArticleClosingFaqEnricher
 {
+    public static int CountClosingFaqs(string html)
+    {
+        var section = ExtractFaqSectionBody(html);
+        return section is null ? 0 : FaqH3Regex().Matches(section).Count;
+    }
+
+    public static async Task<string> AppendAdditionalClosingFaqsAsync(
+        string html,
+        string keyword,
+        int additionalCount,
+        IAIProvider ai,
+        CancellationToken ct = default)
+    {
+        if (additionalCount <= 0)
+            return html;
+
+        if (!HasClosingFaqSection(html))
+            return await EnsureClosingFaqDraftAsync(html, keyword, [], ai, ct);
+
+        var existing = ExtractExistingFaqQuestions(html);
+        var response = await ai.CompleteAsync(new AIRequest
+        {
+            SystemPrompt =
+                $"Write ONLY {additionalCount} new FAQ entries in HTML as <h3>question</h3> followed by a concise <p> answer (2-4 sentences). " +
+                "Do not repeat existing questions. No <h2>, no markdown fences.",
+            UserPrompt =
+                $"Blog spoke keyword: {keyword}\n" +
+                "Existing FAQ questions (must not duplicate):\n" +
+                (existing.Count > 0 ? string.Join('\n', existing.Select((q, i) => $"{i + 1}. {q}")) : "(none)") +
+                $"\n\nWrite exactly {additionalCount} new distinct questions with answers.",
+            MaxTokens = 1536,
+            Temperature = 0.5,
+        }, ct);
+
+        if (!response.IsSuccess || response.Value is null)
+            return html;
+
+        var fragment = AiHtmlSanitizer.ToHtmlFragment(response.Value.Content).Trim();
+        if (string.IsNullOrWhiteSpace(fragment))
+            return html;
+
+        return AppendToFaqSection(html, fragment);
+    }
+
     public static bool HasClosingFaqSection(string html)
     {
         var section = ExtractFaqSectionBody(html);
@@ -222,6 +266,41 @@ public static partial class ArticleClosingFaqEnricher
         string.IsNullOrWhiteSpace(text)
             ? 0
             : text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+
+    private static List<string> ExtractExistingFaqQuestions(string html)
+    {
+        var section = ExtractFaqSectionBody(html);
+        if (section is null)
+            return [];
+
+        var questions = new List<string>();
+        foreach (Match match in FaqH3InnerRegex().Matches(section))
+        {
+            var text = StripTags(match.Groups[1].Value);
+            if (!string.IsNullOrWhiteSpace(text))
+                questions.Add(text);
+        }
+
+        return questions;
+    }
+
+    private static string AppendToFaqSection(string html, string fragment)
+    {
+        var faqStart = FindFaqSectionStart(html);
+        if (faqStart < 0)
+            return html.TrimEnd() + "\n" + fragment;
+
+        var tail = html[faqStart..];
+        var nextH2 = NextH2Regex().Match(tail);
+        var insertAt = nextH2.Success && nextH2.Index > 0
+            ? faqStart + nextH2.Index
+            : html.Length;
+
+        return html[..insertAt].TrimEnd() + "\n" + fragment.Trim() + html[insertAt..];
+    }
+
+    [GeneratedRegex("<h3\\b[^>]*>(.*?)</h3>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex FaqH3InnerRegex();
 
     [GeneratedRegex("<h3\\b", RegexOptions.IgnoreCase)]
     private static partial Regex FaqH3Regex();

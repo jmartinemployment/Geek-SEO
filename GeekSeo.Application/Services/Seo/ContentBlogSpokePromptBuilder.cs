@@ -1,4 +1,5 @@
 using System.Text;
+using GeekSeo.Application.Services.Seo;
 
 namespace GeekSeo.Application.Services.Seo;
 
@@ -7,7 +8,7 @@ public static class ContentBlogSpokePromptBuilder
     public static string BuildSystemPrompt() =>
         "You are an SEO content writer. Output HTML article body only (h2/h3/p, no h1). " +
         "800-1200 words. Different search intent than the pillar — not a longer-tail modifier of the pillar keyword. " +
-        "End with <h2>Frequently Asked Questions</h2> and exactly 3 FAQ h3+p pairs.";
+        $"End with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> and exactly {ContentWritingRules.ClosingFaqCount} FAQ h3+p pairs.";
 
     public static string BuildUserPrompt(
         string pillarTitle,

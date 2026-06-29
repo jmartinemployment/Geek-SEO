@@ -10,5 +10,7 @@ public interface IContentBlogSpokeService
         Guid userId, Guid documentId, ContentBlogSpoke spoke, CancellationToken ct = default);
     Task<Result<ContentBlogSpoke>> GenerateAsync(
         Guid userId, Guid documentId, GenerateBlogSpokeRequest request, CancellationToken ct = default);
+    Task<Result<ContentBlogSpoke>> AddFaqsAsync(
+        Guid userId, Guid documentId, CancellationToken ct = default);
     ContentBlogSpokeValidationResult Validate(string pillarKeyword, ContentBlogSpoke spoke);
 }

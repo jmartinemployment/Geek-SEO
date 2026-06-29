@@ -3,11 +3,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useWritingWorkspace } from '@/components/content-writing/review-workspace-context';
 import {
+  addBlogSpokeFaqs,
   generateBlogSpoke,
   getBlogSpoke,
   type ContentBlogSpoke,
 } from '@/lib/seo-api';
 import { copyTextFromPromise } from '@/lib/copy-to-clipboard';
+
+const TARGET_FAQ_COUNT = 5;
+
+function countFaqs(html: string): number {
+  const section = html.match(/<h2[^>]*>[\s\S]*?frequently asked questions[\s\S]*$/i);
+  if (!section) return 0;
+  return (section[0].match(/<h3\b/gi) ?? []).length;
+}
 
 const SPOKE_TYPES = [
   { value: 'comparison', label: 'Comparison' },
@@ -65,6 +74,20 @@ export function BlogSpokePanel() {
       setSpoke(generated);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Blog generation failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAddFaqs() {
+    if (!accessToken) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await addBlogSpokeFaqs(doc.id, accessToken);
+      setSpoke(updated);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not add FAQs');
     } finally {
       setBusy(false);
     }
@@ -150,7 +173,25 @@ export function BlogSpokePanel() {
           {spoke.metaDescription ? (
             <p className="italic text-[var(--color-text-secondary)]">{spoke.metaDescription}</p>
           ) : null}
+          <p className="text-[var(--color-text-secondary)]">
+            FAQs: {countFaqs(spoke.contentHtml)}
+            {countFaqs(spoke.contentHtml) < TARGET_FAQ_COUNT
+              ? ` (target ${TARGET_FAQ_COUNT})`
+              : null}
+          </p>
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void handleAddFaqs()}
+              disabled={busy || !accessToken}
+              className="rounded-md border px-2 py-1 font-medium hover:bg-white disabled:opacity-50"
+            >
+              {busy
+                ? 'Adding FAQs…'
+                : countFaqs(spoke.contentHtml) < TARGET_FAQ_COUNT
+                  ? 'Complete FAQs'
+                  : 'Add FAQs'}
+            </button>
             <button
               type="button"
               onClick={() => copyText('Title', spoke.title)}

@@ -106,6 +106,42 @@ public sealed class ContentBlogSpokeService(
         return await SaveAsync(userId, documentId, spoke, ct);
     }
 
+    public async Task<Result<ContentBlogSpoke>> AddFaqsAsync(
+        Guid userId, Guid documentId, CancellationToken ct = default)
+    {
+        var spokeResult = await GetAsync(userId, documentId, ct);
+        if (!spokeResult.IsSuccess || spokeResult.Value is null)
+            return Result<ContentBlogSpoke>.Failure(spokeResult.Error ?? "No blog version yet.");
+
+        var spoke = spokeResult.Value;
+        string updatedHtml;
+
+        if (!ArticleClosingFaqEnricher.HasCompleteClosingFaqSection(spoke.ContentHtml))
+        {
+            updatedHtml = await ArticleClosingFaqEnricher.EnsureClosingFaqDraftAsync(
+                spoke.ContentHtml,
+                spoke.PrimaryKeyword,
+                [],
+                ai,
+                ct);
+        }
+        else
+        {
+            updatedHtml = await ArticleClosingFaqEnricher.AppendAdditionalClosingFaqsAsync(
+                spoke.ContentHtml,
+                spoke.PrimaryKeyword,
+                additionalCount: 2,
+                ai,
+                ct);
+        }
+
+        if (string.Equals(updatedHtml, spoke.ContentHtml, StringComparison.Ordinal))
+            return Result<ContentBlogSpoke>.Failure("Could not add FAQs to the blog version.");
+
+        spoke.ContentHtml = updatedHtml;
+        return await SaveAsync(userId, documentId, spoke, ct);
+    }
+
     public ContentBlogSpokeValidationResult Validate(string pillarKeyword, ContentBlogSpoke spoke) =>
         ContentBlogSpokeValidator.Validate(pillarKeyword, spoke);
 

@@ -191,6 +191,18 @@ export async function generateBlogSpoke(
   return res.json() as Promise<ContentBlogSpoke>;
 }
 
+export async function addBlogSpokeFaqs(
+  documentId: string,
+  accessToken?: string | null,
+): Promise<ContentBlogSpoke> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/blog-spoke/add-faqs`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<ContentBlogSpoke>;
+}
+
 export async function listProjects(accessToken?: string | null): Promise<SeoProject[]> {
   if (!hasAuthContext(accessToken)) return [];
   const res = await fetch(`${API_URL}/api/seo/projects`, {

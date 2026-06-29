@@ -92,6 +92,13 @@ public sealed class ContentController(
         return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
     }
 
+    [HttpPost("{id:guid}/blog-spoke/add-faqs")]
+    public async Task<IActionResult> AddBlogSpokeFaqs(Guid id, CancellationToken ct)
+    {
+        var result = await blogSpoke.AddFaqsAsync(user.RequireUserId(), id, ct);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateContentDocumentRequest request, CancellationToken ct)
     {
