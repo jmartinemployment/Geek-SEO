@@ -5,7 +5,7 @@ namespace GeekSeo.Application.Interfaces.Seo;
 
 public interface IContentBlogSpokeService
 {
-    Task<Result<ContentBlogSpoke>> GetAsync(Guid userId, Guid documentId, CancellationToken ct = default);
+    Task<Result<ContentBlogSpokeGetResult>> GetAsync(Guid userId, Guid documentId, CancellationToken ct = default);
     Task<Result<ContentBlogSpoke>> SaveAsync(
         Guid userId, Guid documentId, ContentBlogSpoke spoke, CancellationToken ct = default);
     Task<Result<ContentBlogSpoke>> GenerateAsync(

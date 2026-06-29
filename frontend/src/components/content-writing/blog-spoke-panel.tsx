@@ -1,7 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useWritingWorkspace } from '@/components/content-writing/review-workspace-context';
+import { contentWritingPath } from '@/lib/content-writing-search-params';
 import {
   addBlogSpokeFaqs,
   generateBlogSpoke,
@@ -31,6 +33,7 @@ const SPOKE_TYPES = [
 export function BlogSpokePanel() {
   const { doc, accessToken, blogSpokeRevision } = useWritingWorkspace();
   const [spoke, setSpoke] = useState<ContentBlogSpoke | null>(null);
+  const [clusterDocumentId, setClusterDocumentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,12 +49,14 @@ export function BlogSpokePanel() {
     setLoading(true);
     try {
       setError(null);
-      if (blogSpokeRevision === 0) {
-        setSpoke(parseBlogSpokeJson(doc.blogSpokeJson));
-        return;
-      }
       const data = await getBlogSpoke(doc.id, accessToken);
-      setSpoke(data);
+      if (data) {
+        setSpoke(data.spoke);
+        setClusterDocumentId(data.clusterDocumentId ?? null);
+      } else {
+        setSpoke(parseBlogSpokeJson(doc.blogSpokeJson));
+        setClusterDocumentId(null);
+      }
     } catch {
       setSpoke(null);
     } finally {
@@ -164,6 +169,17 @@ export function BlogSpokePanel() {
 
       {spoke ? (
         <div className="space-y-3 rounded-lg border bg-[var(--color-surface-muted)] p-3 text-xs">
+          {clusterDocumentId ? (
+            <p className="text-[var(--color-text-secondary)]">
+              Also available as a cluster spoke.{' '}
+              <Link
+                href={contentWritingPath({ documentId: clusterDocumentId })}
+                className="font-medium text-[var(--color-accent)] underline"
+              >
+                Open in editor
+              </Link>
+            </p>
+          ) : null}
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="font-medium text-[var(--color-text-primary)]">{spoke.title}</p>

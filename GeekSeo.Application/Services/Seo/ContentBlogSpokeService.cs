@@ -10,6 +10,7 @@ namespace GeekSeo.Application.Services.Seo;
 public sealed class ContentBlogSpokeService(
     IContentDocumentService documents,
     IContentDocumentRepository documentRepo,
+    IContentBlogSpokeMigrator migrator,
     IAIProvider ai) : IContentBlogSpokeService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -18,17 +19,26 @@ public sealed class ContentBlogSpokeService(
         PropertyNameCaseInsensitive = true,
     };
 
-    public async Task<Result<ContentBlogSpoke>> GetAsync(
+    public async Task<Result<ContentBlogSpokeGetResult>> GetAsync(
         Guid userId, Guid documentId, CancellationToken ct = default)
     {
         var access = await documents.EnsureAccessAsync(userId, documentId, ct);
         if (!access.IsSuccess || access.Value is null)
-            return Result<ContentBlogSpoke>.Failure(access.Error ?? "Access denied");
+            return Result<ContentBlogSpokeGetResult>.Failure(access.Error ?? "Access denied");
+
+        var migration = await migrator.EnsureMigratedChildAsync(userId, documentId, ct);
+        if (!migration.IsSuccess)
+            return Result<ContentBlogSpokeGetResult>.Failure(migration.Error ?? "Blog spoke migration failed");
 
         var spoke = Parse(access.Value.BlogSpokeJson);
-        return spoke is null
-            ? Result<ContentBlogSpoke>.Failure("No blog version yet.")
-            : Result<ContentBlogSpoke>.Success(spoke);
+        if (spoke is null)
+            return Result<ContentBlogSpokeGetResult>.Failure("No blog version yet.");
+
+        return Result<ContentBlogSpokeGetResult>.Success(new ContentBlogSpokeGetResult
+        {
+            Spoke = spoke,
+            ClusterDocumentId = migration.Value,
+        });
     }
 
     public async Task<Result<ContentBlogSpoke>> SaveAsync(
@@ -113,7 +123,7 @@ public sealed class ContentBlogSpokeService(
         if (!spokeResult.IsSuccess || spokeResult.Value is null)
             return Result<ContentBlogSpoke>.Failure(spokeResult.Error ?? "No blog version yet.");
 
-        var spoke = spokeResult.Value;
+        var spoke = spokeResult.Value.Spoke;
         string updatedHtml;
 
         if (!ArticleClosingFaqEnricher.HasCompleteClosingFaqSection(spoke.ContentHtml))

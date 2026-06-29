@@ -119,6 +119,19 @@ public sealed class HttpContentDocumentRepository(IHttpClientFactory factory, IC
         return await ReadOneAsync(response, ct);
     }
 
+    public async Task<Result<SeoContentDocument>> MigrateBlogSpokeChildIfAbsentAsync(
+        Guid userId,
+        Guid pillarDocumentId,
+        MigrateBlogSpokeChildPayload payload,
+        CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync(
+            $"api/seo/internal/content/{pillarDocumentId}/migrate-blog-spoke-child?userId={userId}",
+            payload,
+            ct);
+        return await ReadOneAsync(response, ct);
+    }
+
     public async Task<Result> UpdateScoreAsync(
         Guid documentId, int score, string scoreComponentsJson, CancellationToken ct = default)
     {

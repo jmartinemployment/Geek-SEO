@@ -14,7 +14,7 @@ public sealed class ContentSpokeServiceTests
     {
         var pillar = PillarDocument();
         var repo = new TrackingDocumentRepository(pillar);
-        var service = new ContentSpokeService(new FakeDocumentService(pillar, repo), repo, new NoOpAiProvider());
+        var service = new ContentSpokeService(new FakeDocumentService(pillar, repo), repo, new NoOpMigrator(), new NoOpAiProvider());
 
         var result = await service.CreateAsync(
             pillar.UserId,
@@ -41,7 +41,7 @@ public sealed class ContentSpokeServiceTests
     {
         var pillar = PillarDocument();
         var repo = new TrackingDocumentRepository(pillar);
-        var service = new ContentSpokeService(new FakeDocumentService(pillar, repo), repo, new NoOpAiProvider());
+        var service = new ContentSpokeService(new FakeDocumentService(pillar, repo), repo, new NoOpMigrator(), new NoOpAiProvider());
         var request = new CreateContentSpokeRequest
         {
             Phrase = "ai market research companies",
@@ -60,7 +60,7 @@ public sealed class ContentSpokeServiceTests
     {
         var pillar = PillarDocument();
         var repo = new TrackingDocumentRepository(pillar);
-        var service = new ContentSpokeService(new FakeDocumentService(pillar, repo), repo, new NoOpAiProvider());
+        var service = new ContentSpokeService(new FakeDocumentService(pillar, repo), repo, new NoOpMigrator(), new NoOpAiProvider());
 
         await service.CreateAsync(
             pillar.UserId,
@@ -97,6 +97,7 @@ public sealed class ContentSpokeServiceTests
         var service = new ContentSpokeService(
             new FakeDocumentService(pillar, repo),
             repo,
+            new NoOpMigrator(),
             new SequencedAiProvider(
                 "<h2>Overview</h2><p>" + string.Join(' ', Enumerable.Repeat("insight", 50)) + "</p>",
                 """{"title":"Best AI for market analysis","slug":"best-ai-for-market-analysis","primaryKeyword":"best ai market analysis tools","excerpt":"A guide.","metaDescription":"Learn the best AI market analysis tools for research teams."}"""));
@@ -135,6 +136,7 @@ public sealed class ContentSpokeServiceTests
         var service = new ContentSpokeService(
             new FakeDocumentService(pillar, repo),
             repo,
+            new NoOpMigrator(),
             new SequencedAiProvider(
                 "<h2>Overview</h2><p>" + string.Join(' ', Enumerable.Repeat("insight", 50)) + "</p>",
                 """{"title":"AI market research tools guide","slug":"ai-market-research-tools-guide","primaryKeyword":"ai market research tools","excerpt":"A guide.","metaDescription":"A guide to AI market research tools."}"""));
@@ -172,6 +174,7 @@ public sealed class ContentSpokeServiceTests
         var service = new ContentSpokeService(
             new FakeDocumentService(pillar, repo),
             repo,
+            new NoOpMigrator(),
             new NoOpAiProvider());
 
         var created = await service.CreateAsync(
@@ -341,6 +344,13 @@ public sealed class ContentSpokeServiceTests
             Guid documentId, string linkPlanJson, CancellationToken ct = default) =>
             throw new NotImplementedException();
 
+        public Task<Result<SeoContentDocument>> MigrateBlogSpokeChildIfAbsentAsync(
+            Guid userId,
+            Guid pillarDocumentId,
+            MigrateBlogSpokeChildPayload payload,
+            CancellationToken ct = default) =>
+            throw new NotImplementedException();
+
         public Task<Result> UpdateScoreAsync(
             Guid documentId, int score, string scoreComponentsJson, CancellationToken ct = default) =>
             throw new NotImplementedException();
@@ -351,6 +361,13 @@ public sealed class ContentSpokeServiceTests
 
         public Task<Result> DeleteAsync(Guid documentId, CancellationToken ct = default) =>
             throw new NotImplementedException();
+    }
+
+    private sealed class NoOpMigrator : IContentBlogSpokeMigrator
+    {
+        public Task<Result<Guid?>> EnsureMigratedChildAsync(
+            Guid userId, Guid pillarDocumentId, CancellationToken ct = default) =>
+            Task.FromResult(Result<Guid?>.Success(null));
     }
 
     private sealed class NoOpAiProvider : IAIProvider

@@ -179,17 +179,39 @@ export function parseBlogSpokeJson(
   }
 }
 
+export type ContentBlogSpokeGetResult = {
+  spoke: ContentBlogSpoke;
+  clusterDocumentId?: string | null;
+};
+
+function normalizeBlogSpoke(body: Record<string, unknown>): ContentBlogSpoke {
+  const spoke = (body.spoke ?? body) as Record<string, unknown>;
+  return {
+    slug: String(spoke.slug ?? spoke.Slug ?? ''),
+    primaryKeyword: String(spoke.primaryKeyword ?? spoke.PrimaryKeyword ?? ''),
+    spokeType: String(spoke.spokeType ?? spoke.SpokeType ?? 'comparison'),
+    title: String(spoke.title ?? spoke.Title ?? ''),
+    contentHtml: String(spoke.contentHtml ?? spoke.ContentHtml ?? ''),
+    excerpt: (spoke.excerpt ?? spoke.Excerpt ?? null) as string | null,
+    metaDescription: (spoke.metaDescription ?? spoke.MetaDescription ?? null) as string | null,
+  };
+}
+
 export async function getBlogSpoke(
   documentId: string,
   accessToken?: string | null,
-): Promise<ContentBlogSpoke | null> {
+): Promise<ContentBlogSpokeGetResult | null> {
   const res = await fetch(`${API_URL}/api/seo/content/${documentId}/blog-spoke`, {
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
   if (res.status === 404) return null;
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
-  return res.json() as Promise<ContentBlogSpoke>;
+  const body = (await res.json()) as Record<string, unknown>;
+  return {
+    spoke: normalizeBlogSpoke(body),
+    clusterDocumentId: (body.clusterDocumentId ?? body.ClusterDocumentId ?? null) as string | null,
+  };
 }
 
 export async function generateBlogSpoke(

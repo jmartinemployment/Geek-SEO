@@ -284,6 +284,13 @@ public sealed class AttachContractTests
         public Task<Result<SeoContentDocument>> UpdateLinkPlanAsync(Guid documentId, string linkPlanJson, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
+        public Task<Result<SeoContentDocument>> MigrateBlogSpokeChildIfAbsentAsync(
+            Guid userId,
+            Guid pillarDocumentId,
+            MigrateBlogSpokeChildPayload payload,
+            CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
         public Task<Result> UpdateScoreAsync(Guid documentId, int score, string scoreComponentsJson, CancellationToken ct = default) =>
             throw new NotSupportedException();
 

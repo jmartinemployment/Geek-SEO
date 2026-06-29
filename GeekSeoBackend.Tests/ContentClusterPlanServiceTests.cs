@@ -202,6 +202,13 @@ public sealed class ContentClusterPlanServiceTests
             return Task.FromResult(Result<SeoContentDocument>.Success(document));
         }
 
+        public Task<Result<SeoContentDocument>> MigrateBlogSpokeChildIfAbsentAsync(
+            Guid userId,
+            Guid pillarDocumentId,
+            MigrateBlogSpokeChildPayload payload,
+            CancellationToken ct = default) =>
+            throw new NotImplementedException();
+
         public Task<Result> UpdateScoreAsync(
             Guid documentId, int score, string scoreComponentsJson, CancellationToken ct = default) =>
             throw new NotImplementedException();

@@ -306,6 +306,13 @@ public sealed class ContentScoringForbiddenTests
         public Task<Result<SeoContentDocument>> UpdateLinkPlanAsync(Guid documentId, string linkPlanJson, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
+        public Task<Result<SeoContentDocument>> MigrateBlogSpokeChildIfAbsentAsync(
+            Guid userId,
+            Guid pillarDocumentId,
+            MigrateBlogSpokeChildPayload payload,
+            CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
         public Task<Result> UpdateAiDetectionScoreAsync(Guid documentId, decimal score, CancellationToken ct = default) =>
             throw new NotSupportedException();
 

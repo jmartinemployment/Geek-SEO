@@ -11,6 +11,7 @@ namespace GeekSeo.Application.Services.Seo;
 public sealed class ContentSpokeService(
     IContentDocumentService documents,
     IContentDocumentRepository documentRepo,
+    IContentBlogSpokeMigrator migrator,
     IAIProvider ai) : IContentSpokeService
 {
     public async Task<Result<IReadOnlyList<ContentSpokeSummary>>> ListAsync(
@@ -21,6 +22,8 @@ public sealed class ContentSpokeService(
         var pillar = await RequirePillarAsync(userId, pillarDocumentId, ct);
         if (!pillar.IsSuccess || pillar.Value is null)
             return Result<IReadOnlyList<ContentSpokeSummary>>.Failure(pillar.Error ?? "Access denied");
+
+        await migrator.EnsureMigratedChildAsync(userId, pillarDocumentId, ct);
 
         var projectDocs = await documentRepo.GetByProjectAsync(pillar.Value.ProjectId, ct);
         if (!projectDocs.IsSuccess || projectDocs.Value is null)

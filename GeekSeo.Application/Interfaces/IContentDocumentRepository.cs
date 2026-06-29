@@ -22,6 +22,11 @@ public interface IContentDocumentRepository
     Task<Result<SeoContentDocument>> UpdateFeaturedImageAsync(Guid documentId, string featuredImageUrl, CancellationToken ct = default);
     Task<Result<SeoContentDocument>> UpdateBlogSpokeAsync(Guid documentId, string blogSpokeJson, CancellationToken ct = default);
     Task<Result<SeoContentDocument>> UpdateLinkPlanAsync(Guid documentId, string linkPlanJson, CancellationToken ct = default);
+    Task<Result<SeoContentDocument>> MigrateBlogSpokeChildIfAbsentAsync(
+        Guid userId,
+        Guid pillarDocumentId,
+        MigrateBlogSpokeChildPayload payload,
+        CancellationToken ct = default);
     Task<Result> UpdateScoreAsync(Guid documentId, int score, string scoreComponentsJson, CancellationToken ct = default);
     Task<Result> UpdateAiDetectionScoreAsync(Guid documentId, decimal score, CancellationToken ct = default);
     Task<Result> DeleteAsync(Guid documentId, CancellationToken ct = default);

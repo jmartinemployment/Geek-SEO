@@ -80,7 +80,7 @@ public sealed class ContentController(
                 return NotFound(new { error = result.Error });
             return BadRequest(new { error = result.Error });
         }
-        return Ok(result.Value);
+        return Ok(new { spoke = result.Value!.Spoke, clusterDocumentId = result.Value.ClusterDocumentId });
     }
 
     [HttpPut("{id:guid}/blog-spoke")]
