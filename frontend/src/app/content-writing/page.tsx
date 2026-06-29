@@ -83,7 +83,7 @@ function ContentWritingGate({
 }
 
 function ContentWritingPageInner() {
-  const { accessToken, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { accessToken, isLoading: authLoading } = useAuth();
   const hub = useSeoHub();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -138,7 +138,7 @@ function ContentWritingPageInner() {
   );
 
   const runHandoff = useCallback(async () => {
-    if (!completeHandoff || !isAuthenticated) return;
+    if (!completeHandoff) return;
 
     const handoffKey = urlParams.analysisRunId;
 
@@ -188,13 +188,12 @@ function ContentWritingPageInner() {
     accessToken,
     completeHandoff,
     draftJobOptions,
-    isAuthenticated,
     router,
     urlParams,
   ]);
 
   useEffect(() => {
-    if (!urlParams.documentId || authLoading || !isAuthenticated) return;
+    if (!urlParams.documentId || authLoading) return;
     let cancelled = false;
 
     async function loadDocument() {
@@ -217,38 +216,17 @@ function ContentWritingPageInner() {
     return () => {
       cancelled = true;
     };
-  }, [urlParams.documentId, accessToken, authLoading, isAuthenticated]);
+  }, [urlParams.documentId, accessToken, authLoading]);
 
   useEffect(() => {
-    if (authLoading || !isAuthenticated || urlParams.documentId || !completeHandoff || doc) return;
+    if (authLoading || urlParams.documentId || !completeHandoff || doc) return;
     void runHandoff();
-  }, [authLoading, isAuthenticated, completeHandoff, doc, runHandoff, urlParams.documentId]);
+  }, [authLoading, completeHandoff, doc, runHandoff, urlParams.documentId]);
 
   if (authLoading || documentLoading) {
     return (
       <main className="mx-auto max-w-5xl p-8 text-[var(--color-text-secondary)]">
         Loading…
-      </main>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <main className="mx-auto max-w-5xl space-y-4 p-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Content Writing</h1>
-        <section className="rounded-xl border bg-white p-6 shadow-sm">
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            Your session expired or is not signed in. Sign in again to open Content Writing.
-          </p>
-          <p className="mt-4">
-            <Link
-              href="/api/auth/start"
-              className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-accent-hover)]"
-            >
-              Sign in
-            </Link>
-          </p>
-        </section>
       </main>
     );
   }
