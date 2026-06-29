@@ -262,6 +262,60 @@ public sealed class ContentSpokeService(
         return Result<ContentSpokeSummary>.Success(ToSummary(statusUpdated.Value));
     }
 
+    public async Task<Result<GenerateAllContentSpokesResponse>> GenerateAllAsync(
+        Guid userId,
+        Guid pillarDocumentId,
+        CancellationToken ct = default)
+    {
+        var listed = await ListAsync(userId, pillarDocumentId, ct);
+        if (!listed.IsSuccess || listed.Value is null)
+            return Result<GenerateAllContentSpokesResponse>.Failure(listed.Error ?? "Failed to list spokes");
+
+        var shells = listed.Value.Where(s => !IsGeneratedSummary(s)).ToList();
+        var skippedCount = listed.Value.Count - shells.Count;
+        if (shells.Count == 0)
+        {
+            return Result<GenerateAllContentSpokesResponse>.Success(new GenerateAllContentSpokesResponse
+            {
+                GeneratedCount = 0,
+                SkippedCount = skippedCount,
+                Spokes = listed.Value,
+            });
+        }
+
+        var generatedCount = 0;
+        var failures = new List<string>();
+        foreach (var shell in shells)
+        {
+            var generated = await GenerateAsync(userId, pillarDocumentId, shell.Id, null, ct);
+            if (generated.IsSuccess)
+            {
+                generatedCount++;
+                continue;
+            }
+
+            failures.Add($"{shell.Title}: {generated.Error ?? "Generation failed"}");
+        }
+
+        var refreshed = await ListAsync(userId, pillarDocumentId, ct);
+        if (!refreshed.IsSuccess || refreshed.Value is null)
+        {
+            return Result<GenerateAllContentSpokesResponse>.Failure(refreshed.Error ?? "Failed to refresh spokes");
+        }
+
+        return Result<GenerateAllContentSpokesResponse>.Success(new GenerateAllContentSpokesResponse
+        {
+            GeneratedCount = generatedCount,
+            SkippedCount = skippedCount,
+            Failures = failures,
+            Spokes = refreshed.Value,
+        });
+    }
+
+    private static bool IsGeneratedSummary(ContentSpokeSummary spoke) =>
+        string.Equals(spoke.Status, SpokeLinkStatuses.BodyGenerated, StringComparison.OrdinalIgnoreCase) ||
+        spoke.WordCount > 80;
+
     private async Task<Result<SeoContentDocument>> RequirePillarAsync(
         Guid userId, Guid documentId, CancellationToken ct)
     {
@@ -298,8 +352,26 @@ public sealed class ContentSpokeService(
         SpokeSourceType = doc.SpokeSourceType,
         Status = doc.Status,
         WordCount = doc.WordCount,
+        ContentPreview = BuildContentPreview(doc),
         UpdatedAt = doc.UpdatedAt,
     };
+
+    private static string? BuildContentPreview(SeoContentDocument doc)
+    {
+        if (doc.WordCount <= 80 ||
+            string.IsNullOrWhiteSpace(doc.ContentHtml) ||
+            doc.ContentHtml.Contains("Spoke draft shell", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var text = HtmlTextUtility.StripHtml(doc.ContentHtml);
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim();
+        if (text.Length == 0)
+            return null;
+
+        return text.Length <= 240 ? text : $"{text[..240].TrimEnd()}…";
+    }
 
     private static string BuildShellHtml(string title) =>
         $"<h1>{WebUtility.HtmlEncode(title)}</h1><p>Spoke draft shell. Generate full content in a later step.</p>";

@@ -22,4 +22,9 @@ public interface IContentSpokeService
         Guid spokeDocumentId,
         GenerateContentSpokeRequest? request,
         CancellationToken ct = default);
+
+    Task<Result<GenerateAllContentSpokesResponse>> GenerateAllAsync(
+        Guid userId,
+        Guid pillarDocumentId,
+        CancellationToken ct = default);
 }

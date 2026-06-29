@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { ContentEditor, type ContentEditorHandle } from '@/components/editor/content-editor';
 import { EditorAiToolbar } from '@/components/editor/editor-ai-toolbar';
+import { InternalLinksPanel } from '@/components/editor/internal-links-panel';
 import { ScoreSidebar } from '@/components/editor/score-sidebar';
 import { ResearchInsightsRail } from '@/components/content-writing/research-insights-rail';
 import { JsonLdPanel } from '@/components/content-writing/json-ld-panel';
@@ -345,7 +346,7 @@ export function WritingInsightsRight({ keyword }: { keyword: string }) {
 
   return (
     <div className="content-writing-sticky-rail min-w-0 rounded-xl border bg-white shadow-sm">
-      <BlogSpokePanel />
+      {doc.documentKind !== 'spoke' && !doc.analysisRunId ? <BlogSpokePanel /> : null}
       <ScoreSidebar
         placement="right"
         keyword={keyword}
@@ -484,6 +485,17 @@ export function WritingEditorPane({
           onChange={(nextHtml) => {
             setHtml(nextHtml);
             scheduleScore(nextHtml, keyword);
+          }}
+        />
+
+        <InternalLinksPanel
+          projectId={doc.projectId}
+          documentId={doc.id}
+          accessToken={accessToken}
+          onInsertLink={(href, anchorText) => editorRef.current?.insertLink(href, anchorText)}
+          onAutoInsertHtml={(nextHtml) => {
+            setHtml(nextHtml);
+            void save(nextHtml, keyword, title, location);
           }}
         />
 

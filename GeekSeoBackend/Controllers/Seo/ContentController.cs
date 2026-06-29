@@ -236,6 +236,20 @@ public sealed class ContentController(
         return Ok(result.Value);
     }
 
+    [HttpPost("{id:guid}/spokes/generate-all")]
+    public async Task<IActionResult> GenerateAllSpokes(Guid id, CancellationToken ct)
+    {
+        var result = await spokes.GenerateAllAsync(user.RequireUserId(), id, ct);
+        if (!result.IsSuccess)
+        {
+            return result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true
+                ? NotFound(new { error = result.Error })
+                : BadRequest(new { error = result.Error });
+        }
+
+        return Ok(result.Value);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateContentDocumentRequest request, CancellationToken ct)
     {

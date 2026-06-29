@@ -411,7 +411,15 @@ export type ContentSpokeSummary = {
   spokeSourceType?: string | null;
   status: string;
   wordCount: number;
+  contentPreview?: string | null;
   updatedAt: string;
+};
+
+export type GenerateAllContentSpokesResult = {
+  generatedCount: number;
+  skippedCount: number;
+  failures: string[];
+  spokes: ContentSpokeSummary[];
 };
 
 function normalizeSpokeSummary(body: Record<string, unknown>): ContentSpokeSummary {
@@ -424,6 +432,7 @@ function normalizeSpokeSummary(body: Record<string, unknown>): ContentSpokeSumma
     spokeSourceType: (body.spokeSourceType ?? body.SpokeSourceType ?? null) as string | null,
     status: String(body.status ?? body.Status ?? ''),
     wordCount: Number(body.wordCount ?? body.WordCount ?? 0),
+    contentPreview: (body.contentPreview ?? body.ContentPreview ?? null) as string | null,
     updatedAt: String(body.updatedAt ?? body.UpdatedAt ?? ''),
   };
 }
@@ -480,6 +489,29 @@ export async function generateContentSpoke(
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
   const payload = (await res.json()) as Record<string, unknown>;
   return normalizeSpokeSummary(payload);
+}
+
+export async function generateAllContentSpokes(
+  pillarDocumentId: string,
+  accessToken?: string | null,
+): Promise<GenerateAllContentSpokesResult> {
+  const res = await fetch(`${API_URL}/api/seo/content/${pillarDocumentId}/spokes/generate-all`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify({}),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  const body = (await res.json()) as Record<string, unknown>;
+  const failuresRaw = body.failures ?? body.Failures;
+  const spokesRaw = body.spokes ?? body.Spokes;
+  return {
+    generatedCount: Number(body.generatedCount ?? body.GeneratedCount ?? 0),
+    skippedCount: Number(body.skippedCount ?? body.SkippedCount ?? 0),
+    failures: Array.isArray(failuresRaw) ? failuresRaw.map(String) : [],
+    spokes: Array.isArray(spokesRaw)
+      ? spokesRaw.map((item) => normalizeSpokeSummary(item as Record<string, unknown>))
+      : [],
+  };
 }
 
 export async function listProjects(accessToken?: string | null): Promise<SeoProject[]> {
@@ -1608,11 +1640,32 @@ export async function checkPlagiarism(
 }
 
 export type InternalLinkSuggestion = {
+  targetDocumentId: string;
   anchorText: string;
   targetUrl: string;
+  publishPath?: string | null;
+  linkType: 'spoke' | 'pillar' | 'sibling';
   reason: string;
   relevanceScore: number;
 };
+
+function normalizeInternalLinkSuggestion(body: Record<string, unknown>): InternalLinkSuggestion {
+  const linkTypeRaw = String(body.linkType ?? body.LinkType ?? 'sibling').toLowerCase();
+  const linkType =
+    linkTypeRaw === 'spoke' || linkTypeRaw === 'pillar' || linkTypeRaw === 'sibling'
+      ? linkTypeRaw
+      : 'sibling';
+
+  return {
+    targetDocumentId: String(body.targetDocumentId ?? body.TargetDocumentId ?? ''),
+    anchorText: String(body.anchorText ?? body.AnchorText ?? ''),
+    targetUrl: String(body.targetUrl ?? body.TargetUrl ?? ''),
+    publishPath: (body.publishPath ?? body.PublishPath) as string | null | undefined,
+    linkType,
+    reason: String(body.reason ?? body.Reason ?? ''),
+    relevanceScore: Number(body.relevanceScore ?? body.RelevanceScore ?? 0),
+  };
+}
 
 export async function suggestInternalLinks(
   body: { projectId: string; documentId: string; maxSuggestions?: number },
@@ -1623,7 +1676,8 @@ export async function suggestInternalLinks(
     headers: apiHeaders(accessToken),
     body: JSON.stringify(body),
   });
-  return seoJson<InternalLinkSuggestion[]>(res);
+  const raw = await seoJson<Record<string, unknown>[]>(res);
+  return raw.map(normalizeInternalLinkSuggestion);
 }
 
 export type DeepSerpOrganic = {

@@ -20,6 +20,7 @@ import {
   buildClusterPlan,
   createContentSpoke,
   generateContentSpoke,
+  generateAllContentSpokes,
   generateLinkedFaqs,
   getClusterPlan,
   listContentSpokes,
@@ -68,6 +69,8 @@ export function ClusterPlanPanel() {
   const [busy, setBusy] = useState(false);
   const [creatingPhrase, setCreatingPhrase] = useState<string | null>(null);
   const [generatingSpokeId, setGeneratingSpokeId] = useState<string | null>(null);
+  const [generatingAllSpokes, setGeneratingAllSpokes] = useState(false);
+  const [generateAllSummary, setGenerateAllSummary] = useState<string | null>(null);
   const [generatingFaqs, setGeneratingFaqs] = useState(false);
   const [applyingBodyLinks, setApplyingBodyLinks] = useState(false);
   const [faqGenSummary, setFaqGenSummary] = useState<string | null>(null);
@@ -81,6 +84,7 @@ export function ClusterPlanPanel() {
   const headingHints = useMemo(() => extractPillarH2Hints(doc.contentHtml), [doc.contentHtml]);
   const planHasUnsavedEdits = planDirty || bodyPlanDirty;
   const generatedSpokeCount = spokes.filter(isSpokeGenerated).length;
+  const shellSpokeCount = spokes.filter((s) => !isSpokeGenerated(s)).length;
   const linksReadyCount = countLinkReady(faqPlan, bodyLinkPlan, spokes);
   const hasPlan = savedFaqCount > 0 || savedBodyLinkCount > 0;
 
@@ -214,6 +218,26 @@ export function ClusterPlanPanel() {
       setError(e instanceof Error ? e.message : 'Could not generate spoke');
     } finally {
       setGeneratingSpokeId(null);
+    }
+  }
+
+  async function handleGenerateAllSpokes() {
+    if (!accessToken) return;
+    setGeneratingAllSpokes(true);
+    setError(null);
+    setGenerateAllSummary(null);
+    try {
+      const result = await generateAllContentSpokes(doc.id, accessToken);
+      setSpokes(result.spokes);
+      const failureNote =
+        result.failures.length > 0 ? ` · ${result.failures.length} failed` : '';
+      setGenerateAllSummary(
+        `Batch generation: ${result.generatedCount} generated, ${result.skippedCount} skipped${failureNote}.`,
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not generate all spokes');
+    } finally {
+      setGeneratingAllSpokes(false);
     }
   }
 
@@ -357,6 +381,11 @@ export function ClusterPlanPanel() {
             {bodyLinkSummary}
           </p>
         ) : null}
+        {generateAllSummary ? (
+          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+            {generateAllSummary}
+          </p>
+        ) : null}
 
         <ClusterTabBar
           active={activeTab}
@@ -378,6 +407,18 @@ export function ClusterPlanPanel() {
                   : 'Generate spokes first, then apply FAQ and body links to the pillar HTML.'}
               </p>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {shellSpokeCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleGenerateAllSpokes()}
+                    disabled={generatingAllSpokes || busy || generatingSpokeId !== null}
+                    className="rounded-lg bg-[var(--color-accent)] px-3 py-2 text-xs font-medium text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50 sm:col-span-2"
+                  >
+                    {generatingAllSpokes
+                      ? `Generating ${shellSpokeCount} spoke${shellSpokeCount === 1 ? '' : 's'}…`
+                      : `Generate all spokes (${shellSpokeCount} shell${shellSpokeCount === 1 ? '' : 's'})`}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => void handleGenerateLinkedFaqs()}
@@ -459,9 +500,21 @@ export function ClusterPlanPanel() {
         {activeTab === 'spokes' ? (
           <div className="grid gap-4 xl:grid-cols-2">
             <section className="rounded-xl border bg-white p-4 shadow-sm">
-              <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                Created spokes ({spokes.length})
-              </h4>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                  Created spokes ({spokes.length})
+                </h4>
+                {shellSpokeCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleGenerateAllSpokes()}
+                    disabled={generatingAllSpokes || busy}
+                    className="rounded-lg border border-[var(--color-accent)] px-2 py-1 text-xs font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/5 disabled:opacity-50"
+                  >
+                    {generatingAllSpokes ? 'Generating…' : 'Generate all shells'}
+                  </button>
+                ) : null}
+              </div>
               {spokes.length === 0 ? (
                 <p className="mt-2 text-xs text-[var(--color-text-secondary)]">No spokes yet.</p>
               ) : (
@@ -482,6 +535,14 @@ export function ClusterPlanPanel() {
                           <p className="text-[var(--color-text-secondary)]">
                             {isSpokeGenerated(spoke) ? 'Generated' : 'Shell only'} · {spoke.wordCount} words
                           </p>
+                          {spoke.contentPreview ? (
+                            <details className="mt-2">
+                              <summary className="cursor-pointer text-[var(--color-accent)]">
+                                Content preview
+                              </summary>
+                              <p className="mt-1 text-[var(--color-text-secondary)]">{spoke.contentPreview}</p>
+                            </details>
+                          ) : null}
                         </div>
                         {!isSpokeGenerated(spoke) ? (
                           <button
