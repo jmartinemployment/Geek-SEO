@@ -129,6 +129,24 @@ public sealed class ScoreSuggestionApplicatorTests
     }
 
     [Fact]
+    public void ProposeFeaturedSnippetDirectAnswer_ignores_unusable_serp_capture()
+    {
+        const string junk =
+            "Can't generate an AI overview right now. AI Overview (function(){window.sn={";
+        const string plain =
+            "Market intelligence combines data collection and analysis to guide strategic business decisions.";
+
+        var answer = ScoreSuggestionApplicator.ProposeFeaturedSnippetDirectAnswer(
+            "market intelligence",
+            plain,
+            junk);
+
+        Assert.DoesNotContain("function", answer, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("AI overview", answer, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("market intelligence", answer, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void HasDirectAnswerAfterFirstH2_returns_true_when_snippet_sized_paragraph_follows_h2()
     {
         var words = string.Join(' ', Enumerable.Repeat("word", 45));

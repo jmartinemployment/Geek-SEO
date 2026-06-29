@@ -1,7 +1,7 @@
 # Local development
 
 **Backlog:** `plan-documents/TODO.md`  
-**Data plane:** `plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md` (SerpApi bridge → Geek-owned SERP; DataForSEO sunset)  
+**Data plane:** `plan-documents/SEO-PROVIDER-STRATEGY.md` (SerpApi bridge → Geek-owned SERP; DataForSEO sunset)  
 **Contracts:** In-repo `GeekSeo.Application` + `GeekSeo.Persistence` (no GeekBackend reference in product Docker)
 
 ## What runs from this repo
@@ -27,7 +27,7 @@ dotnet run
 | `GEEK_API_URL` | GeekAPI base URL (e.g. `http://localhost:5272` locally) |
 | `GEEK_BACKEND_API_KEY` | Same key as GeekAPI `GEEK_BACKEND_API_KEY` (dev internal proxy) |
 | `GEEK_OAUTH_AUTHORITY` | Token issuer (production) |
-| `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | Interim — live SERP/keywords until [`GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](../plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md) Phase A+ |
+| `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | Interim — live SERP/keywords until [`SEO-PROVIDER-STRATEGY.md`](../plan-documents/SEO-PROVIDER-STRATEGY.md) Phase A+ |
 | `SERPAPI_API_KEY` | Interim primary SERP per Geek Data Plane (when Phase A shipped) |
 | `ANTHROPIC_API_KEY` | Term extraction + AI writing |
 | `ANTHROPIC_MODEL` | Optional; default `claude-haiku-4-5-20251001` (testing). Use `claude-sonnet-4-6` for production drafts |

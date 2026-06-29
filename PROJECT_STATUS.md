@@ -37,7 +37,7 @@ Last updated: June 14, 2026
 | M4–M6 Legacy platform auth | ✅ Removed from GeekAPI / GeekRepository / GeekApplication |
 | Production | ✅ GeekSeoBackend + Vercel frontend healthy (May 31, 2026); DNS propagation may lag on some networks |
 
-Details: [`plan-documents/PLATFORM-DECOUPLING.md`](plan-documents/PLATFORM-DECOUPLING.md). **Platform decoupling complete** (M0–M9, M1, **O2** legacy auth tables dropped). Optional future: **O1** standalone contracts repo.
+Details: platform decoupling **complete** (M0–M9, M1, **O2** legacy auth tables dropped, June 2026). Optional future: **O1** standalone contracts repo.
 
 ## Identity (geek-OAuth)
 
@@ -189,9 +189,9 @@ See `scripts/LOCAL_DEV.md`. Minimum: GeekSeoBackend + GeekAPI + GeekRepository +
 
 ## Plan reference
 
-**Backlog:** [`TODO.md`](plan-documents/TODO.md). **Providers:** [`SEO-PROVIDER-STRATEGY.md`](plan-documents/SEO-PROVIDER-STRATEGY.md). **Architecture:** [`ARCHITECTURE.md`](plan-documents/ARCHITECTURE.md).
+**Backlog:** [`TODO.md`](plan-documents/TODO.md). **Providers:** [`SEO-PROVIDER-STRATEGY.md`](plan-documents/SEO-PROVIDER-STRATEGY.md). **Architecture:** [`ARCHITECTURE.md`](../ARCHITECTURE.md).
 
-Platform decoupling: `plan-documents/PLATFORM-DECOUPLING.md` — **complete** (M0–M9, M1, O2).
+Platform decoupling — **complete** (M0–M9, M1, O2).
 
 ## Session plan closure (May 31, 2026)
 

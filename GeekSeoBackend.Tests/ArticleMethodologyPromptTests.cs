@@ -13,8 +13,8 @@ public sealed class ArticleMethodologyPromptTests
             WritingMethodologySpec.FivePhase);
 
         Assert.Contains("Section 1 intent:", text, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("business outcomes or ROI", text, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("pilot plan", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("business case or ROI", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("implementation plan", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("scaling safely", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Section 5 intent:", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Heading families", text, StringComparison.OrdinalIgnoreCase);
@@ -100,9 +100,9 @@ public sealed class ArticleMethodologyScaffoldTests
             "<h2>Movement 1 — Business Objectives</h2>" +
             "<h2>Defining Goals and Success Metrics for Bookkeeping Automation</h2><p>Intro</p>" +
             "<h2>Movement 2 — Data Quality Assessment</h2>" +
-            "<h2>Movement 3 — Tech Selection</h2>" +
+            "<h2>Movement 3 — Choose the Right AI Technologies</h2>" +
             "<h2>Choosing the Right Automated Data Entry Software</h2><p>Tools</p>" +
-            "<h2>Movement 4 — Pilot Implementation Strategy</h2>" +
+            "<h2>Movement 4 — Implementation Strategy</h2>" +
             "<h2>Rolling Out Automated Bookkeeping in Phases</h2><p>Pilot</p>";
 
         var result = ArticleMethodologyScaffold.StripMovementLabels(html);

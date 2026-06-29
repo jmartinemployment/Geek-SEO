@@ -203,7 +203,7 @@ public static class ContentWriterSerpExportMapper
         {
             Type = "ai_overview",
             Format = "mixed",
-            Text = aiOverview.Snippet ?? string.Empty,
+            Text = SerpCaptureTextSanitizer.Sanitize(aiOverview.Snippet) ?? string.Empty,
             BeatStrategy = string.Empty,
         };
     }

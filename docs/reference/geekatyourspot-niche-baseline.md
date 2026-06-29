@@ -67,7 +67,7 @@ These `knowsAbout` strings are how we know pillars like “Artificial Intelligen
 | Navigation | Playwright: `nav a`, header links, mobile menu | Few same-origin links; no service silos |
 | Headings | Homepage title, meta, H1–H6 | Homepage content only |
 
-**Not implemented in v1:** follow internal links across the domain, crawl disallowed paths, or fetch every rendered section as its own URL. v1.5 work is scoped in [`plan-documents/SITE-NICHE-ANALYZER-CHANGES.md`](../../plan-documents/SITE-NICHE-ANALYZER-CHANGES.md).
+**Not implemented in v1:** follow internal links across the domain, crawl disallowed paths, or fetch every rendered section as its own URL. See [`docs/reference/site-niche-analyzer-v1-spec.md`](../../docs/reference/site-niche-analyzer-v1-spec.md) and [`plan-documents/NICHE-ANALYZER-ARTIFACT-PARADIGM.md`](../../plan-documents/NICHE-ANALYZER-ARTIFACT-PARADIGM.md).
 
 For a **whole-site picture** outside the product, use `scripts/scrape` with `--link-crawl` when the sitemap is thin.
 
@@ -147,7 +147,7 @@ When analysis runs successfully against this domain:
 
 ## Related files
 
-- Spec (v1): [`plan-documents/SITE-NICHE-ANALYZER.md`](../../plan-documents/SITE-NICHE-ANALYZER.md)
-- Changes (v1.5): [`plan-documents/SITE-NICHE-ANALYZER-CHANGES.md`](../../plan-documents/SITE-NICHE-ANALYZER-CHANGES.md)
+- Spec (v1): [`docs/reference/site-niche-analyzer-v1-spec.md`](../../docs/reference/site-niche-analyzer-v1-spec.md)
+- Artifact paradigm: [`plan-documents/NICHE-ANALYZER-ARTIFACT-PARADIGM.md`](../../plan-documents/NICHE-ANALYZER-ARTIFACT-PARADIGM.md)
 - Orchestrator: `GeekSeoBackend/Services/NicheAnalyzerService.cs`
 - Scraper (research): `scripts/scrape/README.md`

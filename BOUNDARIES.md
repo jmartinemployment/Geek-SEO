@@ -1,7 +1,7 @@
 # Geek-SEO repository boundaries (non-negotiable)
 
-**Architecture:** [`plan-documents/ARCHITECTURE.md`](plan-documents/ARCHITECTURE.md)  
-**Decoupling (mandatory + optional phases):** [`plan-documents/PLATFORM-DECOUPLING.md`](plan-documents/PLATFORM-DECOUPLING.md)
+**Architecture:** [`ARCHITECTURE.md`](../ARCHITECTURE.md)  
+**Decoupling (mandatory + optional phases):** complete (M0–M9, June 2026) — see [`plan-documents/README.md`](plan-documents/README.md) retired table.
 
 ## This repo contains ONLY
 
@@ -37,7 +37,15 @@ See [`scripts/OAUTH_SETUP.md`](scripts/OAUTH_SETUP.md) for GeekOAuth setup.
 
 ## Coordinated platform work
 
-Phases **M3–M6** are **complete** (May 2026). Further GeekBackend edits require a new approved phase (e.g. **O2** after **M0**). GeekSeoBackend still has **no** `DATABASE_URL`.
+Phases **M3–M6** are **complete** (May 2026). Further GeekBackend edits require a new approved phase (e.g. **O2** after **M0**). GeekSeoBackend still has **no** `DATABASE_URL` for the main `geek_seo` schema.
+
+### Site Analyzer 2 (`sa2`) exception
+
+When `SITE_ANALYZER2_DATABASE_URL` is set, **GeekSeoBackend** may open a **second** PostgreSQL connection for the `sa2` schema only (EF Core in `SiteAnalyzer2.Infrastructure`). This is the sole approved direct-DB exception in this repo.
+
+- Operator API: `/api/seo/sa2/*` (in-process SA2 controllers)
+- Legacy 10-step wizard: `/api/seo/site-analyzer/*` — **unchanged until SA2 is verified in-repo**
+- Content Writing handoff: `analysisRunId` from SA2 export (`SA2_IN_PROCESS_REPOS=true` swaps HTTP proxy repos for in-process)
 
 ## Multi-app rule
 

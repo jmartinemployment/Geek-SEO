@@ -89,8 +89,10 @@ public static partial class ArticleMethodologyScaffold
         {
             "business-objectives" => $"Why {topic} matters now",
             "data-quality-assessment" => $"{TitleCase(family)} before you implement {topic}",
-            "tech-selection" => $"Choosing the right stack for {topic}",
-            "pilot-implementation" => $"Pilot plan and rollout for {topic}",
+            "ai-tech-selection" => $"Choosing the right AI technologies for {topic}",
+            "implementation-strategy" => $"Implementation strategy and rollout for {topic}",
+            "tech-selection" => $"Choosing the right AI technologies for {topic}",
+            "pilot-implementation" => $"Implementation strategy and rollout for {topic}",
             "scaling-safety" => $"Scaling {topic} safely across the business",
             _ => $"{TitleCase(family)} for {topic}",
         };

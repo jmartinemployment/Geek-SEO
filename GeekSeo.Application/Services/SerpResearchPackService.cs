@@ -481,7 +481,7 @@ public sealed class SerpResearchPackService(
             {
                 Type = "ai_overview",
                 Format = "mixed",
-                Text = serp.FeaturedSnippetText ?? "",
+                Text = SerpCaptureTextSanitizer.Sanitize(serp.FeaturedSnippetText) ?? "",
                 BeatStrategy = string.Empty,
             };
         }
@@ -499,13 +499,17 @@ public sealed class SerpResearchPackService(
 
         if (serp.Features.HasFeaturedSnippet && !string.IsNullOrWhiteSpace(serp.FeaturedSnippetText))
         {
-            return new SerpResearchPaf
+            var snippetText = SerpCaptureTextSanitizer.Sanitize(serp.FeaturedSnippetText);
+            if (!string.IsNullOrWhiteSpace(snippetText))
             {
-                Type = "featured_snippet",
-                Format = InferPafFormat(serp.FeaturedSnippetText),
-                Text = serp.FeaturedSnippetText,
-                BeatStrategy = "Match snippet format but add specificity, examples, and updated facts.",
-            };
+                return new SerpResearchPaf
+                {
+                    Type = "featured_snippet",
+                    Format = InferPafFormat(snippetText),
+                    Text = snippetText,
+                    BeatStrategy = "Match snippet format but add specificity, examples, and updated facts.",
+                };
+            }
         }
 
         return new SerpResearchPaf

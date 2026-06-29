@@ -2,7 +2,7 @@
 
 **Purpose:** Copy-paste prompt for an external research agent. Output is a **SERP Research Pack** (JSON) that feeds Geek SEO Content Writing — **not** Niche Analyzer.
 
-**Related:** [`content-writing-prompt.md`](./content-writing-prompt.md), [`CONTENT-WRITING-PROMPT-SPEC.md`](./CONTENT-WRITING-PROMPT-SPEC.md)
+**Related:** [`content-writing-prompt.md`](./content-writing-prompt.md), [`CONTENT-WRITER-MARKETING-EXPORT.md`](./CONTENT-WRITER-MARKETING-EXPORT.md)
 
 **Recovered:** 2026-06-17 (session interrupted before this file was saved)
 
@@ -207,13 +207,13 @@ Return **only** valid JSON (no markdown fences in your final message) matching t
     },
     {
       "movement": 3,
-      "label": "Tech Selection",
+      "label": "Choose the Right AI Technologies",
       "suggestedH2": "",
       "subtopicsFromSerp": []
     },
     {
       "movement": 4,
-      "label": "Pilot Implementation Strategy",
+      "label": "Implementation Strategy",
       "suggestedH2": "",
       "subtopicsFromSerp": []
     },

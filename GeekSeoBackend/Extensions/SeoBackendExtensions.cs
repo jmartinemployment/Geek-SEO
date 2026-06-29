@@ -105,8 +105,11 @@ public static class SeoBackendExtensions
         services.AddScoped<ISerpAnalysisService, SerpAnalysisService>();
         services.AddScoped<ISerpResearchPackService, SerpResearchPackService>();
         services.AddScoped<IUrlResearchRepository, HttpUrlResearchRepository>();
-        services.AddScoped<IAnalysisRunRepository, HttpAnalysisRunRepository>();
-        services.AddScoped<ISiteAnalyzer2SiteProfileRepository, HttpSiteAnalyzer2SiteProfileRepository>();
+        if (!SiteAnalyzer2BackendExtensions.UseInProcessRepos())
+        {
+            services.AddScoped<IAnalysisRunRepository, HttpAnalysisRunRepository>();
+            services.AddScoped<ISiteAnalyzer2SiteProfileRepository, HttpSiteAnalyzer2SiteProfileRepository>();
+        }
         services.AddScoped<ContentWriterHandoffService>();
         services.AddScoped<WritingResearchContextLoader>();
         services.AddScoped<SiteWritingFocusAssembler>();
@@ -290,7 +293,18 @@ public static class SeoBackendExtensions
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
             if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/seo-scoring"))
+            {
                 context.Token = accessToken;
+                return Task.CompletedTask;
+            }
+
+            if (!string.IsNullOrEmpty(accessToken)
+                && path.StartsWithSegments("/api/seo/sa2/runs")
+                && path.Value?.EndsWith("/competitor-crawl/progress-stream", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                context.Token = accessToken;
+            }
+
             return Task.CompletedTask;
         },
     };

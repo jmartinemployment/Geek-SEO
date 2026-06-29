@@ -1,0 +1,18 @@
+{
+  "results": [
+    {"position": 1, "url": "https://www.hubspot.com/products/crm", "title": "HubSpot CRM", "snippet": "Free CRM software for small business", "domain": "hubspot.com"},
+    {"position": 2, "url": "https://www.salesforce.com/crm/", "title": "Salesforce CRM", "snippet": "World's #1 CRM platform", "domain": "salesforce.com"},
+    {"position": 3, "url": "https://en.wikipedia.org/wiki/Customer_relationship_management", "title": "CRM - Wikipedia", "snippet": "Customer relationship management", "domain": "en.wikipedia.org"},
+    {"position": 4, "url": "https://www.reddit.com/r/smallbusiness/comments/crm", "title": "Best CRM for small business?", "snippet": "Looking for CRM recommendations", "domain": "reddit.com"},
+    {"position": 5, "url": "https://www.quora.com/What-is-the-best-CRM", "title": "What is the best CRM?", "snippet": "Top CRM tools compared", "domain": "quora.com"},
+    {"position": 6, "url": "https://www.pipedrive.com/", "title": "Pipedrive CRM", "snippet": "Sales CRM pricing plans and pipeline management", "domain": "pipedrive.com"},
+    {"position": 7, "url": "https://www.pipedrive.com/features", "title": "Pipedrive Features", "snippet": "CRM features overview", "domain": "pipedrive.com"},
+    {"position": 8, "url": "https://support.competitor.com/help", "title": "Support Portal", "snippet": "Help center", "domain": "support.competitor.com"},
+    {"position": 9, "url": "https://client-secondary.example.com/products", "title": "Our Products", "snippet": "Client secondary property", "domain": "client-secondary.example.com"},
+    {"position": 10, "url": "https://zoho.com/crm/", "title": "Zoho CRM", "snippet": "Online CRM software", "domain": "zoho.com"},
+    {"position": 11, "url": "https://monday.com/crm", "title": "Monday CRM", "snippet": "Customizable CRM", "domain": "monday.com"},
+    {"position": 12, "url": "https://freshworks.com/crm", "title": "Freshsales CRM", "snippet": "AI-powered CRM", "domain": "freshworks.com"},
+    {"position": 13, "url": "https://www.youtube.com/watch?v=crm", "title": "CRM Tutorial", "snippet": "How to choose a CRM", "domain": "youtube.com"},
+    {"position": 14, "url": "https://www.capterra.com/crm-software/", "title": "CRM Software", "snippet": "Compare CRM software", "domain": "capterra.com"}
+  ]
+}

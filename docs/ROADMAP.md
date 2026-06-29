@@ -5,9 +5,10 @@
 | Document | Purpose |
 |----------|---------|
 | **[`plan-documents/SEO-PROVIDER-STRATEGY.md`](../plan-documents/SEO-PROVIDER-STRATEGY.md)** | **SEO provider strategy** — provider strategy & migration |
-| **[`plan-documents/TODO.md`](../plan-documents/TODO.md)** | All remaining / future work |
+| **[`plan-documents/IMPLEMENTATION-PLAN.md`](../plan-documents/IMPLEMENTATION-PLAN.md)** | Ordered build sequence |
+| **[`plan-documents/TODO.md`](../plan-documents/TODO.md)** | Granular backlog |
 | **[`PROJECT_STATUS.md`](../PROJECT_STATUS.md)** | Production status; v1 parity #1–27 |
-| **[`plan-documents/ARCHITECTURE.md`](../plan-documents/ARCHITECTURE.md)** | Services, ports, data flow |
+| **[`ARCHITECTURE.md`](../ARCHITECTURE.md)** | Services, ports, data flow |
 
 ## Is v1 “done”?
 

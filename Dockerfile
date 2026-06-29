@@ -11,6 +11,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0-noble AS build
 WORKDIR /src
 COPY GeekSeo.Persistence/ GeekSeo.Persistence/
 COPY GeekSeo.Application/ GeekSeo.Application/
+COPY SiteAnalyzer2/ SiteAnalyzer2/
 COPY GeekSeoBackend/ GeekSeoBackend/
 WORKDIR /src/GeekSeoBackend
 RUN dotnet publish GeekSeoBackend.csproj \

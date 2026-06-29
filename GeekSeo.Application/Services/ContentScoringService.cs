@@ -425,7 +425,9 @@ public sealed class ContentScoringService(
             SerpFeatures = WritingResearchBenchmarkResolver.ToSerpFeatures(context),
             CoverageTerms = coverageTerms,
             ResearchedAt = context.ResearchedAt,
-            FeaturedSnippetText = string.IsNullOrWhiteSpace(context.Paf.Text) ? null : context.Paf.Text,
+            FeaturedSnippetText = string.Equals(context.Paf.Type, "featured_snippet", StringComparison.OrdinalIgnoreCase)
+                ? SerpCaptureTextSanitizer.Sanitize(context.Paf.Text)
+                : null,
         });
     }
 
@@ -498,11 +500,16 @@ public sealed class ContentScoringService(
             }
         }
 
+        var featuredSnippetText = SerpCaptureTextSanitizer.Sanitize(
+            serpData?.FeaturedSnippetText ?? serpRow?.FeaturedSnippet);
+        if (serpFeatures.HasFeaturedSnippet && featuredSnippetText is null)
+            serpFeatures = serpFeatures with { HasFeaturedSnippet = false };
+
         return Result<BenchmarkResolution>.Success(new BenchmarkResolution
         {
             Benchmarks = benchmarks,
             SerpFeatures = serpFeatures,
-            FeaturedSnippetText = serpData?.FeaturedSnippetText ?? serpRow?.FeaturedSnippet,
+            FeaturedSnippetText = featuredSnippetText,
         });
     }
 

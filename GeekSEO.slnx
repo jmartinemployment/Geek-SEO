@@ -1,6 +1,15 @@
 <Solution>
+  <Folder Name="/SiteAnalyzer2/">
+    <Project Path="SiteAnalyzer2/SiteAnalyzer2.Domain/SiteAnalyzer2.Domain.csproj" />
+    <Project Path="SiteAnalyzer2/SiteAnalyzer2.Infrastructure/SiteAnalyzer2.Infrastructure.csproj" />
+    <Project Path="SiteAnalyzer2/SiteAnalyzer2.Repositories/SiteAnalyzer2.Repositories.csproj" />
+    <Project Path="SiteAnalyzer2/SiteAnalyzer2.Serp/SiteAnalyzer2.Serp.csproj" />
+    <Project Path="SiteAnalyzer2/SiteAnalyzer2.Services/SiteAnalyzer2.Services.csproj" />
+    <Project Path="SiteAnalyzer2/SiteAnalyzer2.Api/SiteAnalyzer2.Api.csproj" />
+  </Folder>
   <Project Path="GeekSeo.Persistence/GeekSeo.Persistence.csproj" />
   <Project Path="GeekSeo.Application/GeekSeo.Application.csproj" />
   <Project Path="GeekSeoBackend/GeekSeoBackend.csproj" />
   <Project Path="GeekSeoBackend.Tests/GeekSeoBackend.Tests.csproj" />
+  <Project Path="GeekSiteAnalyzer.Tests/GeekSiteAnalyzer.Tests.csproj" />
 </Solution>

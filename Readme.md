@@ -3,8 +3,8 @@
 Surfer / ContentShake-style SEO content SaaS.
 
 **Backlog:** [`plan-documents/TODO.md`](plan-documents/TODO.md) · **Status:** [`PROJECT_STATUS.md`](PROJECT_STATUS.md)  
-**Data plane:** [`plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md) — canonical provider plan  
-**Architecture:** [`plan-documents/ARCHITECTURE.md`](plan-documents/ARCHITECTURE.md)
+**Data plane:** [`plan-documents/SEO-PROVIDER-STRATEGY.md`](plan-documents/SEO-PROVIDER-STRATEGY.md) — canonical provider plan  
+**Architecture:** [`ARCHITECTURE.md`](ARCHITECTURE.md)
 
 ## Repo layout
 
@@ -13,9 +13,9 @@ Surfer / ContentShake-style SEO content SaaS.
 | `frontend/` | Next.js app |
 | `GeekSeo.Persistence/` | EF `geek_seo` schema + migrations (**product-owned**, M3) |
 | `GeekSeoBackend/` | SEO product API + SignalR |
-| `plan-documents/` | [`GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md), [`TODO.md`](plan-documents/TODO.md), architecture notes |
+| `plan-documents/` | [`SEO-PROVIDER-STRATEGY.md`](plan-documents/SEO-PROVIDER-STRATEGY.md), [`TODO.md`](plan-documents/TODO.md), architecture notes |
 
-**Contracts:** In-repo **`GeekSeo.Application`** + **`GeekSeo.Persistence`** — GeekSeoBackend does not reference GeekBackend. See [`PLATFORM-DECOUPLING.md`](plan-documents/PLATFORM-DECOUPLING.md).
+**Contracts:** In-repo **`GeekSeo.Application`** + **`GeekSeo.Persistence`** — GeekSeoBackend does not reference GeekBackend. Platform decoupling complete (M0–M9, June 2026).
 
 **GeekAPI is not the SEO product.** Product code belongs in **this repo**, not `GeekBackend/GeekAPI`.
 

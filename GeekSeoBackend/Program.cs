@@ -1,5 +1,6 @@
 using DotNetEnv;
 using GeekSeo.Application.Interfaces.Seo;
+using GeekSeoBackend.Endpoints;
 using GeekSeoBackend.Extensions;
 using GeekSeoBackend.Hubs;
 using GeekSeoBackend.Infrastructure;
@@ -17,7 +18,9 @@ if (!builder.Environment.IsDevelopment())
     ValidateRequiredGoogleOAuthEnv();
 }
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddSiteAnalyzer2Controllers();
+builder.Services.AddSiteAnalyzer2Backend(builder.Configuration);
 
 PlaywrightBrowserHolder? playwrightHolder = null;
 var disablePlaywright = string.Equals(
@@ -77,6 +80,9 @@ builder.Services.AddHttpClient(GeekDataGateway.HttpClientName, client =>
 
 var app = builder.Build();
 
+if (SiteAnalyzer2BackendExtensions.IsEnabled(app.Configuration))
+    await app.MigrateSiteAnalyzer2Async();
+
 app.Lifetime.ApplicationStopping.Register(() =>
 {
     if (playwrightHolder is not null)
@@ -113,6 +119,10 @@ app.UseAuthorization();
 app.UseMiddleware<SeoFeatureGateMiddleware>();
 app.UseMiddleware<SeoUsageGateMiddleware>();
 app.MapControllers();
+
+if (SiteAnalyzer2BackendExtensions.IsEnabled(app.Configuration))
+    app.MapSa2CompetitorCrawlProgressStream();
+
 app.MapHub<SeoContentScoringHub>("/hubs/seo-scoring");
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5051";

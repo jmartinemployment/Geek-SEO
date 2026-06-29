@@ -15,7 +15,7 @@ public sealed record ContentBrief
     public IReadOnlyList<string> PeopleAlsoAsk { get; init; } = [];
     /// <summary>Exactly five topic FAQs for the closing section and FAQPage schema.</summary>
     public IReadOnlyList<string> ClosingFaqQuestions { get; init; } = [];
-    public WritingMethodologySpec Methodology { get; init; } = WritingMethodologySpec.FivePhase;
+    public WritingMethodologySpec Methodology { get; init; } = WritingMethodologySpec.FourPhase;
     public IReadOnlyList<DirectAnswerBlockSpec> DirectAnswerBlocks { get; init; } = [];
     public IReadOnlyList<string> TechnicalEvidenceRequirements { get; init; } = [];
     public IReadOnlyList<string> GeoAnchorNodes { get; init; } = [];
@@ -42,31 +42,42 @@ public sealed record WritingMethodologySpec
     public IReadOnlyList<string> Phases =>
         PhaseDefinitions.Select(phase => phase.Label).ToArray();
 
-  public static WritingMethodologySpec FivePhase { get; } = new()
+    private static readonly IReadOnlyList<MethodologyPhaseDefinition> CorePhases =
+    [
+        new MethodologyPhaseDefinition(
+            "business-objectives",
+            "Business Objectives",
+            "Define why this initiative matters now: target outcomes, stakeholders, success metrics, and the business case or ROI for acting on this topic.",
+            ["goals", "business case", "outcomes", "priorities", "why now", "ROI", "success metrics", "stakeholders"]),
+        new MethodologyPhaseDefinition(
+            "data-quality-assessment",
+            "Data Quality Assessment",
+            "Evaluate data readiness for AI and automation: source quality, gaps, cleanup work, governance risks, and what must be true before tools can run reliably.",
+            ["data health", "readiness", "data gaps", "migration prep", "garbage in", "audit", "data cleanup", "governance"]),
+        new MethodologyPhaseDefinition(
+            "ai-tech-selection",
+            "Choose the Right AI Technologies",
+            "Compare AI models, platforms, agents, and integrations for this use case — including build-vs-buy, vendor fit, security, and how each option maps to the business objectives.",
+            ["AI tools", "model selection", "LLM comparison", "platform fit", "integrations", "vendor evaluation", "build vs buy", "agent architecture"]),
+        new MethodologyPhaseDefinition(
+            "implementation-strategy",
+            "Implementation Strategy",
+            "Lay out a practical rollout: pilot scope, timeline, milestones, proof of value, team adoption, and how to measure success in the first implementation phase.",
+            ["implementation plan", "pilot scope", "phased rollout", "first 30 days", "proof of value", "change management", "milestones", "rollout timeline"]),
+    ];
+
+    public static WritingMethodologySpec FourPhase { get; } = new()
+    {
+        Name = "Four Phase Methodology",
+        PhaseDefinitions = CorePhases,
+    };
+
+    public static WritingMethodologySpec FivePhase { get; } = new()
     {
         Name = "Five Phase Methodology",
         PhaseDefinitions =
         [
-            new MethodologyPhaseDefinition(
-                "business-objectives",
-                "Business Objectives",
-                "Clarify why this matters now, who it is for, and the business outcomes or ROI of getting it right.",
-                ["goals", "business case", "outcomes", "priorities", "why now", "ROI", "success metrics"]),
-            new MethodologyPhaseDefinition(
-                "data-quality-assessment",
-                "Data Quality Assessment",
-                "Assess data readiness, cleanup work, risks, and what must be true before tools or automation run.",
-                ["data health", "readiness", "chart of accounts", "migration prep", "garbage in", "audit", "data cleanup"]),
-            new MethodologyPhaseDefinition(
-                "tech-selection",
-                "Tech Selection",
-                "Compare stack options, integrations, and build-vs-buy tradeoffs for this topic and buyer.",
-                ["software comparison", "tooling", "integration options", "stack", "platform fit", "vendor selection", "build vs buy"]),
-            new MethodologyPhaseDefinition(
-                "pilot-implementation",
-                "Pilot Implementation Strategy",
-                "Describe a practical rollout: timeline, pilot scope, proof of value, and what success looks like in the first pilot.",
-                ["pilot plan", "phased rollout", "first 30 days", "proof of value", "implementation steps", "quick wins", "rollout timeline"]),
+            ..CorePhases,
             new MethodologyPhaseDefinition(
                 "scaling-safety",
                 "Scaling Safety",
@@ -74,9 +85,6 @@ public sealed record WritingMethodologySpec
                 ["scaling safely", "governance", "monitoring", "rollback plan", "error handling", "team adoption", "capacity planning", "production readiness"]),
         ],
     };
-
-    /// <summary>Backward-compatible alias for <see cref="FivePhase"/>.</summary>
-    public static WritingMethodologySpec FourPhase => FivePhase;
 }
 
 public sealed record DirectAnswerBlockSpec(

@@ -21,7 +21,7 @@ You analyze **one URL** (or one authenticated screen after login) and produce:
 2. **GeekSEO implementation plan** — which routes, APIs, and shadcn components to use
 3. Optional: **React/SCSS files** in `frontend/src/` aligned with Geek @ Your Spot brand
 
-This skill is for **competitive UX research**, **cloning or copying competitor features/components** into GeekSEO (your layout, APIs, and brand), and **dashboard upgrades** (see [`plan-documents/TODO.md`](../../../plan-documents/TODO.md) + [`plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md`](../../../plan-documents/GEEK-DATAFORSEO-REPLACEMENT-FOR-DATAFORSEO-PLAN.md) for provider boundaries). For full marketing-site pixel clones, use `clone-website` instead.
+This skill is for **competitive UX research**, **cloning or copying competitor features/components** into GeekSEO (your layout, APIs, and brand), and **dashboard upgrades** (see [`plan-documents/TODO.md`](../../../plan-documents/TODO.md) + [`plan-documents/SEO-PROVIDER-STRATEGY.md`](../../../plan-documents/SEO-PROVIDER-STRATEGY.md) for provider boundaries). For full marketing-site pixel clones, use `clone-website` instead.
 
 ---
 

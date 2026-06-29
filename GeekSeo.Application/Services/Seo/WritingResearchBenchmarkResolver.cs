@@ -39,7 +39,8 @@ public static class WritingResearchBenchmarkResolver
     public static SerpFeatures ToSerpFeatures(WritingResearchContext research) => new()
     {
         HasPeopleAlsoAsk = research.PeopleAlsoAsk.Count > 0,
-        HasFeaturedSnippet = !string.IsNullOrWhiteSpace(research.Paf.Text),
+        HasFeaturedSnippet = string.Equals(research.Paf.Type, "featured_snippet", StringComparison.OrdinalIgnoreCase)
+            && SerpCaptureTextSanitizer.IsUsable(research.Paf.Text),
         HasAiOverview = string.Equals(research.Paf.Type, "ai_overview", StringComparison.OrdinalIgnoreCase),
     };
 }

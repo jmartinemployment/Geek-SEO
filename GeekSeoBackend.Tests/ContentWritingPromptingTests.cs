@@ -55,7 +55,7 @@ public sealed class ContentWritingPromptingTests
         Assert.NotNull(request);
         Assert.Equal(brief.Keyword, request!.Keyword);
         Assert.NotNull(request.Brief);
-        Assert.Equal("Five Phase Methodology", request.Brief.Methodology.Name);
+        Assert.Equal("Four Phase Methodology", request.Brief.Methodology.Name);
         Assert.Single(request.Brief.DirectAnswerBlocks);
         Assert.Equal(5, request.Brief.ClosingFaqQuestions.Count);
     }
@@ -198,9 +198,9 @@ public sealed class ContentWritingPromptingTests
 
         Assert.True(result.IsSuccess, result.Error);
         Assert.NotNull(result.Value);
-        Assert.Equal("Five Phase Methodology", result.Value.Methodology.Name);
+        Assert.Equal("Four Phase Methodology", result.Value.Methodology.Name);
         Assert.Equal(
-            ["Business Objectives", "Data Quality Assessment", "Tech Selection", "Pilot Implementation Strategy", "Scaling Safety"],
+            ["Business Objectives", "Data Quality Assessment", "Choose the Right AI Technologies", "Implementation Strategy"],
             result.Value.Methodology.Phases);
         Assert.Equal("QuickBooks Automation", result.Value.NicheContext.MatchedPillar);
         Assert.Contains("competitor-one.example", result.Value.CompetitorDomains);
@@ -309,10 +309,10 @@ public sealed class ContentWritingPromptingTests
         });
 
         Assert.Contains("Article body structure", prompt);
-        Assert.Contains("business outcomes or ROI", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("business case or ROI", prompt, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("data readiness", prompt, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("pilot plan", prompt, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Five Phase Methodology", prompt);
+        Assert.Contains("implementation plan", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Four Phase Methodology", prompt);
         Assert.DoesNotContain("Movement 1 —", prompt);
         Assert.DoesNotContain("<p><strong>Movement", prompt);
         Assert.Contains("sanitized code", prompt, StringComparison.OrdinalIgnoreCase);
@@ -341,16 +341,16 @@ public sealed class ContentWritingPromptingTests
             ],
         };
 
-        var systemPrompt = ArticlePromptBuilder.BuildOutlineSystemPrompt();
+        var systemPrompt = ArticlePromptBuilder.BuildOutlineSystemPrompt(brief.Methodology);
         var userPrompt = ArticlePromptBuilder.BuildOutlineUserPrompt(new WritingOutlineRequest
         {
             Keyword = brief.Keyword,
             Brief = brief,
         });
 
-        Assert.Contains("exactly 5", systemPrompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("exactly 4", systemPrompt, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Frequently Asked Questions", systemPrompt);
-        Assert.Contains("5 body sections", systemPrompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("4 body sections", systemPrompt, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Movement", systemPrompt);
         Assert.Contains("Closing FAQ section", userPrompt);
         Assert.Contains("1. What is quickbooks automation?", userPrompt);

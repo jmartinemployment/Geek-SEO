@@ -35,9 +35,9 @@ public static partial class ScoreSuggestionApplicator
         string plainText,
         string? featuredSnippetText = null)
     {
-        var seed = !string.IsNullOrWhiteSpace(featuredSnippetText)
-            ? featuredSnippetText.Trim()
-            : BuildDirectAnswerSeed(keyword, plainText);
+        var seed = SerpCaptureTextSanitizer.Sanitize(featuredSnippetText);
+        if (string.IsNullOrWhiteSpace(seed))
+            seed = BuildDirectAnswerSeed(keyword, plainText);
 
         seed = Regex.Replace(seed, @"\s+", " ").Trim();
         if (string.IsNullOrWhiteSpace(seed))

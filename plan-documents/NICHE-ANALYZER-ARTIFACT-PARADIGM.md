@@ -2,7 +2,7 @@
 
 **Status:** Target design (June 2026). Manual pipeline UI still exposes per-step **Run** (execute-on-click); this doc is the north star for troubleshooting, API shape, and AI-suggestion timing.
 
-**Related:** [`SEARCH-UNDERSTANDING-LAYER.md`](SEARCH-UNDERSTANDING-LAYER.md), [`SITE-NICHE-ANALYZER.md`](SITE-NICHE-ANALYZER.md), [`NICHE-SCALABLE-PERSISTENCE.md`](NICHE-SCALABLE-PERSISTENCE.md), [`PROJECT_STATUS.md`](../PROJECT_STATUS.md) (Step 1 testing status)
+**Related:** [`SEARCH-UNDERSTANDING-LAYER.md`](SEARCH-UNDERSTANDING-LAYER.md), [`docs/reference/site-niche-analyzer-v1-spec.md`](../docs/reference/site-niche-analyzer-v1-spec.md), [`PROJECT_STATUS.md`](../PROJECT_STATUS.md) (Step 1 testing status)
 
 ---
 

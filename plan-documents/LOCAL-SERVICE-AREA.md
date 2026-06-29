@@ -1,7 +1,7 @@
 # Local SEO — business address + service radius
 
-**Status:** Planned — not started (implementation skipped for now)  
-**Implementation plan:** [`LOCAL-SERVICE-AREA-IMPLEMENTATION.md`](./LOCAL-SERVICE-AREA-IMPLEMENTATION.md) (Phase 1 in progress)  
+**Status:** Planned — Phase 1 shipped; phases 2–4 not started  
+**Implementation plan:** [`IMPLEMENTATION-PLAN.md`](./IMPLEMENTATION-PLAN.md) § 3.2  
 **Decision (2026-06-06):** Prefer **global local via address + adjustable radius** (default **20 miles**). Use **Google Maps Platform** (Geocoding / Places) server-side for address → coordinates and places-within-radius — **not** Google My Business Profile OAuth. See [`LOCAL-GBP-INTEGRATION.md`](./LOCAL-GBP-INTEGRATION.md) (My Business on hold).  
 **Builds on:** Step 11 `LocalGapGenerator` (shipped) — today uses schema `areaServed` + on-site location URLs only  
 **Dogfood site:** `https://www.geekatyourspot.com`
@@ -165,7 +165,7 @@ Global default: env or platform config `DEFAULT_SERVICE_RADIUS_MILES=20` until o
 
 | Phase | Scope | Verify |
 |-------|--------|--------|
-| **1** | Project settings UI + API persist address + radius (default 20) | Save/load; validation |
+| **1** | Project settings — address + radius (default 20 mi) | ✅ Shipped |
 | **2** | Geocode + places-within-radius (backend) | geekatyourspot.com → sensible FL cities within 20 mi |
 | **3** | Step 11 uses radius places + existing location URL match | Re-analyze shows gaps from radius, not only schema |
 | **4** | Topical map + copilot + Content Guard read same `ServiceAreaDefinition` | One source of truth |
@@ -189,7 +189,7 @@ Global default: env or platform config `DEFAULT_SERVICE_RADIUS_MILES=20` until o
 
 - Shipped Step 11: `GeekSeoBackend/Services/NicheExtraction/LocalGapGenerator.cs`
 - On-hold GBP plan: [`LOCAL-GBP-INTEGRATION.md`](./LOCAL-GBP-INTEGRATION.md)
-- Niche plan index: [`SITE-NICHE-ANALYZER-CHANGES.md`](./SITE-NICHE-ANALYZER-CHANGES.md)
+- Niche plan index: [`docs/reference/site-niche-analyzer-v1-spec.md`](../docs/reference/site-niche-analyzer-v1-spec.md), [`NICHE-ANALYZER-ARTIFACT-PARADIGM.md`](./NICHE-ANALYZER-ARTIFACT-PARADIGM.md)
 - Backlog: [`TODO.md`](./TODO.md)
 
 ---

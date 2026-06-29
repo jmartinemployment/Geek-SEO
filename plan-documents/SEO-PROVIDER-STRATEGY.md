@@ -5,7 +5,7 @@
 **Last updated:** June 1, 2026  
 **Audience:** Engineering — GeekSEO backends and providers
 
-> **Doc hygiene:** Retired filenames [`DATAFORSEO-REPLACEMENT-UPGRADE.md`](DATAFORSEO-REPLACEMENT-UPGRADE.md) (vendor-expansion Labs/OnPage) and [`GEEK-DATA-PLANE.md`](GEEK-DATA-PLANE.md) are **redirect stubs** only. Plan here: **`SEO-PROVIDER-STRATEGY.md`**.
+> **Doc hygiene:** Retired filenames `DATAFORSEO-REPLACEMENT-UPGRADE.md` (vendor-expansion Labs/OnPage) and `GEEK-DATA-PLANE.md` were **deleted** (June 2026). Plan here: **`SEO-PROVIDER-STRATEGY.md`**.
 
 ---
 
@@ -232,7 +232,7 @@ Move existing `DataForSEOSerpProvider.cs` et al. into `DataForSeo/` when touched
 | Item | Notes |
 |------|--------|
 | **Shipped** | `TopicalMapService.GenerateSeedModeAsync` — `IKeywordProvider` + `IKeywordDiscoveryProvider` + hierarchy, entities, linking blueprint |
-| [`TopicalMapUpgrade.md`](TopicalMapUpgrade.md) | UX gaps — data deps point **here** + [KEYWORD-DISCOVERY-STRATEGY.md](KEYWORD-DISCOVERY-STRATEGY.md) |
+| [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md) § 3.1 | Topical map V2.2 — data deps point **here** + [KEYWORD-DISCOVERY-STRATEGY.md](KEYWORD-DISCOVERY-STRATEGY.md) |
 | SERP clustering | Uses `ISerpProvider` only — benefits automatically when SerpApi/Geek replaces DFS |
 | TODO #12b V2.2 | Phrase as “keyword discovery vs GSC”, not “DataForSEO diff” |
 
@@ -409,7 +409,7 @@ Site audit and topical map **ride Phases A–C** via existing interfaces — no 
 | [`TODO.md`](TODO.md) | Product backlog (scoring v2, integrations, REDESIGN, ops) |
 | [`PROJECT_STATUS.md`](../PROJECT_STATUS.md) | What is live in production |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Services, ports, API gateway |
-| [`TopicalMapUpgrade.md`](TopicalMapUpgrade.md) | Topical map UX gaps — data deps point here |
+| [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md) § 3.1 | Topical map V2.2 — data deps point here |
 | [`REDESIGN-PLAN.md`](REDESIGN-PLAN.md) | Semrush-style UI — reference only for shell/audit UX |
 | [`api-comparison.md`](api-comparison.md) | Historical vendor research — **re-verify pricing/endpoints before Phase A** |
 

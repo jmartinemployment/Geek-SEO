@@ -113,7 +113,7 @@ public sealed partial class AIWritingService(
 
         var response = await ai.CompleteAsync(new AIRequest
         {
-            SystemPrompt = ArticlePromptBuilder.BuildOutlineSystemPrompt(),
+            SystemPrompt = ArticlePromptBuilder.BuildOutlineSystemPrompt(request.Brief.Methodology),
             UserPrompt = ArticlePromptBuilder.BuildOutlineUserPrompt(request),
             MaxTokens = 2048,
             Temperature = 0.5,

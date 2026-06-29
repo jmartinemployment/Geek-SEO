@@ -5,10 +5,15 @@ namespace GeekSeo.Application.Services.Seo;
 
 public static class ArticlePromptBuilder
 {
-    public static string BuildOutlineSystemPrompt() =>
-        $"You are an SEO content strategist. Output a detailed article outline as HTML using h2 and h3 only. " +
-        $"Before the closing FAQ, include exactly {WritingMethodologySpec.FivePhase.PhaseDefinitions.Count} body sections in order — each with one topic-specific <h2>. " +
-        $"Always end with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> and exactly {ContentWritingRules.ClosingFaqCount} <h3> FAQ questions (no answers in the outline). No preamble. No h1.";
+    public static string BuildOutlineSystemPrompt(WritingMethodologySpec? methodology = null)
+    {
+        methodology ??= WritingMethodologySpec.FourPhase;
+        var sectionCount = methodology.PhaseDefinitions.Count;
+        return
+            $"You are an SEO content strategist. Output a detailed article outline as HTML using h2 and h3 only. " +
+            $"Before the closing FAQ, include exactly {sectionCount} body sections in order — each with one topic-specific <h2>. " +
+            $"Always end with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> and exactly {ContentWritingRules.ClosingFaqCount} <h3> FAQ questions (no answers in the outline). No preamble. No h1.";
+    }
 
     public static string BuildOutlineUserPrompt(WritingOutlineRequest request)
     {
@@ -147,6 +152,9 @@ public static class ArticlePromptBuilder
         builder.AppendLine($"Location: {research.SearchLocation}");
         builder.AppendLine($"Target words: {target}");
         builder.AppendLine($"Search intent: {research.IntentPrimary} — {research.IntentJustification}");
+        builder.AppendLine();
+        builder.AppendLine($"Methodology: {WritingMethodologySpec.FourPhase.Name}");
+        builder.AppendLine(ArticleMethodologyPrompt.BuildWeaveInstructions(keyword, WritingMethodologySpec.FourPhase));
 
         if (!string.IsNullOrWhiteSpace(research.BusinessContext))
             builder.AppendLine($"Business context: {research.BusinessContext}");

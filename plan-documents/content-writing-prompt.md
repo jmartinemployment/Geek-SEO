@@ -2,8 +2,6 @@
 
 Canonical product rules for Geek SEO article generation. Implemented in `ArticlePromptBuilder`, `ContentBriefService`, and `ArticleSchemaBuilder`.
 
-**Companion:** `plan-documents/CONTENT-WRITING-PROMPT-SPEC.md` (original strategy + implementation tracker).
-
 ---
 
 ## Required article structure
@@ -55,15 +53,27 @@ Draft user prompt includes the numbered list of 5 questions from `ContentBrief.c
 
 ---
 
-## Five Phase Methodology
+## Four Phase Methodology
 
-Structure body content around:
+Structure body content around exactly four phases (in order):
 
-1. Business Objectives
-2. Data Quality Assessment
-3. Tech Selection
-4. Pilot Implementation Strategy
-5. Scaling Safety
+### 1. Business Objectives
+
+Define why this initiative matters now: target outcomes, stakeholders, success metrics, and the business case or ROI for acting on this topic.
+
+### 2. Data Quality Assessment
+
+Evaluate data readiness for AI and automation: source quality, gaps, cleanup work, governance risks, and what must be true before tools can run reliably.
+
+### 3. Choose the Right AI Technologies
+
+Compare AI models, platforms, agents, and integrations for this use case — including build-vs-buy, vendor fit, security, and how each option maps to the business objectives.
+
+### 4. Implementation Strategy
+
+Lay out a practical rollout: pilot scope, timeline, milestones, proof of value, team adoption, and how to measure success in the first implementation phase.
+
+Scaling Safety is optional extended content — not part of the canonical four-phase spine.
 
 ---
 
