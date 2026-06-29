@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\GeekSiteAnalyzer.Tests\fixtures\serp\ai-market-intelligence-analytics.html" CopyToOutputDirectory="PreserveNewest" LinkBase="fixtures\serp" />
+    <None Include="..\fixtures\serp\ai-market-intelligence-analytics.html" CopyToOutputDirectory="PreserveNewest" LinkBase="fixtures\serp" />
   </ItemGroup>
 
 </Project>

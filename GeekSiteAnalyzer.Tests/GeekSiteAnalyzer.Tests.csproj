@@ -32,6 +32,7 @@
 
   <ItemGroup>
     <None Include="fixtures\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="fixtures" />
+    <None Include="..\SiteAnalyzer2\fixtures\serp\ai-market-intelligence-analytics.html" CopyToOutputDirectory="PreserveNewest" LinkBase="fixtures\serp" />
   </ItemGroup>
 
 </Project>

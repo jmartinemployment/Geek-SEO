@@ -19,7 +19,7 @@ public static class SerpFixtureLocator
         }
 
         throw new FileNotFoundException(
-            $"SERP canonical fixture not found. Save Google results HTML as tests/fixtures/serp/{SerpCanonicalFixture.HtmlFileName}.");
+            $"SERP canonical fixture not found. Save Google results HTML as SiteAnalyzer2/fixtures/serp/{SerpCanonicalFixture.HtmlFileName}.");
     }
 
     public static string? FindRepoFixture(string fileName)
@@ -27,6 +27,10 @@ public static class SerpFixtureLocator
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir != null)
         {
+            var siteAnalyzerFixture = Path.Combine(dir.FullName, "SiteAnalyzer2", "fixtures", "serp", fileName);
+            if (File.Exists(siteAnalyzerFixture))
+                return siteAnalyzerFixture;
+
             var candidate = Path.Combine(dir.FullName, "tests", "fixtures", "serp", fileName);
             if (File.Exists(candidate))
                 return candidate;

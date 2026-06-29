@@ -2,7 +2,7 @@ namespace SiteAnalyzer2.Serp;
 
 /// <summary>
 /// Canonical saved Google SERP HTML used for parser tests, integration tests, and inline dev import.
-/// File: <c>tests/fixtures/serp/ai-market-intelligence-analytics.html</c>
+/// File: <c>SiteAnalyzer2/fixtures/serp/ai-market-intelligence-analytics.html</c>
 /// </summary>
 public static class SerpCanonicalFixture
 {
