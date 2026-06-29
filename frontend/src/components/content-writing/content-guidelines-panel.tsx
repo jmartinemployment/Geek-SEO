@@ -4,6 +4,29 @@ import { useMemo } from 'react';
 import { parseContentWriterKeywordBundle } from '@/lib/seo-api';
 import { useWritingWorkspace } from '@/components/content-writing/review-workspace-context';
 
+const FOUR_PHASE_METHODOLOGY = [
+  {
+    label: 'Business Objectives',
+    intent:
+      'Define why this initiative matters now: target outcomes, stakeholders, success metrics, and the business case or ROI.',
+  },
+  {
+    label: 'Data Quality Assessment',
+    intent:
+      'Evaluate data readiness for AI and automation — source quality, gaps, cleanup work, and prerequisites before tools run reliably.',
+  },
+  {
+    label: 'Choose the Right AI Technologies',
+    intent:
+      'Compare AI models, platforms, agents, and integrations for this use case, including build-vs-buy, vendor fit, and security.',
+  },
+  {
+    label: 'Implementation Strategy',
+    intent:
+      'Lay out a practical rollout: pilot scope, timeline, milestones, proof of value, team adoption, and first-phase success metrics.',
+  },
+] as const;
+
 function plainTextFromHtml(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
@@ -106,6 +129,22 @@ export function ContentGuidelinesPanel({ keyword }: { keyword: string }) {
             Target ~{targetH2} H2 sections (from top-ranking pages)
           </p>
         ) : null}
+      </div>
+
+      <div>
+        <h4 className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+          Four Phase Methodology
+        </h4>
+        <ol className="mt-2 space-y-2 text-xs">
+          {FOUR_PHASE_METHODOLOGY.map((phase, index) => (
+            <li key={phase.label} className="rounded-md border border-transparent px-1 py-0.5">
+              <span className="font-medium text-[var(--color-text-primary)]">
+                {index + 1}. {phase.label}
+              </span>
+              <p className="mt-0.5 text-[10px] leading-snug text-[var(--color-text-muted)]">{phase.intent}</p>
+            </li>
+          ))}
+        </ol>
       </div>
 
       {termRows.length ? (

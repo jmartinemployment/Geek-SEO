@@ -1,5 +1,6 @@
 'use client';
 
+import { AppHeader } from '@/components/app/app-header';
 import { SidebarLayout } from '@/components/app/app-sidebar';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { SiteNavbar } from '@/components/layout/site-navbar';
