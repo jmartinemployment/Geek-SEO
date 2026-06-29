@@ -10,7 +10,8 @@ namespace GeekSeoBackend.Controllers;
 [Route("health")]
 public sealed class HealthController(
     IHttpClientFactory httpClientFactory,
-    SeoProviderConfiguration providerConfig) : ControllerBase
+    SeoProviderConfiguration providerConfig,
+    IConfiguration configuration) : ControllerBase
 {
     /// <summary>
     /// Liveness + data-gateway check. Verifies GeekAPI (which verifies GeekRepository) — never calls the repo or DB directly.
@@ -58,6 +59,11 @@ public sealed class HealthController(
             timestamp = DateTime.UtcNow,
             service = "GeekSeoBackend",
             gateway,
+            siteAnalyzer2 = new
+            {
+                enabled = SiteAnalyzer2BackendExtensions.IsEnabled(configuration),
+                inProcessRepos = SiteAnalyzer2BackendExtensions.UseInProcessRepos(),
+            },
         });
     }
 

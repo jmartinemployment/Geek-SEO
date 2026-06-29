@@ -5,7 +5,13 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>siteanalyzer2-api-7f3a9c2e-4b1d-4e8a-9f6c-2d8e5a1b0c3d</UserSecretsId>
+    <IsPublishable>false</IsPublishable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Update="appsettings.json" CopyToPublishDirectory="Never" />
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.7" />
