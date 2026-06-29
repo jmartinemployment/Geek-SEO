@@ -86,6 +86,8 @@ public sealed class ContentWriterSerpExportMapperTests
         Assert.Contains(context.ClosingFaqs, f => f.Source == "paa");
         Assert.NotEmpty(context.SectionHints);
         Assert.Equal("ai_overview", context.Paf.Type);
+        Assert.Contains("Lead with a concise definition", context.DirectAnswerInstruction, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Match or beat", context.DirectAnswerInstruction, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

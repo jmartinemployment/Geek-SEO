@@ -6,6 +6,60 @@ namespace GeekSeoBackend.Tests;
 public sealed class ContentResearchDraftPromptTests
 {
     [Fact]
+    public void BuildResearchDraftUserPrompt_includes_ai_overview_opening_guidance()
+    {
+        var research = new WritingResearchContext
+        {
+            AnalysisRunId = Guid.NewGuid(),
+            ProjectId = Guid.NewGuid(),
+            UserId = Guid.NewGuid(),
+            SourceUrl = "https://example.com/widget-repair",
+            DerivedKeyword = "widget repair",
+            SerpKeyword = "widget repair",
+            SearchLocation = "Austin, TX",
+            BusinessContext = "Local repair shop.",
+            DataQuality = "live",
+            IntentPrimary = "informational",
+            IntentJustification = "definitional intent",
+            Paf = new WritingResearchPaf
+            {
+                Type = "ai_overview",
+                Format = "mixed",
+                Text = "Widget repair restores broken components.",
+                BeatStrategy = string.Empty,
+            },
+            MustBeatPaf = true,
+            DirectAnswerInstruction = SerpFeatureGuidanceBuilder.BuildAiOverviewDraftInstruction("widget repair"),
+            Benchmarks = new WritingResearchBenchmarks
+            {
+                MedianWordCountTop5 = 1600,
+                MedianTitleLengthTop10 = 55,
+                MedianH2CountTop5 = 4,
+                DominantContentFormat = "guide",
+            },
+            RecommendedTerms = [],
+            SectionHints = [],
+            ClosingFaqs = [],
+            PeopleAlsoAsk = [],
+            RelatedSearches = [],
+            Organic = [],
+            Competitors = [],
+            SourceHeadings = [],
+        };
+
+        var prompt = ArticlePromptBuilder.BuildResearchDraftUserPrompt(new ResearchDraftRequest
+        {
+            Research = research,
+            Title = "Widget repair guide",
+            TargetWordCount = 1600,
+        });
+
+        Assert.Contains("Lead with a concise definition", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Beat strategy:", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("authoritative sources", prompt, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void BuildResearchDraftUserPrompt_uses_section_hints_and_closing_faqs()
     {
         var research = new WritingResearchContext
@@ -76,7 +130,9 @@ public sealed class ContentResearchDraftPromptTests
             TargetWordCount = 1600,
         });
 
-        Assert.Contains("widget repair", prompt);
+        Assert.Contains("Article body structure", prompt);
+        Assert.Contains("exactly 4 body sections", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("business case or ROI", prompt, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Why widget repair matters", prompt);
         Assert.Contains("PAA thin in SERP.", prompt);
         Assert.Contains("Lead with a direct answer", prompt);
@@ -84,6 +140,6 @@ public sealed class ContentResearchDraftPromptTests
         Assert.Contains("widget, repair", prompt);
         Assert.Contains("How much does widget repair cost?", prompt);
         Assert.Contains("Frequently Asked Questions", prompt);
-        Assert.DoesNotContain("Movement", prompt);
+        Assert.DoesNotContain("Movement 1 —", prompt);
     }
 }

@@ -482,7 +482,7 @@ public sealed class SerpResearchPackService(
                 Type = "ai_overview",
                 Format = "mixed",
                 Text = serp.FeaturedSnippetText ?? "",
-                BeatStrategy = "Provide a clearer, better-sourced direct answer than the AI overview summary.",
+                BeatStrategy = string.Empty,
             };
         }
 
@@ -596,9 +596,11 @@ public sealed class SerpResearchPackService(
     private static SerpResearchDirectAnswerBlock BuildDirectAnswerBlock(string keyword, SerpResearchPaf paf)
     {
         var mustBeat = paf.Type is not "none";
-        var instruction = mustBeat
-            ? $"Open with a direct answer to \"{keyword}\" in 2–3 sentences: definition, who it helps, and the primary outcome. Match or beat the {paf.Type.Replace('_', ' ')} format ({paf.Format})."
-            : $"Open with a direct answer to \"{keyword}\" in 2–3 sentences: definition, who it helps, and the primary outcome.";
+        var instruction = string.Equals(paf.Type, "ai_overview", StringComparison.OrdinalIgnoreCase)
+            ? SerpFeatureGuidanceBuilder.BuildAiOverviewDraftInstruction(keyword)
+            : mustBeat
+                ? $"Open with a direct answer to \"{keyword}\" in 2–3 sentences: definition, who it helps, and the primary outcome. Match or beat the {paf.Type.Replace('_', ' ')} format ({paf.Format})."
+                : $"Open with a direct answer to \"{keyword}\" in 2–3 sentences: definition, who it helps, and the primary outcome.";
 
         return new SerpResearchDirectAnswerBlock
         {
@@ -623,7 +625,7 @@ public sealed class SerpResearchPackService(
             .Where(q => q.Length > 0)
             .ToList();
 
-        var phases = WritingMethodologySpec.FivePhase.PhaseDefinitions;
+        var phases = WritingMethodologySpec.FourPhase.PhaseDefinitions;
         var hints = new List<SerpResearchMethodologyHint>();
 
         for (var i = 0; i < phases.Count; i++)

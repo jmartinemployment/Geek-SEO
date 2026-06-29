@@ -204,12 +204,15 @@ public static class ContentWriterSerpExportMapper
             Type = "ai_overview",
             Format = "mixed",
             Text = aiOverview.Snippet ?? string.Empty,
-            BeatStrategy = "Provide a clearer, better-sourced direct answer than the AI overview summary.",
+            BeatStrategy = string.Empty,
         };
     }
 
     private static string BuildDirectAnswerInstruction(string keyword, WritingResearchPaf paf)
     {
+        if (string.Equals(paf.Type, "ai_overview", StringComparison.OrdinalIgnoreCase))
+            return SerpFeatureGuidanceBuilder.BuildAiOverviewDraftInstruction(keyword);
+
         if (paf.Type is "none")
             return $"Open with a direct answer to \"{keyword}\" in 2–3 sentences: definition, who it helps, and the primary outcome.";
 
@@ -428,7 +431,7 @@ public static class ContentWriterSerpExportMapper
         IReadOnlyList<string> paaQuestions,
         IReadOnlyList<string> pasfQueries)
     {
-        var phases = WritingMethodologySpec.FivePhase.PhaseDefinitions;
+        var phases = WritingMethodologySpec.FourPhase.PhaseDefinitions;
         var titlePool = organic
             .Select(o => o.Title)
             .Where(title => !string.IsNullOrWhiteSpace(title))

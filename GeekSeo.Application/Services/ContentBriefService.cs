@@ -56,6 +56,8 @@ public sealed class ContentBriefService(
 
         var benchmarks = JsonSerializer.Deserialize<SerpBenchmarksPayload>(serpRow.Value.ResultsJson, JsonOptions)
             ?? new SerpBenchmarksPayload();
+        var serpFeatures = JsonSerializer.Deserialize<SerpFeatures>(serpRow.Value.SerpFeaturesJson, JsonOptions)
+            ?? new SerpFeatures();
         var paa = JsonSerializer.Deserialize<List<PeopleAlsoAskResult>>(serpRow.Value.PeopleAlsoAskJson, JsonOptions) ?? [];
         var related = JsonSerializer.Deserialize<List<string>>(serpRow.Value.RelatedSearchesJson, JsonOptions) ?? [];
 
@@ -100,7 +102,9 @@ public sealed class ContentBriefService(
             [
                 new DirectAnswerBlockSpec(
                     "Direct answer",
-                    "Open with a concise definition and business outcome before expanding into methodology and implementation detail."),
+                    serpFeatures.HasAiOverview
+                        ? SerpFeatureGuidanceBuilder.BuildAiOverviewDraftInstruction(keyword)
+                        : "Open with a concise definition and business outcome before expanding into methodology and implementation detail."),
             ],
             TechnicalEvidenceRequirements =
             [

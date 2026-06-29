@@ -4,6 +4,15 @@ namespace GeekSeo.Application.Services.Seo;
 
 public static class SerpFeatureGuidanceBuilder
 {
+    public const string AiOverviewInsightActionText =
+        "Google AI Overview detected. Lead with a concise definition.";
+
+    public static string BuildAiOverviewDraftInstruction(string keyword)
+    {
+        var trimmed = keyword.Trim();
+        return $"Lead with a concise definition of \"{trimmed}\" in the opening paragraph.";
+    }
+
     public static IReadOnlyList<SerpFeatureGuidance> Build(SerpFeatures features)
     {
         var list = new List<SerpFeatureGuidance>();
@@ -40,8 +49,7 @@ public static class SerpFeatureGuidanceBuilder
             list.Add(new SerpFeatureGuidance
             {
                 Feature = "ai_overview",
-                ActionText =
-                    "Google AI Overview detected. Lead with a concise definition, cite authoritative sources, and structure content for extractable answers.",
+                ActionText = AiOverviewInsightActionText,
             });
         }
         return list;
