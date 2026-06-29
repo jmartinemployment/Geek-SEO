@@ -14,6 +14,7 @@ namespace GeekSeoBackend.Controllers.Seo;
 public sealed class ContentController(
     IContentDocumentService content,
     IContentBlogSpokeService blogSpoke,
+    IContentBodyLinkService bodyLinks,
     IContentResearchWritingService researchWriting,
     IContentDraftJobService draftJobs,
     ContentDraftJobChannel draftJobChannel,
@@ -97,6 +98,24 @@ public sealed class ContentController(
     {
         var result = await blogSpoke.AddFaqsAsync(user.RequireUserId(), id, ct);
         return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
+    }
+
+    [HttpPost("{id:guid}/body-links/apply")]
+    public async Task<IActionResult> ApplyBodyLinks(
+        Guid id, [FromBody] ApplyBodyLinksRequest request, CancellationToken ct)
+    {
+        if (request is null)
+            return BadRequest(new { error = "Request body is required" });
+
+        var result = await bodyLinks.ApplyAsync(user.RequireUserId(), id, request, ct);
+        if (!result.IsSuccess)
+        {
+            return result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true
+                ? NotFound(new { error = result.Error })
+                : BadRequest(new { error = result.Error });
+        }
+
+        return Ok(result.Value);
     }
 
     [HttpPost]
