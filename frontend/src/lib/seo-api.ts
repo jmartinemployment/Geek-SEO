@@ -152,7 +152,44 @@ export type SeoContentDocument = {
   wordCount: number;
   scoreComponentsJson: string;
   status: string;
+  blogSpokeJson?: string | null;
 };
+
+export type ContentBlogSpoke = {
+  slug: string;
+  primaryKeyword: string;
+  spokeType: string;
+  title: string;
+  contentHtml: string;
+  excerpt?: string | null;
+  metaDescription?: string | null;
+};
+
+export async function getBlogSpoke(
+  documentId: string,
+  accessToken?: string | null,
+): Promise<ContentBlogSpoke> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/blog-spoke`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<ContentBlogSpoke>;
+}
+
+export async function generateBlogSpoke(
+  documentId: string,
+  body: { spokeType?: string; spokeKeyword?: string },
+  accessToken?: string | null,
+): Promise<ContentBlogSpoke> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/blog-spoke/generate`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<ContentBlogSpoke>;
+}
 
 export async function listProjects(accessToken?: string | null): Promise<SeoProject[]> {
   if (!hasAuthContext(accessToken)) return [];

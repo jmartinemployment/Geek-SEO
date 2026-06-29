@@ -300,6 +300,9 @@ public sealed class ContentScoringForbiddenTests
         public Task<Result<SeoContentDocument>> UpdateFeaturedImageAsync(Guid documentId, string featuredImageUrl, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
+        public Task<Result<SeoContentDocument>> UpdateBlogSpokeAsync(Guid documentId, string blogSpokeJson, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
         public Task<Result> UpdateAiDetectionScoreAsync(Guid documentId, decimal score, CancellationToken ct = default) =>
             throw new NotSupportedException();
 

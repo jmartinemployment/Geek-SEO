@@ -13,6 +13,7 @@ namespace GeekSeoBackend.Controllers.Seo;
 [Route("api/seo/content")]
 public sealed class ContentController(
     IContentDocumentService content,
+    IContentBlogSpokeService blogSpoke,
     IContentResearchWritingService researchWriting,
     IContentDraftJobService draftJobs,
     ContentDraftJobChannel draftJobChannel,
@@ -62,6 +63,33 @@ public sealed class ContentController(
         if (!result.IsSuccess)
             return result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true ? NotFound() : BadRequest(result.Error);
         return Ok(result.Value);
+    }
+
+    [HttpGet("{id:guid}/blog-spoke")]
+    public async Task<IActionResult> GetBlogSpoke(Guid id, CancellationToken ct)
+    {
+        var result = await blogSpoke.GetAsync(user.RequireUserId(), id, ct);
+        if (!result.IsSuccess)
+            return result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true
+                ? NotFound()
+                : BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    [HttpPut("{id:guid}/blog-spoke")]
+    public async Task<IActionResult> SaveBlogSpoke(
+        Guid id, [FromBody] ContentBlogSpoke spoke, CancellationToken ct)
+    {
+        var result = await blogSpoke.SaveAsync(user.RequireUserId(), id, spoke, ct);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
+    }
+
+    [HttpPost("{id:guid}/blog-spoke/generate")]
+    public async Task<IActionResult> GenerateBlogSpoke(
+        Guid id, [FromBody] GenerateBlogSpokeRequest request, CancellationToken ct)
+    {
+        var result = await blogSpoke.GenerateAsync(user.RequireUserId(), id, request, ct);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
     }
 
     [HttpPost]

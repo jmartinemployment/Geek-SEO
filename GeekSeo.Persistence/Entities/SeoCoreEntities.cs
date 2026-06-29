@@ -41,6 +41,8 @@ public sealed class SeoContentDocument
     /// <summary>Frozen SA2 keyword bundle JSON (<c>content-writer-export</c>).</summary>
     public string? KeywordBundleJson { get; set; }
     public DateTimeOffset? KeywordBundleCapturedAt { get; set; }
+    /// <summary>Generated blog spoke JSON (distinct intent from pillar).</summary>
+    public string? BlogSpokeJson { get; set; }
     public string Title { get; set; } = "Untitled Document";
     public string ContentHtml { get; set; } = string.Empty;
     /// <summary>Data URL or HTTPS URL for the article hero / OG image.</summary>
