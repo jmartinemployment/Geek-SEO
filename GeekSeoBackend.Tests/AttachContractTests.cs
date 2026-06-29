@@ -278,9 +278,6 @@ public sealed class AttachContractTests
         public Task<Result<SeoContentDocument>> UpdateFeaturedImageAsync(Guid documentId, string featuredImageUrl, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
-        public Task<Result<SeoContentDocument>> UpdateMarketingBundleAsync(Guid documentId, string marketingBundleJson, CancellationToken ct = default) =>
-            throw new NotSupportedException();
-
         public Task<Result> UpdateScoreAsync(Guid documentId, int score, string scoreComponentsJson, CancellationToken ct = default) =>
             throw new NotSupportedException();
 

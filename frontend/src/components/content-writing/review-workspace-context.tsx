@@ -14,7 +14,6 @@ import { ScoreSidebar } from '@/components/editor/score-sidebar';
 import { ResearchInsightsRail } from '@/components/content-writing/research-insights-rail';
 import { JsonLdPanel } from '@/components/content-writing/json-ld-panel';
 import { ContentGuidelinesPanel } from '@/components/content-writing/content-guidelines-panel';
-import { MarketingExportPanel } from '@/components/content-writing/marketing-export-panel';
 import { useContentScoring, type ScoreSuggestion } from '@/hooks/useContentScoring';
 import {
   applyScoreSuggestion,
@@ -348,7 +347,6 @@ export function WritingInsightsRight({ keyword }: { keyword: string }) {
         <p className="border-t px-3 py-2 text-xs text-emerald-700 xl:px-4">{copyHint}</p>
       ) : null}
       <ContentGuidelinesPanel keyword={keyword} />
-      <MarketingExportPanel />
       <JsonLdPanel />
       {doc.analysisRunId ? (
         <ResearchInsightsRail

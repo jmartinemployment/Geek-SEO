@@ -1238,9 +1238,6 @@ namespace GeekSeo.Persistence.Migrations
                     b.Property<string>("KeywordBundleJson")
                         .HasColumnType("text");
 
-                    b.Property<string>("MarketingBundleJson")
-                        .HasColumnType("text");
-
                     b.Property<DateTimeOffset?>("LastScoredAt")
                         .HasColumnType("timestamp with time zone");
 
