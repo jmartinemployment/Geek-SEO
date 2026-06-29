@@ -165,14 +165,26 @@ export type ContentBlogSpoke = {
   metaDescription?: string | null;
 };
 
+export function parseBlogSpokeJson(
+  blogSpokeJson?: string | null,
+): ContentBlogSpoke | null {
+  if (!blogSpokeJson?.trim()) return null;
+  try {
+    return JSON.parse(blogSpokeJson) as ContentBlogSpoke;
+  } catch {
+    return null;
+  }
+}
+
 export async function getBlogSpoke(
   documentId: string,
   accessToken?: string | null,
-): Promise<ContentBlogSpoke> {
+): Promise<ContentBlogSpoke | null> {
   const res = await fetch(`${API_URL}/api/seo/content/${documentId}/blog-spoke`, {
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
+  if (res.status === 404) return null;
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<ContentBlogSpoke>;
 }

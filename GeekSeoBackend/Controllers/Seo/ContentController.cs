@@ -71,9 +71,13 @@ public sealed class ContentController(
     {
         var result = await blogSpoke.GetAsync(user.RequireUserId(), id, ct);
         if (!result.IsSuccess)
-            return result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true
-                ? NotFound()
-                : BadRequest(new { error = result.Error });
+        {
+            if (result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true)
+                return NotFound();
+            if (result.Error?.Contains("No blog version yet", StringComparison.OrdinalIgnoreCase) == true)
+                return NotFound(new { error = result.Error });
+            return BadRequest(new { error = result.Error });
+        }
         return Ok(result.Value);
     }
 

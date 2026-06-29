@@ -6,6 +6,7 @@ import {
   addBlogSpokeFaqs,
   generateBlogSpoke,
   getBlogSpoke,
+  parseBlogSpokeJson,
   type ContentBlogSpoke,
 } from '@/lib/seo-api';
 import { copyTextFromPromise } from '@/lib/copy-to-clipboard';
@@ -45,6 +46,10 @@ export function BlogSpokePanel() {
     setLoading(true);
     try {
       setError(null);
+      if (blogSpokeRevision === 0) {
+        setSpoke(parseBlogSpokeJson(doc.blogSpokeJson));
+        return;
+      }
       const data = await getBlogSpoke(doc.id, accessToken);
       setSpoke(data);
     } catch {
@@ -52,7 +57,7 @@ export function BlogSpokePanel() {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, doc.id, blogSpokeRevision]);
+  }, [accessToken, doc.id, doc.blogSpokeJson, blogSpokeRevision]);
 
   useEffect(() => {
     void load();
