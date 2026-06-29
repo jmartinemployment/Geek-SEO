@@ -20,6 +20,8 @@ public interface IContentDocumentRepository
         Guid siteProfileId,
         CancellationToken ct = default);
     Task<Result<SeoContentDocument>> UpdateFeaturedImageAsync(Guid documentId, string featuredImageUrl, CancellationToken ct = default);
+    Task<Result<SeoContentDocument>> UpdateMarketingBundleAsync(
+        Guid documentId, string marketingBundleJson, CancellationToken ct = default);
     Task<Result> UpdateScoreAsync(Guid documentId, int score, string scoreComponentsJson, CancellationToken ct = default);
     Task<Result> UpdateAiDetectionScoreAsync(Guid documentId, decimal score, CancellationToken ct = default);
     Task<Result> DeleteAsync(Guid documentId, CancellationToken ct = default);

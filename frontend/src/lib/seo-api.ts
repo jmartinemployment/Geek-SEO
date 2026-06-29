@@ -152,6 +152,7 @@ export type SeoContentDocument = {
   wordCount: number;
   scoreComponentsJson: string;
   status: string;
+  marketingBundleJson?: string | null;
 };
 
 export async function listProjects(accessToken?: string | null): Promise<SeoProject[]> {
@@ -346,6 +347,122 @@ export async function updateContentStatus(
   });
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
   return res.json() as Promise<SeoContentDocument>;
+}
+
+export type ContentMarketingBlogSpoke = {
+  slug: string;
+  primaryKeyword: string;
+  spokeType: string;
+  title: string;
+  contentHtml: string;
+  excerpt?: string | null;
+  metaDescription?: string | null;
+};
+
+export type ContentMarketingSocialPost = {
+  body: string;
+  linkTargetKind: string;
+  linkTargetSlug: string;
+};
+
+export type ContentMarketingBundle = {
+  departmentSlug: string;
+  useCaseSlug: string;
+  primaryKeyword: string;
+  homeSummary?: string | null;
+  hubSummary?: string | null;
+  metaDescription?: string | null;
+  blogSpoke?: ContentMarketingBlogSpoke | null;
+  social?: {
+    linkedin?: ContentMarketingSocialPost | null;
+    facebook?: ContentMarketingSocialPost | null;
+  } | null;
+};
+
+export type ContentMarketingValidationResult = {
+  isValid: boolean;
+  errors: string[];
+};
+
+export async function getMarketingBundle(
+  documentId: string,
+  accessToken?: string | null,
+): Promise<ContentMarketingBundle> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/marketing-bundle`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<ContentMarketingBundle>;
+}
+
+export async function saveMarketingBundle(
+  documentId: string,
+  bundle: ContentMarketingBundle,
+  accessToken?: string | null,
+): Promise<ContentMarketingBundle> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/marketing-bundle`, {
+    method: 'PUT',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(bundle),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<ContentMarketingBundle>;
+}
+
+export async function validateMarketingBundle(
+  documentId: string,
+  bundle: ContentMarketingBundle,
+  accessToken?: string | null,
+): Promise<ContentMarketingValidationResult> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/marketing-bundle/validate`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(bundle),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<ContentMarketingValidationResult>;
+}
+
+export async function generateMarketingSummaries(
+  documentId: string,
+  accessToken?: string | null,
+): Promise<ContentMarketingBundle> {
+  const res = await fetch(
+    `${API_URL}/api/seo/content/${documentId}/marketing-bundle/generate-summaries`,
+    { method: 'POST', headers: apiHeaders(accessToken) },
+  );
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<ContentMarketingBundle>;
+}
+
+export async function generateMarketingBlogSpoke(
+  documentId: string,
+  body: { spokeType: string; spokeKeyword?: string },
+  accessToken?: string | null,
+): Promise<ContentMarketingBundle> {
+  const res = await fetch(
+    `${API_URL}/api/seo/content/${documentId}/marketing-bundle/generate-blog-spoke`,
+    {
+      method: 'POST',
+      headers: apiHeaders(accessToken),
+      body: JSON.stringify(body),
+    },
+  );
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<ContentMarketingBundle>;
+}
+
+export async function generateMarketingSocial(
+  documentId: string,
+  accessToken?: string | null,
+): Promise<ContentMarketingBundle> {
+  const res = await fetch(
+    `${API_URL}/api/seo/content/${documentId}/marketing-bundle/generate-social`,
+    { method: 'POST', headers: apiHeaders(accessToken) },
+  );
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<ContentMarketingBundle>;
 }
 
 export async function attachUrlResearch(

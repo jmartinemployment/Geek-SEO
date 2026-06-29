@@ -1,6 +1,6 @@
 # Content Writer — Marketing export bundle
 
-**Status:** Planned  
+**Status:** Implemented (Geek-SEO API + Content Writing UI; manual paste to geekatyourspot)
 **Phase:** [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md) § 1.5  
 **Publish target:** **geekatyourspot** repo (manual paste)  
 **Related:** [`content-writing-prompt.md`](content-writing-prompt.md), [`SERP-RESEARCH-AGENT-PROMPT.md`](SERP-RESEARCH-AGENT-PROMPT.md)

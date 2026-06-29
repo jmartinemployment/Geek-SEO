@@ -14,7 +14,7 @@ This file is the **ordered build sequence**. `TODO.md` holds checklist detail (t
 |---|------|------|-----------|
 | **1.1** | Fold Site Analyzer (sa2) into Geek-SEO | [`SITE-ANALYZER-FOLD-IN.md`](SITE-ANALYZER-FOLD-IN.md) | Single app: research wizard → `analysisRunId` → Content Writing |
 | **1.2** | Unify Content Writing on frozen sa2 pack | [`FRASE-PARITY-ASSESSMENT.md`](FRASE-PARITY-ASSESSMENT.md) | One pipeline for brief → outline → draft → score; no niche backfill for keyword articles |
-| **1.5** | Marketing export bundle (geekatyourspot handoff) | [`CONTENT-WRITER-MARKETING-EXPORT.md`](CONTENT-WRITER-MARKETING-EXPORT.md) | Operator copies validated 5-asset bundle; manual paste to geekatyourspot |
+| **1.5** | Marketing export bundle (geekatyourspot handoff) | [`CONTENT-WRITER-MARKETING-EXPORT.md`](CONTENT-WRITER-MARKETING-EXPORT.md) | ✅ Geek-SEO generates summaries, blog spoke, social in Content Writing UI; manual paste to geekatyourspot |
 | **1.3** | Scoring v2 — SERP term set + editor term table | [`TODO.md`](TODO.md) § Scoring & editor | Score moves when specific SERP terms are added |
 | **1.4** | Retire transitional 10-step `urlResearchId` wizard | After 1.1 | No duplicate Site Analyzer story in UI or docs |
 

@@ -99,6 +99,16 @@ public sealed class HttpContentDocumentRepository(IHttpClientFactory factory, IC
         return await ReadOneAsync(response, ct);
     }
 
+    public async Task<Result<SeoContentDocument>> UpdateMarketingBundleAsync(
+        Guid documentId, string marketingBundleJson, CancellationToken ct = default)
+    {
+        var response = await _http.PatchAsJsonAsync(
+            $"api/seo/internal/content/{documentId}/marketing-bundle?userId={user.UserId}",
+            new { marketingBundleJson },
+            ct);
+        return await ReadOneAsync(response, ct);
+    }
+
     public async Task<Result> UpdateScoreAsync(
         Guid documentId, int score, string scoreComponentsJson, CancellationToken ct = default)
     {

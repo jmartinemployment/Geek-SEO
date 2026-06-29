@@ -13,6 +13,7 @@ namespace GeekSeoBackend.Controllers.Seo;
 [Route("api/seo/content")]
 public sealed class ContentController(
     IContentDocumentService content,
+    IContentMarketingService marketing,
     IContentResearchWritingService researchWriting,
     IContentDraftJobService draftJobs,
     ContentDraftJobChannel draftJobChannel,
@@ -62,6 +63,61 @@ public sealed class ContentController(
         if (!result.IsSuccess)
             return result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true ? NotFound() : BadRequest(result.Error);
         return Ok(result.Value);
+    }
+
+    [HttpGet("{id:guid}/marketing-bundle")]
+    public async Task<IActionResult> GetMarketingBundle(Guid id, CancellationToken ct)
+    {
+        var result = await marketing.GetBundleAsync(user.RequireUserId(), id, ct);
+        if (!result.IsSuccess)
+            return result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true ? NotFound() : BadRequest(new { error = result.Error });
+        return Ok(result.Value);
+    }
+
+    [HttpPut("{id:guid}/marketing-bundle")]
+    public async Task<IActionResult> SaveMarketingBundle(
+        Guid id, [FromBody] ContentMarketingBundle bundle, CancellationToken ct)
+    {
+        var result = await marketing.SaveBundleAsync(user.RequireUserId(), id, bundle, ct);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
+    }
+
+    [HttpPost("{id:guid}/marketing-bundle/validate")]
+    public async Task<IActionResult> ValidateMarketingBundle(
+        Guid id, [FromBody] ContentMarketingBundle? bundle, CancellationToken ct)
+    {
+        var resolved = bundle;
+        if (resolved is null)
+        {
+            var loaded = await marketing.GetBundleAsync(user.RequireUserId(), id, ct);
+            if (!loaded.IsSuccess || loaded.Value is null)
+                return BadRequest(new { error = loaded.Error });
+            resolved = loaded.Value;
+        }
+
+        return Ok(marketing.Validate(resolved));
+    }
+
+    [HttpPost("{id:guid}/marketing-bundle/generate-summaries")]
+    public async Task<IActionResult> GenerateMarketingSummaries(Guid id, CancellationToken ct)
+    {
+        var result = await marketing.GenerateSummariesAsync(user.RequireUserId(), id, ct);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
+    }
+
+    [HttpPost("{id:guid}/marketing-bundle/generate-blog-spoke")]
+    public async Task<IActionResult> GenerateMarketingBlogSpoke(
+        Guid id, [FromBody] GenerateBlogSpokeRequest request, CancellationToken ct)
+    {
+        var result = await marketing.GenerateBlogSpokeAsync(user.RequireUserId(), id, request, ct);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
+    }
+
+    [HttpPost("{id:guid}/marketing-bundle/generate-social")]
+    public async Task<IActionResult> GenerateMarketingSocial(Guid id, CancellationToken ct)
+    {
+        var result = await marketing.GenerateSocialAsync(user.RequireUserId(), id, ct);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
     }
 
     [HttpPost]
