@@ -8,6 +8,7 @@ import {
   buildClusterPlan,
   createContentSpoke,
   generateContentSpoke,
+  generateLinkedFaqs,
   getClusterPlan,
   listContentSpokes,
   type ContentClusterPlanResult,
@@ -19,7 +20,7 @@ function isSpokeGenerated(spoke: ContentSpokeSummary): boolean {
 }
 
 export function ClusterPlanPanel() {
-  const { doc, accessToken } = useWritingWorkspace();
+  const { doc, accessToken, reloadDocument } = useWritingWorkspace();
   const [savedFaqCount, setSavedFaqCount] = useState(0);
   const [result, setResult] = useState<ContentClusterPlanResult | null>(null);
   const [spokes, setSpokes] = useState<ContentSpokeSummary[]>([]);
@@ -27,6 +28,8 @@ export function ClusterPlanPanel() {
   const [busy, setBusy] = useState(false);
   const [creatingPhrase, setCreatingPhrase] = useState<string | null>(null);
   const [generatingSpokeId, setGeneratingSpokeId] = useState<string | null>(null);
+  const [generatingFaqs, setGeneratingFaqs] = useState(false);
+  const [faqGenSummary, setFaqGenSummary] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const researchReady = Boolean(doc.analysisRunId);
@@ -115,6 +118,24 @@ export function ClusterPlanPanel() {
     }
   }
 
+  async function handleGenerateLinkedFaqs() {
+    if (!accessToken) return;
+    setGeneratingFaqs(true);
+    setError(null);
+    setFaqGenSummary(null);
+    try {
+      const generated = await generateLinkedFaqs(doc.id, accessToken);
+      setFaqGenSummary(
+        `Linked FAQs updated: ${generated.linkedCount} with links, ${generated.plainTextOnlyCount} plain text only.`,
+      );
+      await reloadDocument();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not generate linked FAQs');
+    } finally {
+      setGeneratingFaqs(false);
+    }
+  }
+
   function spokeExists(phrase: string): ContentSpokeSummary | undefined {
     return spokes.find(
       (s) => s.spokeSourcePhrase?.toLowerCase() === phrase.toLowerCase(),
@@ -155,6 +176,23 @@ export function ClusterPlanPanel() {
       </div>
 
       {error ? <p className="mb-3 text-xs text-red-700">{error}</p> : null}
+      {faqGenSummary ? <p className="mb-3 text-xs text-emerald-700">{faqGenSummary}</p> : null}
+
+      {savedFaqCount > 0 ? (
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={() => void handleGenerateLinkedFaqs()}
+            disabled={generatingFaqs || busy}
+            className="w-full rounded-lg border border-[var(--color-accent)] px-3 py-2 text-xs font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/5 disabled:opacity-50"
+          >
+            {generatingFaqs ? 'Generating linked FAQs…' : 'Generate linked FAQs'}
+          </button>
+          <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">
+            Links appear only for spokes with generated bodies; others stay plain text.
+          </p>
+        </div>
+      ) : null}
 
       {spokes.length > 0 ? (
         <section className="mb-4 space-y-2 text-xs">

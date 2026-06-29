@@ -328,6 +328,33 @@ export async function buildClusterPlan(
   return normalizeClusterPlanResult(body);
 }
 
+export type GenerateLinkedFaqsResponse = {
+  contentHtml: string;
+  linkedCount: number;
+  plainTextOnlyCount: number;
+  skipped: string[];
+};
+
+export async function generateLinkedFaqs(
+  documentId: string,
+  accessToken?: string | null,
+): Promise<GenerateLinkedFaqsResponse> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/faqs/generate-linked`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  const body = (await res.json()) as Record<string, unknown>;
+  return {
+    contentHtml: String(body.contentHtml ?? body.ContentHtml ?? ''),
+    linkedCount: Number(body.linkedCount ?? body.LinkedCount ?? 0),
+    plainTextOnlyCount: Number(body.plainTextOnlyCount ?? body.PlainTextOnlyCount ?? 0),
+    skipped: Array.isArray(body.skipped ?? body.Skipped)
+      ? ((body.skipped ?? body.Skipped) as string[])
+      : [],
+  };
+}
+
 export type ContentSpokeSummary = {
   id: string;
   title: string;

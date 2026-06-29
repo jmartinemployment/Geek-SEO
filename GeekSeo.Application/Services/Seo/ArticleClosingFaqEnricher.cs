@@ -178,6 +178,15 @@ public static partial class ArticleClosingFaqEnricher
         return html.TrimEnd() + "\n" + faqHtml.Trim();
     }
 
+    public static string ReplaceClosingFaqSection(string html, string faqSectionHtml)
+    {
+        html = RemoveIncompleteClosingFaqSection(html);
+        if (string.IsNullOrWhiteSpace(faqSectionHtml))
+            return html;
+
+        return html.TrimEnd() + "\n" + faqSectionHtml.Trim();
+    }
+
     private static IReadOnlyList<string> ResolveQuestions(WritingResearchContext research) =>
         research.ClosingFaqs.Count > 0
             ? research.ClosingFaqs.OrderBy(f => f.DisplayOrder).Select(f => f.Question).ToList()

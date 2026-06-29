@@ -16,6 +16,7 @@ public sealed class ContentController(
     IContentBlogSpokeService blogSpoke,
     IContentClusterPlanService clusterPlan,
     IContentSpokeService spokes,
+    IContentLinkedFaqService linkedFaqs,
     IContentBodyLinkService bodyLinks,
     IContentResearchWritingService researchWriting,
     IContentDraftJobService draftJobs,
@@ -104,6 +105,20 @@ public sealed class ContentController(
     {
         var result = await blogSpoke.AddFaqsAsync(user.RequireUserId(), id, ct);
         return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
+    }
+
+    [HttpPost("{id:guid}/faqs/generate-linked")]
+    public async Task<IActionResult> GenerateLinkedFaqs(Guid id, CancellationToken ct)
+    {
+        var result = await linkedFaqs.GenerateLinkedFaqsAsync(user.RequireUserId(), id, ct);
+        if (!result.IsSuccess)
+        {
+            return result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true
+                ? NotFound(new { error = result.Error })
+                : BadRequest(new { error = result.Error });
+        }
+
+        return Ok(result.Value);
     }
 
     [HttpPost("{id:guid}/body-links/apply")]
