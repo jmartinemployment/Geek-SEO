@@ -25,22 +25,28 @@ public static class BusinessFocusProviderConfiguration
     public static BusinessFocusProvider ResolveEffectiveProvider()
     {
         var setting = ReadProviderSetting();
-        if (string.IsNullOrWhiteSpace(setting))
+        if (!string.IsNullOrWhiteSpace(setting))
         {
-            throw new InvalidOperationException(
-                "BUSINESS_FOCUS_PROVIDER is required. Set to openai, anthropic, or human.");
+            return setting.ToLowerInvariant() switch
+            {
+                "openai" => RequireOpenAi(),
+                "anthropic" => RequireAnthropic(),
+                "human" => BusinessFocusProvider.Human,
+                "auto" => throw new InvalidOperationException(
+                    "BUSINESS_FOCUS_PROVIDER=auto is no longer supported. Set openai, anthropic, or human explicitly."),
+                _ => throw new InvalidOperationException(
+                    $"BUSINESS_FOCUS_PROVIDER={setting} is invalid. Set openai, anthropic, or human.")
+            };
         }
 
-        return setting.ToLowerInvariant() switch
-        {
-            "openai" => RequireOpenAi(),
-            "anthropic" => RequireAnthropic(),
-            "human" => BusinessFocusProvider.Human,
-            "auto" => throw new InvalidOperationException(
-                "BUSINESS_FOCUS_PROVIDER=auto is no longer supported. Set openai, anthropic, or human explicitly."),
-            _ => throw new InvalidOperationException(
-                $"BUSINESS_FOCUS_PROVIDER={setting} is invalid. Set openai, anthropic, or human.")
-        };
+        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OPENAI_API_KEY")))
+            return RequireOpenAi();
+
+        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")))
+            return RequireAnthropic();
+
+        throw new InvalidOperationException(
+            "BUSINESS_FOCUS_PROVIDER is required. Set to openai, anthropic, or human.");
     }
 
     public static string ResolveProviderName() =>

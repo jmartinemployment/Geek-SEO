@@ -927,15 +927,35 @@ public class BusinessFocusClassificationServiceTests
 public class BusinessFocusProviderConfigurationTests
 {
     [Fact]
-    public void ResolveEffectiveProvider_RequiresExplicitSetting()
+    public void ResolveEffectiveProvider_RequiresExplicitSettingWhenNoKeys()
     {
         Environment.SetEnvironmentVariable("BUSINESS_FOCUS_PROVIDER", null);
         Environment.SetEnvironmentVariable("BUSINESS_FOCUS_AI_PROVIDER", null);
+        Environment.SetEnvironmentVariable("OPENAI_API_KEY", null);
+        Environment.SetEnvironmentVariable("ANTHROPIC_API_KEY", null);
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
             SiteAnalyzer2.Services.BusinessFocus.BusinessFocusProviderConfiguration.ResolveEffectiveProvider());
 
         Assert.Contains("required", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ResolveEffectiveProvider_InfersOpenAiWhenKeyConfigured()
+    {
+        Environment.SetEnvironmentVariable("BUSINESS_FOCUS_PROVIDER", null);
+        Environment.SetEnvironmentVariable("OPENAI_API_KEY", "test-openai");
+
+        try
+        {
+            Assert.Equal(
+                SiteAnalyzer2.Services.BusinessFocus.BusinessFocusProvider.OpenAi,
+                SiteAnalyzer2.Services.BusinessFocus.BusinessFocusProviderConfiguration.ResolveEffectiveProvider());
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENAI_API_KEY", null);
+        }
     }
 
     [Fact]
