@@ -61,6 +61,7 @@ public static class SeoBackendExtensions
         services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<IContentDocumentService, ContentDocumentService>();
         services.AddScoped<IContentBlogSpokeService, ContentBlogSpokeService>();
+        services.AddScoped<IContentClusterPlanService, ContentClusterPlanService>();
         services.AddScoped<IContentBodyLinkService, ContentBodyLinkService>();
         services.AddScoped<IContentResearchWritingService, ContentResearchWritingService>();
         services.AddScoped<IContentDraftJobService, ContentDraftJobService>();

@@ -14,6 +14,7 @@ namespace GeekSeoBackend.Controllers.Seo;
 public sealed class ContentController(
     IContentDocumentService content,
     IContentBlogSpokeService blogSpoke,
+    IContentClusterPlanService clusterPlan,
     IContentBodyLinkService bodyLinks,
     IContentResearchWritingService researchWriting,
     IContentDraftJobService draftJobs,
@@ -112,6 +113,38 @@ public sealed class ContentController(
             return BadRequest(new { error = "Request body is required" });
 
         var result = await bodyLinks.ApplyAsync(user.RequireUserId(), id, request, ct);
+        if (!result.IsSuccess)
+        {
+            return result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true
+                ? NotFound(new { error = result.Error })
+                : BadRequest(new { error = result.Error });
+        }
+
+        return Ok(result.Value);
+    }
+
+    [HttpGet("{id:guid}/cluster/plan")]
+    public async Task<IActionResult> GetClusterPlan(Guid id, CancellationToken ct)
+    {
+        var result = await clusterPlan.GetAsync(user.RequireUserId(), id, ct);
+        if (!result.IsSuccess)
+        {
+            return result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true
+                ? NotFound(new { error = result.Error })
+                : BadRequest(new { error = result.Error });
+        }
+
+        return Ok(result.Value);
+    }
+
+    [HttpPut("{id:guid}/cluster/plan")]
+    public async Task<IActionResult> SaveClusterPlan(
+        Guid id, [FromBody] ContentLinkPlan plan, CancellationToken ct)
+    {
+        if (plan is null)
+            return BadRequest(new { error = "Plan body is required" });
+
+        var result = await clusterPlan.SaveAsync(user.RequireUserId(), id, plan, ct);
         if (!result.IsSuccess)
         {
             return result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true

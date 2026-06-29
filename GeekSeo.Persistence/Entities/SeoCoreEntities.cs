@@ -53,6 +53,8 @@ public sealed class SeoContentDocument
     public string? SpokeSourceType { get; set; }
     /// <summary>Original PAA/PASF phrase or manual label for spoke provenance.</summary>
     public string? SpokeSourcePhrase { get; set; }
+    /// <summary>Serialized <see cref="GeekSeo.Application.Models.Seo.ContentLinkPlan"/> — pillar documents only.</summary>
+    public string? LinkPlanJson { get; set; }
     public string Title { get; set; } = "Untitled Document";
     public string ContentHtml { get; set; } = string.Empty;
     /// <summary>Data URL or HTTPS URL for the article hero / OG image.</summary>

@@ -109,6 +109,16 @@ public sealed class HttpContentDocumentRepository(IHttpClientFactory factory, IC
         return await ReadOneAsync(response, ct);
     }
 
+    public async Task<Result<SeoContentDocument>> UpdateLinkPlanAsync(
+        Guid documentId, string linkPlanJson, CancellationToken ct = default)
+    {
+        var response = await _http.PutAsJsonAsync(
+            $"api/seo/internal/content/{documentId}/link-plan?userId={user.UserId}",
+            new { linkPlanJson },
+            ct);
+        return await ReadOneAsync(response, ct);
+    }
+
     public async Task<Result> UpdateScoreAsync(
         Guid documentId, int score, string scoreComponentsJson, CancellationToken ct = default)
     {
