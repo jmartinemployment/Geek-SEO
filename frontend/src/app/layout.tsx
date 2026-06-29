@@ -12,6 +12,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'Geek SEO',
   description: 'AI-powered SEO content optimization',
+  icons: {
+    icon: '/favicon.gif',
+  },
 };
 
 export default function RootLayout({
