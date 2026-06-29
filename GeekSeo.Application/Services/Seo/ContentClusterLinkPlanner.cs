@@ -81,12 +81,99 @@ public static partial class ContentClusterLinkPlanner
             spokePhrases,
             options.MaxFaqItems);
 
+        var bodyLinks = BuildBodyLinks(
+            spokeCandidates,
+            PillarH2Extractor.ExtractBodyHeadings(input.PillarContentHtml));
+
         return new ContentClusterPlanResult
         {
             SpokeCandidates = spokeCandidates,
             FaqItems = faqItems,
+            BodyLinks = bodyLinks,
             FilteredOut = filteredOut,
         };
+    }
+
+    internal static IReadOnlyList<ContentLinkBodySlot> BuildBodyLinks(
+        IReadOnlyList<ContentClusterCandidate> spokeCandidates,
+        IReadOnlyList<PillarH2Heading> headings)
+    {
+        if (spokeCandidates.Count == 0 || headings.Count == 0)
+            return [];
+
+        var usedHints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var slots = new List<ContentLinkBodySlot>();
+
+        foreach (var spoke in spokeCandidates)
+        {
+            var hint = FindBestHeadingHint(spoke.Phrase, headings, usedHints);
+            if (hint is null)
+                continue;
+
+            usedHints.Add(hint);
+            var targetPath = string.IsNullOrWhiteSpace(spoke.SuggestedSlug)
+                ? null
+                : $"/blog/{spoke.SuggestedSlug}";
+
+            slots.Add(new ContentLinkBodySlot
+            {
+                InsertAfterH2Hint = hint,
+                TargetPath = targetPath,
+                AnchorText = spoke.Phrase,
+                Priority = slots.Count + 1,
+            });
+        }
+
+        return slots;
+    }
+
+    private static string? FindBestHeadingHint(
+        string spokePhrase,
+        IReadOnlyList<PillarH2Heading> headings,
+        ISet<string> usedHints)
+    {
+        var phraseTokens = Tokenize(spokePhrase);
+        if (phraseTokens.Count == 0)
+            return null;
+
+        string? bestHint = null;
+        var bestScore = 0.0;
+
+        foreach (var heading in headings)
+        {
+            var hint = PillarH2Extractor.ResolveHint(heading);
+            if (usedHints.Contains(hint))
+                continue;
+
+            var score = TokenOverlapRatio(phraseTokens, Tokenize(heading.Text));
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestHint = hint;
+            }
+        }
+
+        if (bestHint is not null && bestScore > 0)
+            return bestHint;
+
+        return headings
+            .Select(PillarH2Extractor.ResolveHint)
+            .FirstOrDefault(h => !usedHints.Contains(h));
+    }
+
+    private static HashSet<string> Tokenize(string text) =>
+        text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+            .Select(t => t.Trim().ToLowerInvariant())
+            .Where(t => t.Length > 2)
+            .ToHashSet(StringComparer.Ordinal);
+
+    private static double TokenOverlapRatio(ISet<string> left, ISet<string> right)
+    {
+        if (left.Count == 0 || right.Count == 0)
+            return 0;
+
+        var overlap = left.Count(right.Contains);
+        return (double)overlap / Math.Max(left.Count, right.Count);
     }
 
     private static IReadOnlyList<ContentLinkFaqItem> BuildFaqItems(

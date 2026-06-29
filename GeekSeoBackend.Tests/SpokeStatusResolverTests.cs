@@ -76,4 +76,41 @@ public sealed class SpokeStatusResolverTests
         Assert.False(assignments[0].IsTargetActive);
         Assert.Equal(string.Empty, assignments[0].TargetPath);
     }
+
+    [Fact]
+    public void ResolveBodyLinkInstructions_marks_generated_spoke_active()
+    {
+        var plan = new ContentLinkPlan
+        {
+            BodyLinks =
+            [
+                new ContentLinkBodySlot
+                {
+                    InsertAfterH2Hint = "implementation",
+                    TargetPath = "/blog/best-ai-tools-market-research",
+                    AnchorText = "best AI tools for market research",
+                    Priority = 1,
+                },
+            ],
+        };
+
+        var children = new[]
+        {
+            new SeoContentDocument
+            {
+                Id = Guid.NewGuid(),
+                PublishSlug = "best-ai-tools-market-research",
+                Status = SpokeLinkStatuses.BodyGenerated,
+                WordCount = 900,
+                ContentHtml = "<p>Generated spoke body.</p>",
+            },
+        };
+
+        var instructions = SpokeStatusResolver.ResolveBodyLinkInstructions(plan, children);
+
+        Assert.Single(instructions);
+        Assert.True(instructions[0].IsTargetActive);
+        Assert.Equal("/blog/best-ai-tools-market-research", instructions[0].TargetPath);
+        Assert.Equal("implementation", instructions[0].TargetHeadingId);
+    }
 }

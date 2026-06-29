@@ -29,5 +29,6 @@ public sealed record ApplyBodyLinksResponse
 {
     public required string ContentHtml { get; init; }
     public int AppliedCount { get; init; }
+    public int PendingCount { get; init; }
     public bool Changed { get; init; }
 }

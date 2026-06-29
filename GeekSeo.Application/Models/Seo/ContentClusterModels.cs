@@ -23,6 +23,7 @@ public sealed record ContentLinkBodySlot
 {
     public string? InsertAfterH2Hint { get; init; }
     public Guid? TargetDocumentId { get; init; }
+    public string? TargetPath { get; init; }
     public string? AnchorText { get; init; }
     public int Priority { get; init; }
     public string MinStatusRequired { get; init; } = SpokeLinkStatuses.BodyGenerated;
@@ -57,5 +58,6 @@ public sealed record ContentClusterPlanResult
 {
     public IReadOnlyList<ContentClusterCandidate> SpokeCandidates { get; init; } = [];
     public IReadOnlyList<ContentLinkFaqItem> FaqItems { get; init; } = [];
+    public IReadOnlyList<ContentLinkBodySlot> BodyLinks { get; init; } = [];
     public IReadOnlyList<ContentClusterFilteredCandidate> FilteredOut { get; init; } = [];
 }

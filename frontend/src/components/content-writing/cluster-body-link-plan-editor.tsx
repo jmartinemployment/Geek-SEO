@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  type ContentLinkFaqItem,
+  type ContentLinkBodySlot,
   type ContentSpokeSummary,
 } from '@/lib/seo-api';
 
@@ -9,12 +9,12 @@ function isSpokeGenerated(spoke: ContentSpokeSummary): boolean {
   return spoke.status === 'body_generated' || spoke.wordCount > 80;
 }
 
-export type FaqLinkStatus = 'none' | 'pending' | 'linked';
+export type BodyLinkStatus = 'none' | 'pending' | 'linked';
 
-export function resolveFaqLinkStatus(
-  item: ContentLinkFaqItem,
+export function resolveBodyLinkStatus(
+  item: ContentLinkBodySlot,
   spokes: ContentSpokeSummary[],
-): FaqLinkStatus {
+): BodyLinkStatus {
   if (!item.targetDocumentId && !item.targetPath) {
     return 'none';
   }
@@ -33,7 +33,7 @@ export function resolveFaqLinkStatus(
   return isSpokeGenerated(spoke) ? 'linked' : 'pending';
 }
 
-function linkStatusLabel(status: FaqLinkStatus): string {
+function linkStatusLabel(status: BodyLinkStatus): string {
   switch (status) {
     case 'linked':
       return 'Link ready';
@@ -44,7 +44,7 @@ function linkStatusLabel(status: FaqLinkStatus): string {
   }
 }
 
-function linkStatusClass(status: FaqLinkStatus): string {
+function linkStatusClass(status: BodyLinkStatus): string {
   switch (status) {
     case 'linked':
       return 'bg-emerald-50 text-emerald-800 border-emerald-200';
@@ -55,17 +55,18 @@ function linkStatusClass(status: FaqLinkStatus): string {
   }
 }
 
-type ClusterFaqPlanEditorProps = {
-  items: ContentLinkFaqItem[];
+type ClusterBodyLinkPlanEditorProps = {
+  items: ContentLinkBodySlot[];
   spokes: ContentSpokeSummary[];
-  onChange: (items: ContentLinkFaqItem[]) => void;
+  headingHints: string[];
+  onChange: (items: ContentLinkBodySlot[]) => void;
 };
 
 function applySpokeTarget(
-  item: ContentLinkFaqItem,
+  item: ContentLinkBodySlot,
   spokeId: string,
   spokes: ContentSpokeSummary[],
-): ContentLinkFaqItem {
+): ContentLinkBodySlot {
   if (!spokeId) {
     return {
       ...item,
@@ -89,20 +90,21 @@ function applySpokeTarget(
   };
 }
 
-export function ClusterFaqPlanEditor({
+export function ClusterBodyLinkPlanEditor({
   items,
   spokes,
+  headingHints,
   onChange,
-}: ClusterFaqPlanEditorProps) {
+}: ClusterBodyLinkPlanEditorProps) {
   if (items.length === 0) {
     return (
       <p className="text-sm text-[var(--color-text-secondary)]">
-        No FAQ link slots yet. Build a cluster plan to populate this section.
+        No body link slots yet. Build a cluster plan after your pillar has H2 sections.
       </p>
     );
   }
 
-  function updateItem(index: number, patch: Partial<ContentLinkFaqItem>) {
+  function updateItem(index: number, patch: Partial<ContentLinkBodySlot>) {
     onChange(items.map((item, i) => (i === index ? { ...item, ...patch } : item)));
   }
 
@@ -110,30 +112,37 @@ export function ClusterFaqPlanEditor({
     <div className="space-y-3 text-xs">
       <ul className="grid gap-3 lg:grid-cols-2">
         {items.map((item, index) => {
-          const linkStatus = resolveFaqLinkStatus(item, spokes);
+          const linkStatus = resolveBodyLinkStatus(item, spokes);
           const selectedSpokeId = item.targetDocumentId ?? '';
+          const hintValue = item.insertAfterH2Hint ?? '';
 
           return (
-            <li key={`${item.question}-${index}`} className="space-y-2 rounded-lg border bg-white px-3 py-3 shadow-sm">
+            <li key={`${hintValue}-${index}`} className="space-y-2 rounded-lg border bg-white px-3 py-3 shadow-sm">
               <div className="flex items-start justify-between gap-2">
                 <span
                   className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${linkStatusClass(linkStatus)}`}
                 >
                   {linkStatusLabel(linkStatus)}
                 </span>
-                {item.source ? (
-                  <span className="text-[var(--color-text-secondary)]">{item.source}</span>
-                ) : null}
+                <span className="text-[var(--color-text-secondary)]">Priority {item.priority ?? index + 1}</span>
               </div>
 
               <label className="block font-medium">
-                Question
-                <textarea
+                Insert after H2
+                <input
+                  list={`body-h2-hints-${index}`}
                   className="mt-1 block w-full rounded-md border px-2 py-1.5 text-sm"
-                  rows={2}
-                  value={item.question}
-                  onChange={(e) => updateItem(index, { question: e.target.value })}
+                  value={hintValue}
+                  placeholder="H2 id or heading text"
+                  onChange={(e) => updateItem(index, { insertAfterH2Hint: e.target.value })}
                 />
+                {headingHints.length > 0 ? (
+                  <datalist id={`body-h2-hints-${index}`}>
+                    {headingHints.map((hint) => (
+                      <option key={hint} value={hint} />
+                    ))}
+                  </datalist>
+                ) : null}
               </label>
 
               <label className="block font-medium">
@@ -165,7 +174,7 @@ export function ClusterFaqPlanEditor({
                 <input
                   className="mt-1 block w-full rounded-md border px-2 py-1.5 text-sm"
                   value={item.anchorText ?? ''}
-                  placeholder="Phrase wrapped by the link in the FAQ answer"
+                  placeholder="Phrase used in the contextual link"
                   onChange={(e) => updateItem(index, { anchorText: e.target.value })}
                 />
               </label>

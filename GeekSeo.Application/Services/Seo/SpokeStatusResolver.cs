@@ -38,6 +38,49 @@ public static class SpokeStatusResolver
         return assignments;
     }
 
+    public static IReadOnlyList<BodyLinkInsertionInstruction> ResolveBodyLinkInstructions(
+        ContentLinkPlan plan,
+        IReadOnlyList<SeoContentDocument> childSpokes)
+    {
+        if (plan.BodyLinks.Count == 0)
+            return [];
+
+        var byId = childSpokes.ToDictionary(d => d.Id);
+        var bySlug = childSpokes
+            .Where(d => !string.IsNullOrWhiteSpace(d.PublishSlug))
+            .GroupBy(d => d.PublishSlug!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var instructions = new List<BodyLinkInsertionInstruction>(plan.BodyLinks.Count);
+        var ordered = plan.BodyLinks.OrderBy(b => b.Priority).ToList();
+
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            var slot = ordered[i];
+            if (string.IsNullOrWhiteSpace(slot.InsertAfterH2Hint) ||
+                string.IsNullOrWhiteSpace(slot.AnchorText))
+            {
+                continue;
+            }
+
+            var child = ResolveBodyChild(slot, byId, bySlug);
+            var (targetPath, isActive) = ResolveBodyTarget(slot, child);
+
+            instructions.Add(new BodyLinkInsertionInstruction
+            {
+                LinkId = $"body-{(i + 1):D2}",
+                TargetHeadingId = slot.InsertAfterH2Hint.Trim(),
+                PlacementStrategy = BodyLinkPlacementStrategy.AppendToParagraph,
+                TargetPath = targetPath,
+                AnchorText = slot.AnchorText.Trim(),
+                ContextPhrase = "Learn more in our <a href=\"{targetPath}\">{anchorText}</a>.",
+                IsTargetActive = isActive,
+            });
+        }
+
+        return instructions;
+    }
+
     public static bool IsBodyGenerated(SeoContentDocument doc)
     {
         if (string.Equals(doc.Status, SpokeLinkStatuses.BodyGenerated, StringComparison.OrdinalIgnoreCase))
@@ -62,8 +105,32 @@ public static class SpokeStatusResolver
         return null;
     }
 
+    private static SeoContentDocument? ResolveBodyChild(
+        ContentLinkBodySlot slot,
+        IReadOnlyDictionary<Guid, SeoContentDocument> byId,
+        IReadOnlyDictionary<string, SeoContentDocument> bySlug)
+    {
+        if (slot.TargetDocumentId is Guid docId && byId.TryGetValue(docId, out var byDocId))
+            return byDocId;
+
+        if (TryExtractBlogSlug(slot.TargetPath, out var slug) && bySlug.TryGetValue(slug, out var bySlugDoc))
+            return bySlugDoc;
+
+        return null;
+    }
+
+    private static (string TargetPath, bool IsTargetActive) ResolveBodyTarget(
+        ContentLinkBodySlot slot,
+        SeoContentDocument? child) =>
+        ResolveTargetFromPaths(slot.TargetPath, child);
+
     private static (string TargetPath, bool IsTargetActive) ResolveTarget(
         ContentLinkFaqItem item,
+        SeoContentDocument? child) =>
+        ResolveTargetFromPaths(item.TargetPath, child);
+
+    private static (string TargetPath, bool IsTargetActive) ResolveTargetFromPaths(
+        string? plannedPath,
         SeoContentDocument? child)
     {
         if (child is not null && IsBodyGenerated(child))
@@ -73,8 +140,8 @@ public static class SpokeStatusResolver
                 return (relative, true);
         }
 
-        if (IsAllowlistedExternalUrl(item.TargetPath))
-            return (item.TargetPath!.Trim(), true);
+        if (IsAllowlistedExternalUrl(plannedPath))
+            return (plannedPath!.Trim(), true);
 
         return (string.Empty, false);
     }

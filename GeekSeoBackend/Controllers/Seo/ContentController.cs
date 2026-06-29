@@ -123,12 +123,13 @@ public sealed class ContentController(
 
     [HttpPost("{id:guid}/body-links/apply")]
     public async Task<IActionResult> ApplyBodyLinks(
-        Guid id, [FromBody] ApplyBodyLinksRequest request, CancellationToken ct)
+        Guid id, [FromBody] ApplyBodyLinksRequest? request, CancellationToken ct)
     {
-        if (request is null)
-            return BadRequest(new { error = "Request body is required" });
-
-        var result = await bodyLinks.ApplyAsync(user.RequireUserId(), id, request, ct);
+        var result = await bodyLinks.ApplyAsync(
+            user.RequireUserId(),
+            id,
+            request ?? new ApplyBodyLinksRequest(),
+            ct);
         if (!result.IsSuccess)
         {
             return result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true

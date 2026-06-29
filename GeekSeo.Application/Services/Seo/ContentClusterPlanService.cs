@@ -54,6 +54,7 @@ public sealed class ContentClusterPlanService(
             Research = researchResult.Value,
             SiteFocus = researchResult.Value.SiteFocus
                 ?? SiteWritingFocusSerializer.TryDeserialize(doc.SiteFocusJson),
+            PillarContentHtml = doc.ContentHtml,
         });
 
         var persisted = await PersistLinkPlanAsync(
@@ -61,7 +62,7 @@ public sealed class ContentClusterPlanService(
             new ContentLinkPlan
             {
                 FaqItems = built.FaqItems,
-                BodyLinks = [],
+                BodyLinks = built.BodyLinks,
             },
             ct);
 

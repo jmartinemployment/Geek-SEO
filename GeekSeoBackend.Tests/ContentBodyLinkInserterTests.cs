@@ -15,7 +15,7 @@ public sealed class ContentBodyLinkInserterTests
     [Fact]
     public void ApplyBodyLinks_section_footer_inserts_related_guide_box()
     {
-        var result = ContentBodyLinkInserter.ApplyBodyLinks(SampleHtml,
+        var (result, applied) = ContentBodyLinkInserter.ApplyBodyLinks(SampleHtml,
         [
             new BodyLinkInsertionInstruction
             {
@@ -28,6 +28,8 @@ public sealed class ContentBodyLinkInserterTests
             },
         ]);
 
+        Assert.Equal(1, applied);
+
         Assert.Contains("related-guide-box", result, StringComparison.Ordinal);
         Assert.Contains("href=\"/blog/best-ai-tools-market-research\"", result, StringComparison.Ordinal);
     }
@@ -35,7 +37,7 @@ public sealed class ContentBodyLinkInserterTests
     [Fact]
     public void ApplyBodyLinks_skips_inactive_targets()
     {
-        var result = ContentBodyLinkInserter.ApplyBodyLinks(SampleHtml,
+        var (result, applied) = ContentBodyLinkInserter.ApplyBodyLinks(SampleHtml,
         [
             new BodyLinkInsertionInstruction
             {
@@ -48,13 +50,15 @@ public sealed class ContentBodyLinkInserterTests
             },
         ]);
 
+        Assert.Equal(0, applied);
+
         Assert.Equal(SampleHtml, result);
     }
 
     [Fact]
     public void ApplyBodyLinks_replace_existing_text_wraps_anchor_phrase()
     {
-        var result = ContentBodyLinkInserter.ApplyBodyLinks(SampleHtml,
+        var (result, applied) = ContentBodyLinkInserter.ApplyBodyLinks(SampleHtml,
         [
             new BodyLinkInsertionInstruction
             {
@@ -67,6 +71,8 @@ public sealed class ContentBodyLinkInserterTests
             },
         ]);
 
+        Assert.Equal(1, applied);
+
         Assert.Contains(
             "<a href=\"/blog/free-ai-market-research-tools\">free AI tools for market research</a>",
             result,
@@ -76,7 +82,7 @@ public sealed class ContentBodyLinkInserterTests
     [Fact]
     public void ApplyBodyLinks_append_to_paragraph_adds_context_phrase()
     {
-        var result = ContentBodyLinkInserter.ApplyBodyLinks(SampleHtml,
+        var (result, applied) = ContentBodyLinkInserter.ApplyBodyLinks(SampleHtml,
         [
             new BodyLinkInsertionInstruction
             {
@@ -90,7 +96,30 @@ public sealed class ContentBodyLinkInserterTests
             },
         ]);
 
+        Assert.Equal(1, applied);
+
         Assert.Contains("href=\"/blog/ai-market-research-companies\"", result, StringComparison.Ordinal);
         Assert.Contains("AI market research companies", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ApplyBodyLinks_appends_related_guides_when_h2_hint_does_not_match()
+    {
+        var (result, applied) = ContentBodyLinkInserter.ApplyBodyLinks(SampleHtml,
+        [
+            new BodyLinkInsertionInstruction
+            {
+                LinkId = "body-04",
+                TargetHeadingId = "missing-section",
+                PlacementStrategy = BodyLinkPlacementStrategy.AppendToParagraph,
+                TargetPath = "/blog/ai-market-research-companies",
+                AnchorText = "AI market research companies",
+                IsTargetActive = true,
+            },
+        ]);
+
+        Assert.Equal(1, applied);
+        Assert.Contains("related-guides", result, StringComparison.Ordinal);
+        Assert.Contains("href=\"/blog/ai-market-research-companies\"", result, StringComparison.Ordinal);
     }
 }

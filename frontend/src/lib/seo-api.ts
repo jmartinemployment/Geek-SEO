@@ -249,15 +249,18 @@ export type ContentLinkFaqItem = {
   linkStatus?: string | null;
 };
 
+export type ContentLinkBodySlot = {
+  insertAfterH2Hint?: string | null;
+  targetDocumentId?: string | null;
+  targetPath?: string | null;
+  anchorText?: string | null;
+  priority?: number;
+  minStatusRequired?: string | null;
+};
+
 export type ContentLinkPlan = {
   faqItems: ContentLinkFaqItem[];
-  bodyLinks: Array<{
-    insertAfterH2Hint?: string | null;
-    targetDocumentId?: string | null;
-    anchorText?: string | null;
-    priority?: number;
-    minStatusRequired?: string | null;
-  }>;
+  bodyLinks: ContentLinkBodySlot[];
 };
 
 export type ContentClusterCandidate = {
@@ -279,6 +282,7 @@ export type ContentClusterFilteredCandidate = {
 export type ContentClusterPlanResult = {
   spokeCandidates: ContentClusterCandidate[];
   faqItems: ContentLinkFaqItem[];
+  bodyLinks: ContentLinkBodySlot[];
   filteredOut: ContentClusterFilteredCandidate[];
 };
 
@@ -294,10 +298,12 @@ function normalizeLinkPlan(body: Record<string, unknown>): ContentLinkPlan {
 function normalizeClusterPlanResult(body: Record<string, unknown>): ContentClusterPlanResult {
   const spokeRaw = body.spokeCandidates ?? body.SpokeCandidates;
   const faqRaw = body.faqItems ?? body.FaqItems;
+  const bodyRaw = body.bodyLinks ?? body.BodyLinks;
   const filteredRaw = body.filteredOut ?? body.FilteredOut;
   return {
     spokeCandidates: Array.isArray(spokeRaw) ? (spokeRaw as ContentClusterCandidate[]) : [],
     faqItems: Array.isArray(faqRaw) ? (faqRaw as ContentLinkFaqItem[]) : [],
+    bodyLinks: Array.isArray(bodyRaw) ? (bodyRaw as ContentLinkBodySlot[]) : [],
     filteredOut: Array.isArray(filteredRaw) ? (filteredRaw as ContentClusterFilteredCandidate[]) : [],
   };
 }
@@ -367,6 +373,32 @@ export async function generateLinkedFaqs(
     skipped: Array.isArray(body.skipped ?? body.Skipped)
       ? ((body.skipped ?? body.Skipped) as string[])
       : [],
+  };
+}
+
+export type ApplyBodyLinksResponse = {
+  contentHtml: string;
+  appliedCount: number;
+  pendingCount: number;
+  changed: boolean;
+};
+
+export async function applyBodyLinks(
+  documentId: string,
+  accessToken?: string | null,
+): Promise<ApplyBodyLinksResponse> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/body-links/apply`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify({ instructions: [] }),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  const body = (await res.json()) as Record<string, unknown>;
+  return {
+    contentHtml: String(body.contentHtml ?? body.ContentHtml ?? ''),
+    appliedCount: Number(body.appliedCount ?? body.AppliedCount ?? 0),
+    pendingCount: Number(body.pendingCount ?? body.PendingCount ?? 0),
+    changed: Boolean(body.changed ?? body.Changed ?? false),
   };
 }
 

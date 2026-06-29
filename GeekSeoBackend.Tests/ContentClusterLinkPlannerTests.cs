@@ -77,6 +77,32 @@ public sealed class ContentClusterLinkPlannerTests
     }
 
     [Fact]
+    public void Plan_assigns_body_links_to_pillar_h2_sections()
+    {
+        var research = BuildMarketResearchContext();
+        var result = ContentClusterLinkPlanner.Plan(new ContentClusterPlannerInput
+        {
+            PillarKeyword = PillarKeyword,
+            Research = research,
+            PillarContentHtml = """
+                <h2 id="implementation">Implementation approach</h2>
+                <p>Teams compare AI market research tools.</p>
+                <h2>Vendor selection</h2>
+                <p>Shortlist vendors carefully.</p>
+                <h2>Frequently Asked Questions</h2>
+                """,
+        });
+
+        Assert.Equal(2, result.BodyLinks.Count);
+        Assert.All(result.BodyLinks, slot =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(slot.InsertAfterH2Hint));
+            Assert.False(string.IsNullOrWhiteSpace(slot.AnchorText));
+            Assert.StartsWith("/blog/", slot.TargetPath, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
     public void Plan_fills_faq_slots_with_templates_when_filtered_pool_is_small()
     {
         var research = BuildMarketResearchContext();

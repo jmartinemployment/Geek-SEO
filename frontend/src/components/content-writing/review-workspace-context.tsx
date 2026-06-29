@@ -15,7 +15,6 @@ import { ResearchInsightsRail } from '@/components/content-writing/research-insi
 import { JsonLdPanel } from '@/components/content-writing/json-ld-panel';
 import { ContentGuidelinesPanel } from '@/components/content-writing/content-guidelines-panel';
 import { BlogSpokePanel } from '@/components/content-writing/blog-spoke-panel';
-import { ClusterPlanPanel } from '@/components/content-writing/cluster-plan-panel';
 import { SpokePillarBanner } from '@/components/content-writing/spoke-pillar-banner';
 import { useContentScoring, type ScoreSuggestion } from '@/hooks/useContentScoring';
 import {
@@ -347,7 +346,6 @@ export function WritingInsightsRight({ keyword }: { keyword: string }) {
   return (
     <div className="content-writing-sticky-rail min-w-0 rounded-xl border bg-white shadow-sm">
       <BlogSpokePanel />
-      <ClusterPlanPanel />
       <ScoreSidebar
         placement="right"
         keyword={keyword}

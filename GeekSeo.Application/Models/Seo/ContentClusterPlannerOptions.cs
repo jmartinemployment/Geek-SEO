@@ -13,5 +13,6 @@ public sealed record ContentClusterPlannerInput
     public required string PillarKeyword { get; init; }
     public required WritingResearchContext Research { get; init; }
     public SiteWritingFocus? SiteFocus { get; init; }
+    public string? PillarContentHtml { get; init; }
     public ContentClusterPlannerOptions Options { get; init; } = new();
 }

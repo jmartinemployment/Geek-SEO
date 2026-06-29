@@ -11,6 +11,7 @@ import {
   WritingScoreLeft,
   WritingWorkspaceProvider,
 } from '@/components/content-writing/review-workspace-context';
+import { ClusterPlanPanel } from '@/components/content-writing/cluster-plan-panel';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import {
   createContent,
@@ -240,6 +241,7 @@ function ContentWritingPageInner() {
         <WritingScoreLeft keyword={keyword} />
       </aside>
       <main className="col-span-12 min-w-0 space-y-4 xl:col-span-7">
+        <ClusterPlanPanel />
         <WritingEditorPane
           title={title}
           setTitle={setTitle}

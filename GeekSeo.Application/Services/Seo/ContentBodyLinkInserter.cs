@@ -7,13 +7,18 @@ namespace GeekSeo.Application.Services.Seo;
 
 public static class ContentBodyLinkInserter
 {
-    public static string ApplyBodyLinks(string currentHtml, IReadOnlyList<BodyLinkInsertionInstruction> instructions)
+    public static (string Html, int AppliedCount) ApplyBodyLinks(
+        string currentHtml,
+        IReadOnlyList<BodyLinkInsertionInstruction> instructions)
     {
         if (string.IsNullOrWhiteSpace(currentHtml) || instructions.Count == 0)
-            return currentHtml;
+            return (currentHtml, 0);
 
         var doc = new HtmlDocument();
         doc.LoadHtml(currentHtml);
+
+        var applied = 0;
+        var unmatched = new List<BodyLinkInsertionInstruction>();
 
         foreach (var instruction in instructions)
         {
@@ -27,23 +32,32 @@ public static class ContentBodyLinkInserter
 
             var headingNode = FindHeading(doc, instruction.TargetHeadingId);
             if (headingNode is null)
+            {
+                unmatched.Add(instruction);
                 continue;
+            }
 
             switch (instruction.PlacementStrategy)
             {
                 case BodyLinkPlacementStrategy.ReplaceExistingText:
-                    ExecuteReplaceText(headingNode, instruction);
+                    if (ExecuteReplaceText(headingNode, instruction))
+                        applied++;
                     break;
                 case BodyLinkPlacementStrategy.AppendToParagraph:
-                    ExecuteAppendParagraph(headingNode, instruction);
+                    if (ExecuteAppendParagraph(headingNode, instruction))
+                        applied++;
                     break;
                 case BodyLinkPlacementStrategy.SectionFooter:
                     ExecuteSectionFooter(headingNode, instruction);
+                    applied++;
                     break;
             }
         }
 
-        return doc.DocumentNode.OuterHtml;
+        if (unmatched.Count > 0)
+            applied += AppendRelatedGuidesFallback(doc, unmatched);
+
+        return (doc.DocumentNode.OuterHtml, applied);
     }
 
     private static HtmlNode? FindHeading(HtmlDocument doc, string targetHeadingId)
@@ -66,7 +80,7 @@ public static class ContentBodyLinkInserter
         return null;
     }
 
-    private static void ExecuteReplaceText(HtmlNode headingNode, BodyLinkInsertionInstruction instruction)
+    private static bool ExecuteReplaceText(HtmlNode headingNode, BodyLinkInsertionInstruction instruction)
     {
         var anchorHtml = BuildAnchor(instruction.TargetPath, instruction.AnchorText);
         var currentNode = headingNode.NextSibling;
@@ -80,18 +94,20 @@ public static class ContentBodyLinkInserter
                     instruction.AnchorText,
                     anchorHtml,
                     StringComparison.Ordinal);
-                return;
+                return true;
             }
 
             currentNode = currentNode.NextSibling;
         }
+
+        return false;
     }
 
-    private static void ExecuteAppendParagraph(HtmlNode headingNode, BodyLinkInsertionInstruction instruction)
+    private static bool ExecuteAppendParagraph(HtmlNode headingNode, BodyLinkInsertionInstruction instruction)
     {
         var firstParagraph = FindFirstParagraphInSection(headingNode);
         if (firstParagraph is null)
-            return;
+            return false;
 
         var phrase = instruction.ContextPhrase;
         if (string.IsNullOrWhiteSpace(phrase))
@@ -106,6 +122,7 @@ public static class ContentBodyLinkInserter
         }
 
         firstParagraph.InnerHtml = $"{firstParagraph.InnerHtml.TrimEnd()} {phrase.Trim()}";
+        return true;
     }
 
     private static void ExecuteSectionFooter(HtmlNode headingNode, BodyLinkInsertionInstruction instruction)
@@ -121,6 +138,42 @@ public static class ContentBodyLinkInserter
             $"<p><strong>Related Guide:</strong> {BuildAnchor(instruction.TargetPath, instruction.AnchorText)}</p>";
 
         lastNodeInSection.ParentNode?.InsertAfter(footer, lastNodeInSection);
+    }
+
+    private static int AppendRelatedGuidesFallback(
+        HtmlDocument doc,
+        IReadOnlyList<BodyLinkInsertionInstruction> instructions)
+    {
+        var listItems = instructions
+            .Select(i => $"<li>{BuildAnchor(i.TargetPath, i.AnchorText)}</li>")
+            .ToList();
+
+        if (listItems.Count == 0)
+            return 0;
+
+        var existing = doc.DocumentNode.SelectSingleNode("//ul[contains(@class,'related-guides')]");
+        if (existing is not null)
+        {
+            existing.InnerHtml += string.Concat(listItems);
+            return listItems.Count;
+        }
+
+        var ownerDoc = doc;
+        var container = ownerDoc.CreateElement("div");
+        container.SetAttributeValue("class", "related-guides");
+        container.InnerHtml =
+            $"<h2>Related guides</h2><ul class=\"related-guides\">{string.Concat(listItems)}</ul>";
+
+        var faqHeading = doc.DocumentNode.SelectSingleNode(
+            "//h2[contains(translate(normalize-space(.),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'frequently asked')]");
+        if (faqHeading?.ParentNode is not null)
+        {
+            faqHeading.ParentNode.InsertBefore(container, faqHeading);
+            return listItems.Count;
+        }
+
+        doc.DocumentNode.AppendChild(container);
+        return listItems.Count;
     }
 
     private static HtmlNode? FindFirstParagraphInSection(HtmlNode headingNode)
