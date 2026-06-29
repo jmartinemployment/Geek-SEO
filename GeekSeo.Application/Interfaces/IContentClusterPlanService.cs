@@ -12,4 +12,9 @@ public interface IContentClusterPlanService
         Guid documentId,
         ContentLinkPlan plan,
         CancellationToken ct = default);
+
+    Task<Result<ContentClusterPlanResult>> BuildAsync(
+        Guid userId,
+        Guid documentId,
+        CancellationToken ct = default);
 }

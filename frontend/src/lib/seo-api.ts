@@ -215,6 +215,94 @@ export async function addBlogSpokeFaqs(
   return res.json() as Promise<ContentBlogSpoke>;
 }
 
+export type ContentLinkFaqItem = {
+  question: string;
+  targetDocumentId?: string | null;
+  targetPath?: string | null;
+  anchorText?: string | null;
+  source?: string | null;
+  linkStatus?: string | null;
+};
+
+export type ContentLinkPlan = {
+  faqItems: ContentLinkFaqItem[];
+  bodyLinks: Array<{
+    insertAfterH2Hint?: string | null;
+    targetDocumentId?: string | null;
+    anchorText?: string | null;
+    priority?: number;
+    minStatusRequired?: string | null;
+  }>;
+};
+
+export type ContentClusterCandidate = {
+  phrase: string;
+  sourceType: string;
+  score: number;
+  rejectReason?: string | null;
+  suggestedQuestion?: string | null;
+  suggestedSlug?: string | null;
+  plannedSpokeId?: string | null;
+};
+
+export type ContentClusterFilteredCandidate = {
+  phrase: string;
+  sourceType: string;
+  rejectReason: string;
+};
+
+export type ContentClusterPlanResult = {
+  spokeCandidates: ContentClusterCandidate[];
+  faqItems: ContentLinkFaqItem[];
+  filteredOut: ContentClusterFilteredCandidate[];
+};
+
+function normalizeLinkPlan(body: Record<string, unknown>): ContentLinkPlan {
+  const faqRaw = body.faqItems ?? body.FaqItems;
+  const bodyRaw = body.bodyLinks ?? body.BodyLinks;
+  return {
+    faqItems: Array.isArray(faqRaw) ? (faqRaw as ContentLinkFaqItem[]) : [],
+    bodyLinks: Array.isArray(bodyRaw) ? (bodyRaw as ContentLinkPlan['bodyLinks']) : [],
+  };
+}
+
+function normalizeClusterPlanResult(body: Record<string, unknown>): ContentClusterPlanResult {
+  const spokeRaw = body.spokeCandidates ?? body.SpokeCandidates;
+  const faqRaw = body.faqItems ?? body.FaqItems;
+  const filteredRaw = body.filteredOut ?? body.FilteredOut;
+  return {
+    spokeCandidates: Array.isArray(spokeRaw) ? (spokeRaw as ContentClusterCandidate[]) : [],
+    faqItems: Array.isArray(faqRaw) ? (faqRaw as ContentLinkFaqItem[]) : [],
+    filteredOut: Array.isArray(filteredRaw) ? (filteredRaw as ContentClusterFilteredCandidate[]) : [],
+  };
+}
+
+export async function getClusterPlan(
+  documentId: string,
+  accessToken?: string | null,
+): Promise<ContentLinkPlan> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/cluster/plan`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  const body = (await res.json()) as Record<string, unknown>;
+  return normalizeLinkPlan(body);
+}
+
+export async function buildClusterPlan(
+  documentId: string,
+  accessToken?: string | null,
+): Promise<ContentClusterPlanResult> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/cluster/plan`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  const body = (await res.json()) as Record<string, unknown>;
+  return normalizeClusterPlanResult(body);
+}
+
 export async function listProjects(accessToken?: string | null): Promise<SeoProject[]> {
   if (!hasAuthContext(accessToken)) return [];
   const res = await fetch(`${API_URL}/api/seo/projects`, {

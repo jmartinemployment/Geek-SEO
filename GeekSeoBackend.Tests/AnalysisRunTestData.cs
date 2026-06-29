@@ -115,6 +115,24 @@ internal static class AnalysisRunTestData
         TargetSiteUrl = "https://example.com",
         Status = "completed",
         SerpSeResultsCount = 2_400_000_000,
+        GapTopics = ["ai market research tools", "market intelligence"],
+        SourceHeadings =
+        [
+            new ContentWriterHeading { Level = 2, Text = "AI market research platform", Sequence = 1 },
+        ],
+        Competitors =
+        [
+            new ContentWriterCompetitorExport
+            {
+                Domain = "competitor-a.com",
+                Url = "https://competitor-a.com/tools",
+                SeedRankAbsolute = 1,
+                Headings =
+                [
+                    new ContentWriterHeading { Level = 2, Text = "Top tools", Sequence = 1 },
+                ],
+            },
+        ],
         Serp =
         [
             new ContentWriterSerpItem

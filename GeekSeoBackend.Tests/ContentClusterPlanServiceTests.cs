@@ -13,7 +13,10 @@ public sealed class ContentClusterPlanServiceTests
     public async Task GetAsync_returns_empty_plan_when_json_missing()
     {
         var doc = PillarDocument();
-        var service = new ContentClusterPlanService(new FakeDocumentService(doc), new FakeDocumentRepository(doc));
+        var service = new ContentClusterPlanService(
+            new FakeDocumentService(doc),
+            new FakeDocumentRepository(doc),
+            AnalysisRunTestData.CreateContextLoader());
 
         var result = await service.GetAsync(doc.UserId, doc.Id);
 
@@ -27,7 +30,7 @@ public sealed class ContentClusterPlanServiceTests
     {
         var doc = PillarDocument();
         var repo = new FakeDocumentRepository(doc);
-        var service = new ContentClusterPlanService(new FakeDocumentService(doc), repo);
+        var service = new ContentClusterPlanService(new FakeDocumentService(doc), repo, AnalysisRunTestData.CreateContextLoader());
         var plan = new ContentLinkPlan
         {
             FaqItems =
@@ -53,12 +56,40 @@ public sealed class ContentClusterPlanServiceTests
     {
         var doc = PillarDocument();
         doc.DocumentKind = ContentDocumentKinds.Spoke;
-        var service = new ContentClusterPlanService(new FakeDocumentService(doc), new FakeDocumentRepository(doc));
+        var service = new ContentClusterPlanService(
+            new FakeDocumentService(doc),
+            new FakeDocumentRepository(doc),
+            AnalysisRunTestData.CreateContextLoader());
 
         var result = await service.SaveAsync(doc.UserId, doc.Id, new ContentLinkPlan());
 
         Assert.False(result.IsSuccess);
         Assert.Contains("pillar", result.Error!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task BuildAsync_runs_planner_and_persists_faq_plan()
+    {
+        var export = AnalysisRunTestData.MarketResearchPasfExport();
+        var doc = AnalysisRunTestData.FrozenResearchDocument(export, "ai market research tools");
+        var repo = new FakeDocumentRepository(doc);
+        var loader = AnalysisRunTestData.CreateContextLoader(
+            export,
+            AnalysisRunTestData.MinimalSiteBundle() with
+            {
+                BusinessSummary = "Paid AI market intelligence platform for enterprise teams.",
+            });
+
+        var service = new ContentClusterPlanService(new FakeDocumentService(doc), repo, loader);
+
+        var result = await service.BuildAsync(doc.UserId, doc.Id);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(3, result.Value!.SpokeCandidates.Count);
+        Assert.Contains(result.Value.FilteredOut, f => f.RejectReason.Contains("course", StringComparison.Ordinal));
+        Assert.Equal(5, result.Value.FaqItems.Count);
+        Assert.NotNull(repo.LastLinkPlanJson);
+        Assert.Contains("faqItems", repo.LastLinkPlanJson!, StringComparison.Ordinal);
     }
 
     private static SeoContentDocument PillarDocument() => new()

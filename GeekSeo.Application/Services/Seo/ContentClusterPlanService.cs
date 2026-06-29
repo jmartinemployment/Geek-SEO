@@ -1,13 +1,13 @@
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
-using GeekSeo.Application.Services.Seo;
 
 namespace GeekSeo.Application.Services.Seo;
 
 public sealed class ContentClusterPlanService(
     IContentDocumentService documents,
-    IContentDocumentRepository documentRepo) : IContentClusterPlanService
+    IContentDocumentRepository documentRepo,
+    WritingResearchContextLoader researchLoader) : IContentClusterPlanService
 {
     public async Task<Result<ContentLinkPlan>> GetAsync(
         Guid userId, Guid documentId, CancellationToken ct = default)
@@ -29,6 +29,51 @@ public sealed class ContentClusterPlanService(
         if (!access.IsSuccess)
             return Result<ContentLinkPlan>.Failure(access.Error ?? "Access denied");
 
+        var saved = await PersistLinkPlanAsync(documentId, plan, ct);
+        if (!saved.IsSuccess)
+            return Result<ContentLinkPlan>.Failure(saved.Error ?? "Failed to save link plan");
+
+        return saved;
+    }
+
+    public async Task<Result<ContentClusterPlanResult>> BuildAsync(
+        Guid userId, Guid documentId, CancellationToken ct = default)
+    {
+        var access = await RequirePlanHostAsync(userId, documentId, ct);
+        if (!access.IsSuccess || access.Value is null)
+            return Result<ContentClusterPlanResult>.Failure(access.Error ?? "Access denied");
+
+        var doc = access.Value;
+        var researchResult = await researchLoader.LoadAsync(userId, doc, ct);
+        if (!researchResult.IsSuccess || researchResult.Value is null)
+            return Result<ContentClusterPlanResult>.Failure(researchResult.Error ?? "Research context is not available.");
+
+        var built = ContentClusterLinkPlanner.Plan(new ContentClusterPlannerInput
+        {
+            PillarKeyword = doc.TargetKeyword,
+            Research = researchResult.Value,
+            SiteFocus = researchResult.Value.SiteFocus
+                ?? SiteWritingFocusSerializer.TryDeserialize(doc.SiteFocusJson),
+        });
+
+        var persisted = await PersistLinkPlanAsync(
+            documentId,
+            new ContentLinkPlan
+            {
+                FaqItems = built.FaqItems,
+                BodyLinks = [],
+            },
+            ct);
+
+        if (!persisted.IsSuccess)
+            return Result<ContentClusterPlanResult>.Failure(persisted.Error ?? "Failed to save link plan");
+
+        return Result<ContentClusterPlanResult>.Success(built);
+    }
+
+    private async Task<Result<ContentLinkPlan>> PersistLinkPlanAsync(
+        Guid documentId, ContentLinkPlan plan, CancellationToken ct)
+    {
         var saved = await documentRepo.UpdateLinkPlanAsync(documentId, ContentLinkPlanJson.Serialize(plan), ct);
         if (!saved.IsSuccess || saved.Value is null)
             return Result<ContentLinkPlan>.Failure(saved.Error ?? "Failed to save link plan");
