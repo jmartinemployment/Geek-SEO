@@ -139,8 +139,8 @@ public sealed class ContentScoringForbiddenTests
         var result = await insights.GetForDocumentAsync(UserId, DocumentId);
 
         Assert.True(result.IsSuccess, result.Error);
-        Assert.Equal(3, result.Value!.Pages.Count);
-        Assert.Equal("https://c1.com", result.Value.Pages[0].Url);
+        Assert.Equal(1, result.Value!.Pages.Count);
+        Assert.Equal("https://c1.com/widget-repair", result.Value.Pages[0].Url);
         Assert.Equal(0, serp.CallCount);
     }
 
