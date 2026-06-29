@@ -15,6 +15,7 @@ public sealed class ContentController(
     IContentDocumentService content,
     IContentBlogSpokeService blogSpoke,
     IContentClusterPlanService clusterPlan,
+    IContentSpokeService spokes,
     IContentBodyLinkService bodyLinks,
     IContentResearchWritingService researchWriting,
     IContentDraftJobService draftJobs,
@@ -167,6 +168,38 @@ public sealed class ContentController(
         }
 
         return Ok(result.Value);
+    }
+
+    [HttpGet("{id:guid}/spokes")]
+    public async Task<IActionResult> ListSpokes(Guid id, CancellationToken ct)
+    {
+        var result = await spokes.ListAsync(user.RequireUserId(), id, ct);
+        if (!result.IsSuccess)
+        {
+            return result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true
+                ? NotFound(new { error = result.Error })
+                : BadRequest(new { error = result.Error });
+        }
+
+        return Ok(result.Value);
+    }
+
+    [HttpPost("{id:guid}/spokes")]
+    public async Task<IActionResult> CreateSpoke(
+        Guid id, [FromBody] CreateContentSpokeRequest request, CancellationToken ct)
+    {
+        if (request is null)
+            return BadRequest(new { error = "Request body is required" });
+
+        var result = await spokes.CreateAsync(user.RequireUserId(), id, request, ct);
+        if (!result.IsSuccess)
+        {
+            return result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true
+                ? NotFound(new { error = result.Error })
+                : BadRequest(new { error = result.Error });
+        }
+
+        return CreatedAtAction(nameof(Get), new { id = result.Value!.Id }, result.Value);
     }
 
     [HttpPost]

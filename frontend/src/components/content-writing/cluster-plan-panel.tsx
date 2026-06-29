@@ -1,39 +1,52 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useWritingWorkspace } from '@/components/content-writing/review-workspace-context';
+import { contentWritingPath } from '@/lib/content-writing-search-params';
 import {
   buildClusterPlan,
+  createContentSpoke,
   getClusterPlan,
+  listContentSpokes,
   type ContentClusterPlanResult,
+  type ContentSpokeSummary,
 } from '@/lib/seo-api';
 
 export function ClusterPlanPanel() {
   const { doc, accessToken } = useWritingWorkspace();
   const [savedFaqCount, setSavedFaqCount] = useState(0);
   const [result, setResult] = useState<ContentClusterPlanResult | null>(null);
+  const [spokes, setSpokes] = useState<ContentSpokeSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [creatingPhrase, setCreatingPhrase] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const researchReady = Boolean(doc.analysisRunId);
+  const isPillar = doc.documentKind !== 'spoke';
 
   const load = useCallback(async () => {
-    if (!accessToken || !researchReady) {
+    if (!accessToken || !researchReady || !isPillar) {
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
       setError(null);
-      const plan = await getClusterPlan(doc.id, accessToken);
+      const [plan, spokeList] = await Promise.all([
+        getClusterPlan(doc.id, accessToken),
+        listContentSpokes(doc.id, accessToken),
+      ]);
       setSavedFaqCount(plan.faqItems?.length ?? 0);
+      setSpokes(spokeList);
     } catch {
       setSavedFaqCount(0);
+      setSpokes([]);
     } finally {
       setLoading(false);
     }
-  }, [accessToken, doc.id, researchReady]);
+  }, [accessToken, doc.id, isPillar, researchReady]);
 
   useEffect(() => {
     void load();
@@ -54,7 +67,41 @@ export function ClusterPlanPanel() {
     }
   }
 
-  if (!researchReady) {
+  async function handleCreateSpoke(candidate: {
+    phrase: string;
+    sourceType: string;
+    suggestedQuestion?: string | null;
+    suggestedSlug?: string | null;
+  }) {
+    if (!accessToken) return;
+    setCreatingPhrase(candidate.phrase);
+    setError(null);
+    try {
+      const created = await createContentSpoke(
+        doc.id,
+        {
+          phrase: candidate.phrase,
+          sourceType: candidate.sourceType,
+          title: candidate.suggestedQuestion ?? undefined,
+          publishSlug: candidate.suggestedSlug ?? undefined,
+        },
+        accessToken,
+      );
+      setSpokes((prev) => [created, ...prev.filter((s) => s.id !== created.id)]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not create spoke');
+    } finally {
+      setCreatingPhrase(null);
+    }
+  }
+
+  function spokeExists(phrase: string): ContentSpokeSummary | undefined {
+    return spokes.find(
+      (s) => s.spokeSourcePhrase?.toLowerCase() === phrase.toLowerCase(),
+    );
+  }
+
+  if (!researchReady || !isPillar) {
     return null;
   }
 
@@ -73,7 +120,8 @@ export function ClusterPlanPanel() {
           <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Cluster link plan</h3>
           <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
             Filter SERP PAA/PASF into spoke targets and pillar FAQs. Saved plan: {savedFaqCount} FAQ
-            {savedFaqCount === 1 ? '' : 's'}.
+            {savedFaqCount === 1 ? '' : 's'} · {spokes.length} spoke
+            {spokes.length === 1 ? '' : 's'}.
           </p>
         </div>
         <button
@@ -88,6 +136,27 @@ export function ClusterPlanPanel() {
 
       {error ? <p className="mb-3 text-xs text-red-700">{error}</p> : null}
 
+      {spokes.length > 0 ? (
+        <section className="mb-4 space-y-2 text-xs">
+          <h4 className="font-medium text-[var(--color-text-primary)]">Created spokes</h4>
+          <ul className="space-y-1">
+            {spokes.map((spoke) => (
+              <li key={spoke.id}>
+                <Link
+                  href={contentWritingPath({ documentId: spoke.id })}
+                  className="text-[var(--color-accent)] underline"
+                >
+                  {spoke.title}
+                </Link>
+                {spoke.publishSlug ? (
+                  <span className="text-[var(--color-text-secondary)]"> · /blog/{spoke.publishSlug}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       {result ? (
         <div className="space-y-4 text-xs">
           <section>
@@ -98,17 +167,37 @@ export function ClusterPlanPanel() {
               <p className="text-[var(--color-text-secondary)]">None</p>
             ) : (
               <ul className="space-y-2">
-                {result.spokeCandidates.map((item) => (
-                  <li key={item.phrase} className="rounded-md border bg-slate-50 px-2 py-1.5">
-                    <p className="font-medium text-[var(--color-text-primary)]">{item.phrase}</p>
-                    <p className="text-[var(--color-text-secondary)]">
-                      {item.suggestedQuestion ?? '—'}
-                    </p>
-                    {item.suggestedSlug ? (
-                      <p className="text-[var(--color-text-secondary)]">/blog/{item.suggestedSlug}</p>
-                    ) : null}
-                  </li>
-                ))}
+                {result.spokeCandidates.map((item) => {
+                  const existing = spokeExists(item.phrase);
+                  return (
+                    <li key={item.phrase} className="rounded-md border bg-slate-50 px-2 py-1.5">
+                      <p className="font-medium text-[var(--color-text-primary)]">{item.phrase}</p>
+                      <p className="text-[var(--color-text-secondary)]">
+                        {item.suggestedQuestion ?? '—'}
+                      </p>
+                      {item.suggestedSlug ? (
+                        <p className="text-[var(--color-text-secondary)]">/blog/{item.suggestedSlug}</p>
+                      ) : null}
+                      {existing ? (
+                        <Link
+                          href={contentWritingPath({ documentId: existing.id })}
+                          className="mt-1 inline-block text-[var(--color-accent)] underline"
+                        >
+                          Open spoke
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={creatingPhrase === item.phrase}
+                          onClick={() => void handleCreateSpoke(item)}
+                          className="mt-1 rounded border px-2 py-0.5 text-[var(--color-text-primary)] disabled:opacity-50"
+                        >
+                          {creatingPhrase === item.phrase ? 'Creating…' : 'Create spoke shell'}
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>

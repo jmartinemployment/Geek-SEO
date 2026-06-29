@@ -153,6 +153,9 @@ export type SeoContentDocument = {
   scoreComponentsJson: string;
   status: string;
   blogSpokeJson?: string | null;
+  parentDocumentId?: string | null;
+  documentKind?: string | null;
+  publishSlug?: string | null;
 };
 
 export type ContentBlogSpoke = {
@@ -301,6 +304,67 @@ export async function buildClusterPlan(
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
   const body = (await res.json()) as Record<string, unknown>;
   return normalizeClusterPlanResult(body);
+}
+
+export type ContentSpokeSummary = {
+  id: string;
+  title: string;
+  targetKeyword: string;
+  publishSlug?: string | null;
+  spokeSourcePhrase?: string | null;
+  spokeSourceType?: string | null;
+  status: string;
+  wordCount: number;
+  updatedAt: string;
+};
+
+function normalizeSpokeSummary(body: Record<string, unknown>): ContentSpokeSummary {
+  return {
+    id: String(body.id ?? body.Id ?? ''),
+    title: String(body.title ?? body.Title ?? ''),
+    targetKeyword: String(body.targetKeyword ?? body.TargetKeyword ?? ''),
+    publishSlug: (body.publishSlug ?? body.PublishSlug ?? null) as string | null,
+    spokeSourcePhrase: (body.spokeSourcePhrase ?? body.SpokeSourcePhrase ?? null) as string | null,
+    spokeSourceType: (body.spokeSourceType ?? body.SpokeSourceType ?? null) as string | null,
+    status: String(body.status ?? body.Status ?? ''),
+    wordCount: Number(body.wordCount ?? body.WordCount ?? 0),
+    updatedAt: String(body.updatedAt ?? body.UpdatedAt ?? ''),
+  };
+}
+
+export async function listContentSpokes(
+  pillarDocumentId: string,
+  accessToken?: string | null,
+): Promise<ContentSpokeSummary[]> {
+  const res = await fetch(`${API_URL}/api/seo/content/${pillarDocumentId}/spokes`, {
+    headers: apiHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  const body = (await res.json()) as unknown;
+  if (!Array.isArray(body)) return [];
+  return body.map((item) => normalizeSpokeSummary(item as Record<string, unknown>));
+}
+
+export async function createContentSpoke(
+  pillarDocumentId: string,
+  body: {
+    phrase: string;
+    sourceType?: string;
+    title?: string;
+    targetKeyword?: string;
+    publishSlug?: string;
+  },
+  accessToken?: string | null,
+): Promise<ContentSpokeSummary> {
+  const res = await fetch(`${API_URL}/api/seo/content/${pillarDocumentId}/spokes`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  const payload = (await res.json()) as Record<string, unknown>;
+  return normalizeSpokeSummary(payload);
 }
 
 export async function listProjects(accessToken?: string | null): Promise<SeoProject[]> {
