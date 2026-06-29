@@ -60,6 +60,8 @@ type WritingWorkspaceContextValue = {
   copyRenderedHtml: () => void;
   scheduleScore: (nextHtml: string, nextKeyword: string) => void;
   notifyKeywordChanged: ReturnType<typeof useContentScoring>['notifyKeywordChanged'];
+  blogSpokeRevision: number;
+  refreshBlogSpoke: () => void;
 };
 
 const WritingWorkspaceContext = createContext<WritingWorkspaceContextValue | null>(null);
@@ -93,6 +95,7 @@ export function WritingWorkspaceProvider({
   const [copyHint, setCopyHint] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [applyingSuggestionId, setApplyingSuggestionId] = useState<string | null>(null);
+  const [blogSpokeRevision, setBlogSpokeRevision] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialScoreSentRef = useRef(false);
   const editorRef = useRef<ContentEditorHandle>(null);
@@ -270,6 +273,8 @@ export function WritingWorkspaceProvider({
     copyRenderedHtml,
     scheduleScore,
     notifyKeywordChanged,
+    blogSpokeRevision,
+    refreshBlogSpoke: () => setBlogSpokeRevision((n) => n + 1),
   };
 
   return (
@@ -330,6 +335,7 @@ export function WritingInsightsRight({ keyword }: { keyword: string }) {
 
   return (
     <div className="content-writing-sticky-rail min-w-0 rounded-xl border bg-white shadow-sm">
+      <BlogSpokePanel />
       <ScoreSidebar
         placement="right"
         keyword={keyword}
@@ -348,7 +354,6 @@ export function WritingInsightsRight({ keyword }: { keyword: string }) {
         <p className="border-t px-3 py-2 text-xs text-emerald-700 xl:px-4">{copyHint}</p>
       ) : null}
       <ContentGuidelinesPanel keyword={keyword} />
-      <BlogSpokePanel />
       <JsonLdPanel />
       {doc.analysisRunId ? (
         <ResearchInsightsRail
@@ -391,6 +396,7 @@ export function WritingEditorPane({
     save,
     scheduleScore,
     notifyKeywordChanged,
+    refreshBlogSpoke,
   } = useWritingWorkspace();
 
   const keywordRef = useRef(keyword);
@@ -479,6 +485,7 @@ export function WritingEditorPane({
             void save(nextHtml, keyword, title, location);
           }}
           onError={(message) => setAiError(message || null)}
+          onBlogSpokeCreated={refreshBlogSpoke}
         />
         {aiError ? <p className="text-sm text-red-700">{aiError}</p> : null}
       </div>

@@ -19,7 +19,7 @@ const SPOKE_TYPES = [
 ];
 
 export function BlogSpokePanel() {
-  const { doc, accessToken } = useWritingWorkspace();
+  const { doc, accessToken, blogSpokeRevision } = useWritingWorkspace();
   const [spoke, setSpoke] = useState<ContentBlogSpoke | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -43,7 +43,7 @@ export function BlogSpokePanel() {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, doc.id]);
+  }, [accessToken, doc.id, blogSpokeRevision]);
 
   useEffect(() => {
     void load();
@@ -71,7 +71,7 @@ export function BlogSpokePanel() {
   }
 
   function copyText(label: string, text: string) {
-    void copyTextFromPromise(Promise.resolve(text))
+    void copyTextFromPromise(async () => text)
       .then(() => {
         setCopyHint(`${label} copied`);
         setTimeout(() => setCopyHint(null), 2500);
