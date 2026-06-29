@@ -12,6 +12,7 @@ export function SeoErrorBanner({ error }: SeoErrorBannerProps) {
 
   const apiError = error instanceof SeoApiError ? error : null;
   const message = error instanceof Error ? error.message : 'Something went wrong';
+  const isUnauthorized = apiError?.status === 401 || message.toLowerCase().includes('unauthorized');
   const showPricing =
     apiError?.isUpgradeRequired || apiError?.isUsageLimit || apiError?.body.upgradeUrl;
 
@@ -32,6 +33,11 @@ export function SeoErrorBanner({ error }: SeoErrorBannerProps) {
         <p className="mt-1 text-xs opacity-90">
           Meter: {apiError.body.feature} ({apiError.body.usage ?? 0}/{apiError.body.limit})
         </p>
+      )}
+      {isUnauthorized && (
+        <Link href="/api/auth/start" className="mt-3 inline-block text-xs font-medium underline">
+          Sign in again
+        </Link>
       )}
       {showPricing && (
         <Link href="/pricing" className="mt-3 inline-block text-xs font-medium underline">
