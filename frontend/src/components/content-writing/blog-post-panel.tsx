@@ -41,21 +41,26 @@ export function BlogPostPanel() {
     if (!accessToken || !isPillar) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [list, plan] = await Promise.all([
-        listContentSpokes(doc.id, accessToken),
-        buildClusterPlan(doc.id, accessToken),
-      ]);
+      const list = await listContentSpokes(doc.id, accessToken);
       setPosts(list);
-      setPlanResult(plan);
-      const existingPhrases = new Set(list.map((p) => p.spokeSourcePhrase?.toLowerCase()).filter(Boolean));
-      setCandidates(plan.spokeCandidates.filter((c) => !existingPhrases.has(c.phrase.toLowerCase())).slice(0, 3));
     } catch {
       setPosts([]);
-      setCandidates([]);
     } finally {
       setLoading(false);
     }
   }, [accessToken, doc.id, isPillar]);
+
+  const loadCandidates = useCallback(async () => {
+    if (!accessToken || !isPillar) return;
+    try {
+      const plan = await buildClusterPlan(doc.id, accessToken);
+      setPlanResult(plan);
+      const existingPhrases = new Set(posts.map((p) => p.spokeSourcePhrase?.toLowerCase()).filter(Boolean));
+      setCandidates(plan.spokeCandidates.filter((c) => !existingPhrases.has(c.phrase.toLowerCase())).slice(0, 3));
+    } catch {
+      setCandidates([]);
+    }
+  }, [accessToken, doc.id, isPillar, posts]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -174,6 +179,16 @@ export function BlogPostPanel() {
         {!busy && !saving && statusMsg ? <p className="text-sm text-emerald-700">{statusMsg}</p> : null}
         {(busy || saving) ? <p className="text-sm text-[var(--color-text-secondary)]">{statusMsg ?? 'Working…'}</p> : null}
 
+        {!loading && !busy && candidates.length === 0 ? (
+          <button
+            type="button"
+            onClick={() => void loadCandidates()}
+            className="w-full rounded-lg border px-4 py-2 text-sm font-medium hover:bg-[var(--color-surface-muted)]"
+          >
+            Find blog post topics from research
+          </button>
+        ) : null}
+
         {!loading && !busy && candidates.length > 0 ? (
           <div className="space-y-2">
             <p className="text-xs font-medium text-[var(--color-text-secondary)]">
@@ -199,12 +214,6 @@ export function BlogPostPanel() {
               ))}
             </ul>
           </div>
-        ) : null}
-
-        {!loading && candidates.length === 0 && posts.length === 0 ? (
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            No candidates found — ensure Site Analyzer research is complete.
-          </p>
         ) : null}
 
         {!loading && posts.length > 0 ? (
