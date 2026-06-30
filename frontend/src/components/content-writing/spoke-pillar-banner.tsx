@@ -37,12 +37,12 @@ export function SpokePillarBanner() {
   return (
     <div className="space-y-2">
       <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-        Spoke article in a content cluster.{' '}
+        Blog post linked from pillar.{' '}
         <Link
           href={contentWritingPath({ documentId: doc.parentDocumentId })}
           className="font-medium underline"
         >
-          Open pillar document
+          Open pillar article
         </Link>
         {isShell ? (
           <>
@@ -53,7 +53,7 @@ export function SpokePillarBanner() {
               onClick={() => void handleGenerate()}
               className="font-medium underline disabled:opacity-50"
             >
-              {generating ? 'Generating…' : 'Generate spoke content'}
+              {generating ? 'Generating…' : 'Generate blog post content'}
             </button>
           </>
         ) : null}

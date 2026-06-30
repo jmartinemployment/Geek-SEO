@@ -11,7 +11,7 @@ import {
   WritingScoreLeft,
   WritingWorkspaceProvider,
 } from '@/components/content-writing/review-workspace-context';
-import { ClusterPlanPanel } from '@/components/content-writing/cluster-plan-panel';
+import { BlogPostPanel } from '@/components/content-writing/blog-post-panel';
 import { SeoErrorBanner } from '@/components/seo/seo-error-banner';
 import {
   createContent,
@@ -242,7 +242,7 @@ function ContentWritingPageInner() {
       </aside>
       <div className="col-span-12 min-h-0 overflow-y-auto xl:col-span-7">
         <div className="space-y-4">
-          <ClusterPlanPanel />
+          <BlogPostPanel />
           <WritingEditorPane
             title={title}
             setTitle={setTitle}
