@@ -72,6 +72,7 @@ function extractDocumentCandidates(html: string, pillarKeyword: string, existing
 
     const lower = text.toLowerCase();
     if (lower === pillarLower || seen.has(lower)) continue;
+    if (lower.includes(pillarLower) || pillarLower.includes(lower)) continue;
     seen.add(lower);
 
     candidates.push({
@@ -239,22 +240,42 @@ export function BlogPostPanel() {
         .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
       const pillarRendered = await getRenderedContentHtml(doc.id, accessToken);
-      downloadFile(`${slug}-pillar.html`, pillarRendered.renderedHtml || pillarRendered.bodyHtml);
+      const pillarHtml = pillarRendered.renderedHtml || pillarRendered.bodyHtml;
 
+      const blogPostFiles: Array<{ slug: string; html: string; title: string }> = [];
       for (const post of posts.filter(isBlogPostReady)) {
         const postDoc = await getContent(post.id, accessToken);
-        const postSlug = post.publishSlug ?? post.id;
-        downloadFile(`${postSlug}.html`, postDoc.contentHtml);
+        blogPostFiles.push({ slug: post.publishSlug ?? post.id, html: postDoc.contentHtml, title: post.title });
       }
 
-      if (socialResult) {
-        const text = `FACEBOOK\n\n${socialResult.facebookPost}\n\n---\n\nLINKEDIN\n\n${socialResult.linkedInPost}`;
-        downloadFile(`${slug}-social.txt`, text, 'text/plain');
+      const socialText = socialResult
+        ? `FACEBOOK\n\n${socialResult.facebookPost}\n\n---\n\nLINKEDIN\n\n${socialResult.linkedInPost}`
+        : undefined;
+
+      const res = await fetch('/api/save-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keyword: doc.targetKeyword, pillarHtml, blogPosts: blogPostFiles, socialText }),
+      });
+
+      const result = (await res.json()) as { saved: boolean; dir?: string; fallback?: boolean };
+
+      if (result.saved && result.dir) {
+        setStatusMsg(`Saved to ${result.dir}`);
+        return;
       }
 
-      setStatusMsg('Files downloaded.');
+      // Fallback: browser download
+      downloadFile(`${slug}-pillar.html`, pillarHtml);
+      for (const post of blogPostFiles) {
+        downloadFile(`${post.slug}.html`, post.html);
+      }
+      if (socialText) {
+        downloadFile(`${slug}-social.txt`, socialText, 'text/plain');
+      }
+      setStatusMsg('Files downloaded to your browser.');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Download failed');
+      setError(e instanceof Error ? e.message : 'Save failed');
     } finally {
       setSaving(false);
     }
