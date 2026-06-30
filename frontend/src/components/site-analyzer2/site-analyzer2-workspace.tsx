@@ -1,6 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Circle,
+  Copy,
+  ExternalLink,
+  Globe,
+  Loader2,
+  RefreshCw,
+  Search,
+  Upload,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCrawlProgress } from "@/context/crawl-stream-context";
 import {
   buildCrawlSummaryMessage,
@@ -18,6 +34,7 @@ import {
 } from "@/components/site-analyzer2/DomainOverviewPanel";
 import { contentWritingPath } from "@/lib/content-writing-search-params";
 import { getSiteAnalyzer2ApiBase, siteAnalyzer2Fetch } from "@/lib/site-analyzer2-api";
+import { cn } from "@/lib/utils";
 
 const STORAGE_URL = "siteAnalyzer2.projectUrl";
 const STORAGE_KEYWORD_IMPORT = "siteAnalyzer2.keywordImport";
@@ -592,6 +609,112 @@ function profileHasBusinessData(profile: SiteProfile): boolean {
   );
 }
 
+function WorkflowStrip({
+  siteProfileReady,
+  keywordSaved,
+  step,
+  researchReady,
+  keyword,
+}: {
+  siteProfileReady: boolean;
+  keywordSaved: boolean;
+  step: Step;
+  researchReady: boolean;
+  keyword: string;
+}) {
+  const steps = [
+    {
+      id: "profile",
+      label: "Site profile",
+      done: siteProfileReady,
+      active: !siteProfileReady,
+    },
+    {
+      id: "keyword",
+      label: "Keyword import",
+      done: keywordSaved,
+      active: siteProfileReady && !keywordSaved,
+    },
+    {
+      id: "crawl",
+      label: "Competitor crawl",
+      done: step === "complete",
+      active: keywordSaved && step !== "complete",
+    },
+    {
+      id: "research",
+      label: "Research pack",
+      done: researchReady,
+      active: step === "complete" && !researchReady,
+    },
+  ];
+
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="px-4 py-3 sm:px-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-0">
+            {steps.map((item, index) => (
+              <div key={item.id} className="flex items-center">
+                <div
+                  className={`flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium sm:px-3 ${
+                    item.done
+                      ? "text-[var(--color-good)]"
+                      : item.active
+                        ? "bg-[rgba(59,179,122,0.1)] text-[var(--color-accent)]"
+                        : "text-[var(--color-text-muted)]"
+                  }`}
+                >
+                  {item.done ? (
+                    <CheckCircle2 className="size-3.5 shrink-0" />
+                  ) : item.active ? (
+                    <Loader2 className="size-3.5 shrink-0 animate-spin" />
+                  ) : (
+                    <Circle className="size-3.5 shrink-0" />
+                  )}
+                  <span>{item.label}</span>
+                </div>
+                {index < steps.length - 1 ? (
+                  <div className="mx-1 hidden h-px w-6 bg-[var(--color-border)] sm:block lg:w-10" />
+                ) : null}
+              </div>
+            ))}
+          </div>
+          {keyword ? (
+            <Badge variant="accent" className="shrink-0 self-start sm:self-center">
+              {keyword}
+            </Badge>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MetricTile({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-white px-4 py-3 shadow-[var(--shadow-card)]">
+      <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+        {label}
+      </p>
+      <p className="mt-1 text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+        {value}
+      </p>
+      {hint ? (
+        <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{hint}</p>
+      ) : null}
+    </div>
+  );
+}
+
 function SiteProfilePanel({
   profile,
   loading,
@@ -648,79 +771,50 @@ function SiteProfilePanel({
   }
 
   return (
-    <section
-      style={{
-        marginTop: "1.25rem",
-        padding: "1rem",
-        borderRadius: 8,
-        border: "1px solid #e4e4e7",
-        background: "#fafafa",
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: ".75rem", alignItems: "start" }}>
-        <div>
-          <h2 style={{ fontSize: "1rem", margin: "0 0 .25rem" }}>Site profile</h2>
-          <p style={{ margin: 0, fontSize: ".85rem", color: "#52525b" }}>
+    <Card>
+      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 pb-0">
+        <div className="min-w-0 flex-1">
+          <CardTitle>Site profile</CardTitle>
+          <CardDescription className="truncate">
             {formatText(profile.displayName)} · {profile.siteUrl}
-          </p>
+          </CardDescription>
           {!expanded && hasBusinessData ? (
-            <p style={{ margin: ".35rem 0 0", fontSize: ".8rem", color: "#71717a" }}>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
               {formatText(profile.primaryNiche)} · {formatList(profile.nicheTags, "—")}
             </p>
           ) : null}
           {!expanded && contentPillars.length > 0 ? (
-            <p style={{ margin: ".25rem 0 0", fontSize: ".78rem", color: "#71717a" }}>
+            <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
               {contentPillars.length} content pillar{contentPillars.length === 1 ? "" : "s"}
             </p>
           ) : null}
         </div>
-        <div style={{ display: "flex", gap: ".4rem", flexShrink: 0 }}>
-          <button
-            type="button"
-            onClick={toggleExpanded}
-            style={{
-              padding: ".35rem .65rem",
-              borderRadius: 6,
-              border: "1px solid #d4d4d8",
-              background: "#fff",
-              fontSize: ".8rem",
-              cursor: "pointer",
-            }}
-          >
-            {expanded ? "Hide" : "Show"}
-          </button>
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={loading}
-            style={{
-              padding: ".35rem .65rem",
-              borderRadius: 6,
-              border: "1px solid #d4d4d8",
-              background: "#fff",
-              fontSize: ".8rem",
-              cursor: loading ? "not-allowed" : "pointer",
-              opacity: loading ? 0.6 : 1,
-            }}
-          >
+        <div className="flex shrink-0 gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={toggleExpanded}>
+            {expanded ? (
+              <>
+                <ChevronUp className="size-3.5" />
+                Hide
+              </>
+            ) : (
+              <>
+                <ChevronDown className="size-3.5" />
+                Show
+              </>
+            )}
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
+            <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
             {loading ? "Refreshing…" : "Refresh"}
-          </button>
+          </Button>
         </div>
-      </div>
+      </CardHeader>
 
       {expanded ? (
-        <>
-          <dl
-            style={{
-              margin: ".85rem 0 0",
-              display: "grid",
-              gridTemplateColumns: "8.5rem 1fr",
-              gap: ".45rem .75rem",
-              fontSize: ".85rem",
-            }}
-          >
-            <dt style={{ color: "#71717a", margin: 0 }}>Business profile</dt>
-            <dd style={{ margin: 0 }}>
+        <CardContent className="space-y-4">
+          <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-[9rem_1fr]">
+            <dt className="text-[var(--color-text-muted)]">Business profile</dt>
+            <dd>
               {hasBusinessData
                 ? profile.businessProfileAt
                   ? `Assembled ${formatWhen(profile.businessProfileAt)}`
@@ -728,52 +822,52 @@ function SiteProfilePanel({
                 : "Not assembled yet — click Create Site Profile"}
             </dd>
 
-            <dt style={{ color: "#71717a", margin: 0 }}>Business type</dt>
-            <dd style={{ margin: 0 }}>{formatText(profile.businessType)}</dd>
+            <dt className="text-[var(--color-text-muted)]">Business type</dt>
+            <dd>{formatText(profile.businessType)}</dd>
 
-            <dt style={{ color: "#71717a", margin: 0 }}>Summary</dt>
-            <dd style={{ margin: 0 }}>{formatText(profile.businessSummary ?? profile.businessDescription)}</dd>
+            <dt className="text-[var(--color-text-muted)]">Summary</dt>
+            <dd>{formatText(profile.businessSummary ?? profile.businessDescription)}</dd>
 
-            <dt style={{ color: "#71717a", margin: 0 }}>Business identity</dt>
-            <dd style={{ margin: 0 }}>{formatText(profile.primaryNiche)}</dd>
+            <dt className="text-[var(--color-text-muted)]">Business identity</dt>
+            <dd>{formatText(profile.primaryNiche)}</dd>
 
-            <dt style={{ color: "#71717a", margin: 0 }}>Niche description</dt>
-            <dd style={{ margin: 0 }}>{formatText(profile.nicheDescription)}</dd>
+            <dt className="text-[var(--color-text-muted)]">Niche description</dt>
+            <dd>{formatText(profile.nicheDescription)}</dd>
 
-            <dt style={{ color: "#71717a", margin: 0 }}>Site themes</dt>
-            <dd style={{ margin: 0 }}>{formatList(profile.nicheTags)}</dd>
+            <dt className="text-[var(--color-text-muted)]">Site themes</dt>
+            <dd>{formatList(profile.nicheTags)}</dd>
 
-            <dt style={{ color: "#71717a", margin: 0 }}>Geo anchors</dt>
-            <dd style={{ margin: 0 }}>{formatList(profile.geoAnchorNodes)}</dd>
+            <dt className="text-[var(--color-text-muted)]">Geo anchors</dt>
+            <dd>{formatList(profile.geoAnchorNodes)}</dd>
 
-            <dt style={{ color: "#71717a", margin: 0 }}>Service area</dt>
-            <dd style={{ margin: 0 }}>{formatText(profile.serviceAreaDescription)}</dd>
+            <dt className="text-[var(--color-text-muted)]">Service area</dt>
+            <dd>{formatText(profile.serviceAreaDescription)}</dd>
 
-            <dt style={{ color: "#71717a", margin: 0, alignSelf: "start" }}>Writing recommendations</dt>
-            <dd style={{ margin: 0 }}>
+            <dt className="self-start text-[var(--color-text-muted)]">Writing recommendations</dt>
+            <dd>
               {profile.writingRecommendations.length > 0 ? (
-                <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
+                <ul className="list-disc space-y-1 pl-4">
                   {profile.writingRecommendations.map((item) => (
-                    <li key={item} style={{ marginBottom: ".35rem" }}>
-                      {item}
-                    </li>
+                    <li key={item}>{item}</li>
                   ))}
                 </ul>
               ) : (
-                <span style={{ color: "#71717a" }}>Available after Create Site Profile</span>
+                <span className="text-[var(--color-text-muted)]">
+                  Available after Create Site Profile
+                </span>
               )}
             </dd>
 
-            <dt style={{ color: "#71717a", margin: 0, alignSelf: "start" }}>Content pillars</dt>
-            <dd style={{ margin: 0 }}>
+            <dt className="self-start text-[var(--color-text-muted)]">Content pillars</dt>
+            <dd>
               {pillarsLoading ? (
-                <span style={{ color: "#71717a" }}>Loading…</span>
+                <span className="text-[var(--color-text-muted)]">Loading…</span>
               ) : contentPillars.length > 0 ? (
-                <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
+                <ul className="list-disc space-y-1 pl-4">
                   {contentPillars.map((pillar) => (
-                    <li key={pillar.runId} style={{ marginBottom: ".35rem" }}>
+                    <li key={pillar.runId}>
                       <strong>{pillar.keyword}</strong>
-                      <span style={{ color: "#71717a", fontSize: ".78rem" }}>
+                      <span className="text-xs text-[var(--color-text-muted)]">
                         {" "}
                         · {formatWhen(pillar.createdAt)}
                         {pillar.gapTopicsReady
@@ -786,84 +880,56 @@ function SiteProfilePanel({
                   ))}
                 </ul>
               ) : (
-                <span style={{ color: "#71717a" }}>Saved keywords appear here after SERP import</span>
+                <span className="text-[var(--color-text-muted)]">
+                  Saved keywords appear here after SERP import
+                </span>
               )}
             </dd>
           </dl>
 
           {profile.recommendedHomepageJsonLd.length > 0 ? (
-            <div style={{ marginTop: "1rem" }}>
-              <h3 style={{ fontSize: ".9rem", margin: "0 0 .35rem" }}>Recommended homepage JSON-LD</h3>
-              <p style={{ margin: "0 0 .75rem", fontSize: ".8rem", color: "#71717a" }}>
-                Copy each block into your homepage &lt;head&gt;. Content pages get a separate TechArticle block from
-                Content Writer.
-              </p>
+            <div className="space-y-3 border-t border-[var(--color-border)] pt-4">
+              <div>
+                <h3 className="text-sm font-semibold">Recommended homepage JSON-LD</h3>
+                <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                  Copy each block into your homepage &lt;head&gt;. Content pages get a separate
+                  TechArticle block from Content Writer.
+                </p>
+              </div>
               {profile.recommendedHomepageJsonLd.map((snippet) => (
                 <div
                   key={snippet.id}
-                  style={{
-                    marginBottom: ".85rem",
-                    padding: ".75rem",
-                    borderRadius: 6,
-                    border: "1px solid #e4e4e7",
-                    background: "#fff",
-                  }}
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: ".75rem",
-                      alignItems: "start",
-                      marginBottom: ".45rem",
-                    }}
-                  >
+                  <div className="mb-2 flex items-start justify-between gap-3">
                     <div>
-                      <p style={{ margin: 0, fontSize: ".85rem", fontWeight: 600 }}>{snippet.title}</p>
+                      <p className="text-sm font-semibold">{snippet.title}</p>
                       {snippet.description ? (
-                        <p style={{ margin: ".2rem 0 0", fontSize: ".78rem", color: "#71717a" }}>
+                        <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
                           {snippet.description}
                         </p>
                       ) : null}
                     </div>
-                    <button
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
                       onClick={() => void copySnippet(snippet)}
-                      style={{
-                        padding: ".3rem .55rem",
-                        borderRadius: 6,
-                        border: "1px solid #d4d4d8",
-                        background: "#fafafa",
-                        fontSize: ".75rem",
-                        cursor: "pointer",
-                        whiteSpace: "nowrap",
-                      }}
                     >
+                      <Copy className="size-3.5" />
                       {copiedSnippetId === snippet.id ? "Copied" : "Copy script"}
-                    </button>
+                    </Button>
                   </div>
-                  <pre
-                    style={{
-                      margin: 0,
-                      padding: ".65rem",
-                      borderRadius: 4,
-                      background: "#f4f4f5",
-                      fontSize: ".72rem",
-                      lineHeight: 1.45,
-                      overflowX: "auto",
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                    }}
-                  >
+                  <pre className="overflow-x-auto rounded-md bg-white p-3 text-xs leading-relaxed whitespace-pre-wrap break-words">
                     {snippet.scriptTag}
                   </pre>
                 </div>
               ))}
             </div>
           ) : null}
-        </>
+        </CardContent>
       ) : null}
-    </section>
+    </Card>
   );
 }
 
@@ -888,64 +954,47 @@ function KeywordImportSummaryPanel({
       : null;
 
   return (
-    <section
-      style={{
-        marginTop: "1rem",
-        padding: "1rem",
-        borderRadius: 8,
-        border: "1px solid #bfdbfe",
-        background: "#eff6ff",
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: ".75rem", alignItems: "start" }}>
+    <Card className="border-[rgba(26,110,191,0.25)] bg-[rgba(26,110,191,0.04)]">
+      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 pb-0">
         <div>
-          <h2 style={{ fontSize: "1rem", margin: "0 0 .25rem", color: "#1e3a8a" }}>Keyword import saved</h2>
-          <p style={{ margin: 0, fontSize: ".85rem", color: "#1d4ed8" }}>
+          <CardTitle className="text-[var(--color-metric-blue)]">Keyword import saved</CardTitle>
+          <CardDescription className="text-[var(--color-metric-blue)]/80">
             {formatCount(summary.organicOnlyCount)} organic · {formatCount(summary.paidCount)} sponsored
             {aiLabel ? ` · ${aiLabel}` : ""} · {formatCount(summary.paaCount)} PAA/PASF
-          </p>
+          </CardDescription>
           {filterLine ? (
-            <p style={{ margin: ".25rem 0 0", fontSize: ".82rem", color: "#1e40af" }}>
-              Relevance filter: {filterLine}
-            </p>
+            <p className="mt-1 text-xs text-[var(--color-metric-blue)]/70">Relevance filter: {filterLine}</p>
           ) : null}
           {keyword ? (
-            <p style={{ margin: ".25rem 0 0", fontSize: ".8rem", color: "#2563eb" }}>
-              Keyword: {keyword}
-            </p>
+            <p className="mt-1 text-xs font-medium text-[var(--color-metric-blue)]">Keyword: {keyword}</p>
           ) : null}
-          <p style={{ margin: ".25rem 0 0", fontSize: ".78rem", color: "#6b7280" }}>
-            Saved {formatWhen(summary.savedAt)}
-          </p>
+          <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">Saved {formatWhen(summary.savedAt)}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setExpanded((value) => !value)}
-          style={{
-            padding: ".35rem .65rem",
-            borderRadius: 6,
-            border: "1px solid #93c5fd",
-            background: "#fff",
-            fontSize: ".8rem",
-            cursor: "pointer",
-          }}
-        >
-          {expanded ? "Hide" : "Show"}
-        </button>
-      </div>
+        <Button type="button" variant="outline" size="sm" onClick={() => setExpanded((value) => !value)}>
+          {expanded ? (
+            <>
+              <ChevronUp className="size-3.5" />
+              Hide
+            </>
+          ) : (
+            <>
+              <ChevronDown className="size-3.5" />
+              Show
+            </>
+          )}
+        </Button>
+      </CardHeader>
 
       {expanded ? (
-        <div style={{ marginTop: ".75rem", fontSize: ".82rem", color: "#1e40af" }}>
-          <p style={{ margin: "0 0 .5rem", fontWeight: 600 }}>What was saved</p>
-          <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
+        <CardContent>
+          <p className="mb-2 text-sm font-semibold text-[var(--color-metric-blue)]">What was saved</p>
+          <ul className="list-disc space-y-1 pl-4 text-sm text-[var(--color-text-primary)]">
             <li>
               {formatCount(summary.organicOnlyCount)} organic results (URLs stored for competitor crawl seeds)
             </li>
             <li>{formatCount(summary.paidCount)} sponsored results (saved, not used for crawl)</li>
             <li>
-              {summary.aiOverviewCount > 0
-                ? aiLabel
-                : "No AI Overview block detected"}
+              {summary.aiOverviewCount > 0 ? aiLabel : "No AI Overview block detected"}
             </li>
             <li>{formatCount(summary.paaCount)} People Also Ask / People also search for suggestions</li>
             {summary.filterApplied ? (
@@ -962,13 +1011,13 @@ function KeywordImportSummaryPanel({
               <li>Relevance filter not applied yet — re-import or refresh after deploy.</li>
             )}
           </ul>
-          <p style={{ margin: ".75rem 0 0", fontSize: ".78rem", color: "#64748b" }}>
+          <p className="mt-3 text-xs text-[var(--color-text-secondary)]">
             Competitor crawl uses {formatCount(summary.competitorCrawlSeedCount)} included seed URL
             {summary.competitorCrawlSeedCount === 1 ? "" : "s"} (one ranking page per domain).
           </p>
-        </div>
+        </CardContent>
       ) : null}
-    </section>
+    </Card>
   );
 }
 
@@ -981,129 +1030,126 @@ function RunResearchFocusPanel({
 }) {
   if (loading) {
     return (
-      <section
-        style={{
-          marginTop: "1rem",
-          padding: "1rem",
-          borderRadius: 8,
-          border: "1px solid #e4e4e7",
-          background: "#fafafa",
-          fontSize: ".85rem",
-          color: "#71717a",
-        }}
-      >
-        Loading research focus…
-      </section>
+      <Card>
+        <CardContent className="flex items-center gap-2 py-6 text-sm text-[var(--color-text-secondary)]">
+          <Loader2 className="size-4 animate-spin" />
+          Loading research focus…
+        </CardContent>
+      </Card>
     );
   }
 
   if (!focus) return null;
 
-  const readyColor = focus.researchReady ? "#065f46" : "#92400e";
-  const readyBg = focus.researchReady ? "#f0fdf4" : "#fffbeb";
-  const readyBorder = focus.researchReady ? "#a7f3d0" : "#fde68a";
+  const ready = focus.researchReady;
 
   return (
-    <section
-      style={{
-        marginTop: "1rem",
-        padding: "1rem",
-        borderRadius: 8,
-        border: `1px solid ${readyBorder}`,
-        background: readyBg,
-      }}
+    <Card
+      className={
+        ready
+          ? "border-[rgba(34,197,94,0.3)] bg-[rgba(34,197,94,0.04)]"
+          : "border-[rgba(245,158,11,0.3)] bg-[rgba(245,158,11,0.04)]"
+      }
     >
-      <h2 style={{ fontSize: "1rem", margin: "0 0 .25rem", color: readyColor }}>
-        {focus.researchReady ? "Research ready" : "Research in progress"}
-      </h2>
-      <p style={{ margin: "0 0 .5rem", fontSize: ".82rem", color: readyColor }}>
-        Research pack for Content Writer — outlines and scoring happen in Writer, not here.
-      </p>
-      <p style={{ margin: "0 0 .75rem", fontSize: ".85rem", color: readyColor }}>
-        Pillar: <strong>{focus.keyword}</strong>
-        {focus.matchedPillarIntent ? ` · ${focus.matchedPillarIntent} intent` : ""}
-      </p>
+      <CardHeader className="pb-2">
+        <CardTitle className={ready ? "text-[var(--color-good)]" : "text-[var(--color-warn)]"}>
+          {ready ? "Research ready" : "Research in progress"}
+        </CardTitle>
+        <CardDescription>
+          Research pack for Content Writer — outlines and scoring happen in Writer, not here.
+        </CardDescription>
+        <p className="text-sm">
+          Pillar: <strong>{focus.keyword}</strong>
+          {focus.matchedPillarIntent ? ` · ${focus.matchedPillarIntent} intent` : ""}
+        </p>
+      </CardHeader>
 
-      <p style={{ margin: "0 0 .35rem", fontSize: ".8rem", fontWeight: 600, color: "#3f3f46" }}>
-        Pack stats
-      </p>
-      <ul style={{ margin: "0 0 .85rem", paddingLeft: "1.1rem", fontSize: ".82rem", color: "#27272a" }}>
-        <li>PAA questions: {focus.packStats.paaQuestionCount}</li>
-        <li>Competitor pages: {focus.packStats.competitorPageCount}</li>
-        <li>Competitor headings: {focus.packStats.competitorHeadingCount}</li>
-        <li>Your page headings: {focus.packStats.sourceHeadingCount}</li>
-        <li>Gap themes: {focus.packStats.gapTopicCount}</li>
-      </ul>
-
-      {focus.rankings.history.length > 0 ? (
-        <>
-          <p style={{ margin: "0 0 .35rem", fontSize: ".8rem", fontWeight: 600, color: "#3f3f46" }}>
-            Rankings loop
+      <CardContent className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+            Pack stats
           </p>
-          {focus.rankings.hasRecapture && focus.rankings.latestDelta ? (
-            <p style={{ margin: "0 0 .5rem", fontSize: ".82rem", color: "#27272a" }}>
-              Latest recapture:{" "}
-              <strong>
-                {formatRankPosition(focus.rankings.latestDelta.previousPosition)} →{" "}
-                {formatRankPosition(focus.rankings.latestDelta.currentPosition)}
-              </strong>{" "}
-              ({formatRankDelta(focus.rankings.latestDelta.positionChange ?? null)})
-            </p>
-          ) : (
-            <p style={{ margin: "0 0 .5rem", fontSize: ".82rem", color: "#57534e" }}>
-              Baseline captured. Re-import SERP HTML later to see position delta.
-            </p>
-          )}
-          <ul style={{ margin: "0 0 .85rem", paddingLeft: "1.1rem", fontSize: ".82rem", color: "#27272a" }}>
-            {focus.rankings.history.map((snapshot) => (
-              <li key={snapshot.importSequence}>
-                Import #{snapshot.importSequence}: {formatRankPosition(snapshot.targetPosition)}
-                {snapshot.targetUrl ? ` · ${snapshot.targetUrl}` : ""}
+          <ul className="space-y-1 text-sm">
+            <li>PAA questions: {focus.packStats.paaQuestionCount}</li>
+            <li>Competitor pages: {focus.packStats.competitorPageCount}</li>
+            <li>Competitor headings: {focus.packStats.competitorHeadingCount}</li>
+            <li>Your page headings: {focus.packStats.sourceHeadingCount}</li>
+            <li>Gap themes: {focus.packStats.gapTopicCount}</li>
+          </ul>
+        </div>
+
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+            Workflow gates
+          </p>
+          <ul className="space-y-1 text-sm">
+            {focus.gates.map((gate) => (
+              <li
+                key={gate.id}
+                className={gate.complete ? "text-[var(--color-good)]" : "text-[var(--color-text-muted)]"}
+              >
+                {gate.complete ? "✓" : "○"} {gate.label}
               </li>
             ))}
           </ul>
-        </>
-      ) : null}
+        </div>
 
-      <p style={{ margin: "0 0 .35rem", fontSize: ".8rem", fontWeight: 600, color: "#3f3f46" }}>
-        Workflow gates
-      </p>
-      <ul style={{ margin: "0 0 .85rem", paddingLeft: "1.1rem", fontSize: ".82rem" }}>
-        {focus.gates.map((gate) => (
-          <li key={gate.id} style={{ marginBottom: ".25rem", color: gate.complete ? "#065f46" : "#78716c" }}>
-            {gate.complete ? "✓" : "○"} {gate.label}
-          </li>
-        ))}
-      </ul>
+        {focus.rankings.history.length > 0 ? (
+          <div className="sm:col-span-2">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+              Rankings loop
+            </p>
+            {focus.rankings.hasRecapture && focus.rankings.latestDelta ? (
+              <p className="mb-2 text-sm">
+                Latest recapture:{" "}
+                <strong>
+                  {formatRankPosition(focus.rankings.latestDelta.previousPosition)} →{" "}
+                  {formatRankPosition(focus.rankings.latestDelta.currentPosition)}
+                </strong>{" "}
+                ({formatRankDelta(focus.rankings.latestDelta.positionChange ?? null)})
+              </p>
+            ) : (
+              <p className="mb-2 text-sm text-[var(--color-text-secondary)]">
+                Baseline captured. Re-import SERP HTML later to see position delta.
+              </p>
+            )}
+            <ul className="list-disc space-y-1 pl-4 text-sm">
+              {focus.rankings.history.map((snapshot) => (
+                <li key={snapshot.importSequence}>
+                  Import #{snapshot.importSequence}: {formatRankPosition(snapshot.targetPosition)}
+                  {snapshot.targetUrl ? ` · ${snapshot.targetUrl}` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
-      {focus.gapTopics.length > 0 ? (
-        <>
-          <p style={{ margin: "0 0 .35rem", fontSize: ".8rem", fontWeight: 600, color: "#3f3f46" }}>
-            Gap themes
-          </p>
-          <p style={{ margin: "0 0 .75rem", fontSize: ".82rem", color: "#27272a" }}>
-            {formatList(focus.gapTopics)}
-          </p>
-        </>
-      ) : null}
+        {focus.gapTopics.length > 0 ? (
+          <div className="sm:col-span-2">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+              Gap themes
+            </p>
+            <p className="text-sm">{formatList(focus.gapTopics)}</p>
+          </div>
+        ) : null}
 
-      {focus.writingInstructions ? (
-        <>
-          <p style={{ margin: "0 0 .35rem", fontSize: ".8rem", fontWeight: 600, color: "#3f3f46" }}>
-            Writing brief
-          </p>
-          <p style={{ margin: 0, fontSize: ".82rem", color: "#27272a", lineHeight: 1.45 }}>
-            {focus.writingInstructions}
-          </p>
-        </>
-      ) : null}
+        {focus.writingInstructions ? (
+          <div className="sm:col-span-2">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+              Writing brief
+            </p>
+            <p className="text-sm leading-relaxed">{focus.writingInstructions}</p>
+          </div>
+        ) : null}
 
-      {!focus.researchReady ? (
-        <p style={{ margin: ".75rem 0 0", fontSize: ".78rem", color: "#991b1b" }}>
-          Research pack is not ready. Competitor crawl must finish with all gates complete before Content Writer handoff.
-        </p>
-      ) : null}
-    </section>
+        {!ready ? (
+          <p className="text-xs text-[var(--color-bad)] sm:col-span-2">
+            Research pack is not ready. Competitor crawl must finish with all gates complete before
+            Content Writer handoff.
+          </p>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1123,98 +1169,68 @@ function CompetitorCrawlSummaryPanel({
         : [];
 
   return (
-    <section
-      style={{
-        marginTop: "1rem",
-        padding: "1rem",
-        borderRadius: 8,
-        border: "1px solid #d1fae5",
-        background: "#f0fdf4",
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: ".75rem", alignItems: "start" }}>
+    <Card className="border-[rgba(34,197,94,0.3)] bg-[rgba(34,197,94,0.04)]">
+      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0 pb-0">
         <div>
-          <h2 style={{ fontSize: "1rem", margin: "0 0 .25rem", color: "#065f46" }}>Competitor crawl complete</h2>
-          <p style={{ margin: 0, fontSize: ".85rem", color: "#047857" }}>
+          <CardTitle className="text-[var(--color-good)]">Competitor crawl complete</CardTitle>
+          <CardDescription>
             {formatCount(summary.totalPages)} pages across {formatCount(summary.domainCount)} competitor domains
-          </p>
+          </CardDescription>
           {keyword ? (
-            <p style={{ margin: ".25rem 0 0", fontSize: ".8rem", color: "#059669" }}>
-              Keyword: {keyword}
-            </p>
+            <p className="mt-1 text-xs font-medium text-[var(--color-good)]">Keyword: {keyword}</p>
           ) : null}
-          <p style={{ margin: ".25rem 0 0", fontSize: ".78rem", color: "#6b7280" }}>
-            Saved {formatWhen(summary.savedAt)}
-          </p>
+          <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">Saved {formatWhen(summary.savedAt)}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setExpanded((value) => !value)}
-          style={{
-            padding: ".35rem .65rem",
-            borderRadius: 6,
-            border: "1px solid #a7f3d0",
-            background: "#fff",
-            fontSize: ".8rem",
-            cursor: "pointer",
-          }}
-        >
-          {expanded ? "Hide" : "Show"}
-        </button>
-      </div>
+        <Button type="button" variant="outline" size="sm" onClick={() => setExpanded((value) => !value)}>
+          {expanded ? (
+            <>
+              <ChevronUp className="size-3.5" />
+              Hide
+            </>
+          ) : (
+            <>
+              <ChevronDown className="size-3.5" />
+              Show
+            </>
+          )}
+        </Button>
+      </CardHeader>
 
       {expanded ? (
-        <>
+        <CardContent className="space-y-4">
           {summary.qualityWarnings.length > 0 ? (
-            <div style={{ marginTop: ".75rem" }}>
-              <p style={{ margin: "0 0 .35rem", fontSize: ".8rem", fontWeight: 600, color: "#92400e" }}>
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-warn)]">
                 Quality warnings
               </p>
-              <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: ".8rem", color: "#78350f" }}>
+              <ul className="list-disc space-y-1 pl-4 text-sm text-[var(--color-warn)]">
                 {summary.qualityWarnings.map((warning) => (
-                  <li key={warning} style={{ marginBottom: ".25rem" }}>
-                    {warning}
-                  </li>
+                  <li key={warning}>{warning}</li>
                 ))}
               </ul>
             </div>
           ) : null}
 
           {domainRows.length > 0 ? (
-            <div style={{ marginTop: ".75rem" }}>
-              <p style={{ margin: "0 0 .35rem", fontSize: ".8rem", fontWeight: 600, color: "#065f46" }}>
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
                 Domains crawled
               </p>
-              <ul
-                style={{
-                  margin: 0,
-                  padding: 0,
-                  listStyle: "none",
-                  fontSize: ".82rem",
-                  color: "#064e3b",
-                }}
-              >
+              <ul className="divide-y divide-[var(--color-border)] text-sm">
                 {domainRows.map((row) => (
-                  <li
-                    key={row.domain}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: ".75rem",
-                      padding: ".3rem 0",
-                      borderBottom: "1px solid #d1fae5",
-                    }}
-                  >
+                  <li key={row.domain} className="flex justify-between gap-3 py-2">
                     <span>{row.domain}</span>
-                    <span>{formatCount(row.pagesCrawled)} pages</span>
+                    <span className="text-[var(--color-text-secondary)]">
+                      {formatCount(row.pagesCrawled)} pages
+                    </span>
                   </li>
                 ))}
               </ul>
             </div>
           ) : null}
-        </>
+        </CardContent>
       ) : null}
-    </section>
+    </Card>
   );
 }
 
@@ -1902,246 +1918,331 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
     }
   }
 
-  const statusStyle =
+  const statusBannerClass =
     status?.kind === "ok"
-      ? { background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#065f46" }
+      ? "border-[rgba(34,197,94,0.3)] bg-[rgba(34,197,94,0.06)] text-[var(--color-good)]"
       : status?.kind === "err"
-        ? { background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b" }
-        : { background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1e40af" };
+        ? "border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.06)] text-[var(--color-bad)]"
+        : "border-[rgba(26,110,191,0.25)] bg-[rgba(26,110,191,0.06)] text-[var(--color-metric-blue)]";
 
-  const btnPrimary: CSSProperties = {
-    padding: ".55rem 1rem",
-    borderRadius: 8,
-    border: "none",
-    background: "#18181b",
-    color: "#fff",
-    fontWeight: 600,
-    cursor: "pointer",
-  };
-
-  const btnSecondary: CSSProperties = {
-    ...btnPrimary,
-    background: "#e4e4e7",
-    color: "#18181b",
-  };
-
-  const disabled = (on: boolean): CSSProperties => ({
-    opacity: on ? 0.5 : 1,
-    cursor: on ? "not-allowed" : "pointer",
-  });
+  const showMetrics = keywordSaved && keywordImportSummary;
 
   return (
-    <>
-      <main style={{ maxWidth: "32rem", margin: "0 auto", padding: "0 1rem" }}>
-      <h1 style={{ fontSize: "1.35rem", margin: "0 0 .25rem" }}>Site Analyzer</h1>
-      <p style={{ color: "#52525b", fontSize: ".9rem", marginBottom: "1.25rem" }}>
-        Import Google results, crawl competitors, feed Content Writer.
-      </p>
-
-      <label style={{ display: "block", fontSize: ".85rem", fontWeight: 600, marginTop: "1rem" }}>
-        Project URL
-      </label>
-      <input
-        type="url"
-        value={projectUrl}
-        onChange={(e) => setProjectUrl(e.target.value)}
-        onBlur={() => {
-          const normalized = normalizeProjectUrl(projectUrl);
-          if (normalized) setProjectUrl(normalized);
-        }}
-        disabled={workflowLocked || parsing || crawling}
-        placeholder="https://geekatyourspot.com"
-        style={{ width: "100%", padding: ".55rem", marginTop: ".35rem", boxSizing: "border-box" }}
-      />
-      <p style={{ fontSize: ".8rem", color: "#71717a", marginTop: ".3rem" }}>
-        Your Geek-SEO site URL — saved in this browser.
-      </p>
-
-      {siteProfile ? (
-        <SiteProfilePanel
-          profile={siteProfile}
-          loading={loadingSiteProfile}
-          expandToken={siteProfileExpandToken}
-          contentPillars={contentPillars}
-          pillarsLoading={pillarsLoading}
-          onRefresh={() => {
-            if (normalizedProjectUrl) {
-              void loadSiteProfile(normalizedProjectUrl);
-              void loadContentPillars(normalizedProjectUrl);
-            }
-          }}
-        />
-      ) : normalizedProjectUrl && !loadingSiteProfile ? (
-        <p style={{ marginTop: "1rem", fontSize: ".85rem", color: "#71717a" }}>
-          No site profile for this URL yet. Click Create Site Profile to register it.
-        </p>
-      ) : null}
-
-      <label style={{ display: "block", fontSize: ".85rem", fontWeight: 600, marginTop: "1rem" }}>
-        Saved Google page (HTML only)
-      </label>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".html,.htm,text/html"
-        disabled={filePickerDisabled}
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        style={{ marginTop: ".35rem" }}
-      />
-
-      <div style={{ display: "flex", flexWrap: "wrap", gap: ".6rem", marginTop: "1.25rem" }}>
-        <button
-          type="button"
-          onClick={() => void createSiteProfile()}
-          disabled={!normalizedProjectUrl || creatingSiteProfile || parsing || crawling || workflowLocked}
-          title={!normalizedProjectUrl ? "Enter your site URL first" : undefined}
-          style={{
-            ...btnPrimary,
-            ...disabled(!normalizedProjectUrl || creatingSiteProfile || parsing || crawling || workflowLocked),
-          }}
-        >
-          {creatingSiteProfile ? "Creating…" : "Create Site Profile"}
-        </button>
-        <button
-          type="button"
-          onClick={() => void parseKeywordPage()}
-          disabled={!siteProfileReady || !file || parsing || crawling || workflowLocked || keywordSaved}
-          style={{
-            ...btnPrimary,
-            ...disabled(!siteProfileReady || !file || parsing || crawling || workflowLocked || keywordSaved),
-          }}
-        >
-          {parsing ? "Parsing…" : "Parse keyword page"}
-        </button>
-        <button
-          type="button"
-          onClick={() => void runCompetitorCrawl()}
-          disabled={!keywordSaved || parsing || crawling || workflowLocked}
-          style={{
-            ...btnSecondary,
-            ...disabled(!keywordSaved || parsing || crawling || workflowLocked),
-          }}
-        >
-          {crawling ? "Crawling…" : "Competitor crawl"}
-        </button>
-        {keywordSaved ? (
-          <button
-            type="button"
-            onClick={startNewKeyword}
-            disabled={parsing || crawling}
-            style={{ ...btnSecondary, ...disabled(parsing || crawling) }}
-          >
-            Start new keyword
-          </button>
+    <div className="mx-auto w-full max-w-[1600px] space-y-5">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+            Site Analyzer
+          </h1>
+          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+            Import Google results, crawl competitors, and hand off to Content Writer.
+          </p>
+        </div>
+        {keywordSaved && keywordProjectId ? (
+          <div className="flex flex-wrap gap-2">
+            {step === "complete" ? (
+              <Button type="button" variant="outline" size="sm" onClick={() => void copyKeywordProjectId()}>
+                <Copy className="size-3.5" />
+                {copied ? "Copied!" : "Copy project ID"}
+              </Button>
+            ) : null}
+            {researchFocus?.researchReady ? (
+              <a
+                href={contentWriterUrl(keywordProjectId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(buttonVariants({ size: "sm" }))}
+              >
+                <ExternalLink className="size-3.5" />
+                Open Content Writer
+              </a>
+            ) : (
+              <Button type="button" size="sm" disabled title="Complete all research gates before handoff">
+                <ExternalLink className="size-3.5" />
+                Open Content Writer
+              </Button>
+            )}
+          </div>
         ) : null}
-      </div>
+      </header>
 
-      {keywordImportSummary && keywordSaved ? (
-        <KeywordImportSummaryPanel keyword={keyword} summary={keywordImportSummary} />
-      ) : null}
+      <WorkflowStrip
+        siteProfileReady={siteProfileReady}
+        keywordSaved={keywordSaved}
+        step={step}
+        researchReady={researchFocus?.researchReady ?? false}
+        keyword={keyword}
+      />
 
-      {keywordSaved ? (
-        <RunResearchFocusPanel focus={researchFocus} loading={researchFocusLoading} />
-      ) : null}
-
-      {competitorCrawlSummary && step === "complete" ? (
-        <CompetitorCrawlSummaryPanel keyword={keyword} summary={competitorCrawlSummary} />
-      ) : null}
-
-      {keywordSaved ? (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: ".6rem", marginTop: ".75rem" }}>
-          {step === "complete" ? (
-            <button
-              type="button"
-              onClick={() => void copyKeywordProjectId()}
-              style={{ ...btnSecondary, ...disabled(!keywordProjectId) }}
-            >
-              {copied ? "Copied!" : "Copy Keyword Project ID"}
-            </button>
-          ) : null}
-          {keywordProjectId ? (
-            <>
-              {researchFocus?.researchReady ? (
-                <a
-                  href={contentWriterUrl(keywordProjectId)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    ...btnPrimary,
-                    textDecoration: "none",
-                    display: "inline-block",
-                    lineHeight: "1.25rem",
-                  }}
-                >
-                  Open Content Writer
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  title="Complete all research gates before handoff"
-                  style={{
-                    ...btnPrimary,
-                    ...disabled(true),
-                  }}
-                >
-                  Open Content Writer
-                </button>
-              )}
-              {researchFocus && !researchFocus.researchReady ? (
-                <p style={{ fontSize: ".78rem", color: "#991b1b", margin: ".35rem 0 0", width: "100%" }}>
-                  Research pack not ready — competitor crawl must complete with all gates before handoff.
-                </p>
-              ) : null}
-            </>
-          ) : (
-            <p style={{ fontSize: ".8rem", color: "#71717a", margin: 0 }}>
-              Project id missing from import response — check Api logs.
-            </p>
-          )}
+      {showMetrics ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <MetricTile
+            label="Organic results"
+            value={formatCount(keywordImportSummary.organicOnlyCount)}
+            hint={`${formatCount(keywordImportSummary.paidCount)} sponsored`}
+          />
+          <MetricTile
+            label="PAA / PASF"
+            value={formatCount(keywordImportSummary.paaCount)}
+            hint="People also ask"
+          />
+          <MetricTile
+            label="Competitor pages"
+            value={
+              competitorCrawlSummary
+                ? formatCount(competitorCrawlSummary.totalPages)
+                : crawling
+                  ? "…"
+                  : "—"
+            }
+            hint={
+              competitorCrawlSummary
+                ? `${formatCount(competitorCrawlSummary.domainCount)} domains`
+                : keywordSaved
+                  ? "Run competitor crawl"
+                  : undefined
+            }
+          />
+          <MetricTile
+            label="Gap themes"
+            value={
+              researchFocus
+                ? String(researchFocus.packStats.gapTopicCount)
+                : researchFocusLoading
+                  ? "…"
+                  : "—"
+            }
+            hint={researchFocus?.researchReady ? "Research ready" : "In progress"}
+          />
         </div>
       ) : null}
 
       {status ? (
-        <p
-          style={{
-            marginTop: "1.25rem",
-            padding: ".75rem 1rem",
-            borderRadius: 8,
-            fontSize: ".9rem",
-            whiteSpace: "pre-wrap",
-            ...statusStyle,
-          }}
+        <div
+          className={`rounded-[var(--radius-card)] border px-4 py-3 text-sm whitespace-pre-wrap ${statusBannerClass}`}
         >
           {status.text}
-        </p>
+        </div>
       ) : null}
-      </main>
 
-      <details
-        style={{
-          maxWidth: "32rem",
-          margin: "1.5rem auto 2rem",
-          padding: "0 1rem",
-          fontSize: ".85rem",
-          color: "#52525b",
-        }}
-      >
-        <summary style={{ cursor: "pointer", fontWeight: 600, color: "#3f3f46" }}>
-          Domain positions (optional)
-        </summary>
-        <p style={{ margin: ".5rem 0 .75rem", fontSize: ".78rem", color: "#71717a" }}>
-          Deferred — not part of the Frase research pack. Uses your SERP import index.
-        </p>
-        <DomainOverviewPanel
-          overview={domainOverview}
-          domainInput={domainOverviewInput}
-          onDomainInputChange={setDomainOverviewInput}
-          onSubmit={() => void runDomainOverviewSearch()}
-          loading={domainOverviewSearching}
-          analyzing={domainOverviewSearching}
-        />
-      </details>
-    </>
+      <div className="grid grid-cols-12 items-start gap-5">
+        <div className="col-span-12 space-y-5 lg:col-span-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="size-4 text-[var(--color-accent)]" />
+                Project setup
+              </CardTitle>
+              <CardDescription>Your site URL — saved in this browser.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label
+                  htmlFor="project-url"
+                  className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]"
+                >
+                  Project URL
+                </label>
+                <input
+                  id="project-url"
+                  type="url"
+                  value={projectUrl}
+                  onChange={(e) => setProjectUrl(e.target.value)}
+                  onBlur={() => {
+                    const normalized = normalizeProjectUrl(projectUrl);
+                    if (normalized) setProjectUrl(normalized);
+                  }}
+                  disabled={workflowLocked || parsing || crawling}
+                  placeholder="https://geekatyourspot.com"
+                  className="mt-1.5 w-full rounded-[var(--radius-button)] border border-[var(--color-border-strong)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[rgba(59,179,122,0.2)] disabled:opacity-50"
+                />
+              </div>
+
+              {!siteProfile && normalizedProjectUrl && !loadingSiteProfile ? (
+                <p className="text-sm text-[var(--color-text-secondary)]">
+                  No site profile yet. Create one to continue.
+                </p>
+              ) : null}
+
+              <Button
+                type="button"
+                className="w-full"
+                onClick={() => void createSiteProfile()}
+                disabled={
+                  !normalizedProjectUrl || creatingSiteProfile || parsing || crawling || workflowLocked
+                }
+                title={!normalizedProjectUrl ? "Enter your site URL first" : undefined}
+              >
+                {creatingSiteProfile ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Creating…
+                  </>
+                ) : (
+                  "Create Site Profile"
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="size-4 text-[var(--color-metric-blue)]" />
+                Keyword import
+              </CardTitle>
+              <CardDescription>
+                Chrome save: Webpage, HTML only — from your Google SERP.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label
+                  htmlFor="keyword-html"
+                  className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]"
+                >
+                  Saved Google page
+                </label>
+                <input
+                  id="keyword-html"
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".html,.htm,text/html"
+                  disabled={filePickerDisabled}
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  className="mt-1.5 block w-full text-sm file:mr-3 file:rounded-[var(--radius-button)] file:border-0 file:bg-[var(--color-surface-muted)] file:px-3 file:py-1.5 file:text-sm file:font-medium disabled:opacity-50"
+                />
+                {file ? (
+                  <p className="mt-1.5 truncate text-xs text-[var(--color-text-secondary)]">{file.name}</p>
+                ) : null}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="button"
+                  className="w-full"
+                  onClick={() => void parseKeywordPage()}
+                  disabled={
+                    !siteProfileReady || !file || parsing || crawling || workflowLocked || keywordSaved
+                  }
+                >
+                  {parsing ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Parsing…
+                    </>
+                  ) : (
+                    "Parse keyword page"
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => void runCompetitorCrawl()}
+                  disabled={!keywordSaved || parsing || crawling || workflowLocked}
+                >
+                  {crawling ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Crawling…
+                    </>
+                  ) : (
+                    "Competitor crawl"
+                  )}
+                </Button>
+                {keywordSaved ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full"
+                    onClick={startNewKeyword}
+                    disabled={parsing || crawling}
+                  >
+                    Start new keyword
+                  </Button>
+                ) : null}
+              </div>
+
+              {researchFocus && !researchFocus.researchReady ? (
+                <p className="text-xs text-[var(--color-bad)]">
+                  Research pack not ready — competitor crawl must complete with all gates before handoff.
+                </p>
+              ) : null}
+              {keywordSaved && !keywordProjectId ? (
+                <p className="text-xs text-[var(--color-text-secondary)]">
+                  Project id missing from import response — check API logs.
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="col-span-12 space-y-5 lg:col-span-8">
+          {siteProfile ? (
+            <SiteProfilePanel
+              profile={siteProfile}
+              loading={loadingSiteProfile}
+              expandToken={siteProfileExpandToken}
+              contentPillars={contentPillars}
+              pillarsLoading={pillarsLoading}
+              onRefresh={() => {
+                if (normalizedProjectUrl) {
+                  void loadSiteProfile(normalizedProjectUrl);
+                  void loadContentPillars(normalizedProjectUrl);
+                }
+              }}
+            />
+          ) : (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                <Globe className="mb-3 size-10 text-[var(--color-text-muted)]" />
+                <p className="text-sm font-medium text-[var(--color-text-primary)]">
+                  Site profile will appear here
+                </p>
+                <p className="mt-1 max-w-sm text-sm text-[var(--color-text-secondary)]">
+                  Enter your project URL and create a site profile to see business identity, niche tags,
+                  and content pillars.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {keywordImportSummary && keywordSaved ? (
+            <KeywordImportSummaryPanel keyword={keyword} summary={keywordImportSummary} />
+          ) : null}
+
+          {keywordSaved ? (
+            <RunResearchFocusPanel focus={researchFocus} loading={researchFocusLoading} />
+          ) : null}
+
+          {competitorCrawlSummary && step === "complete" ? (
+            <CompetitorCrawlSummaryPanel keyword={keyword} summary={competitorCrawlSummary} />
+          ) : null}
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Search className="size-4 text-[var(--color-badge-purple)]" />
+                Domain positions
+              </CardTitle>
+              <CardDescription>
+                Optional — not part of the research pack. Uses your SERP import index.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DomainOverviewPanel
+                overview={domainOverview}
+                domainInput={domainOverviewInput}
+                onDomainInputChange={setDomainOverviewInput}
+                onSubmit={() => void runDomainOverviewSearch()}
+                loading={domainOverviewSearching}
+                analyzing={domainOverviewSearching}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
   );
 }
