@@ -107,6 +107,7 @@ function ContentWritingPageInner() {
     elapsedMs: number;
   } | null>(null);
   const [documentLoading, setDocumentLoading] = useState(!!urlParams.documentId);
+  const [regenerating, setRegenerating] = useState(false);
 
   const handoffStartedRef = useRef<string | null>(null);
 
@@ -232,8 +233,6 @@ function ContentWritingPageInner() {
     );
   }
 
-  const [regenerating, setRegenerating] = useState(false);
-
   async function handleRegenerate() {
     if (!doc || !doc.analysisRunId || regenerating) return;
     setRegenerating(true);
@@ -262,7 +261,7 @@ function ContentWritingPageInner() {
       </aside>
       <div className="col-span-12 min-h-0 overflow-y-auto xl:col-span-7">
         <div className="space-y-4">
-          {/* BlogPostPanel disabled for crash diagnosis */}
+          <BlogPostPanel />
           <WritingEditorPane
             title={title}
             setTitle={setTitle}
