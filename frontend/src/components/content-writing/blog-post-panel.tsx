@@ -9,6 +9,8 @@ import {
   createContentSpoke,
   generateContentSpoke,
   generateLinkedFaqs,
+  getContent,
+  getRenderedContentHtml,
   listContentSpokes,
   saveClusterPlan,
   type ContentClusterCandidate,
@@ -27,6 +29,8 @@ export function BlogPostPanel() {
   const [planResult, setPlanResult] = useState<ContentClusterPlanResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,12 +47,8 @@ export function BlogPostPanel() {
       ]);
       setPosts(list);
       setPlanResult(plan);
-      // Only show candidates that don't already have a blog post
       const existingPhrases = new Set(list.map((p) => p.spokeSourcePhrase?.toLowerCase()).filter(Boolean));
-      const unused = plan.spokeCandidates.filter(
-        (c) => !existingPhrases.has(c.phrase.toLowerCase()),
-      );
-      setCandidates(unused.slice(0, 3));
+      setCandidates(plan.spokeCandidates.filter((c) => !existingPhrases.has(c.phrase.toLowerCase())).slice(0, 3));
     } catch {
       setPosts([]);
       setCandidates([]);
@@ -63,48 +63,32 @@ export function BlogPostPanel() {
 
   async function handleGenerate(phrase: string) {
     if (!accessToken || !phrase || busy) return;
-
     setBusy(true);
     setError(null);
     setStatusMsg('Writing blog post…');
-
     try {
       const plan = planResult ?? await buildClusterPlan(doc.id, accessToken);
-
-      const created = await createContentSpoke(
-        doc.id,
-        { phrase, sourceType: 'pasf' },
-        accessToken,
-      );
-
+      const created = await createContentSpoke(doc.id, { phrase, sourceType: 'pasf' }, accessToken);
       setStatusMsg('Writing blog post content…');
       const generated = await generateContentSpoke(doc.id, created.id, accessToken);
       setPosts((prev) => [generated, ...prev.filter((p) => p.id !== generated.id)]);
       setCandidates((prev) => prev.filter((c) => c.phrase.toLowerCase() !== phrase.toLowerCase()));
-
       if (generated.publishSlug) {
-        const faqSlot = {
-          question: `What should you know about ${phrase}?`,
-          targetDocumentId: generated.id,
-          targetPath: `/blog/${generated.publishSlug}`,
-          anchorText: phrase,
-          source: 'manual' as const,
-        };
         await saveClusterPlan(doc.id, {
-          faqItems: [faqSlot, ...plan.faqItems],
+          faqItems: [{
+            question: `What should you know about ${phrase}?`,
+            targetDocumentId: generated.id,
+            targetPath: `/blog/${generated.publishSlug}`,
+            anchorText: phrase,
+            source: 'manual' as const,
+          }, ...plan.faqItems],
           bodyLinks: plan.bodyLinks,
         }, accessToken);
       }
-
       setStatusMsg('Linking in your article…');
       const linked = await generateLinkedFaqs(doc.id, accessToken);
       await reloadDocument();
-
-      setStatusMsg(
-        linked.linkedCount > 0
-          ? 'Blog post created and linked in your article.'
-          : 'Blog post created.',
-      );
+      setStatusMsg(linked.linkedCount > 0 ? 'Blog post created and linked.' : 'Blog post created.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not create blog post');
       setStatusMsg(null);
@@ -113,24 +97,87 @@ export function BlogPostPanel() {
     }
   }
 
+  async function handleRegenerate(post: ContentSpokeSummary) {
+    if (!accessToken || !doc.id || regeneratingId) return;
+    setRegeneratingId(post.id);
+    setError(null);
+    try {
+      const updated = await generateContentSpoke(doc.id, post.id, accessToken);
+      setPosts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      setStatusMsg('Blog post regenerated.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Regeneration failed');
+    } finally {
+      setRegeneratingId(null);
+    }
+  }
+
+  async function handleSave() {
+    if (!accessToken || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const pillarRendered = await getRenderedContentHtml(doc.id, accessToken);
+      const pillarHtml = pillarRendered.renderedHtml || pillarRendered.bodyHtml;
+
+      const blogPosts: Array<{ slug: string; html: string; title: string }> = [];
+      for (const post of posts.filter(isBlogPostReady)) {
+        const postDoc = await getContent(post.id, accessToken);
+        blogPosts.push({
+          slug: post.publishSlug ?? post.id,
+          title: post.title,
+          html: postDoc.contentHtml,
+        });
+      }
+
+      const res = await fetch('/api/save-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keyword: doc.targetKeyword, pillarHtml, blogPosts }),
+      });
+
+      if (!res.ok) throw new Error('Save failed');
+      const result = (await res.json()) as { dir: string };
+      setStatusMsg(`Saved to ${result.dir}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const readyPosts = posts.filter(isBlogPostReady);
+
   return (
     <div className="rounded-xl border bg-white shadow-sm">
-      <div className="border-b px-5 py-4">
-        <h2 className="font-semibold">Blog posts</h2>
-        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-          Generate a linked blog post from your SERP research.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
+        <div>
+          <h2 className="font-semibold">Blog posts</h2>
+          <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">
+            Generate a linked blog post from your SERP research.
+          </p>
+        </div>
+        {readyPosts.length > 0 ? (
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => void handleSave()}
+            className="rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
+          >
+            {saving ? 'Saving…' : 'Save files'}
+          </button>
+        ) : null}
       </div>
 
       <div className="space-y-4 p-5">
         {error ? <p className="text-sm text-red-700">{error}</p> : null}
-        {!busy && statusMsg ? <p className="text-sm text-emerald-700">{statusMsg}</p> : null}
-        {busy ? <p className="text-sm text-[var(--color-text-secondary)]">{statusMsg ?? 'Working…'}</p> : null}
+        {!busy && !saving && statusMsg ? <p className="text-sm text-emerald-700">{statusMsg}</p> : null}
+        {(busy || saving) ? <p className="text-sm text-[var(--color-text-secondary)]">{statusMsg ?? 'Working…'}</p> : null}
 
         {!loading && !busy && candidates.length > 0 ? (
           <div className="space-y-2">
             <p className="text-xs font-medium text-[var(--color-text-secondary)]">
-              Suggested from your research — click to generate:
+              From your research — click to generate:
             </p>
             <ul className="space-y-2">
               {candidates.map((c) => (
@@ -138,7 +185,8 @@ export function BlogPostPanel() {
                   <button
                     type="button"
                     onClick={() => void handleGenerate(c.phrase)}
-                    className="w-full rounded-lg border px-3 py-2 text-left text-sm hover:border-[var(--color-accent)] hover:bg-[var(--color-accent)]/5"
+                    disabled={busy}
+                    className="w-full rounded-lg border px-3 py-2 text-left text-sm hover:border-[var(--color-accent)] hover:bg-[var(--color-accent)]/5 disabled:opacity-50"
                   >
                     <span className="font-medium text-[var(--color-text-primary)]">
                       {c.suggestedQuestion ?? c.phrase}
@@ -153,7 +201,7 @@ export function BlogPostPanel() {
           </div>
         ) : null}
 
-        {!loading && !busy && candidates.length === 0 && posts.length === 0 ? (
+        {!loading && candidates.length === 0 && posts.length === 0 ? (
           <p className="text-sm text-[var(--color-text-secondary)]">
             No candidates found — ensure Site Analyzer research is complete.
           </p>
@@ -180,11 +228,21 @@ export function BlogPostPanel() {
                         {post.publishSlug ? ` · /blog/${post.publishSlug}` : ''}
                       </p>
                     </div>
-                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                      isBlogPostReady(post) ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'
-                    }`}>
-                      {isBlogPostReady(post) ? 'Ready' : 'Draft'}
-                    </span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={regeneratingId === post.id || busy}
+                        onClick={() => void handleRegenerate(post)}
+                        className="text-xs text-[var(--color-accent)] underline disabled:opacity-50"
+                      >
+                        {regeneratingId === post.id ? 'Regenerating…' : 'Regenerate'}
+                      </button>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        isBlogPostReady(post) ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'
+                      }`}>
+                        {isBlogPostReady(post) ? 'Ready' : 'Draft'}
+                      </span>
+                    </div>
                   </div>
                 </li>
               ))}
