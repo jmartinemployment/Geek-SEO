@@ -79,12 +79,17 @@ export function CrawlStreamProvider({
 
   const subscribeToRun = useCallback(
     (runId: string) => {
-      if (!runId) return;
+      if (!runId || !accessToken) return;
 
       const active = connectionsRef.current[runId];
       if (active) {
-        active.count += 1;
-        return;
+        if (active.sse.readyState !== EventSource.CLOSED) {
+          active.count += 1;
+          return;
+        }
+        // Dead connection — close and reconnect with current token.
+        active.sse.close();
+        delete connectionsRef.current[runId];
       }
 
       activeRunsRef.current.add(runId);
