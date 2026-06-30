@@ -14,7 +14,6 @@ import {
   getRenderedContentHtml,
   listContentSpokes,
   saveClusterPlan,
-  type ContentClusterCandidate,
   type ContentClusterPlanResult,
   type ContentSocialPostResult,
   type ContentSpokeSummary,
@@ -24,10 +23,100 @@ function isBlogPostReady(post: ContentSpokeSummary): boolean {
   return post.status === 'body_generated' || post.wordCount > 80;
 }
 
+type DocumentCandidate = {
+  phrase: string;
+  sourceType: string;
+  suggestedQuestion: string;
+  suggestedSlug: string;
+  score: number;
+};
+
+const HEADING_SCORE: Record<string, number> = { h2: 10, h3: 8, h4: 6, h5: 4, h6: 3 };
+const DEPTH_SIGNALS = /\b(guide|overview|explained?|how to|step[s]?|checklist|examples?|best practices?|tips?|tools?|strategies|framework|approach|methods?)\b/i;
+const FAQ_RE = /frequently asked questions|^faq$/i;
+
+function toSlug(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 60);
+}
+
+function toQuestion(phrase: string): string {
+  const clean = phrase.replace(/^(what is|how to|guide to|overview of)\s+/i, '').trim();
+  if (/\?$/.test(phrase)) return phrase;
+  if (/^how\b/i.test(phrase)) return `${phrase}?`;
+  if (/^what\b/i.test(phrase)) return `${phrase}?`;
+  return `What should you know about ${clean}?`;
+}
+
+function extractDocumentCandidates(html: string, pillarKeyword: string, existingPhrases: Set<string>): DocumentCandidate[] {
+  if (typeof window === 'undefined' || !html) return [];
+
+  const div = document.createElement('div');
+  div.innerHTML = html;
+
+  const seen = new Set<string>(existingPhrases);
+  const pillarLower = pillarKeyword.toLowerCase();
+  const candidates: DocumentCandidate[] = [];
+
+  // Extract headings h2–h6 (skip FAQ section)
+  let inFaq = false;
+  for (const el of Array.from(div.querySelectorAll('h2,h3,h4,h5,h6'))) {
+    const tag = el.tagName.toLowerCase();
+    const text = el.textContent?.trim() ?? '';
+    if (!text || FAQ_RE.test(text)) { inFaq = tag === 'h2'; continue; }
+    if (inFaq && tag !== 'h2') continue;
+    if (tag === 'h2') inFaq = false;
+
+    const lower = text.toLowerCase();
+    if (lower === pillarLower || seen.has(lower)) continue;
+    seen.add(lower);
+
+    candidates.push({
+      phrase: text,
+      sourceType: tag,
+      suggestedQuestion: toQuestion(text),
+      suggestedSlug: toSlug(text),
+      score: HEADING_SCORE[tag] ?? 2,
+    });
+  }
+
+  // Scan paragraphs for depth-signal phrases (unique concepts not already covered)
+  for (const p of Array.from(div.querySelectorAll('p'))) {
+    const text = p.textContent?.trim() ?? '';
+    if (text.length < 20 || text.length > 300) continue;
+    const match = DEPTH_SIGNALS.exec(text);
+    if (!match) continue;
+
+    // Extract the surrounding noun phrase (simple heuristic: first 6 words)
+    const phrase = text.split(/[.,!?]/)[0].trim();
+    if (phrase.length < 10 || phrase.length > 80) continue;
+    const lower = phrase.toLowerCase();
+    if (lower.includes(pillarLower) || seen.has(lower)) continue;
+    seen.add(lower);
+
+    candidates.push({
+      phrase,
+      sourceType: 'paragraph',
+      suggestedQuestion: toQuestion(phrase),
+      suggestedSlug: toSlug(phrase),
+      score: 2,
+    });
+  }
+
+  return candidates
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+}
+
 export function BlogPostPanel() {
   const { doc, accessToken, reloadDocument } = useWritingWorkspace();
   const [posts, setPosts] = useState<ContentSpokeSummary[]>([]);
-  const [candidates, setCandidates] = useState<ContentClusterCandidate[]>([]);
+  const [candidates, setCandidates] = useState<DocumentCandidate[]>([]);
   const [planResult, setPlanResult] = useState<ContentClusterPlanResult | null>(null);
   const [socialResult, setSocialResult] = useState<ContentSocialPostResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,17 +143,13 @@ export function BlogPostPanel() {
     }
   }, [accessToken, doc.id, isPillar]);
 
-  const loadCandidates = useCallback(async () => {
-    if (!accessToken || !isPillar) return;
-    try {
-      const plan = await buildClusterPlan(doc.id, accessToken);
-      setPlanResult(plan);
-      const existingPhrases = new Set(posts.map((p) => p.spokeSourcePhrase?.toLowerCase()).filter(Boolean));
-      setCandidates(plan.spokeCandidates.filter((c) => !existingPhrases.has(c.phrase.toLowerCase())).slice(0, 3));
-    } catch {
-      setCandidates([]);
-    }
-  }, [accessToken, doc.id, isPillar, posts]);
+  const loadCandidates = useCallback(() => {
+    const existingPhrases = new Set(
+      posts.map((p) => p.spokeSourcePhrase?.toLowerCase()).filter(Boolean) as string[],
+    );
+    const found = extractDocumentCandidates(doc.contentHtml, doc.targetKeyword, existingPhrases);
+    setCandidates(found);
+  }, [doc.contentHtml, doc.targetKeyword, posts]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -203,10 +288,10 @@ export function BlogPostPanel() {
         {!loading && !busy && candidates.length === 0 ? (
           <button
             type="button"
-            onClick={() => void loadCandidates()}
+            onClick={() => loadCandidates()}
             className="w-full rounded-lg border px-4 py-2 text-sm font-medium hover:bg-[var(--color-surface-muted)]"
           >
-            Find blog post topics from research
+            Find blog post topics from document
           </button>
         ) : null}
 
@@ -228,7 +313,7 @@ export function BlogPostPanel() {
                       {c.suggestedQuestion ?? c.phrase}
                     </span>
                     <span className="ml-2 text-xs text-[var(--color-text-muted)]">
-                      {c.sourceType === 'paa' ? 'PAA' : 'Related search'}
+                      {c.sourceType === 'paragraph' ? 'paragraph' : c.sourceType.toUpperCase()}
                     </span>
                   </button>
                 </li>
