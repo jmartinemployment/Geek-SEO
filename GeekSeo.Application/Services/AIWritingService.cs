@@ -189,8 +189,14 @@ public sealed partial class AIWritingService(
         if (!draftResult.IsSuccess || draftResult.Value is null)
             return draftResult;
 
-        var sanitized = ArticleMethodologyScaffold.SanitizeDraft(
+        var withMethodology = await ArticleMethodologyDraftEnricher.EnsureResearchMethodologyDraftAsync(
             draftResult.Value.Content,
+            request,
+            ai,
+            ct);
+
+        var sanitized = ArticleMethodologyScaffold.SanitizeDraft(
+            withMethodology,
             request.Research.DerivedKeyword,
             WritingMethodologySpec.FourPhase);
 

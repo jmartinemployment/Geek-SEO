@@ -56,7 +56,7 @@ public static partial class ArticleMethodologyOutlineEnricher
             brief.Keyword,
             methodology);
 
-        if (CountBodyH2Sections(bodySections) < methodology.PhaseDefinitions.Count)
+        if (CountBodyH2Sections(bodySections) != methodology.PhaseDefinitions.Count)
         {
             bodySections = ArticleMethodologyScaffold.BuildDeterministicBodySections(
                 brief.Keyword,

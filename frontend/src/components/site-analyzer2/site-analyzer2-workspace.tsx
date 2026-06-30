@@ -1248,8 +1248,6 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
   const [keyword, setKeyword] = useState("");
   const [step, setStep] = useState<Step>("idle");
   const [status, setStatus] = useState<Status | null>(null);
-  const [siteProfileReady, setSiteProfileReady] = useState(false);
-  const [confirmedSiteUrl, setConfirmedSiteUrl] = useState("");
   const [siteProfile, setSiteProfile] = useState<SiteProfile | null>(null);
   const [loadingSiteProfile, setLoadingSiteProfile] = useState(false);
   const [creatingSiteProfile, setCreatingSiteProfile] = useState(false);
@@ -1275,6 +1273,11 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
   const crawlProgress = useCrawlProgress(crawling ? keywordProjectId : "");
 
   const normalizedProjectUrl = normalizeProjectUrl(projectUrl);
+  const siteProfileReady = Boolean(
+    siteProfile &&
+      normalizedProjectUrl &&
+      normalizeProjectUrl(siteProfile.siteUrl) === normalizedProjectUrl,
+  );
   const workflowLocked = step === "complete";
   const keywordSaved = step === "keyword_saved" || step === "complete";
   const filePickerDisabled = keywordSaved || parsing || crawling || workflowLocked;
@@ -1381,14 +1384,6 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
   }, [keywordProjectId, keywordSaved, step, competitorCrawlSummary?.savedAt]);
 
   useEffect(() => {
-    if (confirmedSiteUrl && normalizedProjectUrl !== confirmedSiteUrl) {
-      setSiteProfileReady(false);
-      setConfirmedSiteUrl("");
-      setSiteProfile(null);
-    }
-  }, [confirmedSiteUrl, normalizedProjectUrl]);
-
-  useEffect(() => {
     if (!urlHydrated) return;
 
     if (!normalizedProjectUrl || !isProjectUrlReadyForLookup(normalizedProjectUrl)) {
@@ -1408,12 +1403,8 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
     return () => window.clearTimeout(timer);
   }, [normalizedProjectUrl, urlHydrated]);
 
-  function applyLoadedProfile(profile: SiteProfile, siteUrl: string) {
+  function applyLoadedProfile(profile: SiteProfile) {
     setSiteProfile(profile);
-    if (profileHasBusinessData(profile)) {
-      setSiteProfileReady(true);
-      setConfirmedSiteUrl(siteUrl);
-    }
   }
 
   async function loadContentPillars(siteUrl: string, signal?: AbortSignal) {
@@ -1528,7 +1519,7 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
         return;
       }
 
-      applyLoadedProfile(profile, siteUrl);
+      applyLoadedProfile(profile);
       void loadContentPillars(siteUrl, controller.signal);
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return;
@@ -1557,9 +1548,6 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
     setStep("idle");
     setFile(null);
     setCopied(false);
-    setSiteProfileReady(false);
-    setConfirmedSiteUrl("");
-    setSiteProfile(null);
     setCompetitorCrawlSummary(null);
     setKeywordImportSummary(null);
     competitorSummaryHydratedRef.current = false;
@@ -1606,7 +1594,7 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
       }
 
       skipNextProfileLoadRef.current = true;
-      applyLoadedProfile(profile, siteUrl);
+      applyLoadedProfile(profile);
       setSiteProfileExpandToken((token) => token + 1);
       setStatus({
         kind: "ok",
@@ -1615,8 +1603,6 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
           : "Site profile refreshed from homepage.",
       });
     } catch (e) {
-      setSiteProfileReady(false);
-      setConfirmedSiteUrl("");
       setSiteProfile(null);
       setStatus({ kind: "err", text: e instanceof Error ? e.message : String(e) });
     } finally {
@@ -1927,9 +1913,23 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
 
   const showMetrics = keywordSaved && keywordImportSummary;
 
+  const parseDisabledReason = keywordSaved
+    ? "Keyword already imported — use Start new keyword to parse another SERP."
+    : workflowLocked
+      ? "Workflow complete for this keyword."
+      : !siteProfileReady
+        ? "Create a site profile for this URL first."
+        : !file
+          ? "Choose a saved Google SERP HTML file."
+          : parsing
+            ? "Parsing in progress…"
+            : crawling
+              ? "Wait for competitor crawl to finish."
+              : null;
+
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-5">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-5 overflow-hidden">
+      <header className="flex shrink-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-text-primary)]">
             Site Analyzer
@@ -1966,16 +1966,18 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
         ) : null}
       </header>
 
-      <WorkflowStrip
-        siteProfileReady={siteProfileReady}
-        keywordSaved={keywordSaved}
-        step={step}
-        researchReady={researchFocus?.researchReady ?? false}
-        keyword={keyword}
-      />
+      <div className="shrink-0">
+        <WorkflowStrip
+          siteProfileReady={siteProfileReady}
+          keywordSaved={keywordSaved}
+          step={step}
+          researchReady={researchFocus?.researchReady ?? false}
+          keyword={keyword}
+        />
+      </div>
 
       {showMetrics ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid shrink-0 grid-cols-2 gap-3 sm:grid-cols-4">
           <MetricTile
             label="Organic results"
             value={formatCount(keywordImportSummary.organicOnlyCount)}
@@ -2019,14 +2021,14 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
 
       {status ? (
         <div
-          className={`rounded-[var(--radius-card)] border px-4 py-3 text-sm whitespace-pre-wrap ${statusBannerClass}`}
+          className={`shrink-0 rounded-[var(--radius-card)] border px-4 py-3 text-sm whitespace-pre-wrap ${statusBannerClass}`}
         >
           {status.text}
         </div>
       ) : null}
 
-      <div className="grid grid-cols-12 items-start gap-5">
-        <div className="col-span-12 space-y-5 lg:col-span-4">
+      <div className="grid min-h-0 flex-1 grid-cols-12 items-stretch gap-5 overflow-y-auto lg:overflow-hidden">
+        <aside className="col-span-12 flex min-h-0 flex-col gap-5 lg:col-span-4 lg:h-full lg:overflow-y-auto">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -2125,6 +2127,7 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
                   disabled={
                     !siteProfileReady || !file || parsing || crawling || workflowLocked || keywordSaved
                   }
+                  title={parseDisabledReason ?? undefined}
                 >
                   {parsing ? (
                     <>
@@ -2135,6 +2138,9 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
                     "Parse keyword page"
                   )}
                 </Button>
+                {parseDisabledReason ? (
+                  <p className="text-xs text-[var(--color-text-secondary)]">{parseDisabledReason}</p>
+                ) : null}
                 <Button
                   type="button"
                   variant="outline"
@@ -2176,9 +2182,9 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
               ) : null}
             </CardContent>
           </Card>
-        </div>
+        </aside>
 
-        <div className="col-span-12 space-y-5 lg:col-span-8">
+        <aside className="col-span-12 flex min-h-0 flex-col gap-5 lg:col-span-8 lg:h-full lg:overflow-y-auto">
           {siteProfile ? (
             <SiteProfilePanel
               profile={siteProfile}
@@ -2241,7 +2247,7 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
               />
             </CardContent>
           </Card>
-        </div>
+        </aside>
       </div>
     </div>
   );

@@ -73,6 +73,19 @@ public sealed class ArticleMethodologyOutlineEnricherTests
 
         Assert.True(ArticleMethodologyOutlineEnricher.HasRequiredBodySections(html, WritingMethodologySpec.FivePhase));
     }
+
+    [Fact]
+    public void HasRequiredBodySections_ReturnsFalseWhenMoreThanRequiredBodyH2s()
+    {
+        var html =
+            "<h2>Marketing AI Customer Journeys PDF</h2>" +
+            "<h2>Marketing AI Customer Journeys Examples</h2>" +
+            "<h2>Customer journey map</h2>" +
+            "<h2>AI transformer approach</h2>" +
+            "<h2>Google customer journey</h2>";
+
+        Assert.False(ArticleMethodologyOutlineEnricher.HasRequiredBodySections(html, WritingMethodologySpec.FourPhase));
+    }
 }
 
 public sealed class ArticleMethodologyScaffoldTests

@@ -629,34 +629,16 @@ public sealed class SerpResearchPackService(
             .Where(q => q.Length > 0)
             .ToList();
 
-        var phases = WritingMethodologySpec.FourPhase.PhaseDefinitions;
-        var hints = new List<SerpResearchMethodologyHint>();
-
-        for (var i = 0; i < phases.Count; i++)
-        {
-            var phase = phases[i];
-            var suggestedH2 = h2Pool.ElementAtOrDefault(i);
-            if (string.IsNullOrWhiteSpace(suggestedH2))
-                suggestedH2 = ArticleMethodologyScaffold.SuggestTopicHeading(keyword, phase);
-
-            var subtopics = paaPool
-                .Skip(i * 2)
-                .Take(3)
-                .Concat(h2Pool.Skip(i + phases.Count).Take(2))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(4)
-                .ToList();
-
-            hints.Add(new SerpResearchMethodologyHint
+        var plans = MethodologySectionHintBuilder.BuildPlans(keyword, h2Pool.Concat(paaPool));
+        return plans
+            .Select((plan, index) => new SerpResearchMethodologyHint
             {
-                Movement = i + 1,
-                Label = phase.Label,
-                SuggestedH2 = suggestedH2,
-                SubtopicsFromSerp = subtopics,
-            });
-        }
-
-        return hints;
+                Movement = index + 1,
+                Label = plan.Phase.Label,
+                SuggestedH2 = plan.SuggestedH2,
+                SubtopicsFromSerp = plan.SubtopicsFromSerp,
+            })
+            .ToList();
     }
 
     private static string ExtractDomain(string url)

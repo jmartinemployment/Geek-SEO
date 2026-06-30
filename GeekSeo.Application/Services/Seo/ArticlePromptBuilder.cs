@@ -133,7 +133,8 @@ public static class ArticlePromptBuilder
 
     public static string BuildResearchDraftSystemPrompt() =>
         $"You write SEO articles in HTML (h1 once, multiple h2/h3, paragraphs). Natural tone. No markdown fences. " +
-        "Plan sections from the provided section hints and competitor patterns — do not skip hinted phases. " +
+        $"Before the closing FAQ, write exactly {WritingMethodologySpec.FourPhase.PhaseDefinitions.Count} body <h2> sections in methodology order — no additional body <h2> sections. " +
+        "Competitor and SERP heading patterns belong in <h3> subtopics under the correct phase, not as extra <h2> headings. " +
         "Use only reader-facing headings. Never output internal labels such as \"Movement 1\", \"Movement 2\", or phase names alone. " +
         $"Always close with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> containing exactly {ContentWritingRules.ClosingFaqCount} topic FAQs as <h3> + <p> pairs.";
 
@@ -190,12 +191,12 @@ public static class ArticlePromptBuilder
         if (research.SectionHints.Count > 0)
         {
             builder.AppendLine();
-            builder.AppendLine("Section plan (use these h2 headings in order; expand each with paragraphs):");
+            builder.AppendLine("Section plan (required — exactly these 4 body <h2> sections in order; SERP subtopics become <h3>):");
             foreach (var hint in research.SectionHints.OrderBy(h => h.DisplayOrder))
             {
-                builder.Append("- ").Append(hint.SuggestedH2);
+                builder.Append("- ").Append(hint.Label).Append(": <h2>").Append(hint.SuggestedH2).Append("</h2>");
                 if (hint.SubtopicsFromSerp.Count > 0)
-                    builder.Append(" — subtopics: ").Append(string.Join("; ", hint.SubtopicsFromSerp));
+                    builder.Append(" — <h3> ideas: ").Append(string.Join("; ", hint.SubtopicsFromSerp));
                 builder.AppendLine();
             }
         }
@@ -239,7 +240,8 @@ public static class ArticlePromptBuilder
             .Take(12)
             .ToList();
         if (competitorHeadings.Count > 0)
-            builder.AppendLine($"Competitor heading patterns: {string.Join("; ", competitorHeadings)}");
+            builder.AppendLine(
+                $"Competitor heading patterns (use as <h3> subtopics only — never as extra body <h2>): {string.Join("; ", competitorHeadings)}");
 
         var competitorSchema = research.Competitors
             .SelectMany(c => c.SchemaTypes)

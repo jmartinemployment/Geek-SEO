@@ -32,7 +32,7 @@ public static partial class ArticleMethodologyScaffold
         if (methodology.PhaseDefinitions.Count == 0)
             return true;
 
-        return CountBodyH2Sections(html) >= methodology.PhaseDefinitions.Count;
+        return CountBodyH2Sections(html) == methodology.PhaseDefinitions.Count;
     }
 
     public static string BuildDeterministicBodySections(string keyword, WritingMethodologySpec methodology)
@@ -71,7 +71,7 @@ public static partial class ArticleMethodologyScaffold
         var body = faqStart >= 0 ? html[..faqStart] : html;
         var tail = faqStart >= 0 ? html[faqStart..] : string.Empty;
 
-        if (CountBodyH2Sections(body) < phases.Count)
+        if (CountBodyH2Sections(body) != phases.Count)
             body = BuildDeterministicBodySections(keyword, methodology);
 
         return body.TrimEnd() + (string.IsNullOrWhiteSpace(tail) ? string.Empty : "\n" + tail.Trim());

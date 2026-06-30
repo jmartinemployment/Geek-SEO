@@ -103,11 +103,20 @@ body {
 }
 
 .content-writing-sticky-rail {
-  position: sticky;
-  top: var(--app-workspace-sticky-top);
-  max-height: calc(100svh - var(--app-workspace-sticky-top) - var(--app-workspace-sticky-bottom));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  max-height: calc(100dvh - var(--app-site-navbar-height) - 5rem);
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.content-writing-workspace .content-writing-sticky-rail {
+  position: relative;
+  top: auto;
+  flex: 1 1 auto;
+  max-height: none;
 }
 
 @utility container {

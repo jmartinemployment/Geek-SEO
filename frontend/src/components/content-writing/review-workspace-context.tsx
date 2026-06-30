@@ -310,7 +310,7 @@ export function WritingScoreLeft({ keyword }: { keyword: string }) {
   } = useWritingWorkspace();
 
   return (
-    <div className="content-writing-sticky-rail min-w-0 rounded-xl border bg-white shadow-sm">
+    <div className="content-writing-sticky-rail h-full min-h-0 min-w-0 flex-1 rounded-xl border bg-white shadow-sm">
       <ScoreSidebar
         placement="left"
         keyword={keyword}
@@ -345,7 +345,7 @@ export function WritingInsightsRight({ keyword }: { keyword: string }) {
   } = useWritingWorkspace();
 
   return (
-    <div className="content-writing-sticky-rail min-w-0 rounded-xl border bg-white shadow-sm">
+    <div className="content-writing-sticky-rail h-full min-h-0 min-w-0 flex-1 rounded-xl border bg-white shadow-sm">
       {doc.documentKind !== 'spoke' && !doc.analysisRunId ? <BlogSpokePanel /> : null}
       <ScoreSidebar
         placement="right"

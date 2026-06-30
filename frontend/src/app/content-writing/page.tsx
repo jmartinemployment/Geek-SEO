@@ -236,31 +236,39 @@ function ContentWritingPageInner() {
   const showGate = !inWriting && !handoffRunning;
 
   const workspace = inWriting ? (
-    <div className="grid grid-cols-12 items-start gap-4">
-      <aside className="col-span-12 hidden min-w-0 xl:col-span-2 xl:block">
+    <div className="content-writing-workspace grid min-h-0 flex-1 grid-cols-12 items-stretch gap-4 overflow-hidden">
+      <aside className="col-span-12 hidden min-h-0 xl:col-span-2 xl:flex xl:flex-col">
         <WritingScoreLeft keyword={keyword} />
       </aside>
-      <main className="col-span-12 min-w-0 space-y-4 xl:col-span-7">
-        <ClusterPlanPanel />
-        <WritingEditorPane
-          title={title}
-          setTitle={setTitle}
-          keyword={keyword}
-          setKeyword={setKeyword}
-          location={location}
-          setLocation={setLocation}
-          accessToken={accessToken}
-        />
-      </main>
-      <aside className="col-span-12 min-w-0 xl:col-span-3">
+      <div className="col-span-12 min-h-0 overflow-y-auto xl:col-span-7">
+        <div className="space-y-4">
+          <ClusterPlanPanel />
+          <WritingEditorPane
+            title={title}
+            setTitle={setTitle}
+            keyword={keyword}
+            setKeyword={setKeyword}
+            location={location}
+            setLocation={setLocation}
+            accessToken={accessToken}
+          />
+        </div>
+      </div>
+      <aside className="col-span-12 min-h-0 xl:col-span-3 xl:flex xl:flex-col">
         <WritingInsightsRight keyword={keyword} />
       </aside>
     </div>
   ) : null;
 
   const main = (
-    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-6">
-      <div>
+    <div
+      className={
+        inWriting
+          ? 'mx-auto flex h-full min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-3 overflow-hidden'
+          : 'mx-auto w-full max-w-[1600px] space-y-6 px-4 py-6'
+      }
+    >
+      <div className={inWriting ? 'shrink-0' : undefined}>
         <h1 className="text-2xl font-semibold tracking-tight">Content Writing</h1>
         <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
           {inWriting

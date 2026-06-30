@@ -431,44 +431,25 @@ public static class ContentWriterSerpExportMapper
         IReadOnlyList<string> paaQuestions,
         IReadOnlyList<string> pasfQueries)
     {
-        var phases = WritingMethodologySpec.FourPhase.PhaseDefinitions;
-        var titlePool = organic
-            .Select(o => o.Title)
-            .Where(title => !string.IsNullOrWhiteSpace(title))
-            .Select(title => title!.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var plans = MethodologySectionHintBuilder.BuildPlans(
+            keyword,
+            organic
+                .Select(o => o.Title)
+                .Where(title => !string.IsNullOrWhiteSpace(title))
+                .Cast<string>()
+                .Concat(paaQuestions)
+                .Concat(pasfQueries));
 
-        var subtopicPool = paaQuestions
-            .Concat(pasfQueries)
-            .Where(q => !string.IsNullOrWhiteSpace(q))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        var hints = new List<WritingResearchSectionHint>();
-        for (var i = 0; i < phases.Count; i++)
-        {
-            var phase = phases[i];
-            var suggestedH2 = titlePool.ElementAtOrDefault(i);
-            if (string.IsNullOrWhiteSpace(suggestedH2))
-                suggestedH2 = ArticleMethodologyScaffold.SuggestTopicHeading(keyword, phase);
-
-            var subtopics = subtopicPool
-                .Skip(i * 2)
-                .Take(3)
-                .ToList();
-
-            hints.Add(new WritingResearchSectionHint
+        return plans
+            .Select((plan, index) => new WritingResearchSectionHint
             {
-                DisplayOrder = i + 1,
-                Movement = i + 1,
-                Label = phase.Label,
-                SuggestedH2 = suggestedH2,
-                SubtopicsFromSerp = subtopics,
-            });
-        }
-
-        return hints;
+                DisplayOrder = index + 1,
+                Movement = index + 1,
+                Label = plan.Phase.Label,
+                SuggestedH2 = plan.SuggestedH2,
+                SubtopicsFromSerp = plan.SubtopicsFromSerp,
+            })
+            .ToList();
     }
 
     private static int EstimateWordCount(string? snippet) =>

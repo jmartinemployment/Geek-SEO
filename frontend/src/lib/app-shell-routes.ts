@@ -30,8 +30,11 @@ export function usesAppShell(pathname: string): boolean {
 }
 
 export function appShellMainClassName(pathname: string): string | undefined {
-  if (pathname.startsWith('/content-writing') || pathname.startsWith('/site-analyzer')) {
-    return 'px-2 py-4 sm:px-4 lg:px-6';
+  if (pathname.startsWith('/content-writing')) {
+    return 'flex min-h-0 flex-1 flex-col overflow-hidden px-2 py-4 sm:px-4 lg:px-6';
+  }
+  if (pathname.startsWith('/site-analyzer')) {
+    return 'flex min-h-0 flex-1 flex-col overflow-hidden px-2 py-4 sm:px-4 lg:px-6';
   }
   return undefined;
 }
