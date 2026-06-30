@@ -130,6 +130,14 @@ public sealed record ResearchDraftRequest
     public required WritingResearchContext Research { get; init; }
     public string? Title { get; init; }
     public int TargetWordCount { get; init; }
+    public SupportingBlogPostHint? SupportingBlogPost { get; init; }
+}
+
+public sealed record SupportingBlogPostHint
+{
+    public required string Topic { get; init; }
+    public required string Slug { get; init; }
+    public required string Title { get; init; }
 }
 
 public sealed record AttachAnalysisRunRequest

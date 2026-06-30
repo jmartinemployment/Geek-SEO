@@ -262,6 +262,16 @@ public static class ArticlePromptBuilder
             }
         }
 
+        if (request.SupportingBlogPost is { } blogHint)
+        {
+            builder.AppendLine();
+            builder.AppendLine(
+                $"Supporting blog post: when covering \"{blogHint.Topic}\" in the body, " +
+                $"naturally reference it with a link — anchor text \"{blogHint.Title}\", " +
+                $"href=\"/blog/{blogHint.Slug}\". Write it as a genuine recommendation, " +
+                "not a forced insertion (e.g. \"For a deeper look at X, see our guide on <a href=\"/blog/slug\">Title</a>.\").");
+        }
+
         AppendResearchClosingFaqInstructions(builder, research);
 
         return builder.ToString().Trim();

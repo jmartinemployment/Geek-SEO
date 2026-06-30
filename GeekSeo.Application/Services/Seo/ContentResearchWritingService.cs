@@ -8,6 +8,7 @@ namespace GeekSeo.Application.Services.Seo;
 public sealed class ContentResearchWritingService(
     IContentDocumentService documents,
     IAIWritingService writing,
+    IContentSpokeService spokes,
     WritingResearchContextLoader researchLoader) : IContentResearchWritingService
 {
     public async Task<Result<SeoContentDocument>> AttachResearchAsync(
@@ -48,6 +49,8 @@ public sealed class ContentResearchWritingService(
             return Result<WritingTextResult>.Failure(contextResultValue.Error ?? "Research not ready");
 
         var context = contextResultValue.Value;
+        var blogHint = await TryCreateBlogHintAsync(userId, doc, context, ct);
+
         var draft = await writing.GenerateDraftFromResearchAsync(userId, new ResearchDraftRequest
         {
             Research = context,
@@ -55,6 +58,7 @@ public sealed class ContentResearchWritingService(
                 ? context.DerivedKeyword
                 : doc.Title,
             TargetWordCount = context.Benchmarks.MedianWordCountTop5,
+            SupportingBlogPost = blogHint,
         }, ct);
 
         if (!draft.IsSuccess || draft.Value is null)
@@ -74,5 +78,46 @@ public sealed class ContentResearchWritingService(
             return Result<WritingTextResult>.Failure(updated.Error ?? "Failed to save draft");
 
         return draft;
+    }
+
+    private async Task<SupportingBlogPostHint?> TryCreateBlogHintAsync(
+        Guid userId,
+        SeoContentDocument doc,
+        WritingResearchContext context,
+        CancellationToken ct)
+    {
+        // Pick the best PAA/PASF topic that isn't the pillar keyword itself.
+        var topic = context.PeopleAlsoAsk
+            .Select(p => p.Question)
+            .Concat(context.RelatedSearches.Select(r => r.SearchText))
+            .Where(t => !string.IsNullOrWhiteSpace(t)
+                && !string.Equals(t.Trim(), context.DerivedKeyword, StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault();
+
+        if (string.IsNullOrWhiteSpace(topic))
+            return null;
+
+        try
+        {
+            var spoke = await spokes.CreateAsync(userId, doc.Id, new CreateContentSpokeRequest
+            {
+                Phrase = topic.Trim(),
+                SourceType = SpokeSourceTypes.Paa,
+            }, ct);
+
+            if (!spoke.IsSuccess || spoke.Value is null || string.IsNullOrWhiteSpace(spoke.Value.PublishSlug))
+                return null;
+
+            return new SupportingBlogPostHint
+            {
+                Topic = topic.Trim(),
+                Slug = spoke.Value.PublishSlug,
+                Title = spoke.Value.Title,
+            };
+        }
+        catch
+        {
+            return null;
+        }
     }
 }
