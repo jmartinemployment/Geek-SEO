@@ -9,12 +9,14 @@ import {
   createContentSpoke,
   generateContentSpoke,
   generateLinkedFaqs,
+  generateSocialPosts,
   getContent,
   getRenderedContentHtml,
   listContentSpokes,
   saveClusterPlan,
   type ContentClusterCandidate,
   type ContentClusterPlanResult,
+  type ContentSocialPostResult,
   type ContentSpokeSummary,
 } from '@/lib/seo-api';
 
@@ -27,12 +29,14 @@ export function BlogPostPanel() {
   const [posts, setPosts] = useState<ContentSpokeSummary[]>([]);
   const [candidates, setCandidates] = useState<ContentClusterCandidate[]>([]);
   const [planResult, setPlanResult] = useState<ContentClusterPlanResult | null>(null);
+  const [socialResult, setSocialResult] = useState<ContentSocialPostResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
 
   const isPillar = doc.documentKind !== 'spoke';
   const isResearchBacked = Boolean(doc.analysisRunId);
@@ -93,7 +97,24 @@ export function BlogPostPanel() {
       setStatusMsg('Linking in your article…');
       const linked = await generateLinkedFaqs(doc.id, accessToken);
       await reloadDocument();
-      setStatusMsg(linked.linkedCount > 0 ? 'Blog post created and linked.' : 'Blog post created.');
+
+      setStatusMsg('Generating social posts…');
+      try {
+        const social = await generateSocialPosts(
+          doc.id,
+          { blogPostTitle: generated.title, blogPostSlug: generated.publishSlug ?? undefined },
+          accessToken,
+        );
+        setSocialResult(social);
+      } catch {
+        // social posts are best-effort
+      }
+
+      setStatusMsg(
+        linked.linkedCount > 0
+          ? 'Done — blog post linked, social posts ready below.'
+          : 'Done — blog post created, social posts ready below.',
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not create blog post');
       setStatusMsg(null);
@@ -256,6 +277,55 @@ export function BlogPostPanel() {
                 </li>
               ))}
             </ul>
+          </div>
+        ) : null}
+
+        {socialResult ? (
+          <div className="space-y-3 rounded-xl border bg-[var(--color-surface-muted)]/40 p-4">
+            <p className="text-xs font-semibold text-[var(--color-text-primary)]">Social posts</p>
+            {copied ? <p className="text-xs text-emerald-700">{copied}</p> : null}
+
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-[var(--color-text-secondary)]">Facebook</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(socialResult.facebookPost).then(() => {
+                      setCopied('Facebook post copied');
+                      setTimeout(() => setCopied(null), 2500);
+                    });
+                  }}
+                  className="text-xs text-[var(--color-accent)] underline"
+                >
+                  Copy
+                </button>
+              </div>
+              <p className="rounded-lg border bg-white px-3 py-2 text-xs leading-relaxed text-[var(--color-text-primary)]">
+                {socialResult.facebookPost}
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-[var(--color-text-secondary)]">LinkedIn</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(socialResult.linkedInPost).then(() => {
+                      setCopied('LinkedIn post copied');
+                      setTimeout(() => setCopied(null), 2500);
+                    });
+                  }}
+                  className="text-xs text-[var(--color-accent)] underline"
+                >
+                  Copy
+                </button>
+              </div>
+              <p className="rounded-lg border bg-white px-3 py-2 text-xs leading-relaxed text-[var(--color-text-primary)]">
+                {socialResult.linkedInPost}
+              </p>
+            </div>
           </div>
         ) : null}
       </div>

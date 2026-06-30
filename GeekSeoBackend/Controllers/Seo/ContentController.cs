@@ -26,6 +26,7 @@ public sealed class ContentController(
     IArticleRenderService renderer,
     ICompetitorInsightsService competitors,
     IContentScoringService scoring,
+    IContentSocialPostService socialPosts,
     IAnalysisRunRepository analysisRuns,
     ICurrentUserContext user) : ControllerBase
 {
@@ -402,6 +403,14 @@ public sealed class ContentController(
         }
 
         return Ok(result.Value.Result);
+    }
+
+    [HttpPost("{id:guid}/social/generate")]
+    public async Task<IActionResult> GenerateSocialPosts(
+        Guid id, [FromBody] GenerateSocialPostRequest request, CancellationToken ct)
+    {
+        var result = await socialPosts.GenerateAsync(user.RequireUserId(), id, request ?? new GenerateSocialPostRequest(), ct);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
     }
 }
 

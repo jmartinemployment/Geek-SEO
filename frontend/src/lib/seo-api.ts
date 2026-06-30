@@ -514,6 +514,33 @@ export async function generateAllContentSpokes(
   };
 }
 
+export type ContentSocialPostResult = {
+  facebookPost: string;
+  linkedInPost: string;
+  keyword: string;
+  blogPostSlug?: string | null;
+};
+
+export async function generateSocialPosts(
+  documentId: string,
+  body: { blogPostTitle?: string; blogPostSlug?: string },
+  accessToken?: string | null,
+): Promise<ContentSocialPostResult> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/social/generate`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  const payload = (await res.json()) as Record<string, unknown>;
+  return {
+    facebookPost: String(payload.facebookPost ?? payload.FacebookPost ?? ''),
+    linkedInPost: String(payload.linkedInPost ?? payload.LinkedInPost ?? ''),
+    keyword: String(payload.keyword ?? payload.Keyword ?? ''),
+    blogPostSlug: (payload.blogPostSlug ?? payload.BlogPostSlug ?? null) as string | null,
+  };
+}
+
 export async function listProjects(accessToken?: string | null): Promise<SeoProject[]> {
   if (!hasAuthContext(accessToken)) return [];
   const res = await fetch(`${API_URL}/api/seo/projects`, {
