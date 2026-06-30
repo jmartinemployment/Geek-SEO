@@ -232,6 +232,26 @@ function ContentWritingPageInner() {
     );
   }
 
+  const [regenerating, setRegenerating] = useState(false);
+
+  async function handleRegenerate() {
+    if (!doc || !doc.analysisRunId || regenerating) return;
+    setRegenerating(true);
+    setError(null);
+    setDraftProgress(null);
+    try {
+      const saved = await runResearchContentDraft(doc.id, accessToken, draftJobOptions);
+      setDoc(saved);
+      setTitle(saved.title);
+      setKeyword(saved.targetKeyword);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setRegenerating(false);
+      setDraftProgress(null);
+    }
+  }
+
   const inWriting = Boolean(doc);
   const showGate = !inWriting && !handoffRunning;
 
@@ -268,15 +288,29 @@ function ContentWritingPageInner() {
           : 'mx-auto w-full max-w-[1600px] space-y-6 px-4 py-6'
       }
     >
-      <div className={inWriting ? 'shrink-0' : undefined}>
-        <h1 className="text-2xl font-semibold tracking-tight">Content Writing</h1>
-        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-          {inWriting
-            ? 'Surfer-style editor: live content score, term guidelines, suggestions, and JSON-LD.'
-            : handoffRunning
-              ? 'Loading frozen research from Site Analyzer and generating your draft…'
-              : 'SEO article writing workspace — open from Site Analyzer with research attached.'}
-        </p>
+      <div className={inWriting ? 'flex shrink-0 flex-wrap items-center justify-between gap-3' : undefined}>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Content Writing</h1>
+          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+            {regenerating
+              ? draftLoadingLabel(draftProgress, 'Regenerating draft…')
+              : inWriting
+                ? 'Surfer-style editor: live content score, term guidelines, suggestions, and JSON-LD.'
+                : handoffRunning
+                  ? 'Loading frozen research from Site Analyzer and generating your draft…'
+                  : 'SEO article writing workspace — open from Site Analyzer with research attached.'}
+          </p>
+        </div>
+        {inWriting && doc?.analysisRunId && !handoffRunning ? (
+          <button
+            type="button"
+            disabled={regenerating}
+            onClick={() => void handleRegenerate()}
+            className="rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
+          >
+            {regenerating ? 'Regenerating…' : 'Regenerate draft'}
+          </button>
+        ) : null}
       </div>
 
       {error ? <SeoErrorBanner error={error} /> : null}
