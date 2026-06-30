@@ -45,12 +45,10 @@ function toSlug(text: string): string {
     .slice(0, 60);
 }
 
-function toQuestion(phrase: string): string {
-  const clean = phrase.replace(/^(what is|how to|guide to|overview of)\s+/i, '').trim();
+function toSpokeTitle(phrase: string): string {
   if (/\?$/.test(phrase)) return phrase;
-  if (/^how\b/i.test(phrase)) return `${phrase}?`;
-  if (/^what\b/i.test(phrase)) return `${phrase}?`;
-  return `What should you know about ${clean}?`;
+  if (/^(how|what|why|when|where|which|who)\b/i.test(phrase)) return `${phrase}?`;
+  return phrase;
 }
 
 function extractDocumentCandidates(html: string, pillarKeyword: string, existingPhrases: Set<string>): DocumentCandidate[] {
@@ -79,20 +77,19 @@ function extractDocumentCandidates(html: string, pillarKeyword: string, existing
     candidates.push({
       phrase: text,
       sourceType: tag,
-      suggestedQuestion: toQuestion(text),
+      suggestedQuestion: toSpokeTitle(text),
       suggestedSlug: toSlug(text),
       score: HEADING_SCORE[tag] ?? 2,
     });
   }
 
-  // Scan paragraphs for depth-signal phrases (unique concepts not already covered)
+  // Scan paragraphs for depth-signal phrases
   for (const p of Array.from(div.querySelectorAll('p'))) {
     const text = p.textContent?.trim() ?? '';
     if (text.length < 20 || text.length > 300) continue;
     const match = DEPTH_SIGNALS.exec(text);
     if (!match) continue;
 
-    // Extract the surrounding noun phrase (simple heuristic: first 6 words)
     const phrase = text.split(/[.,!?]/)[0].trim();
     if (phrase.length < 10 || phrase.length > 80) continue;
     const lower = phrase.toLowerCase();
@@ -102,7 +99,7 @@ function extractDocumentCandidates(html: string, pillarKeyword: string, existing
     candidates.push({
       phrase,
       sourceType: 'paragraph',
-      suggestedQuestion: toQuestion(phrase),
+      suggestedQuestion: toSpokeTitle(phrase),
       suggestedSlug: toSlug(phrase),
       score: 2,
     });
@@ -310,7 +307,7 @@ export function BlogPostPanel() {
                     className="w-full rounded-lg border px-3 py-2 text-left text-sm hover:border-[var(--color-accent)] hover:bg-[var(--color-accent)]/5 disabled:opacity-50"
                   >
                     <span className="font-medium text-[var(--color-text-primary)]">
-                      {c.suggestedQuestion ?? c.phrase}
+                      {c.phrase}
                     </span>
                     <span className="ml-2 text-xs text-[var(--color-text-muted)]">
                       {c.sourceType === 'paragraph' ? 'paragraph' : c.sourceType.toUpperCase()}
