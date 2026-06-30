@@ -262,7 +262,7 @@ function ContentWritingPageInner() {
       </aside>
       <div className="col-span-12 min-h-0 overflow-y-auto xl:col-span-7">
         <div className="space-y-4">
-          <BlogPostPanel />
+          {/* BlogPostPanel disabled for crash diagnosis */}
           <WritingEditorPane
             title={title}
             setTitle={setTitle}
