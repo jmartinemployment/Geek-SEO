@@ -184,19 +184,7 @@ public static class ArticlePromptBuilder
             builder.AppendLine($"Data quality ({research.DataQuality}): {research.DataQualityNotes}");
         }
 
-        if (research.SectionHints.Count > 0)
-        {
-            builder.AppendLine();
-            builder.AppendLine("Suggested body sections from SERP research (use as heading inspiration, adapt to topic's natural flow):");
-            foreach (var hint in research.SectionHints.OrderBy(h => h.DisplayOrder))
-            {
-                builder.Append("- <h2>").Append(hint.SuggestedH2).Append("</h2>");
-                if (hint.SubtopicsFromSerp.Count > 0)
-                    builder.Append(" — subtopics: ").Append(string.Join("; ", hint.SubtopicsFromSerp));
-                builder.AppendLine();
-            }
-        }
-        else if (research.SourceHeadings.Count > 0)
+        if (research.SourceHeadings.Count > 0)
         {
             builder.AppendLine();
             builder.AppendLine("Source page headings to improve upon:");

@@ -107,7 +107,7 @@ function extractDocumentCandidates(html: string, pillarKeyword: string, existing
 
   return candidates
     .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
+    .slice(0, 8);
 }
 
 export function BlogPostPanel() {
