@@ -220,35 +220,41 @@ export function BlogPostPanel() {
     }
   }
 
+  function downloadFile(filename: string, content: string, mimeType = 'text/html') {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function handleSave() {
     if (!accessToken || saving) return;
     setSaving(true);
     setError(null);
     try {
-      const pillarRendered = await getRenderedContentHtml(doc.id, accessToken);
-      const pillarHtml = pillarRendered.renderedHtml || pillarRendered.bodyHtml;
+      const slug = (doc.targetKeyword ?? 'article')
+        .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-      const blogPosts: Array<{ slug: string; html: string; title: string }> = [];
+      const pillarRendered = await getRenderedContentHtml(doc.id, accessToken);
+      downloadFile(`${slug}-pillar.html`, pillarRendered.renderedHtml || pillarRendered.bodyHtml);
+
       for (const post of posts.filter(isBlogPostReady)) {
         const postDoc = await getContent(post.id, accessToken);
-        blogPosts.push({
-          slug: post.publishSlug ?? post.id,
-          title: post.title,
-          html: postDoc.contentHtml,
-        });
+        const postSlug = post.publishSlug ?? post.id;
+        downloadFile(`${postSlug}.html`, postDoc.contentHtml);
       }
 
-      const res = await fetch('/api/save-content', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keyword: doc.targetKeyword, pillarHtml, blogPosts }),
-      });
+      if (socialResult) {
+        const text = `FACEBOOK\n\n${socialResult.facebookPost}\n\n---\n\nLINKEDIN\n\n${socialResult.linkedInPost}`;
+        downloadFile(`${slug}-social.txt`, text, 'text/plain');
+      }
 
-      if (!res.ok) throw new Error('Save failed');
-      const result = (await res.json()) as { dir: string };
-      setStatusMsg(`Saved to ${result.dir}`);
+      setStatusMsg('Files downloaded.');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Save failed');
+      setError(e instanceof Error ? e.message : 'Download failed');
     } finally {
       setSaving(false);
     }
@@ -265,16 +271,14 @@ export function BlogPostPanel() {
             Generate a linked blog post from your SERP research.
           </p>
         </div>
-        {readyPosts.length > 0 ? (
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => void handleSave()}
-            className="rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
-          >
-            {saving ? 'Saving…' : 'Save files'}
-          </button>
-        ) : null}
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => void handleSave()}
+          className="rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
+        >
+          {saving ? 'Downloading…' : 'Download'}
+        </button>
       </div>
 
       <div className="space-y-4 p-5">
