@@ -399,16 +399,6 @@ public sealed class SerpResearchPackService(
                 return items;
         }
 
-        foreach (var related in pasf)
-        {
-            var question = related.Contains('?', StringComparison.Ordinal)
-                ? related
-                : $"What should I know about {related}?";
-            Add(question, "pasf");
-            if (items.Count >= ContentWritingRules.ClosingFaqCount)
-                return items;
-        }
-
         foreach (var fallback in ContentWritingRules.BuildClosingFaqQuestions(keyword, [], null))
         {
             Add(fallback, "suggested");

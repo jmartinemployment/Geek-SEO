@@ -273,20 +273,35 @@ public static class ArticlePromptBuilder
 
     private static void AppendResearchClosingFaqInstructions(StringBuilder builder, WritingResearchContext research)
     {
-        var questions = research.ClosingFaqs.Count > 0
-            ? research.ClosingFaqs.OrderBy(f => f.DisplayOrder).Select(f => f.Question).ToList()
-            : ContentWritingRules.BuildClosingFaqQuestions(
-                research.DerivedKeyword,
-                research.PeopleAlsoAsk.Select(p => p.Question).ToList(),
-                []);
-
         builder.AppendLine();
         builder.AppendLine(
             $"Closing FAQ section (required): end the article with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> " +
-            $"followed by exactly {ContentWritingRules.ClosingFaqCount} Q&A pairs. Each question is an <h3>; each answer is a concise <p> (2-4 sentences).");
-        builder.AppendLine("Use these questions in order:");
-        for (var i = 0; i < questions.Count; i++)
-            builder.AppendLine($"{i + 1}. {questions[i]}");
+            $"followed by exactly {ContentWritingRules.ClosingFaqCount} Q&A pairs. Each question is an <h3>; each answer is a concise <p> (2-4 sentences). " +
+            "Write questions that real users search for about this topic — specific, practical, and directly answerable.");
+
+        var paaQuestions = research.PeopleAlsoAsk
+            .OrderBy(p => p.DisplayOrder)
+            .Select(p => p.Question)
+            .Where(q => !string.IsNullOrWhiteSpace(q))
+            .Take(8)
+            .ToList();
+
+        if (paaQuestions.Count > 0)
+        {
+            builder.AppendLine($"User questions from Google (prioritize these): {string.Join("; ", paaQuestions)}");
+        }
+
+        var pasfPhrases = research.RelatedSearches
+            .OrderBy(r => r.DisplayOrder)
+            .Select(r => r.SearchText)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Take(8)
+            .ToList();
+
+        if (pasfPhrases.Count > 0)
+        {
+            builder.AppendLine($"Related user searches to inform question selection: {string.Join("; ", pasfPhrases)}");
+        }
     }
 
     private static void AppendClosingFaqInstructions(StringBuilder builder, ContentBrief brief)

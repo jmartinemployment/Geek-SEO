@@ -509,6 +509,7 @@ export function WritingEditorPane({
           }}
           onError={(message) => setAiError(message || null)}
           onBlogSpokeCreated={refreshBlogSpoke}
+          isResearchBacked={isResearchBacked}
         />
         {aiError ? <p className="text-sm text-red-700">{aiError}</p> : null}
       </div>

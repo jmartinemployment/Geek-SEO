@@ -10,6 +10,7 @@ type EditorAiToolbarProps = {
   onApplyHtml: (html: string) => void;
   onError: (message: string) => void;
   onBlogSpokeCreated?: () => void;
+  isResearchBacked?: boolean;
 };
 
 export function EditorAiToolbar({
@@ -19,6 +20,7 @@ export function EditorAiToolbar({
   onApplyHtml,
   onError,
   onBlogSpokeCreated,
+  isResearchBacked = false,
 }: EditorAiToolbarProps) {
   const [busy, setBusy] = useState<'humanize' | 'blog' | null>(null);
 
@@ -26,7 +28,7 @@ export function EditorAiToolbar({
     <div className="mt-6 border-t pt-4">
       <h3 className="text-sm font-semibold">Writing assist</h3>
       <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-        Polish the pillar or generate a distinct-intent blog spoke.
+        {isResearchBacked ? 'Polish your pillar draft.' : 'Polish the pillar or generate a distinct-intent blog spoke.'}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button
@@ -44,25 +46,34 @@ export function EditorAiToolbar({
         >
           {busy === 'humanize' ? 'Humanizing…' : 'Humanize draft'}
         </button>
-        <button
-          type="button"
-          disabled={busy !== null || !accessToken}
-          className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
-          onClick={() => {
-            setBusy('blog');
-            onError('');
-            void generateBlogSpoke(documentId, { spokeType: 'comparison' }, accessToken)
-              .then(() => onBlogSpokeCreated?.())
-              .catch((e) => onError(e instanceof Error ? e.message : 'Blog generation failed'))
-              .finally(() => setBusy(null));
-          }}
-        >
-          {busy === 'blog' ? 'Creating blog version…' : 'Create blog version'}
-        </button>
+        {!isResearchBacked && (
+          <button
+            type="button"
+            disabled={busy !== null || !accessToken}
+            className="rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
+            onClick={() => {
+              setBusy('blog');
+              onError('');
+              void generateBlogSpoke(documentId, { spokeType: 'comparison' }, accessToken)
+                .then(() => onBlogSpokeCreated?.())
+                .catch((e) => onError(e instanceof Error ? e.message : 'Blog generation failed'))
+                .finally(() => setBusy(null));
+            }}
+          >
+            {busy === 'blog' ? 'Creating blog version…' : 'Create blog version'}
+          </button>
+        )}
       </div>
-      <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
-        Blog options (spoke type, keyword, copy fields) are in the right rail under Blog version.
-      </p>
+      {isResearchBacked && (
+        <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+          To create spoke articles, use the Cluster dashboard above.
+        </p>
+      )}
+      {!isResearchBacked && (
+        <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+          Blog options (spoke type, keyword, copy fields) are in the right rail under Blog version.
+        </p>
+      )}
     </div>
   );
 }

@@ -359,7 +359,16 @@ public static partial class ContentClusterLinkPlanner
         if (ContainsToken(lower, "free"))
             return $"Are there free options for {trimmed}?";
 
-        return $"What should I know about {trimmed}?";
+        if (ContainsToken(lower, "cost") || ContainsToken(lower, "price") || ContainsToken(lower, "pricing"))
+            return $"How much does {trimmed} cost?";
+
+        if (ContainsToken(lower, "vs") || ContainsToken(lower, "versus") || ContainsToken(lower, "compare"))
+            return $"How does {trimmed} compare to alternatives?";
+
+        if (ContainsToken(lower, "how"))
+            return $"How do you get started with {trimmed}?";
+
+        return $"What are the key considerations for {trimmed}?";
     }
 
     private static string ResolveBusinessContext(ContentClusterPlannerInput input)
