@@ -132,10 +132,9 @@ public static class ArticlePromptBuilder
     }
 
     public static string BuildResearchDraftSystemPrompt() =>
-        $"You write SEO articles in HTML (h1 once, multiple h2/h3, paragraphs). Natural tone. No markdown fences. " +
-        $"Before the closing FAQ, write exactly {WritingMethodologySpec.FourPhase.PhaseDefinitions.Count} body <h2> sections in methodology order — no additional body <h2> sections. " +
-        "Competitor and SERP heading patterns belong in <h3> subtopics under the correct phase, not as extra <h2> headings. " +
-        "Use only reader-facing headings. Never output internal labels such as \"Movement 1\", \"Movement 2\", or phase names alone. " +
+        "You write SEO articles in HTML (h1 once, multiple h2/h3, paragraphs). Natural tone. No markdown fences. " +
+        "Structure body sections around the topic's natural logical flow — use headings that match what readers actually search for. " +
+        "Use only reader-facing headings. " +
         $"Always close with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> containing exactly {ContentWritingRules.ClosingFaqCount} topic FAQs as <h3> + <p> pairs.";
 
     public static string BuildResearchDraftUserPrompt(ResearchDraftRequest request)
@@ -154,9 +153,6 @@ public static class ArticlePromptBuilder
         builder.AppendLine($"Target words: {target}");
         builder.AppendLine($"Search intent: {research.IntentPrimary} — {research.IntentJustification}");
         builder.AppendLine();
-        builder.AppendLine($"Methodology: {WritingMethodologySpec.FourPhase.Name}");
-        builder.AppendLine(ArticleMethodologyPrompt.BuildWeaveInstructions(keyword, WritingMethodologySpec.FourPhase));
-
         if (!string.IsNullOrWhiteSpace(research.BusinessContext))
             builder.AppendLine($"Business context: {research.BusinessContext}");
 
@@ -191,12 +187,12 @@ public static class ArticlePromptBuilder
         if (research.SectionHints.Count > 0)
         {
             builder.AppendLine();
-            builder.AppendLine("Section plan (required — exactly these 4 body <h2> sections in order; SERP subtopics become <h3>):");
+            builder.AppendLine("Suggested body sections from SERP research (use as heading inspiration, adapt to topic's natural flow):");
             foreach (var hint in research.SectionHints.OrderBy(h => h.DisplayOrder))
             {
-                builder.Append("- ").Append(hint.Label).Append(": <h2>").Append(hint.SuggestedH2).Append("</h2>");
+                builder.Append("- <h2>").Append(hint.SuggestedH2).Append("</h2>");
                 if (hint.SubtopicsFromSerp.Count > 0)
-                    builder.Append(" — <h3> ideas: ").Append(string.Join("; ", hint.SubtopicsFromSerp));
+                    builder.Append(" — subtopics: ").Append(string.Join("; ", hint.SubtopicsFromSerp));
                 builder.AppendLine();
             }
         }

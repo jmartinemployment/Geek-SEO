@@ -189,26 +189,15 @@ public sealed partial class AIWritingService(
         if (!draftResult.IsSuccess || draftResult.Value is null)
             return draftResult;
 
-        var withMethodology = await ArticleMethodologyDraftEnricher.EnsureResearchMethodologyDraftAsync(
-            draftResult.Value.Content,
-            request,
-            ai,
-            ct);
-
-        var sanitized = ArticleMethodologyScaffold.SanitizeDraft(
-            withMethodology,
-            request.Research.DerivedKeyword,
-            WritingMethodologySpec.FourPhase);
-
         var enriched = await ArticleClosingFaqEnricher.EnsureClosingFaqDraftAsync(
-            sanitized,
+            draftResult.Value.Content,
             request.Research,
             ai,
             ct);
 
         return Result<WritingTextResult>.Success(new WritingTextResult
         {
-            Content = ArticleMethodologyScaffold.StripMovementLabels(enriched),
+            Content = enriched,
         });
     }
 
