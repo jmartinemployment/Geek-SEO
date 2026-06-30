@@ -266,10 +266,9 @@ public static class ArticlePromptBuilder
         {
             builder.AppendLine();
             builder.AppendLine(
-                $"Supporting blog post: when covering \"{blogHint.Topic}\" in the body, " +
-                $"naturally reference it with a link — anchor text \"{blogHint.Title}\", " +
-                $"href=\"/blog/{blogHint.Slug}\". Write it as a genuine recommendation, " +
-                "not a forced insertion (e.g. \"For a deeper look at X, see our guide on <a href=\"/blog/slug\">Title</a>.\").");
+                $"Supporting blog post on \"{blogHint.Topic}\": " +
+                $"<a href=\"/blog/{blogHint.Slug}\">{blogHint.Title}</a>. " +
+                "Link to it once, naturally, where the topic comes up in the body.");
         }
 
         AppendResearchClosingFaqInstructions(builder, research);
