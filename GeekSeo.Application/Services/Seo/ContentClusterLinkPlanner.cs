@@ -273,12 +273,10 @@ public static partial class ContentClusterLinkPlanner
         if (IsNearDuplicatePillarKeyword(phrase, pillarKeyword, pillarNormalized))
             return "near_duplicate_pillar_keyword";
 
+        if (SerpQuestionFilter.IsBlocked(phrase, options.IntentBlocklist))
+            return "resource_seeker_intent";
+
         var lower = phrase.ToLowerInvariant();
-        foreach (var blocked in options.IntentBlocklist)
-        {
-            if (ContainsToken(lower, blocked))
-                return $"intent_blocklist:{blocked}";
-        }
 
         if (ContainsToken(lower, "free") && !BusinessOffersFreeTier(businessContext))
             return "free_tier_mismatch";

@@ -22,6 +22,7 @@ public sealed class ContentResearchWritingServiceTests
         var sut = new ContentResearchWritingService(
             documents,
             new FakeAiWritingService(),
+            new NoOpSpokeService(),
             CreateContextLoader());
 
         var result = await sut.AttachResearchAsync(
@@ -75,6 +76,7 @@ public sealed class ContentResearchWritingServiceTests
         var sut = new ContentResearchWritingService(
             documents,
             ai,
+            new NoOpSpokeService(),
             CreateContextLoader());
 
         var result = await sut.DraftFromResearchAsync(UserId, DocumentId);
@@ -93,6 +95,7 @@ public sealed class ContentResearchWritingServiceTests
         var sut = new ContentResearchWritingService(
             documents,
             ai,
+            new NoOpSpokeService(),
             CreateContextLoader());
 
         var result = await sut.DraftFromResearchAsync(UserId, DocumentId);
@@ -109,7 +112,27 @@ public sealed class ContentResearchWritingServiceTests
         new(
             new FakeDocumentService(document),
             new FakeAiWritingService(),
+            new NoOpSpokeService(),
             CreateContextLoader());
+
+    private sealed class NoOpSpokeService : IContentSpokeService
+    {
+        public Task<Result<IReadOnlyList<ContentSpokeSummary>>> ListAsync(
+            Guid userId, Guid pillarDocumentId, CancellationToken ct = default) =>
+            Task.FromResult(Result<IReadOnlyList<ContentSpokeSummary>>.Success([]));
+
+        public Task<Result<ContentSpokeSummary>> CreateAsync(
+            Guid userId, Guid pillarDocumentId, CreateContentSpokeRequest request, CancellationToken ct = default) =>
+            Task.FromResult(Result<ContentSpokeSummary>.Failure("not used"));
+
+        public Task<Result<ContentSpokeSummary>> GenerateAsync(
+            Guid userId, Guid pillarDocumentId, Guid spokeDocumentId, GenerateContentSpokeRequest? request, CancellationToken ct = default) =>
+            Task.FromResult(Result<ContentSpokeSummary>.Failure("not used"));
+
+        public Task<Result<GenerateAllContentSpokesResponse>> GenerateAllAsync(
+            Guid userId, Guid pillarDocumentId, CancellationToken ct = default) =>
+            Task.FromResult(Result<GenerateAllContentSpokesResponse>.Failure("not used"));
+    }
 
     private sealed class StubProjectRepository : IProjectRepository
     {

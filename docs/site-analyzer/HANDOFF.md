@@ -145,4 +145,7 @@ Writer reads tables directly (or via a thin `sa2` reader), not export blobs.
 - Article outlines (generated in Writer from research)
 - Content scores, plagiarism, Sources apply jobs, editor JSON-LD (Writer-owned)
 
-See also: [INTEGRATIONS.md](INTEGRATIONS.md) for field-level export notes (operator/debug) and gate tables.
+See also:
+
+- [INTEGRATIONS.md](INTEGRATIONS.md) — field-level export notes (operator/debug) and gate tables
+- [Content Writing handoff](../content-writing/HANDOFF.md) — pillar editor, cluster spokes, linking workflow, and known UI traps after you land from Site Analyzer

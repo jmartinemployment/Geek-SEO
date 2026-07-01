@@ -16,10 +16,10 @@ public sealed class ContentClusterLinkPlannerTests
 
         Assert.Contains(result.FilteredOut, f =>
             f.Phrase == "ai in marketing analytics course" &&
-            f.RejectReason.StartsWith("intent_blocklist:", StringComparison.Ordinal));
+            f.RejectReason == "resource_seeker_intent");
         Assert.Contains(result.FilteredOut, f =>
             f.Phrase == "best ai for market research reddit" &&
-            f.RejectReason.Contains("reddit", StringComparison.Ordinal));
+            f.RejectReason == "resource_seeker_intent");
         Assert.Contains(result.FilteredOut, f =>
             f.Phrase == "free ai tools for market research" &&
             f.RejectReason == "free_tier_mismatch");

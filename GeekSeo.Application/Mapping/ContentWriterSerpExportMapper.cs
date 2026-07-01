@@ -400,7 +400,20 @@ public static class ContentWriterSerpExportMapper
 
         foreach (var (question, _) in paaItems)
         {
+            if (SerpQuestionFilter.IsBlocked(question))
+                continue;
+
             Add(question, "paa");
+            if (items.Count >= ContentWritingRules.ClosingFaqCount)
+                return items;
+        }
+
+        foreach (var query in SerpQuestionFilter.Filter(pasfQueries))
+        {
+            var question = query.Contains('?', StringComparison.Ordinal)
+                ? query
+                : SerpQuestionFilter.RewritePasfAsQuestion(query, keyword);
+            Add(question, "pasf");
             if (items.Count >= ContentWritingRules.ClosingFaqCount)
                 return items;
         }

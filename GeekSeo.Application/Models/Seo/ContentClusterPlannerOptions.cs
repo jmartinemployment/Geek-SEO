@@ -5,7 +5,7 @@ public sealed record ContentClusterPlannerOptions
     public int MaxSpokeCandidates { get; init; } = 3;
     public int MaxFaqItems { get; init; } = 5;
     public IReadOnlyList<string> IntentBlocklist { get; init; } =
-        ["course", "reddit", "jobs", "salary"];
+        ["course", "reddit", "jobs", "salary", "pdf", "template", "generator", "download", "worksheet"];
 }
 
 public sealed record ContentClusterPlannerInput

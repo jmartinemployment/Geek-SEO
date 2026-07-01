@@ -131,16 +131,24 @@ public static class ArticlePromptBuilder
         return builder.ToString().Trim();
     }
 
-    public static string BuildResearchDraftSystemPrompt() =>
-        "You write SEO articles in HTML (h1 once, multiple h2/h3, paragraphs). Natural tone. No markdown fences. " +
-        "Structure body sections around the topic's natural logical flow — use headings that match what readers actually search for. " +
-        "Use only reader-facing headings. " +
-        $"Always close with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> containing exactly {ContentWritingRules.ClosingFaqCount} topic FAQs as <h3> + <p> pairs.";
+    public static string BuildResearchDraftSystemPrompt(WritingMethodologySpec? methodology = null)
+    {
+        methodology ??= WritingMethodologySpec.FourPhase;
+        var sectionCount = methodology.PhaseDefinitions.Count;
+        return
+            "You write SEO articles in HTML (h1 once, multiple h2/h3, paragraphs). Natural tone. No markdown fences. " +
+            $"Before the closing FAQ, write exactly {sectionCount} body sections as specified — one topic-specific <h2> per methodology phase. " +
+            "Competitor and PAA topics are <h3> subtopics only, never extra body <h2> sections. " +
+            "Follow the business voice pack: named-tool examples, traditional-vs-AI contrast, implementation authority, topic-specific CTA. " +
+            "Do not invent named experts, fictional credentials, or a Sources section. " +
+            $"Always close with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> containing exactly {ContentWritingRules.ClosingFaqCount} topic FAQs as <h3> + <p> pairs.";
+    }
 
     public static string BuildResearchDraftUserPrompt(ResearchDraftRequest request)
     {
         var research = request.Research;
         var keyword = research.DerivedKeyword;
+        var methodology = WritingMethodologySpec.FourPhase;
         var target = request.TargetWordCount > 0
             ? request.TargetWordCount
             : Math.Max(800, research.Benchmarks.MedianWordCountTop5);
@@ -168,6 +176,8 @@ public static class ArticlePromptBuilder
                 builder.AppendLine($"- Pillar cluster: {siteFocus.MatchedPillarTopic}");
             if (siteFocus.GeoAnchorNodes.Count > 0)
                 builder.AppendLine($"- Geo: {string.Join("; ", siteFocus.GeoAnchorNodes.Take(4))}");
+            if (!string.IsNullOrWhiteSpace(siteFocus.ServiceAreaDescription))
+                builder.AppendLine($"- Service area: {siteFocus.ServiceAreaDescription}");
             if (siteFocus.GapTopics.Count > 0)
                 builder.AppendLine($"- Reinforce gaps: {string.Join(", ", siteFocus.GapTopics)}");
             if (!string.IsNullOrWhiteSpace(research.SerpKeyword)
@@ -175,6 +185,26 @@ public static class ArticlePromptBuilder
             {
                 builder.AppendLine(
                     $"- Note: article keyword \"{research.DerivedKeyword}\" differs from SERP keyword \"{research.SerpKeyword}\".");
+            }
+        }
+
+        builder.AppendLine();
+        var voicePack = BusinessVoicePackBuilder.Build(research);
+        BusinessVoicePrompt.AppendInstructions(builder, voicePack);
+
+        builder.AppendLine();
+        builder.AppendLine(ArticleMethodologyPrompt.BuildWeaveInstructions(keyword, methodology));
+
+        if (research.SectionHints.Count > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine("Required section plan:");
+            foreach (var hint in research.SectionHints.OrderBy(h => h.DisplayOrder))
+            {
+                builder.Append("- ").Append(hint.Label).Append(": <h2>").Append(hint.SuggestedH2).Append("</h2>");
+                if (hint.SubtopicsFromSerp.Count > 0)
+                    builder.Append(" — subtopics as <h3>: ").Append(string.Join("; ", hint.SubtopicsFromSerp));
+                builder.AppendLine();
             }
         }
 
@@ -212,11 +242,23 @@ public static class ArticlePromptBuilder
                 builder.AppendLine($"Beat strategy: {research.Paf.BeatStrategy}");
         }
 
-        if (research.PeopleAlsoAsk.Count > 0)
-            builder.AppendLine($"PAA questions: {string.Join("; ", research.PeopleAlsoAsk.Take(8).Select(p => p.Question))}");
+        var filteredPaa = SerpQuestionFilter
+            .Filter(research.PeopleAlsoAsk.Select(p => p.Question))
+            .Take(8)
+            .ToList();
+        if (filteredPaa.Count > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine(
+                $"Buyer-relevant PAA (use as <h3> subtopics only — never as extra body <h2> or FAQ copy): {string.Join("; ", filteredPaa)}");
+        }
 
-        if (research.RelatedSearches.Count > 0)
-            builder.AppendLine($"Related searches: {string.Join("; ", research.RelatedSearches.Take(8).Select(p => p.SearchText))}");
+        var filteredPasf = SerpQuestionFilter
+            .Filter(research.RelatedSearches.Select(r => r.SearchText))
+            .Take(8)
+            .ToList();
+        if (filteredPasf.Count > 0)
+            builder.AppendLine($"Related searches (subtopic ideas only): {string.Join("; ", filteredPasf)}");
 
         var competitorHeadings = research.Competitors
             .SelectMany(c => c.Headings.Where(h => h.Level <= 3).Select(h => h.Text))
@@ -224,8 +266,11 @@ public static class ArticlePromptBuilder
             .Take(12)
             .ToList();
         if (competitorHeadings.Count > 0)
+        {
+            builder.AppendLine();
             builder.AppendLine(
                 $"Competitor heading patterns (use as <h3> subtopics only — never as extra body <h2>): {string.Join("; ", competitorHeadings)}");
+        }
 
         var competitorSchema = research.Competitors
             .SelectMany(c => c.SchemaTypes)
@@ -266,35 +311,52 @@ public static class ArticlePromptBuilder
 
     private static void AppendResearchClosingFaqInstructions(StringBuilder builder, WritingResearchContext research)
     {
+        var questions = ResolveResearchClosingQuestions(research);
+
         builder.AppendLine();
         builder.AppendLine(
             $"Closing FAQ section (required): end the article with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> " +
             $"followed by exactly {ContentWritingRules.ClosingFaqCount} Q&A pairs. Each question is an <h3>; each answer is a concise <p> (2-4 sentences). " +
-            "Write questions that real users search for about this topic — specific, practical, and directly answerable.");
+            "Questions must fit the business context — practical buyer questions, not resource-download searches.");
+        builder.AppendLine("Use these questions in order:");
+        for (var i = 0; i < questions.Count; i++)
+            builder.AppendLine($"{i + 1}. {questions[i]}");
+    }
 
-        var paaQuestions = research.PeopleAlsoAsk
-            .OrderBy(p => p.DisplayOrder)
-            .Select(p => p.Question)
-            .Where(q => !string.IsNullOrWhiteSpace(q))
-            .Take(8)
-            .ToList();
+    private static IReadOnlyList<string> ResolveResearchClosingQuestions(WritingResearchContext research)
+    {
+        var questions = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        if (paaQuestions.Count > 0)
+        void Add(string? question)
         {
-            builder.AppendLine($"User questions from Google (prioritize these): {string.Join("; ", paaQuestions)}");
+            if (string.IsNullOrWhiteSpace(question) || SerpQuestionFilter.IsBlocked(question))
+                return;
+
+            var trimmed = question.Trim();
+            if (!seen.Add(trimmed))
+                return;
+
+            questions.Add(trimmed);
         }
 
-        var pasfPhrases = research.RelatedSearches
-            .OrderBy(r => r.DisplayOrder)
-            .Select(r => r.SearchText)
-            .Where(s => !string.IsNullOrWhiteSpace(s))
-            .Take(8)
-            .ToList();
+        foreach (var item in research.ClosingFaqs.OrderBy(f => f.DisplayOrder))
+            Add(item.Question);
 
-        if (pasfPhrases.Count > 0)
+        if (questions.Count < ContentWritingRules.ClosingFaqCount)
         {
-            builder.AppendLine($"Related user searches to inform question selection: {string.Join("; ", pasfPhrases)}");
+            foreach (var question in ContentWritingRules.BuildClosingFaqQuestions(
+                         research.DerivedKeyword,
+                         SerpQuestionFilter.Filter(research.PeopleAlsoAsk.Select(p => p.Question)),
+                         research.SiteFocus?.GapTopics))
+            {
+                Add(question);
+                if (questions.Count >= ContentWritingRules.ClosingFaqCount)
+                    break;
+            }
         }
+
+        return questions.Take(ContentWritingRules.ClosingFaqCount).ToList();
     }
 
     private static void AppendClosingFaqInstructions(StringBuilder builder, ContentBrief brief)

@@ -187,13 +187,41 @@ public static partial class ArticleClosingFaqEnricher
         return html.TrimEnd() + "\n" + faqSectionHtml.Trim();
     }
 
-    private static IReadOnlyList<string> ResolveQuestions(WritingResearchContext research) =>
-        research.ClosingFaqs.Count > 0
-            ? research.ClosingFaqs.OrderBy(f => f.DisplayOrder).Select(f => f.Question).ToList()
-            : ContentWritingRules.BuildClosingFaqQuestions(
-                research.DerivedKeyword,
-                research.PeopleAlsoAsk.Select(p => p.Question).ToList(),
-                []);
+    private static IReadOnlyList<string> ResolveQuestions(WritingResearchContext research)
+    {
+        var questions = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void Add(string? question)
+        {
+            if (string.IsNullOrWhiteSpace(question) || SerpQuestionFilter.IsBlocked(question))
+                return;
+
+            var trimmed = question.Trim();
+            if (!seen.Add(trimmed))
+                return;
+
+            questions.Add(trimmed);
+        }
+
+        foreach (var item in research.ClosingFaqs.OrderBy(f => f.DisplayOrder))
+            Add(item.Question);
+
+        if (questions.Count < ContentWritingRules.ClosingFaqCount)
+        {
+            foreach (var question in ContentWritingRules.BuildClosingFaqQuestions(
+                         research.DerivedKeyword,
+                         SerpQuestionFilter.Filter(research.PeopleAlsoAsk.Select(p => p.Question)),
+                         research.SiteFocus?.GapTopics))
+            {
+                Add(question);
+                if (questions.Count >= ContentWritingRules.ClosingFaqCount)
+                    break;
+            }
+        }
+
+        return questions.Take(ContentWritingRules.ClosingFaqCount).ToList();
+    }
 
     private static IReadOnlyList<string> ResolveQuestions(ContentBrief brief) =>
         brief.ClosingFaqQuestions.Count > 0
