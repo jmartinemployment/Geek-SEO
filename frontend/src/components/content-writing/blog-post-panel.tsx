@@ -1,5 +1,6 @@
 'use client';
 
+import { strToU8, zipSync } from 'fflate';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useWritingWorkspace } from '@/components/content-writing/review-workspace-context';
@@ -221,16 +222,6 @@ export function BlogPostPanel() {
     }
   }
 
-  function downloadFile(filename: string, content: string, mimeType = 'text/html') {
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   async function handleSave() {
     if (!accessToken || saving) return;
     setSaving(true);
@@ -250,32 +241,42 @@ export function BlogPostPanel() {
 
       const socialText = socialResult
         ? `FACEBOOK\n\n${socialResult.facebookPost}\n\n---\n\nLINKEDIN\n\n${socialResult.linkedInPost}`
-        : undefined;
+        : null;
 
-      const res = await fetch('/api/save-content', {
+      // Try local file save first (works when running locally)
+      const saveRes = await fetch('/api/save-content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keyword: doc.targetKeyword, pillarHtml, blogPosts: blogPostFiles, socialText }),
       });
+      const saveResult = (await saveRes.json()) as { saved: boolean; files?: string[]; fallback?: boolean };
 
-      const result = (await res.json()) as { saved: boolean; dir?: string; fallback?: boolean };
-
-      if (result.saved && result.dir) {
-        setStatusMsg(`Saved to ${result.dir}`);
+      if (saveResult.saved && saveResult.files) {
+        setStatusMsg(`Saved: ${saveResult.files.join(', ')}`);
         return;
       }
 
-      // Fallback: browser download
-      downloadFile(`${slug}-pillar.html`, pillarHtml);
+      // Vercel fallback: zip download
+      const files: Record<string, Uint8Array> = { 'pillar.html': strToU8(pillarHtml) };
       for (const post of blogPostFiles) {
-        downloadFile(`${post.slug}.html`, post.html);
+        files[`blog-posts/${post.slug}.html`] = strToU8(post.html);
       }
       if (socialText) {
-        downloadFile(`${slug}-social.txt`, socialText, 'text/plain');
+        files['social.txt'] = strToU8(socialText);
       }
-      setStatusMsg('Files downloaded to your browser.');
+
+      const zipped = zipSync(files);
+      const blob = new Blob([zipped], { type: 'application/zip' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${slug}-content.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      setStatusMsg(`Downloaded ${slug}-content.zip`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Save failed');
+      setError(e instanceof Error ? e.message : 'Download failed');
     } finally {
       setSaving(false);
     }
