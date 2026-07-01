@@ -9,6 +9,10 @@ public class AnalysisRun
     public string Keyword { get; set; } = string.Empty;
     public string TargetSiteUrl { get; set; } = string.Empty;
     public string SerpProviderKey { get; set; } = "manual-html";
+    /// <summary><see cref="ResearchModes.Manual"/> or <see cref="ResearchModes.Sa2"/>.</summary>
+    public string ResearchMode { get; set; } = ResearchModes.Sa2;
+    /// <summary>Operator topic folder slug (e.g. customer-journey). One run = one topic.</summary>
+    public string? TopicSlug { get; set; }
     public RunStatus Status { get; set; } = RunStatus.Running;
     public PipelineStage? CurrentStage { get; set; }
     public bool IncludeReferenceDomains { get; set; }

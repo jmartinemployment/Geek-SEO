@@ -38,6 +38,9 @@ public sealed record ContentWriterSerpExport
     public string? FeaturedSnippetCandidate { get; init; }
     public IReadOnlyList<string> NewsHooks { get; init; } = [];
     public string? LocalAngleHint { get; init; }
+    public string ResearchMode { get; init; } = ResearchModes.Sa2;
+    public string? TopicSlug { get; init; }
+    public IReadOnlyList<ContentWriterManualResearchLane> ManualResearchLanes { get; init; } = [];
 }
 
 public sealed record ContentWriterCitationCandidate

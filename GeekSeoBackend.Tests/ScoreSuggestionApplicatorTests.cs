@@ -36,7 +36,7 @@ public sealed class ScoreSuggestionApplicatorTests
     }
 
     [Fact]
-    public void TryApplyDeterministic_geo_citations_appends_sources()
+    public void TryApplyDeterministic_geo_citations_inserts_inline_authoritative_links()
     {
         var html = "<h1>Guide</h1><p>Body</p>";
         var organic = new List<SerpOrganicResult>
@@ -55,8 +55,8 @@ public sealed class ScoreSuggestionApplicatorTests
             organic);
 
         Assert.NotNull(patched);
-        Assert.Contains("<h2>Sources</h2>", patched!, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Further reading:", patched!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("For authoritative context", patched!, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("<h2>Sources</h2>", patched!, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("https://www.cdc.gov/example", patched!, StringComparison.Ordinal);
         Assert.Contains("https://www.ed.gov/policy", patched!, StringComparison.Ordinal);
         Assert.DoesNotContain("competitor.com", patched!, StringComparison.OrdinalIgnoreCase);
@@ -71,7 +71,7 @@ public sealed class ScoreSuggestionApplicatorTests
     }
 
     [Fact]
-    public void TryAppendSourcesFromDiscovered_appends_list_with_ai_sources()
+    public void TryAppendSourcesFromDiscovered_inserts_inline_links()
     {
         var html = "<h1>Guide</h1><p>Body</p>";
         var sources = new List<DiscoveredSource>
@@ -83,7 +83,8 @@ public sealed class ScoreSuggestionApplicatorTests
         var patched = ScoreSuggestionApplicator.TryAppendSourcesFromDiscovered(html, sources);
 
         Assert.NotNull(patched);
-        Assert.Contains("<h2>Sources</h2>", patched!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("For authoritative context", patched!, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("<h2>Sources</h2>", patched!, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("https://www.cdc.gov/example", patched!, StringComparison.Ordinal);
     }
 
@@ -200,10 +201,10 @@ public sealed class ScoreSuggestionApplicatorTests
         var patched = ScoreSuggestionApplicator.TryAppendSourcesFromDiscovered(html, sources);
 
         Assert.NotNull(patched);
-        var sourcesIndex = patched!.IndexOf("<h2>Sources</h2>", StringComparison.OrdinalIgnoreCase);
+        var citationIndex = patched!.IndexOf("For authoritative context", StringComparison.OrdinalIgnoreCase);
         var faqIndex = patched.IndexOf("Frequently asked questions", StringComparison.OrdinalIgnoreCase);
-        Assert.True(sourcesIndex >= 0);
-        Assert.True(faqIndex > sourcesIndex);
+        Assert.True(citationIndex >= 0);
+        Assert.True(faqIndex > citationIndex);
     }
 
     [Fact]

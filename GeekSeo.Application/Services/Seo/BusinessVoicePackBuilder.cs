@@ -47,6 +47,7 @@ public static class BusinessVoicePackBuilder
         var isImplementation = LooksLikeImplementationConsultancy(corpus);
         var capabilities = DetectCapabilities(corpus);
         var geo = FormatGeoLabel(focus, research.SearchLocation);
+        var hasLocalMarket = !string.IsNullOrWhiteSpace(geo);
         var siteName = focus?.SiteName?.Trim() ?? string.Empty;
         var siteUrl = focus?.SiteUrl?.Trim() ?? research.SourceUrl.Trim();
         var recommendations = CollectWritingRecommendations(focus, corpus);
@@ -69,7 +70,10 @@ public static class BusinessVoicePackBuilder
             WritingRecommendations = recommendations,
             MinimumConcreteExamples = isImplementation ? 3 : 2,
             RequiresTraditionalVsAiContrast = isImplementation,
+            RequiresPerSectionContrast = isImplementation,
             RequiresCapabilityBridge = capabilities.Count > 0,
+            RequiresLocalMarketExamples = isImplementation && hasLocalMarket,
+            MinimumLocalMarketExamples = 2,
             CtaParagraphHtml = BuildCtaParagraphHtml(research.DerivedKeyword, siteName, siteUrl, geo),
             DataQualityPhaseLabel = WritingMethodologySpec.FourPhase.PhaseDefinitions
                 .First(p => p.Id == "data-quality-assessment")
@@ -153,6 +157,13 @@ public static class BusinessVoicePackBuilder
         {
             recommendations.Add(
                 "Voice: implementation-first — show named tools, live-data scenarios, and how you deploy chatbots, dashboards, or integrations for SMB clients.");
+
+            if (!string.IsNullOrWhiteSpace(focus?.ServiceAreaDescription)
+                || focus?.GeoAnchorNodes.Count > 0)
+            {
+                recommendations.Add(
+                    "Do not write a national category explainer — position as the shop that maps and builds for local SMB buyers who ask \"what would you build for me?\"");
+            }
         }
 
         return recommendations

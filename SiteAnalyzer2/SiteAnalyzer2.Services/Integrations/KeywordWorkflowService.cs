@@ -228,6 +228,7 @@ public sealed class KeywordWorkflowService(
     private async Task<bool> HasKeywordDataAsync(Guid keywordProjectId, CancellationToken ct) =>
         await db.SerpItems.AsNoTracking().AnyAsync(
             i => i.RunId == keywordProjectId
+                && i.ResearchLane == null
                 && i.Type == SerpItemTypes.Organic
                 && !i.Ads,
             ct);

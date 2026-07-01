@@ -76,6 +76,7 @@ public static class DependencyInjection
         services.AddScoped<OperatorResearchService>();
         services.AddScoped<SerpRankHistoryService>();
         services.AddScoped<KeywordWorkflowService>();
+        services.AddScoped<ManualLaneImportService>();
         services.AddScoped<SiteAuditCheckService>();
         services.AddScoped<SiteAuditRollupService>();
         services.AddScoped<SiteAuditJobService>();

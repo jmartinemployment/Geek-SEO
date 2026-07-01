@@ -2,7 +2,16 @@
 
 Web UI: [site-analyzer.geekatyourspot.com](https://site-analyzer.geekatyourspot.com)
 
-Script: `./scripts/import-serp-html.sh` (SERP import only; no Web competitor crawl).
+Script: `./scripts/import-serp-html.sh` (keyword lane; `--lane` for supplemental — see [MANUAL-FIVE-LANE-RESEARCH.md](MANUAL-FIVE-LANE-RESEARCH.md)).
+
+## Two keyword tracks
+
+| Track | Gates | When to use |
+|-------|-------|-------------|
+| **SA2 crawl** (steps 3–8 below) | Competitor crawl + gap topics + target headings | Production keyword overview |
+| **Manual five-lane** | Keyword + supplemental HTML lanes only | Pilot topics (e.g. customer-journey) — [MANUAL-FIVE-LANE-RESEARCH.md](MANUAL-FIVE-LANE-RESEARCH.md) |
+
+Both persist to `sa2` on the same `analysisRunId`. `research_mode` on the run selects the Content Writer gate.
 
 ## Concepts
 
@@ -130,7 +139,20 @@ Crawl **Project URL** for this run so your **H2–H6** land in `page_headings`.
 
 Failed steps roll back the transaction — no partial SERP rows.
 
-## Script workflow
+## Manual five-lane import (pilot)
+
+```bash
+# Same runId + topic_slug for every lane
+./scripts/import-serp-html.sh --run-id <uuid> --topic customer-journey --lane keyword research/customer-journey/keyword/
+./scripts/import-serp-html.sh --run-id <uuid> --topic customer-journey --lane gov research/customer-journey/gov/
+./scripts/import-serp-html.sh --run-id <uuid> --topic customer-journey --lane wiki research/customer-journey/wiki/
+```
+
+- Import **fails (422)** if keyword parse yields 0 organics or supplemental lane yields 0 usable URLs.
+- `local` and `edu` require operator-saved HTML; local needs a dedicated parser.
+- Then open Content Writer with `analysisRunId` — manual gate, no competitor crawl required.
+
+## Script workflow (keyword lane default)
 
 ```bash
 cp .env.import.example .env

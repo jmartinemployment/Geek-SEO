@@ -80,6 +80,43 @@ function InsightCard({
   );
 }
 
+const MANUAL_LANES = ['keyword', 'edu', 'gov', 'local', 'wiki'] as const;
+
+function laneStatus(
+  lane: (typeof MANUAL_LANES)[number],
+  exportData: ContentWriterSerpExport,
+): 'ok' | 'empty' | 'na' {
+  if (lane === 'keyword') {
+    return organicItems(exportData).length > 0 ? 'ok' : 'empty';
+  }
+  const manual = exportData.manualResearchLanes?.find(
+    (l) => l.lane.toLowerCase() === lane,
+  );
+  if (!manual) return 'empty';
+  return manual.organicCount > 0 ? 'ok' : 'empty';
+}
+
+function LaneChip({
+  lane,
+  status,
+}: {
+  lane: string;
+  status: 'ok' | 'empty' | 'na';
+}) {
+  const styles =
+    status === 'ok'
+      ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
+      : 'border-amber-400 bg-amber-50 text-amber-900';
+  return (
+    <span
+      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${styles}`}
+    >
+      {lane}
+      {status === 'ok' ? ' ✓' : ' —'}
+    </span>
+  );
+}
+
 function organicItems(exportData: ContentWriterSerpExport) {
   return exportData.serp.filter((item) => item.type?.toLowerCase() === 'organic');
 }
@@ -181,8 +218,18 @@ export function ResearchInsightsRail({ articleKeyword, serpKeyword }: Props) {
       <h3 className="text-xs font-semibold xl:text-sm">SERP research</h3>
       <p className="text-xs text-[var(--color-text-muted)]">
         Live from sa2 · {exportData.keyword}
+        {exportData.researchMode === 'manual' ? ' · manual research' : ''}
+        {exportData.topicSlug ? ` · ${exportData.topicSlug}` : ''}
         {exportData.status ? ` · ${exportData.status}` : ''}
       </p>
+
+      {exportData.researchMode === 'manual' ? (
+        <div className="flex flex-wrap gap-1.5">
+          {MANUAL_LANES.map((lane) => (
+            <LaneChip key={lane} lane={lane} status={laneStatus(lane, exportData)} />
+          ))}
+        </div>
+      ) : null}
 
       {exportData.writingInstructions ? (
         <InsightCard title="Writing brief">

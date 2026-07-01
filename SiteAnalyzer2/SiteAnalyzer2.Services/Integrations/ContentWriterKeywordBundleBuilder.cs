@@ -13,11 +13,19 @@ public static class ContentWriterKeywordBundleBuilder
         DateTimeOffset capturedAt,
         IReadOnlyList<string>? authorityPageUrls = null)
     {
-        var serp = BuildSerpItems(serpItems);
+        var keywordItems = serpItems
+            .Where(i => string.IsNullOrWhiteSpace(i.ResearchLane))
+            .ToList();
+        var supplementalItems = serpItems
+            .Where(i => !string.IsNullOrWhiteSpace(i.ResearchLane))
+            .ToList();
+
+        var serp = BuildSerpItems(keywordItems);
+        var manualLanes = BuildManualResearchLanes(supplementalItems);
         var competitors = BuildCompetitors(competitorPages);
         var sourceHeadings = BuildSourceHeadings(run, sourcePages);
         var benchmarks = BuildBenchmarks(competitorPages, competitors);
-        var citationCandidates = BuildCitationCandidates(serpItems, authorityPageUrls ?? []);
+        var citationCandidates = BuildCitationCandidates(keywordItems, authorityPageUrls ?? []);
 
         return new ContentWriterSerpExportDto
         {
@@ -43,7 +51,42 @@ public static class ContentWriterKeywordBundleBuilder
             Competitors = competitors,
             Benchmarks = benchmarks,
             CitationCandidates = citationCandidates,
+            ResearchMode = run.ResearchMode,
+            TopicSlug = run.TopicSlug,
+            ManualResearchLanes = manualLanes,
         };
+    }
+
+    private static List<ContentWriterManualResearchLaneDto> BuildManualResearchLanes(
+        IReadOnlyList<SerpItem> supplementalItems)
+    {
+        return supplementalItems
+            .GroupBy(i => i.ResearchLane!, StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                var organics = group
+                    .Where(i => string.Equals(i.Type, SerpItemTypes.Organic, StringComparison.OrdinalIgnoreCase) && !i.Ads)
+                    .ToList();
+                return new ContentWriterManualResearchLaneDto
+                {
+                    Lane = group.Key,
+                    Label = SerpResearchLanes.DisplayLabel(group.Key),
+                    OrganicCount = organics.Count,
+                    OrganicResults = organics.Select((item, index) => new ContentWriterSerpItemDto
+                    {
+                        Position = item.RankGroup > 0 ? item.RankGroup : index + 1,
+                        Type = SerpItemTypes.Organic,
+                        Title = item.Title,
+                        Url = item.Url,
+                        Domain = item.Domain,
+                        Snippet = BuildSnippet(item),
+                        Date = item.PreSnippet,
+                        SiteName = item.WebsiteName,
+                    }).ToList(),
+                };
+            })
+            .OrderBy(l => l.Lane, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     internal static List<ContentWriterCitationCandidateDto> BuildCitationCandidates(

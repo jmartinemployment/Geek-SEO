@@ -12,6 +12,7 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
 
     public async Task<WritingResearchContext> EnrichContextAsync(
         WritingResearchContext context,
+        IReadOnlyList<ContentWriterManualResearchLane>? manualLanes = null,
         CancellationToken ct = default)
     {
         var keyword = string.IsNullOrWhiteSpace(context.DerivedKeyword)
@@ -21,7 +22,7 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
             return context;
 
         var options = BuildOptions(context, keyword);
-        var templates = OperatorResearchQueryPack.Build(options);
+        var templates = FilterTemplates(OperatorResearchQueryPack.Build(options), manualLanes ?? []);
         if (templates.Count == 0)
             return context;
 
@@ -45,13 +46,22 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
             TargetSiteUrl = export.TargetSiteUrl,
             LocalCity = ResolveLocalCity(searchLocation, null),
         };
-        var templates = OperatorResearchQueryPack.Build(options);
+        var templates = FilterTemplates(OperatorResearchQueryPack.Build(options), export.ManualResearchLanes);
         if (templates.Count == 0)
             return export;
 
         var results = await RunQueriesAsync(templates, searchLocation, ct);
         return ApplyExportResults(export, templates, results);
     }
+
+    private static IReadOnlyList<OperatorResearchQueryTemplate> FilterTemplates(
+        IReadOnlyList<OperatorResearchQueryTemplate> templates,
+        IReadOnlyList<ContentWriterManualResearchLane> manualLanes) =>
+        manualLanes.Count == 0
+            ? templates
+            : templates
+                .Where(t => !ManualResearchLaneMerger.HasNonEmptyManualLane(manualLanes, t.Bucket))
+                .ToList();
 
     private static OperatorResearchQueryOptions BuildOptions(WritingResearchContext context, string keyword) =>
         new()
@@ -61,22 +71,8 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
             LocalCity = ResolveLocalCity(context.SearchLocation, context.SiteFocus),
         };
 
-    private static string ResolveLocalCity(string searchLocation, SiteWritingFocus? focus)
-    {
-        if (!string.IsNullOrWhiteSpace(focus?.ServiceAreaDescription))
-        {
-            var area = focus.ServiceAreaDescription.Trim();
-            if (area.Contains("San Francisco", StringComparison.OrdinalIgnoreCase))
-                return "San Francisco";
-            if (area.Contains("Bay Area", StringComparison.OrdinalIgnoreCase))
-                return "San Francisco Bay Area";
-        }
-
-        if (searchLocation.Contains("San Francisco", StringComparison.OrdinalIgnoreCase))
-            return "San Francisco";
-
-        return string.IsNullOrWhiteSpace(searchLocation) ? "San Francisco" : searchLocation.Trim();
-    }
+    private static string ResolveLocalCity(string searchLocation, SiteWritingFocus? focus) =>
+        OperatorResearchLocalCity.Resolve(searchLocation, focus);
 
     private async Task<IReadOnlyList<OperatorResearchQueryResult>> RunQueriesAsync(
         IReadOnlyList<OperatorResearchQueryTemplate> templates,
@@ -266,9 +262,6 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
                 continue;
 
             foreach (var question in result.Serp.PeopleAlsoAsk.Select(p => p.Question))
-                AddQuestion(questions, seen, question);
-
-            foreach (var question in result.Serp.RelatedSearches)
                 AddQuestion(questions, seen, question);
 
             foreach (var organic in result.Serp.OrganicResults)

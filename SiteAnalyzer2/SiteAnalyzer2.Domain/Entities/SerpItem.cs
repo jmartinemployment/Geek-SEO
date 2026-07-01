@@ -10,6 +10,8 @@ public class SerpItem
     public Guid Id { get; set; }
     public Guid ProjectId { get; set; }
     public Guid RunId { get; set; }
+    /// <summary>null or <c>keyword</c> = primary SERP; supplemental: edu, gov, local, wiki.</summary>
+    public string? ResearchLane { get; set; }
 
     public string Type { get; set; } = SerpItemTypes.Organic;
     public int RankGroup { get; set; }

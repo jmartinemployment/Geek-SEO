@@ -1,5 +1,6 @@
 namespace SiteAnalyzer2.Services.Integrations;
 
+using SiteAnalyzer2.Domain;
 using SiteAnalyzer2.Services.Rankings;
 
 /// <summary>
@@ -36,6 +37,17 @@ public sealed record ContentWriterSerpExportDto
     public ContentWriterBenchmarksDto Benchmarks { get; init; } = new();
     /// <summary>Organic SERP + site authority URLs for Writer citation/source discovery.</summary>
     public IReadOnlyList<ContentWriterCitationCandidateDto> CitationCandidates { get; init; } = [];
+    public string ResearchMode { get; init; } = ResearchModes.Sa2;
+    public string? TopicSlug { get; init; }
+    public IReadOnlyList<ContentWriterManualResearchLaneDto> ManualResearchLanes { get; init; } = [];
+}
+
+public sealed record ContentWriterManualResearchLaneDto
+{
+    public required string Lane { get; init; }
+    public required string Label { get; init; }
+    public int OrganicCount { get; init; }
+    public IReadOnlyList<ContentWriterSerpItemDto> OrganicResults { get; init; } = [];
 }
 
 public sealed record ContentWriterCitationCandidateDto

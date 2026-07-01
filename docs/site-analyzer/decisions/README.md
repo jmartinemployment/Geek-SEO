@@ -8,6 +8,7 @@
 | [010-competitor-crawl-planned.md](010-competitor-crawl-planned.md) | Competitor deep crawl — **required** on operator path |
 | [011-no-rest-polling.md](011-no-rest-polling.md) | **No REST polling** for crawl progress — SSE + Channels + Postgres NOTIFY |
 | [012-operator-research-model.md](012-operator-research-model.md) | Pillars, gap topics, comparison, `analysisRunId` handoff — operator path |
+| [016-manual-five-lane-research.md](016-manual-five-lane-research.md) | Manual HTML lanes (keyword/edu/gov/local/wiki), dual write gates, `sa2` persistence |
 | [014-product-phases-frase-first.md](014-product-phases-frase-first.md) | **Frase phase first** — research pack to Writer; no SA2 outlines; no Semrush drift |
 
 Canonical glossary: [RESEARCH-MODEL.md](../RESEARCH-MODEL.md). Active plan: [plans/frase-phase.md](../plans/frase-phase.md).

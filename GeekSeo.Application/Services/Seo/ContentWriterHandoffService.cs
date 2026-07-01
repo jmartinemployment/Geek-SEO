@@ -22,7 +22,7 @@ public sealed class ContentWriterHandoffService(IAnalysisRunRepository analysisR
             return Result<ContentWriterHandoffResult>.Failure(exportResult.Error ?? "Analysis run not found");
 
         var export = exportResult.Value;
-        var runGate = ResearchBackedWriteGate.ValidateAnalysisRunExport(export);
+        var runGate = ResearchBackedWriteGate.ValidateExport(ManualResearchLaneMerger.Merge(export));
         if (!runGate.IsSuccess)
             return Result<ContentWriterHandoffResult>.Failure(runGate.Error ?? "Analysis run is not ready");
 

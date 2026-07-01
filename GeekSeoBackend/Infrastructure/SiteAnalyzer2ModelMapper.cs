@@ -55,6 +55,15 @@ internal static class SiteAnalyzer2ModelMapper
             Domain = c.Domain,
             Source = c.Source,
         }).ToList(),
+        ResearchMode = dto.ResearchMode,
+        TopicSlug = dto.TopicSlug,
+        ManualResearchLanes = dto.ManualResearchLanes.Select(l => new ContentWriterManualResearchLane
+        {
+            Lane = l.Lane,
+            Label = l.Label,
+            OrganicCount = l.OrganicCount,
+            OrganicResults = l.OrganicResults.Select(ToSerpItem).ToList(),
+        }).ToList(),
     };
 
     public static ContentWriterSiteBundle ToSiteBundle(ContentWriterSiteBundleDto dto) => new()

@@ -110,6 +110,13 @@ export type ContentWriterSerpItem = {
   relatedQuestions?: string[];
 };
 
+export type ContentWriterManualResearchLane = {
+  lane: string;
+  label: string;
+  organicCount: number;
+  organicResults?: ContentWriterSerpItem[];
+};
+
 export type ContentWriterSerpExport = {
   runId: string;
   projectId: string;
@@ -117,6 +124,9 @@ export type ContentWriterSerpExport = {
   targetSiteUrl: string;
   status: string;
   serpSeResultsCount: number;
+  researchMode?: string;
+  topicSlug?: string | null;
+  manualResearchLanes?: ContentWriterManualResearchLane[];
   serp: ContentWriterSerpItem[];
   gapTopics?: string[];
   writingInstructions?: string;

@@ -88,3 +88,40 @@ Commit and push.
 2. **Convert favicon.gif → favicon.png** → commit/push → verify in browser
 3. **Content Writer pilot** — `marketing/content-operations` pillar-first (see `docs/content-writer-brief.md`)
 4. Remaining uncommitted backend/backend changes from session start — review and commit separately
+
+---
+
+## Session handoff — July 1, 2026 (manual five-lane research)
+
+### Current direction
+
+- **`sa2` schema** remains the system of record for research — GeekSeoBackend → GeekAPI → GeekRepository.
+- **Manual five-lane import** (keyword + edu/gov/local/wiki) is the customer-journey pilot.
+- **`research_mode = manual`** — relaxed write gate (`ValidateManualResearchExport`). Full SA2 crawl keeps strict `ResearchBackedWriteGate`.
+- **No production-quality DB data** — drop duplicate `geek_seo` research tables; no row migration for pilot.
+- **Canonical docs:** [`docs/site-analyzer/MANUAL-FIVE-LANE-RESEARCH.md`](docs/site-analyzer/MANUAL-FIVE-LANE-RESEARCH.md), [ADR 016](docs/site-analyzer/decisions/016-manual-five-lane-research.md).
+
+### Build locations
+
+| Feature | Where |
+|---------|--------|
+| Lane import API + `sa2.serp_items.research_lane` | GeekBackend (GeekRepository + GeekAPI) |
+| `ValidateManualResearchExport`, merger, enricher | `GeekSeo.Application` |
+| Lane UI + CLI | Geek-SEO frontend + `scripts/import-serp-html.sh` |
+
+### Uncommitted WIP
+
+Review `GeekSeo.Application` operator research / voice pack changes separately from `SiteAnalyzer2/` lane WIP. Lane persistence goes through GeekAPI, not in-process SA2 DB or `geek_seo` tables.
+
+### Manual research assets
+
+```text
+research/{topic_slug}/{lane}/*.html   e.g. research/customer-journey/
+```
+
+Import required before draft — disk folders are not read at write time.
+
+### Obsolete (June 29)
+
+“SA2 retired / discard all SiteAnalyzer2 / remove `SITE_ANALYZER2_DATABASE_URL`” — **do not follow** for research. In-repo `SiteAnalyzer2/` may be trimmed; **`sa2` via GeekAPI stays active.**
+

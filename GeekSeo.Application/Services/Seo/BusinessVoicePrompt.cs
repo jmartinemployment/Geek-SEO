@@ -24,9 +24,26 @@ public static class BusinessVoicePrompt
 
         if (pack.RequiresTraditionalVsAiContrast)
         {
+            if (pack.RequiresPerSectionContrast)
+            {
+                builder.AppendLine(
+                    "- In each of the four methodology sections, include at least one paired old-way vs. AI-way bullet or sentence "
+                    + "(e.g. static whiteboard personas vs. clustering live support transcripts or CRM stages). "
+                    + $"The \"{pack.DataQualityPhaseLabel}\" section should carry the strongest contrast.");
+            }
+            else
+            {
+                builder.AppendLine(
+                    $"- In the \"{pack.DataQualityPhaseLabel}\" section, include an explicit old-way vs. AI-way contrast "
+                    + "(e.g. static whiteboard personas vs. clustering live support transcripts or CRM stages).");
+            }
+        }
+
+        if (pack.RequiresLocalMarketExamples)
+        {
             builder.AppendLine(
-                $"- In the \"{pack.DataQualityPhaseLabel}\" section, include an explicit old-way vs. AI-way contrast "
-                + "(e.g. static whiteboard personas vs. clustering live support transcripts or CRM stages).");
+                $"- Include at least {pack.MinimumLocalMarketExamples} examples grounded in {pack.GeoLabel} SMB workflows "
+                + "(e.g. call → booking → CRM follow-up for a local service business — not generic national e-commerce vignettes).");
         }
 
         if (pack.RequiresCapabilityBridge)

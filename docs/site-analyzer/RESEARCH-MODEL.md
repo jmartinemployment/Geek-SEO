@@ -30,7 +30,9 @@ For each **Project URL** (e.g. `https://www.geekatyourspot.com/`):
 6. **Run focus assembly** — populate `gap_topics`, `writing_instructions`, pillar metadata on `analysis_runs`.
 7. **Handoff** — open Content Writer with `analysisRunId` only when `research-focus` reports ready. See [HANDOFF.md](HANDOFF.md).
 
-Nothing in this list is optional for **research-ready**.
+Nothing in the SA2 crawl list is optional for **research-ready** in `research_mode = sa2`.
+
+For **manual five-lane** runs (`research_mode = manual`), only HTML lane imports are required — see [MANUAL-FIVE-LANE-RESEARCH.md](MANUAL-FIVE-LANE-RESEARCH.md).
 
 ## What is a “pillar”?
 

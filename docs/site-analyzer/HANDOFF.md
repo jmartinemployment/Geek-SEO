@@ -10,7 +10,9 @@ https://<geek-seo>/content-writing?analysisRunId=<analysis_runs.Id>
 
 That UUID is `analysis_runs.Id` in `sa2`. The same value appears as `RunId` on child tables (`serp_items`, `competitor_pages`, `pages`, `findings`, etc.).
 
-Geek-SEO **reads research from `sa2` when Writer needs it** (`SITE_ANALYZER2_DATABASE_URL`). It does **not** copy SERP or site research onto `seo_content_documents` as JSON.
+Geek-SEO **reads research from `sa2` when Writer needs it** via GeekSeoBackend → GeekAPI → GeekRepository. It does **not** copy SERP or site research onto `seo_content_documents` as JSON.
+
+**Manual five-lane research** (pilot): see [MANUAL-FIVE-LANE-RESEARCH.md](MANUAL-FIVE-LANE-RESEARCH.md). Uses `research_mode = manual` and a relaxed write gate when supplemental HTML lanes are imported.
 
 ---
 
@@ -47,7 +49,9 @@ From `analysisRunId`:
 |------|--------|
 | Keyword, status, gap topics, pillar fields | `sa2.analysis_runs` WHERE `Id` = run id |
 | Geek-SEO project | `analysis_runs.ProjectId` (= `geek_seo.seo_projects.Id` when linked) |
-| Organic SERP, PAA, related searches | `sa2.serp_items` WHERE `RunId` = run id |
+| Organic SERP, PAA, related searches | `sa2.serp_items` WHERE `RunId` = run id AND `research_lane` IS NULL OR `keyword` |
+| Supplemental citations (gov/edu/wiki) | `sa2.serp_items` WHERE `RunId` = run id AND `research_lane` IN (`gov`,`edu`,`wiki`) |
+| Local angle | `sa2.serp_items` WHERE `RunId` = run id AND `research_lane` = `local` |
 | Competitor pages and headings | `sa2.competitor_pages` (+ headings) WHERE `RunId` = run id |
 | Target page headings | `sa2.pages` / `page_headings` for that run |
 | Site niche, geo, business summary | `sa2.site_profiles` WHERE `GeekSeoProjectId` = `analysis_runs.ProjectId` |
@@ -56,7 +60,11 @@ When linkage is correct, `site_profiles.GeekSeoProjectId` and `analysis_runs.Pro
 
 ---
 
-## Research-ready (operator gate)
+## Research-ready (operator gates)
+
+Two modes on `analysis_runs.research_mode`:
+
+### SA2 crawl mode (`sa2`) — full operator path
 
 Do not open Content Writer until Site Analyzer shows **Research ready** on the keyword panel.
 
@@ -66,13 +74,25 @@ Do not open Content Writer until Site Analyzer shows **Research ready** on the k
 
 | Gate | Requirement |
 |------|-------------|
-| SERP import | ≥1 organic `serp_items` |
+| SERP import | ≥1 organic `serp_items` (keyword lane) |
 | Target-site crawl | target `page_headings` |
 | Competitor crawl | ≥1 `competitor_pages` with headings |
 | Comparison | ≥1 `findings` |
 | Gap topics | non-empty `gap_topics` on the run |
 
-Content Writer create validation should match this bar, not a weaker subset.
+Content Writer uses [`ResearchBackedWriteGate`](../../GeekSeo.Application/Services/Seo/ResearchBackedWriteGate.cs) for these runs.
+
+### Manual research mode (`manual`) — five-lane pilot
+
+See [MANUAL-FIVE-LANE-RESEARCH.md](MANUAL-FIVE-LANE-RESEARCH.md).
+
+| Gate | Requirement |
+|------|-------------|
+| Keyword lane | ≥1 organic after HTML import (422 if parse yields 0) |
+| Supplemental lanes | Per-topic policy (e.g. gov + wiki for customer-journey) |
+| Competitor / gap / target | **Not required** |
+
+Content Writer uses `ValidateManualResearchExport` for these runs.
 
 ---
 
@@ -122,7 +142,8 @@ Writer reads tables directly (or via a thin `sa2` reader), not export blobs.
 
 | Variable | Service |
 |----------|---------|
-| `SITE_ANALYZER2_DATABASE_URL` | Geek-SEO backend + Site Analyzer API — read/write `sa2` |
+| `DATA_API_URL` / GeekAPI | Geek-SEO backend — `api/seo/internal/*` for `sa2` reads/writes |
+| `SITE_ANALYZER2_DATABASE_URL` | Dev/local only when in-process SA2 repos enabled — not production path |
 | `NEXT_PUBLIC_GEEK_SEO_APP_URL` | Site Analyzer Web — handoff link target |
 | `NEXT_PUBLIC_API_URL` | Site Analyzer Web → Api |
 | `GEEK_SEO_PROJECT_ID` | Site Analyzer Api — bootstrap link for `site_profiles` / `projects` (operator) |
@@ -131,12 +152,24 @@ Writer reads tables directly (or via a thin `sa2` reader), not export blobs.
 
 ## Operator checklist
 
+### SA2 crawl mode
+
 - [ ] Project URL normalized: `https://www.{domain}/` (lowercase, trailing slash)
 - [ ] Site profile exists and `GeekSeoProjectId` matches the Geek-SEO project
 - [ ] SERP HTML saved for the keyword
 - [ ] Competitor crawl completed
 - [ ] Research focus shows **Research ready** (all gates green)
 - [ ] Open Content Writer (link contains **only** `analysisRunId`)
+
+### Manual five-lane mode (pilot)
+
+- [ ] Fresh `analysisRunId` with `research_mode = manual`
+- [ ] Same `topic_slug` on every lane import for that run
+- [ ] Keyword HTML imported — ≥1 organic (import fails loudly otherwise)
+- [ ] Supplemental lanes imported (gov, wiki; edu/local when HTML saved)
+- [ ] Open Content Writer (`analysisRunId` only)
+
+See [MANUAL-FIVE-LANE-RESEARCH.md](MANUAL-FIVE-LANE-RESEARCH.md).
 
 ---
 

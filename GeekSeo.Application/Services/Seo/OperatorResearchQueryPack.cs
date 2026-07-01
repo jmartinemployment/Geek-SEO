@@ -14,7 +14,7 @@ public static class OperatorResearchQueryPack
         var phrase = QuotePhrase(keyword);
         var junk = JunkExclusionSuffix;
         var afterDate = options.NewsAfterDate.ToString("yyyy-MM-dd");
-        var local = string.IsNullOrWhiteSpace(options.LocalCity) ? "San Francisco" : options.LocalCity.Trim();
+        var local = options.LocalCity.Trim();
         var domain = NormalizeDomain(options.TargetSiteUrl);
 
         var queries = new List<OperatorResearchQueryTemplate>
@@ -30,12 +30,19 @@ public static class OperatorResearchQueryPack
             new("featured_snippet", "Featured snippet", $"what is {phrase}"),
             new("featured_snippet_alt", "Featured snippet (alt)", $"{phrase} definition"),
             new("news", "Recent news", $"{phrase} after:{afterDate} -template -pdf -generator -reddit -quora"),
-            new("local_angle", "Local SMB angle", $"{phrase} \"small business\" \"{local}\" -template -pdf -generator -reddit -quora -course"),
             new(
                 "contrast_traditional",
                 "Traditional vs AI",
                 $"{phrase} spreadsheet OR workshop OR whiteboard -AI -template -pdf -generator"),
         };
+
+        if (!string.IsNullOrWhiteSpace(local))
+        {
+            queries.Add(new(
+                "local_angle",
+                "Local SMB angle",
+                $"{phrase} \"small business\" \"{local}\" -template -pdf -generator -reddit -quora -course"));
+        }
 
         if (!string.IsNullOrWhiteSpace(domain))
             queries.Add(new("own_site", "Your site pages", $"site:{domain} {phrase}"));
@@ -65,7 +72,7 @@ public sealed record OperatorResearchQueryOptions
 {
     public required string Keyword { get; init; }
     public string TargetSiteUrl { get; init; } = string.Empty;
-    public string LocalCity { get; init; } = "San Francisco";
+    public string LocalCity { get; init; } = string.Empty;
     public DateOnly NewsAfterDate { get; init; } = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(-18));
 }
 

@@ -45,6 +45,9 @@ public static partial class BusinessVoiceValidator
         if (pack.RequiresCapabilityBridge)
             results.Add(EvaluateCapabilityBridge(plain, pack));
 
+        if (pack.RequiresLocalMarketExamples)
+            results.Add(EvaluateLocalMarketExamples(plain, pack));
+
         results.Add(EvaluateCta(html, pack));
         return results;
     }
@@ -115,6 +118,39 @@ public static partial class BusinessVoiceValidator
         };
     }
 
+    private static GateResult EvaluateLocalMarketExamples(string plain, BusinessVoicePack pack)
+    {
+        var count = CountLocalMarketSignals(plain, pack.GeoLabel);
+        var passed = count >= pack.MinimumLocalMarketExamples;
+        return new GateResult(
+            "local_market_examples",
+            passed,
+            passed
+                ? $"{count} local-market signals found (minimum {pack.MinimumLocalMarketExamples})."
+                : $"Add at least {pack.MinimumLocalMarketExamples} {pack.GeoLabel}-grounded SMB examples (service workflows, tri-county context, or named local scenarios).");
+    }
+
+    private static int CountLocalMarketSignals(string plain, string geoLabel)
+    {
+        var lower = plain.ToLowerInvariant();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var signal in LocalMarketSignals)
+        {
+            if (lower.Contains(signal, StringComparison.Ordinal))
+                seen.Add(signal);
+        }
+
+        foreach (var token in geoLabel.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var normalized = token.Trim().ToLowerInvariant();
+            if (normalized.Length >= 4 && lower.Contains(normalized, StringComparison.Ordinal))
+                seen.Add(normalized);
+        }
+
+        return seen.Count;
+    }
+
     private static GateResult EvaluateCta(string html, BusinessVoicePack pack)
     {
         var passed = html.Contains("free strategy call", StringComparison.OrdinalIgnoreCase)
@@ -145,6 +181,21 @@ public static partial class BusinessVoiceValidator
     }
 
     private static string StripTags(string html) => HtmlTagRegex().Replace(html, " ");
+
+    private static readonly string[] LocalMarketSignals =
+    [
+        "south florida",
+        "tri-county",
+        "local service",
+        "service business",
+        "appointment",
+        "booking",
+        "follow-up",
+        "broward",
+        "palm beach",
+        "miami-dade",
+        "delray",
+    ];
 
     private static readonly string[] TraditionalSignals =
     [

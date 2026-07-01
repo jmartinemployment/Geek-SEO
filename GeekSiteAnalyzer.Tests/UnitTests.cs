@@ -638,6 +638,8 @@ public class SerpCanonicalFixtureTests
         var related = parsed.Items.FirstOrDefault(i => i.Type == SerpItemTypes.RelatedSearches);
         Assert.NotNull(related);
         Assert.Equal(SerpCanonicalFixture.Expected.RelatedQueries, related!.RelatedQueries?.Count ?? 0);
+        Assert.All(related.RelatedQueries!, q =>
+            Assert.Equal(SerpRelatedQueryType.PeopleAlsoSearchFor, q.QueryType));
 
         var improvado = parsed.Items.First(i =>
             i.Type == SerpItemTypes.Organic
@@ -682,7 +684,7 @@ public class GoogleSerpHtmlParserTests
 
         var related = parsed.Items.FirstOrDefault(i => i.Type == SerpItemTypes.RelatedSearches);
         Assert.NotNull(related);
-        Assert.True(related!.RelatedQueries!.Count > 0, "Expected PAA suggestions (incl. PASF) from saved SERP HTML.");
+        Assert.True(related!.RelatedQueries!.Count > 0, "Expected PASF suggestions from saved SERP HTML.");
         Assert.Contains(
             related.RelatedQueries!,
             q => q.QueryText.Contains("content creation", StringComparison.OrdinalIgnoreCase));
@@ -1769,6 +1771,63 @@ public class ContentWriterKeywordBundleBuilderTests
     }
 
     [Fact]
+    public void Build_ExportsPasfAndPaaAsSeparateSerpItems()
+    {
+        var run = new AnalysisRun
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = Guid.NewGuid(),
+            Keyword = "widget repair",
+            TargetSiteUrl = "https://www.example.com/",
+        };
+
+        var pasfItemId = Guid.NewGuid();
+        var paaItemId = Guid.NewGuid();
+        var serpItems = new List<SerpItem>
+        {
+            new()
+            {
+                Id = pasfItemId,
+                RunId = run.Id,
+                Type = SerpItemTypes.RelatedSearches,
+                RankAbsolute = 1,
+                RelatedQueries =
+                [
+                    new SerpRelatedQuery
+                    {
+                        Sequence = 1,
+                        QueryText = "widget repair cost",
+                        QueryType = SerpRelatedQueryType.PeopleAlsoSearchFor,
+                    },
+                ],
+            },
+            new()
+            {
+                Id = paaItemId,
+                RunId = run.Id,
+                Type = SerpItemTypes.PeopleAlsoAsk,
+                RankAbsolute = 2,
+                RelatedQueries =
+                [
+                    new SerpRelatedQuery
+                    {
+                        Sequence = 1,
+                        QueryText = "What is widget repair?",
+                        QueryType = SerpRelatedQueryType.PeopleAlsoAsk,
+                    },
+                ],
+            },
+        };
+
+        var export = ContentWriterKeywordBundleBuilder.Build(run, serpItems, [], [], CapturedAt);
+
+        Assert.Contains(export.Serp, i => i.Type == SerpItemTypes.RelatedSearches
+            && i.RelatedQuestions!.Contains("widget repair cost"));
+        Assert.Contains(export.Serp, i => i.Type == SerpItemTypes.PeopleAlsoAsk
+            && i.RelatedQuestions!.Contains("What is widget repair?"));
+    }
+
+    [Fact]
     public void Build_ExportsCitationCandidatesFromAuthorityPagesOnly()
     {
         var run = new AnalysisRun
@@ -2065,10 +2124,8 @@ public class OperatorResearchServiceTests
             Id = serpItemId,
             ProjectId = projectId,
             RunId = runId,
-            Type = SerpItemTypes.Organic,
-            RankAbsolute = 1,
-            Url = "https://competitor.com/",
-            Ads = false,
+            Type = SerpItemTypes.PeopleAlsoAsk,
+            RankAbsolute = 2,
         });
         db.SerpRelatedQueries.Add(new SerpRelatedQuery
         {
@@ -2076,6 +2133,17 @@ public class OperatorResearchServiceTests
             SerpItemId = serpItemId,
             Sequence = 0,
             QueryText = "What is AI bookkeeping?",
+            QueryType = SerpRelatedQueryType.PeopleAlsoAsk,
+        });
+        db.SerpItems.Add(new SerpItem
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = projectId,
+            RunId = runId,
+            Type = SerpItemTypes.Organic,
+            RankAbsolute = 1,
+            Url = "https://competitor.com/",
+            Ads = false,
         });
         db.Pages.Add(new Page
         {

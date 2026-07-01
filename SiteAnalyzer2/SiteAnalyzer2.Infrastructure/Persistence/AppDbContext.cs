@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using SiteAnalyzer2.Domain;
 using SiteAnalyzer2.Domain.Entities;
 
 namespace SiteAnalyzer2.Infrastructure.Persistence;
@@ -87,6 +88,8 @@ public class AppDbContext : DbContext
             e.Property(x => x.SerpCheckUrl).HasMaxLength(2048);
             e.Property(x => x.CompetitorCrawlStatus).HasMaxLength(32);
             e.Property(x => x.CompetitorCrawlMessage).HasMaxLength(2048);
+            e.Property(x => x.ResearchMode).HasMaxLength(16).HasDefaultValue(ResearchModes.Sa2);
+            e.Property(x => x.TopicSlug).HasMaxLength(128);
             e.HasIndex(x => x.ProjectId);
             ConfigureJsonStringList(e, x => x.GapTopics);
         });
@@ -106,8 +109,10 @@ public class AppDbContext : DbContext
             e.Property(x => x.WebsiteName).HasMaxLength(512);
             e.Property(x => x.FilterStatus).HasConversion<string>().HasMaxLength(32);
             e.Property(x => x.IncludeReason).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.ResearchLane).HasMaxLength(16);
             e.HasIndex(x => new { x.RunId, x.RankAbsolute });
             e.HasIndex(x => new { x.RunId, x.Type });
+            e.HasIndex(x => new { x.RunId, x.ResearchLane });
             e.HasIndex(x => x.ProjectId);
 
             e.HasMany(x => x.Links)

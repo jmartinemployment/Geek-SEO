@@ -8,7 +8,8 @@ namespace SiteAnalyzer2.Api.Controllers;
 [Route("analysis-runs")]
 public sealed class AnalysisRunsController(
     ContentWriterExportService exportService,
-    OperatorResearchService operatorResearch) : ControllerBase
+    OperatorResearchService operatorResearch,
+    ManualLaneImportService manualLaneImport) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<AnalysisRunSummaryDto>>> List(
@@ -36,6 +37,27 @@ public sealed class AnalysisRunsController(
     {
         var focus = await operatorResearch.GetResearchFocusAsync(runId, ct);
         return focus is null ? NotFound() : Ok(focus);
+    }
+
+    [HttpPost("{runId:guid}/serp/import-html")]
+    public async Task<IActionResult> ImportSerpHtml(
+        Guid runId,
+        [FromQuery] string? lane,
+        [FromQuery] string topic,
+        CancellationToken ct)
+    {
+        using var reader = new StreamReader(Request.Body);
+        var html = await reader.ReadToEndAsync(ct);
+
+        try
+        {
+            var result = await manualLaneImport.ImportLaneAsync(runId, html, lane, topic, ct);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return UnprocessableEntity(new { error = ex.Message });
+        }
     }
 }
 

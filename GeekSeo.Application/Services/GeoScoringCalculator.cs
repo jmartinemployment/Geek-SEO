@@ -178,7 +178,7 @@ public static class GeoScoringCalculator
                 Component = "geo",
                 PointValue = 20 - citations,
                 ActionText = "Link to 2–3 authoritative external sources (.gov, .edu, or recognized research) — not competitor blogs.",
-                ProposedChange = "Add a Sources section with a short bullet list of authoritative external links (no fabricated attribution text).",
+                ProposedChange = "Add 2–3 inline authoritative external links in the body — no Sources section and no invented experts.",
                 ApplyMode = "ai",
             });
         }

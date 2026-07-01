@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using SiteAnalyzer2.Domain;
 using SiteAnalyzer2.Domain.Entities;
 using SiteAnalyzer2.Infrastructure.Persistence;
 using SiteAnalyzer2.Serp;
@@ -35,6 +36,21 @@ public class SerpHtmlImportService(AppDbContext db, RunGateService runGate)
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task ClearSerpDataForLaneAsync(Guid runId, string normalizedLane, CancellationToken ct = default)
+    {
+        var storageLane = SerpResearchLanes.ToStorageValue(normalizedLane);
+        var items = await db.SerpItems
+            .Where(i => i.RunId == runId
+                && (storageLane == null ? i.ResearchLane == null : i.ResearchLane == storageLane))
+            .ToListAsync(ct);
+
+        if (items.Count == 0)
+            return;
+
+        db.SerpItems.RemoveRange(items);
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task<SerpImportOutcome> PersistParsedPageAsync(
         AnalysisRun run,
         SerpLivePageParseResult parsed,
@@ -61,7 +77,7 @@ public class SerpHtmlImportService(AppDbContext db, RunGateService runGate)
         run.SerpLocalPackPresent = parsed.LocalPackPresent;
         run.SerpShoppingResultsPresent = parsed.ShoppingResultsPresent;
 
-        var entities = parsed.Items.Select(item => MapItem(run, item)).ToList();
+        var entities = parsed.Items.Select(item => MapItem(run, item, null)).ToList();
         await db.SerpItems.AddRangeAsync(entities, ct);
         db.AnalysisRuns.Update(run);
         await db.SaveChangesAsync(ct);
@@ -71,13 +87,56 @@ public class SerpHtmlImportService(AppDbContext db, RunGateService runGate)
         return new SerpImportOutcome(counts, gate.Passed, gate.ValidationMessage);
     }
 
-    private static SerpItem MapItem(AnalysisRun run, SerpParsedItem item)
+    public async Task<SerpImportOutcome> PersistParsedPageForLaneAsync(
+        AnalysisRun run,
+        SerpLivePageParseResult parsed,
+        string normalizedLane,
+        CancellationToken ct = default)
+    {
+        if (string.Equals(normalizedLane, SerpResearchLanes.Keyword, StringComparison.OrdinalIgnoreCase))
+        {
+            run.Keyword = string.IsNullOrWhiteSpace(parsed.Keyword) ? run.Keyword : parsed.Keyword;
+            run.SerpLocationCode = parsed.LocationCode;
+            run.SerpLanguageCode = parsed.LanguageCode;
+            run.SerpDevice = parsed.Device;
+            run.SerpOs = parsed.Os;
+            run.SerpDepth = parsed.Depth;
+            run.SerpSeDomain = parsed.SeDomain;
+            run.SerpCheckUrl = parsed.CheckUrl;
+            run.SerpCapturedAt = parsed.CapturedAtUtc;
+            run.SerpSeResultsCount = parsed.SeResultsCount;
+            run.SerpPagesCount = parsed.PagesCount;
+            run.SerpMaxPage = parsed.PagesCount;
+            run.SerpItemsCount = parsed.Items.Count;
+            run.SerpItemTypesJson = JsonSerializer.Serialize(parsed.ItemTypes);
+            run.SerpLocalPackPresent = parsed.LocalPackPresent;
+            run.SerpShoppingResultsPresent = parsed.ShoppingResultsPresent;
+        }
+
+        var storageLane = SerpResearchLanes.ToStorageValue(normalizedLane);
+        var entities = parsed.Items.Select(item => MapItem(run, item, storageLane)).ToList();
+        await db.SerpItems.AddRangeAsync(entities, ct);
+        db.AnalysisRuns.Update(run);
+        await db.SaveChangesAsync(ct);
+
+        var counts = SerpImportCounts.FromEntities(entities);
+        if (string.Equals(normalizedLane, SerpResearchLanes.Keyword, StringComparison.OrdinalIgnoreCase))
+        {
+            var gate = await runGate.EvaluateAndPersistAsync(run, Domain.Enums.PipelineStage.Serp, null, ct);
+            return new SerpImportOutcome(counts, gate.Passed, gate.ValidationMessage);
+        }
+
+        return new SerpImportOutcome(counts, true, "Supplemental lane imported.");
+    }
+
+    private static SerpItem MapItem(AnalysisRun run, SerpParsedItem item, string? researchLane)
     {
         var entity = new SerpItem
         {
             Id = Guid.NewGuid(),
             ProjectId = run.ProjectId,
             RunId = run.Id,
+            ResearchLane = researchLane,
             Type = item.Type,
             RankGroup = item.RankGroup,
             RankAbsolute = item.RankAbsolute,

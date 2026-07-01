@@ -28,7 +28,9 @@ public sealed class WritingResearchContextLoader(
             return Result<WritingResearchContext>.Failure(exportResult.Error ?? "Analysis run not found");
 
         var export = exportResult.Value;
-        var gate = ResearchBackedWriteGate.ValidateAnalysisRunExport(export);
+        export = ManualResearchLaneMerger.Merge(export);
+
+        var gate = ResearchBackedWriteGate.ValidateExport(export);
         if (!gate.IsSuccess)
             return Result<WritingResearchContext>.Failure(gate.Error ?? "Analysis run is not ready for writing.");
 
@@ -67,6 +69,7 @@ public sealed class WritingResearchContextLoader(
 
         var enriched = await operatorResearch.EnrichContextAsync(
             ApplySiteFocus(context, focus),
+            export.ManualResearchLanes,
             ct);
 
         return Result<WritingResearchContext>.Success(enriched);
@@ -88,7 +91,7 @@ public sealed class WritingResearchContextLoader(
             : document.TargetLocation;
 
         var enriched = await operatorResearch.EnrichExportAsync(
-            exportResult.Value,
+            ManualResearchLaneMerger.Merge(exportResult.Value),
             document.TargetKeyword ?? exportResult.Value.Keyword,
             location,
             ct);

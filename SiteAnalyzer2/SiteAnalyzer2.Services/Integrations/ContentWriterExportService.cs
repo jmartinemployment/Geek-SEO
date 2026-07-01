@@ -66,7 +66,10 @@ public sealed class ContentWriterExportService(
         var runIds = runs.Select(r => r.Id).ToList();
         var organicCounts = await db.SerpItems
             .AsNoTracking()
-            .Where(i => runIds.Contains(i.RunId) && i.Type == SerpItemTypes.Organic && !i.Ads)
+            .Where(i => runIds.Contains(i.RunId)
+                && i.ResearchLane == null
+                && i.Type == SerpItemTypes.Organic
+                && !i.Ads)
             .GroupBy(i => i.RunId)
             .Select(g => new { RunId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.RunId, x => x.Count, ct);

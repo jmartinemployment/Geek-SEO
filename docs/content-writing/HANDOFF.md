@@ -39,14 +39,14 @@ Social posts are **not** produced in Geek SEO today — they live in geekatyours
 
 | Step | What happens |
 |------|----------------|
-| 1 | Geek SEO validates the run is **research-ready** (same gates as Site Analyzer). |
+| 1 | Geek SEO validates the run — **SA2 mode:** full `ResearchBackedWriteGate`; **manual mode:** `ValidateManualResearchExport` (keyword + supplemental lanes). |
 | 2 | Creates or opens `seo_content_documents` with `analysisRunId` set. |
 | 3 | Runs research-backed draft job (frozen `sa2` data — not copied JSON on the document). |
 | 4 | Redirects to `/content-writing?documentId=<uuid>`. |
 
 Research stays in **`sa2`**. The document only stores a pointer (`analysisRunId`) plus writer-owned fields (HTML, scores, cluster plan JSON, etc.).
 
-See: [`docs/site-analyzer/HANDOFF.md`](../site-analyzer/HANDOFF.md)
+See: [`docs/site-analyzer/HANDOFF.md`](../site-analyzer/HANDOFF.md) · [`MANUAL-FIVE-LANE-RESEARCH.md`](../site-analyzer/MANUAL-FIVE-LANE-RESEARCH.md) (pilot path)
 
 ### Secondary path (legacy / standalone)
 

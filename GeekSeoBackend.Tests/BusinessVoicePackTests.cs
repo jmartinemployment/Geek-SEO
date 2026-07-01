@@ -35,6 +35,7 @@ public sealed class BusinessVoicePackTests
 
         Assert.Contains("Business voice pack", prompt);
         Assert.Contains("old-way vs. AI-way", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("each of the four methodology sections", prompt, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("free strategy call", prompt, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("pick from:", prompt, StringComparison.OrdinalIgnoreCase);
     }
@@ -58,7 +59,7 @@ public sealed class BusinessVoicePackTests
         var pack = BusinessVoicePackBuilder.Build(GeekAtYourSpotResearch());
         var html = """
             <h1>AI customer journey</h1>
-            <p>Geek at Your Spot helps South Florida SMBs map live customer data.</p>
+            <p>Geek at Your Spot helps South Florida SMBs in Broward and Palm Beach map live customer data from call to booking follow-up.</p>
             <h2>Why ai customer journey matters now</h2>
             <p>Using HubSpot stages and Shopify order tags, teams see where leads stall.</p>
             <h2>Data readiness before you implement ai customer journey</h2>

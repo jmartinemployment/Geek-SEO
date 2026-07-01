@@ -184,58 +184,67 @@ public static partial class ScoreSuggestionApplicator
     public static bool HasUsableSerpCitationPicks(string html, IReadOnlyList<SerpOrganicResult> organicResults) =>
         SelectSerpCitationPicks(html, organicResults).Count > 0;
 
-    public static string? TryAppendSourcesFromSerp(string html, IReadOnlyList<SerpOrganicResult> organicResults)
-    {
-        if (HasSourcesSection(html))
-            return null;
-
-        var picks = SelectSerpCitationPicks(html, organicResults);
-        if (picks.Count == 0)
-            return null;
-
-        var items = picks
-            .Select(pick =>
-                $"<li><a href=\"{WebUtility.HtmlEncode(pick.Url)}\" rel=\"noopener noreferrer\">{WebUtility.HtmlEncode(pick.Label)}</a></li>");
-
-        return AppendSourcesBlock(html, $"<ul>\n{string.Join("\n", items)}\n</ul>");
-    }
+    public static string? TryAppendSourcesFromSerp(string html, IReadOnlyList<SerpOrganicResult> organicResults) =>
+        TryInsertInlineCitations(html, SelectSerpCitationPicks(html, organicResults));
 
     public static string? TryAppendSourcesFromDiscovered(string html, IReadOnlyList<DiscoveredSource> sources)
     {
-        if (HasSourcesSection(html))
-            return null;
-
         var picks = sources
             .Where(s => IsValidExternalUrl(s.Url))
             .Where(s => AuthoritativeCitationRules.IsAcceptableDiscoveredCitationUrl(s.Url))
             .Take(3)
+            .Select(s => (
+                s.Url.Trim(),
+                string.IsNullOrWhiteSpace(s.AnchorText) ? s.Title : s.AnchorText!))
             .ToList();
+
+        return TryInsertInlineCitations(html, picks);
+    }
+
+    private static string? TryInsertInlineCitations(
+        string html,
+        IReadOnlyList<(string Url, string Label)> picks)
+    {
         if (picks.Count == 0)
             return null;
 
-        var items = picks
-            .Select(source =>
-            {
-                var label = string.IsNullOrWhiteSpace(source.AnchorText) ? source.Title : source.AnchorText!;
-                return $"<li><a href=\"{WebUtility.HtmlEncode(source.Url.Trim())}\" rel=\"noopener noreferrer\">{WebUtility.HtmlEncode(label.Trim())}</a></li>";
-            });
+        var linked = CollectLinkedUrls(html);
+        var fresh = picks
+            .Where(pick => !IsUrlAlreadyLinked(pick.Url, linked))
+            .Take(3)
+            .ToList();
+        if (fresh.Count == 0)
+            return null;
 
-        return AppendSourcesBlock(
-            html,
-            $"<ul>\n{string.Join("\n", items)}\n</ul>");
-    }
+        var linkList = fresh
+            .Select(pick =>
+                $"<a href=\"{WebUtility.HtmlEncode(pick.Url)}\" rel=\"noopener noreferrer\">{WebUtility.HtmlEncode(pick.Label.Trim())}</a>")
+            .ToList();
 
-    private static bool HasSourcesSection(string html) =>
-        html.Contains("<h2>Sources</h2>", StringComparison.OrdinalIgnoreCase);
+        var paragraph = linkList.Count == 1
+            ? $"<p>For authoritative context, see {linkList[0]}.</p>"
+            : $"<p>For authoritative context, see {string.Join(", ", linkList.Take(linkList.Count - 1))}, and {linkList[^1]}.</p>";
 
-    private static string AppendSourcesBlock(string html, string body)
-    {
-        var block = "<h2>Sources</h2>\n<p>Further reading:</p>\n" + body;
         var faqStart = FindFaqSectionStart(html);
         if (faqStart < 0)
-            return html.TrimEnd() + "\n" + block + "\n";
+            return html.TrimEnd() + "\n" + paragraph + "\n";
 
-        return html[..faqStart].TrimEnd() + "\n" + block + "\n" + html[faqStart..].TrimStart();
+        return html[..faqStart].TrimEnd() + "\n" + paragraph + "\n" + html[faqStart..].TrimStart();
+    }
+
+    private static bool HasInlineAuthoritativeCitations(string html)
+    {
+        foreach (Match match in Regex.Matches(html, "href=[\"']([^\"']+)[\"']", RegexOptions.IgnoreCase))
+        {
+            if (match.Groups.Count <= 1)
+                continue;
+
+            var href = match.Groups[1].Value.Trim();
+            if (AuthoritativeCitationRules.IsAuthoritativeCitationUrl(href))
+                return true;
+        }
+
+        return false;
     }
 
     private static List<(string Url, string Label)> SelectSerpCitationPicks(
@@ -342,8 +351,8 @@ public static partial class ScoreSuggestionApplicator
                 "The title already matches the suggested change. Refresh the score to clear this hint.",
             "meta_description" =>
                 "A meta description is already present with the suggested content.",
-            "geo_citations" when HasSourcesSection(html) =>
-                "A Sources section is already present. Refresh the score to clear this hint.",
+            "geo_citations" when HasInlineAuthoritativeCitations(html) =>
+                "Authoritative inline citations are already present. Refresh the score to clear this hint.",
             "geo_citations" =>
                 "No new external sources were available to link, or they are already cited.",
             "geo_structure" when ArticleClosingFaqEnricher.HasCompleteClosingFaqSection(html) =>

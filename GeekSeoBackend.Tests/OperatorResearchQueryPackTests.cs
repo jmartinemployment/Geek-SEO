@@ -23,6 +23,49 @@ public sealed class OperatorResearchQueryPackTests
         Assert.Contains(queries, q => q.Bucket == "own_site" && q.Query.Contains("site:geekatyourspot.com"));
         Assert.Contains(queries, q => q.Bucket == "citations_wikipedia" && q.Query.Contains("-reddit"));
     }
+    [Fact]
+    public void Build_omits_local_angle_when_no_local_city()
+    {
+        var queries = OperatorResearchQueryPack.Build(new OperatorResearchQueryOptions
+        {
+            Keyword = "AI customer journey",
+            TargetSiteUrl = "https://www.geekatyourspot.com/",
+        });
+
+        Assert.DoesNotContain(queries, q => q.Bucket == "local_angle");
+    }
+
+    [Fact]
+    public void Build_includes_local_angle_for_resolved_city()
+    {
+        var queries = OperatorResearchQueryPack.Build(new OperatorResearchQueryOptions
+        {
+            Keyword = "AI customer journey",
+            TargetSiteUrl = "https://www.geekatyourspot.com/",
+            LocalCity = "Delray Beach",
+        });
+
+        Assert.Contains(queries, q => q.Bucket == "local_angle" && q.Query.Contains("Delray Beach"));
+    }
+}
+
+public sealed class OperatorResearchLocalCityTests
+{
+    [Fact]
+    public void Resolve_prefers_geo_anchor_city_over_generic_search_location()
+    {
+        var focus = new SiteWritingFocus
+        {
+            SiteName = "Geek at Your Spot",
+            SiteUrl = "https://www.geekatyourspot.com/",
+            GeoAnchorNodes = ["Delray Beach, FL, US"],
+            ServiceAreaDescription = "Broward County, Palm Beach County, Miami-Dade County",
+        };
+
+        var city = OperatorResearchLocalCity.Resolve("United States", focus);
+
+        Assert.Equal("Delray Beach", city);
+    }
 }
 
 public sealed class OperatorResearchEnricherTests

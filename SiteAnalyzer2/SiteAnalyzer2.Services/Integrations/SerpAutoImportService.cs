@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SiteAnalyzer2.Domain;
 using SiteAnalyzer2.Domain.Entities;
 using SiteAnalyzer2.Domain.Enums;
 using SiteAnalyzer2.Infrastructure.Persistence;
@@ -77,6 +78,7 @@ public sealed class SerpAutoImportService(
         {
             existing.TargetSiteUrl = normalizedUrl;
             existing.SerpProviderKey = SerpProviderPolicy.ManualHtmlKey;
+            existing.ResearchMode = ResearchModes.Manual;
             existing.Status = RunStatus.Running;
             existing.CurrentStage = PipelineStage.Serp;
             await db.SaveChangesAsync(ct);
@@ -90,6 +92,7 @@ public sealed class SerpAutoImportService(
             Keyword = keyword,
             TargetSiteUrl = normalizedUrl,
             SerpProviderKey = SerpProviderPolicy.ManualHtmlKey,
+            ResearchMode = ResearchModes.Manual,
             Status = RunStatus.Running,
             CurrentStage = PipelineStage.Serp,
         };

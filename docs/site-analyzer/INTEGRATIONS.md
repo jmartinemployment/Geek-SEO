@@ -15,7 +15,7 @@ Content Writer **must not** be the system of record for SERP or competitor crawl
 
 1. Operator opens Content Writer with **one** query param: `analysisRunId` (= `analysis_runs.Id` = `RunId` on child tables).
 2. Geek-SEO creates a document with that `analysisRunId` and `projectId` from `analysis_runs.ProjectId`.
-3. When Writer drafts, scores, or shows Insights, Geek-SEO **reads `sa2`** via `SITE_ANALYZER2_DATABASE_URL`.
+3. When Writer drafts, scores, or shows Insights, Geek-SEO **reads `sa2`** via GeekAPI → GeekRepository (`DATA_API_URL` / `api/seo/internal/*`).
 
 No research JSON is copied onto `seo_content_documents` at create. No `site_profile`, `keyword`, or `projectId` in the handoff URL.
 
@@ -32,19 +32,32 @@ Site Analyzer does not read `geek_seo`.
 
 ## Research-ready gates
 
+Two modes — see [MANUAL-FIVE-LANE-RESEARCH.md](MANUAL-FIVE-LANE-RESEARCH.md) and [decisions/016-manual-five-lane-research.md](decisions/016-manual-five-lane-research.md).
+
+### Manual research mode (`research_mode = manual`)
+
+Pilot path. `ValidateManualResearchExport`:
+
+- Keyword lane: ≥1 organic (`serp_items`, lane null/`keyword`)
+- Supplemental lanes imported per topic (gov, wiki, etc.)
+- Import **rejects** 0-result parses (422) — never persist empty lane
+- **No** competitor crawl, target headings, or gap topics
+
+### SA2 crawl mode (`research_mode = sa2`)
+
 ### Site Analyzer operator UI (source of truth)
 
 `GET /analysis-runs/{id}/research-focus` · `OperatorResearchService.GetResearchFocusAsync`
 
 `researchReady` is true only when **all** of: organic SERP, target `page_headings`, `competitor_pages`, `findings`, non-empty `gap_topics`.
 
-**Operator rule:** Do not open Content Writer until `researchReady: true`.
+**Operator rule:** Do not open Content Writer until `researchReady: true` (SA2 mode only).
 
 ### Geek-SEO document create
 
-`ResearchBackedWriteGate.ValidateAnalysisRunExport` should match the same bar as `research-focus` (run not failed, organic SERP, `sourceHeadings`, competitor headings, `gapTopics`).
+`ResearchBackedWriteGate.ValidateAnalysisRunExport` for **SA2 mode** — matches `research-focus` (run not failed, organic SERP, `sourceHeadings`, competitor headings, `gapTopics`).
 
-Documents created under older code may have thin or missing validation — operators still follow Site Analyzer gates.
+`ValidateManualResearchExport` for **manual mode** — keyword + supplemental lanes non-empty only.
 
 ### Legacy Geek-SEO in-repo wizard
 
@@ -70,7 +83,9 @@ Geek-SEO maps these when loading research (e.g. `ContentWriterSerpExportMapper`,
 | Concept | `sa2` source | Geek-SEO consumer |
 |---------|--------------|-------------------|
 | Keyword | `analysis_runs.keyword` | `DerivedKeyword` / `SerpKeyword` |
-| SERP (organic, PAA, related, AI overview) | `serp_items` | Organic list, Insights, citations |
+| Organic SERP, PAA, related | `serp_items` (keyword lane) | Organic list, Insights |
+| Supplemental citations | `serp_items` (`gov`, `edu`, `wiki` lanes) | `CitationCandidates` via `ManualResearchLaneMerger` — source from URL domain |
+| Local angle | `serp_items` (`local` lane) | `LocalAngleHint` |
 | Competitors | `competitor_pages` + headings | Section hints, competitor context |
 | Target headings | `page_headings` (target site) | Brief vs competitor structure |
 | Gap topics | `analysis_runs.gap_topics` | Site focus, draft gaps |
