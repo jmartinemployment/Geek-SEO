@@ -34,6 +34,11 @@ public sealed record WritingResearchContext
     public IReadOnlyList<WritingResearchClosingFaq> ClosingFaqs { get; init; } = [];
     public IReadOnlyList<WritingResearchSectionHint> SectionHints { get; init; } = [];
     public IReadOnlyList<WritingResearchCitationCandidate> CitationCandidates { get; init; } = [];
+    public IReadOnlyList<WritingResearchOperatorQuery> OperatorQueries { get; init; } = [];
+    public IReadOnlyList<string> NewsHooks { get; init; } = [];
+    public string? FeaturedSnippetResearch { get; init; }
+    public string? LocalAngleHint { get; init; }
+    public IReadOnlyList<WritingResearchOwnSiteLink> OwnSiteLinkCandidates { get; init; } = [];
 }
 
 public sealed record WritingResearchPaf
@@ -94,6 +99,20 @@ public sealed record WritingResearchCitationCandidate
     public string Title { get; init; } = string.Empty;
     public string Domain { get; init; } = string.Empty;
     public string Source { get; init; } = "organic";
+}
+
+public sealed record WritingResearchOperatorQuery
+{
+    public required string Bucket { get; init; }
+    public required string Label { get; init; }
+    public required string Query { get; init; }
+    public string SearchEngine { get; init; } = "google";
+}
+
+public sealed record WritingResearchOwnSiteLink
+{
+    public required string Url { get; init; }
+    public string Title { get; init; } = string.Empty;
 }
 
 public sealed record WritingResearchHeading

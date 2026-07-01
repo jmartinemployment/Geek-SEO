@@ -139,9 +139,9 @@ public static class GeoScoringCalculator
                 Id = "geo_authority",
                 Component = "geo",
                 PointValue = 20 - authority,
-                ActionText = "Add expert quotes, credentials, or Article schema to improve AI citation trust.",
-                ProposedChange = "Insert an expert quote, credential line, or schema.org Article markup in the draft.",
-                ApplyMode = "ai",
+                ActionText = "Add Article schema (JSON-LD) and real business credentials — do not invent named experts.",
+                ProposedChange = "Use the JSON-LD panel to add Article or TechArticle schema with your real organization name and credentials.",
+                ApplyMode = "none",
             });
         }
         if (readability < 14)
@@ -172,25 +172,14 @@ public static class GeoScoringCalculator
         }
         if (citations < 10)
         {
-            var sourceLabels = organicResults
-                .Select(ResolveSourceLabel)
-                .Where(label => !string.IsNullOrWhiteSpace(label))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(3)
-                .ToList();
-            var sourceHint = sourceLabels.Count > 0
-                ? string.Join(", ", sourceLabels)
-                : "authoritative external sites";
             list.Add(new ScoreSuggestion
             {
                 Id = "geo_citations",
                 Component = "geo",
                 PointValue = 20 - citations,
-                ActionText = "Link to 2–3 authoritative external sources to strengthen citation signals.",
-                ProposedChange = $"Add a Sources section linking to {sourceHint}.",
-                ApplyMode = ScoreSuggestionApplicator.HasUsableSerpCitationPicks(contentHtml, organicResults)
-                    ? "deterministic"
-                    : "ai",
+                ActionText = "Link to 2–3 authoritative external sources (.gov, .edu, or recognized research) — not competitor blogs.",
+                ProposedChange = "Add a Sources section with a short bullet list of authoritative external links (no fabricated attribution text).",
+                ApplyMode = "ai",
             });
         }
         if (depth < 14)
@@ -207,19 +196,6 @@ public static class GeoScoringCalculator
         }
 
         return list.OrderByDescending(s => s.PointValue).Take(5).ToList();
-    }
-
-    private static string? ResolveSourceLabel(SerpOrganicResult result)
-    {
-        if (!string.IsNullOrWhiteSpace(result.Domain))
-            return result.Domain.Trim();
-
-        if (string.IsNullOrWhiteSpace(result.Url))
-            return null;
-
-        return Uri.TryCreate(result.Url.Trim(), UriKind.Absolute, out var uri)
-            ? uri.Host
-            : null;
     }
 
     private static int RegexQuoteCount(string text) =>

@@ -193,12 +193,11 @@ public static partial class ScoreSuggestionApplicator
         if (picks.Count == 0)
             return null;
 
-        var links = picks
-            .Select(x =>
-                $"<a href=\"{WebUtility.HtmlEncode(x.Url)}\" rel=\"noopener noreferrer\">{WebUtility.HtmlEncode(x.Label)}</a>")
-            .ToList();
+        var items = picks
+            .Select(pick =>
+                $"<li><a href=\"{WebUtility.HtmlEncode(pick.Url)}\" rel=\"noopener noreferrer\">{WebUtility.HtmlEncode(pick.Label)}</a></li>");
 
-        return AppendSourcesBlock(html, BuildSourcesParagraph(links));
+        return AppendSourcesBlock(html, $"<ul>\n{string.Join("\n", items)}\n</ul>");
     }
 
     public static string? TryAppendSourcesFromDiscovered(string html, IReadOnlyList<DiscoveredSource> sources)
@@ -208,6 +207,7 @@ public static partial class ScoreSuggestionApplicator
 
         var picks = sources
             .Where(s => IsValidExternalUrl(s.Url))
+            .Where(s => AuthoritativeCitationRules.IsAcceptableDiscoveredCitationUrl(s.Url))
             .Take(3)
             .ToList();
         if (picks.Count == 0)
@@ -228,30 +228,49 @@ public static partial class ScoreSuggestionApplicator
     private static bool HasSourcesSection(string html) =>
         html.Contains("<h2>Sources</h2>", StringComparison.OrdinalIgnoreCase);
 
-    private static string AppendSourcesBlock(string html, string body) =>
-        html.TrimEnd() + "\n<h2>Sources</h2>\n" + body + "\n";
+    private static string AppendSourcesBlock(string html, string body)
+    {
+        var block = "<h2>Sources</h2>\n<p>Further reading:</p>\n" + body;
+        var faqStart = FindFaqSectionStart(html);
+        if (faqStart < 0)
+            return html.TrimEnd() + "\n" + block + "\n";
 
-    private static string BuildSourcesParagraph(IReadOnlyList<string> links) =>
-        links.Count switch
-        {
-            1 => $"<p>According to {links[0]}, this topic is widely covered by industry leaders.</p>",
-            2 => $"<p>According to {links[0]} and {links[1]}, authoritative sources reinforce these recommendations.</p>",
-            _ => $"<p>According to {links[0]}, {links[1]}, and {links[2]}, leading references support this guidance.</p>",
-        };
+        return html[..faqStart].TrimEnd() + "\n" + block + "\n" + html[faqStart..].TrimStart();
+    }
 
     private static List<(string Url, string Label)> SelectSerpCitationPicks(
         string html,
         IReadOnlyList<SerpOrganicResult> organicResults)
     {
         var linked = CollectLinkedUrls(html);
-        return organicResults
+        var candidates = organicResults
             .Select(r => new { Result = r, Url = ResolveOrganicUrl(r) })
             .Where(x => !string.IsNullOrWhiteSpace(x.Url))
+            .Where(x => AuthoritativeCitationRules.IsAuthoritativeCitationUrl(x.Url))
             .Where(x => !IsUrlAlreadyLinked(x.Url, linked))
             .Take(3)
-            .Select(x => (x.Url, x.Result.Title ?? x.Result.Domain ?? "Source"))
+            .Select(x => (x.Url, x.Result.Domain ?? x.Result.Title ?? "Source"))
             .ToList();
+
+        return candidates;
     }
+
+    private static int FindFaqSectionStart(string html)
+    {
+        var match = FaqHeadingRegex().Match(html);
+        if (match.Success)
+            return match.Index;
+
+        var headingIndex = html.IndexOf(ContentWritingRules.ClosingFaqHeading, StringComparison.OrdinalIgnoreCase);
+        if (headingIndex < 0)
+            return -1;
+
+        var h2Start = html.LastIndexOf("<h2", headingIndex, StringComparison.OrdinalIgnoreCase);
+        return h2Start >= 0 ? h2Start : headingIndex;
+    }
+
+    [GeneratedRegex("<h2[^>]*>\\s*[^<]*faq[^<]*</h2>", RegexOptions.IgnoreCase)]
+    private static partial Regex FaqHeadingRegex();
 
     private static bool IsValidExternalUrl(string url) =>
         Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri)

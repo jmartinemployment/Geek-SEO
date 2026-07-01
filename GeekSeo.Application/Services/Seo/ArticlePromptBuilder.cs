@@ -287,12 +287,44 @@ public static class ArticlePromptBuilder
         if (research.CitationCandidates.Count > 0)
         {
             builder.AppendLine();
-            builder.AppendLine("Named citation candidates (prefer these for factual claims):");
-            foreach (var candidate in research.CitationCandidates.Take(10))
+            builder.AppendLine(
+                "Authoritative external citations (inline <a> links only — no Sources section, no invented experts):");
+            foreach (var candidate in research.CitationCandidates
+                         .Where(c => !string.Equals(c.Source, "organic", StringComparison.OrdinalIgnoreCase))
+                         .Take(10))
             {
                 var label = string.IsNullOrWhiteSpace(candidate.Title) ? candidate.Url : candidate.Title;
                 builder.AppendLine($"- [{candidate.Source}] {label} ({candidate.Url})");
             }
+        }
+
+        if (research.OwnSiteLinkCandidates.Count > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine("Your site pages to link internally (not external citations):");
+            foreach (var page in research.OwnSiteLinkCandidates.Take(5))
+            {
+                var label = string.IsNullOrWhiteSpace(page.Title) ? page.Url : page.Title;
+                builder.AppendLine($"- {label} ({page.Url})");
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(research.FeaturedSnippetResearch))
+        {
+            builder.AppendLine();
+            builder.AppendLine($"Featured snippet to outperform (direct answer after first H2): {research.FeaturedSnippetResearch}");
+        }
+
+        if (research.NewsHooks.Count > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine($"Timely angles (optional intro hook — verify before citing): {string.Join("; ", research.NewsHooks.Take(3))}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(research.LocalAngleHint))
+        {
+            builder.AppendLine();
+            builder.AppendLine($"Local SMB angle: {research.LocalAngleHint.Trim()}");
         }
 
         if (request.SupportingBlogPost is { } blogHint)

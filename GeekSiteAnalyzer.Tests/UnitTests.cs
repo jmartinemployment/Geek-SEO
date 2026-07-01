@@ -1769,7 +1769,7 @@ public class ContentWriterKeywordBundleBuilderTests
     }
 
     [Fact]
-    public void Build_ExportsCitationCandidatesFromOrganicAndAuthority()
+    public void Build_ExportsCitationCandidatesFromAuthorityPagesOnly()
     {
         var run = new AnalysisRun
         {
@@ -1802,8 +1802,8 @@ public class ContentWriterKeywordBundleBuilderTests
             CapturedAt,
             ["https://www.example.com/resources/"]);
 
-        Assert.Equal(2, export.CitationCandidates.Count);
-        Assert.Contains(export.CitationCandidates, c =>
+        Assert.Single(export.CitationCandidates);
+        Assert.DoesNotContain(export.CitationCandidates, c =>
             c.Source == "organic" && c.Url.Contains("competitor.com", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(export.CitationCandidates, c =>
             c.Source == "authority" && c.Url.Contains("/resources/", StringComparison.OrdinalIgnoreCase));

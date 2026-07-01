@@ -41,8 +41,9 @@ public sealed class ScoreSuggestionApplicatorTests
         var html = "<h1>Guide</h1><p>Body</p>";
         var organic = new List<SerpOrganicResult>
         {
-            new() { Position = 1, Url = "https://example.org/study", Title = "Study", Snippet = "x", Domain = "example.org" },
-            new() { Position = 2, Url = "https://gov.example/policy", Title = "Policy", Snippet = "y", Domain = "gov.example" },
+            new() { Position = 1, Url = "https://www.cdc.gov/example", Title = "CDC", Snippet = "x", Domain = "cdc.gov" },
+            new() { Position = 2, Url = "https://www.ed.gov/policy", Title = "ED", Snippet = "y", Domain = "ed.gov" },
+            new() { Position = 3, Url = "https://competitor.com/ai-customer-journey-guide", Title = "AI Customer Journey Guide", Snippet = "z", Domain = "competitor.com" },
         };
 
         var patched = ScoreSuggestionApplicator.TryApplyDeterministic(
@@ -55,7 +56,11 @@ public sealed class ScoreSuggestionApplicatorTests
 
         Assert.NotNull(patched);
         Assert.Contains("<h2>Sources</h2>", patched!, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("https://example.org/study", patched!, StringComparison.Ordinal);
+        Assert.Contains("Further reading:", patched!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("https://www.cdc.gov/example", patched!, StringComparison.Ordinal);
+        Assert.Contains("https://www.ed.gov/policy", patched!, StringComparison.Ordinal);
+        Assert.DoesNotContain("competitor.com", patched!, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("According to", patched!, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -163,8 +168,8 @@ public sealed class ScoreSuggestionApplicatorTests
         var html = "<h1>Guide</h1><p>Body</p>";
         var organic = new List<SerpOrganicResult>
         {
-            new() { Position = 1, Url = "", Title = "Study", Snippet = "x", Domain = "example.org" },
-            new() { Position = 2, Url = "", Title = "Policy", Snippet = "y", Domain = "gov.example" },
+            new() { Position = 1, Url = "", Title = "CDC", Snippet = "x", Domain = "cdc.gov" },
+            new() { Position = 2, Url = "", Title = "ED", Snippet = "y", Domain = "ed.gov" },
         };
 
         var patched = ScoreSuggestionApplicator.TryApplyDeterministic(
@@ -176,7 +181,41 @@ public sealed class ScoreSuggestionApplicatorTests
             organic);
 
         Assert.NotNull(patched);
-        Assert.Contains("https://example.org", patched!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("https://cdc.gov", patched!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TryAppendSourcesFromDiscovered_inserts_before_faq_section()
+    {
+        var html = """
+            <h2>Body</h2><p>Content</p>
+            <h2>Frequently asked questions</h2>
+            <h3>Question?</h3><p>Answer</p>
+            """;
+        var sources = new List<DiscoveredSource>
+        {
+            new() { Url = "https://www.cdc.gov/example", Title = "CDC", AnchorText = "CDC guidance" },
+        };
+
+        var patched = ScoreSuggestionApplicator.TryAppendSourcesFromDiscovered(html, sources);
+
+        Assert.NotNull(patched);
+        var sourcesIndex = patched!.IndexOf("<h2>Sources</h2>", StringComparison.OrdinalIgnoreCase);
+        var faqIndex = patched.IndexOf("Frequently asked questions", StringComparison.OrdinalIgnoreCase);
+        Assert.True(sourcesIndex >= 0);
+        Assert.True(faqIndex > sourcesIndex);
+    }
+
+    [Fact]
+    public void HasUsableSerpCitationPicks_ignores_competitor_organic_results()
+    {
+        var html = "<h1>Guide</h1><p>Body</p>";
+        var organic = new List<SerpOrganicResult>
+        {
+            new() { Position = 1, Url = "https://competitor.com/guide", Title = "Guide", Snippet = "x", Domain = "competitor.com" },
+        };
+
+        Assert.False(ScoreSuggestionApplicator.HasUsableSerpCitationPicks(html, organic));
     }
 
     [Fact]

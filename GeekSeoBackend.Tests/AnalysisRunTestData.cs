@@ -229,7 +229,23 @@ internal static class AnalysisRunTestData
         ContentWriterSiteBundle? siteBundle = null) =>
         new(
             new FakeAnalysisRunRepository(export ?? CompletedExport()),
-            new FakeSiteAnalyzer2SiteProfileRepository(siteBundle));
+            new FakeSiteAnalyzer2SiteProfileRepository(siteBundle),
+            new GeekSeo.Application.Services.Seo.OperatorResearchEnricher(new NoOpSerpProvider()));
+
+    private sealed class NoOpSerpProvider : ISerpProvider
+    {
+        public string ProviderName => "serpapi";
+
+        public Task<Result<SerpResult>> GetSerpResultsAsync(SerpRequest request, CancellationToken ct = default) =>
+            Task.FromResult(Result<SerpResult>.Success(new SerpResult
+            {
+                Keyword = request.Keyword,
+                Location = request.Location,
+                OrganicResults = [],
+                Features = new SerpFeatures(),
+                FetchedAt = DateTimeOffset.UtcNow,
+            }));
+    }
 
     internal sealed class FakeSiteAnalyzer2SiteProfileRepository(ContentWriterSiteBundle? bundle = null)
         : ISiteAnalyzer2SiteProfileRepository

@@ -43,7 +43,7 @@ public sealed class SerpApiSerpProvider(IHttpClientFactory httpClientFactory) : 
     internal static IReadOnlyDictionary<string, string> BuildQuery(SerpRequest request) =>
         new Dictionary<string, string>
         {
-            ["engine"] = "google",
+            ["engine"] = string.IsNullOrWhiteSpace(request.Engine) ? "google" : request.Engine.Trim(),
             ["q"] = request.Keyword,
             ["location"] = request.Location,
             ["hl"] = request.LanguageCode,

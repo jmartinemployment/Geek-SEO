@@ -4,6 +4,7 @@ using GeekSeoBackend.Infrastructure;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
+using GeekSeo.Application.Services.Seo;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -28,6 +29,7 @@ public sealed class ContentController(
     IContentScoringService scoring,
     IContentSocialPostService socialPosts,
     IAnalysisRunRepository analysisRuns,
+    WritingResearchContextLoader researchLoader,
     ICurrentUserContext user) : ControllerBase
 {
     [HttpGet]
@@ -57,7 +59,7 @@ public sealed class ContentController(
         if (doc.AnalysisRunId is not Guid runId || runId == Guid.Empty)
             return NotFound(new { error = "Document has no analysis run." });
 
-        var result = await analysisRuns.GetContentWriterExportAsync(runId, ct);
+        var result = await researchLoader.LoadEnrichedExportAsync(doc, ct);
         return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
     }
 

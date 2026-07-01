@@ -33,6 +33,11 @@ public sealed record ContentWriterSerpExport
     public IReadOnlyList<ContentWriterCompetitorExport> Competitors { get; init; } = [];
     public ContentWriterExportBenchmarks Benchmarks { get; init; } = new();
     public IReadOnlyList<ContentWriterCitationCandidate> CitationCandidates { get; init; } = [];
+    public IReadOnlyList<ContentWriterOperatorQuery> OperatorQueries { get; init; } = [];
+    public IReadOnlyList<string> SupplementalPaaQuestions { get; init; } = [];
+    public string? FeaturedSnippetCandidate { get; init; }
+    public IReadOnlyList<string> NewsHooks { get; init; } = [];
+    public string? LocalAngleHint { get; init; }
 }
 
 public sealed record ContentWriterCitationCandidate
@@ -41,6 +46,14 @@ public sealed record ContentWriterCitationCandidate
     public string? Title { get; init; }
     public string? Domain { get; init; }
     public string Source { get; init; } = "organic";
+}
+
+public sealed record ContentWriterOperatorQuery
+{
+    public required string Bucket { get; init; }
+    public required string Label { get; init; }
+    public required string Query { get; init; }
+    public string SearchEngine { get; init; } = "google";
 }
 
 public sealed record ContentWriterHeading

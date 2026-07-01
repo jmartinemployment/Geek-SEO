@@ -8,6 +8,8 @@ public sealed record SerpRequest
     public string CountryCode { get; init; } = "US";
     public int ResultCount { get; init; } = 10;
     public string Device { get; init; } = "desktop";
+    /// <summary>SerpAPI engine id (e.g. google, google_scholar). Default google.</summary>
+    public string Engine { get; init; } = "google";
     /// <summary>Serper only: hit /places instead of /search (local competitor discovery).</summary>
     public bool PlacesOnly { get; init; }
 }

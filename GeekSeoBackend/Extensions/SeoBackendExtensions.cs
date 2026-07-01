@@ -119,6 +119,7 @@ public static class SeoBackendExtensions
         }
         services.AddScoped<ContentWriterHandoffService>();
         services.AddScoped<WritingResearchContextLoader>();
+        services.AddScoped<OperatorResearchEnricher>();
         services.AddScoped<SiteWritingFocusAssembler>();
         services.AddScoped<ISiteResearchRepository, HttpSiteResearchRepository>();
         services.AddScoped<SiteAnalyzerStepService>();

@@ -84,6 +84,13 @@ export type ContentWriterCitationCandidate = {
   source: string;
 };
 
+export type ContentWriterOperatorQuery = {
+  bucket: string;
+  label: string;
+  query: string;
+  searchEngine?: string;
+};
+
 export type ContentWriterCompetitorExport = {
   domain: string;
   url: string;
@@ -117,6 +124,11 @@ export type ContentWriterSerpExport = {
   sourceHeadings?: ContentWriterHeading[];
   competitors?: ContentWriterCompetitorExport[];
   citationCandidates?: ContentWriterCitationCandidate[];
+  operatorQueries?: ContentWriterOperatorQuery[];
+  supplementalPaaQuestions?: string[];
+  featuredSnippetCandidate?: string | null;
+  newsHooks?: string[];
+  localAngleHint?: string | null;
   benchmarks?: ContentWriterExportBenchmarks;
 };
 

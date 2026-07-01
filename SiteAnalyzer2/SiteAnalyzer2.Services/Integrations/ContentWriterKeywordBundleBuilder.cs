@@ -50,25 +50,9 @@ public static class ContentWriterKeywordBundleBuilder
         IReadOnlyList<SerpItem> serpItems,
         IReadOnlyList<string> authorityPageUrls)
     {
+        _ = serpItems;
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var candidates = new List<ContentWriterCitationCandidateDto>();
-
-        foreach (var item in serpItems
-                     .Where(i => string.Equals(i.Type, SerpItemTypes.Organic, StringComparison.OrdinalIgnoreCase) && !i.Ads)
-                     .OrderBy(i => i.RankGroup > 0 ? i.RankGroup : i.RankAbsolute)
-                     .Take(10))
-        {
-            if (string.IsNullOrWhiteSpace(item.Url) || !seen.Add(item.Url.Trim()))
-                continue;
-
-            candidates.Add(new ContentWriterCitationCandidateDto
-            {
-                Url = item.Url.Trim(),
-                Title = item.Title,
-                Domain = item.Domain,
-                Source = "organic",
-            });
-        }
 
         foreach (var url in authorityPageUrls.Where(u => !string.IsNullOrWhiteSpace(u)).Take(8))
         {

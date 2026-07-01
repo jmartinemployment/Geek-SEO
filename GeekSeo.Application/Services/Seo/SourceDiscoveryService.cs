@@ -31,8 +31,10 @@ public sealed class SourceDiscoveryService(IAIProvider ai, INicheProfileReposito
                 """
                 You are a research assistant for SEO content. Return ONLY a JSON array of exactly 3 authoritative external sources relevant to the topic.
                 Each item must have: url (absolute https URL), title (publisher or page title), anchorText (short link label).
-                Prefer .gov, .edu, established industry publications, and recognized research organizations.
-                Do not include the author's own site or generic search pages. No markdown fences or commentary.
+                Prefer .gov, .edu, .mil, WHO, NIH, CDC, NIST, and other primary research or government sources.
+                Do not include competitor SEO blogs, listicles, Reddit, Quora, Medium, or generic search pages.
+                Do not invent people, quotes, or credentials. URLs must be real publisher homepages or article pages.
+                No markdown fences or commentary.
                 """,
             UserPrompt =
                 $"""
@@ -67,8 +69,7 @@ public sealed class SourceDiscoveryService(IAIProvider ai, INicheProfileReposito
             var items = JsonSerializer.Deserialize<List<DiscoveredSourceDto>>(json, JsonOptions) ?? [];
             return items
                 .Where(item => !string.IsNullOrWhiteSpace(item.Url) && !string.IsNullOrWhiteSpace(item.Title))
-                .Where(item => Uri.TryCreate(item.Url!.Trim(), UriKind.Absolute, out var uri)
-                    && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp))
+                .Where(item => AuthoritativeCitationRules.IsAcceptableDiscoveredCitationUrl(item.Url!))
                 .Select(item => new DiscoveredSource
                 {
                     Url = item.Url!.Trim(),

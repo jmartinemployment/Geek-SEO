@@ -310,15 +310,71 @@ export function ResearchInsightsRail({ articleKeyword, serpKeyword }: Props) {
       ) : null}
 
       {exportData.citationCandidates?.length ? (
-        <InsightCard title="Citation candidates">
+        <InsightCard title="Authoritative sources">
           <ul className="list-disc space-y-1 pl-4">
             {exportData.citationCandidates.slice(0, 8).map((candidate) => (
               <li key={candidate.url}>
                 <span className="text-[10px] uppercase text-[var(--color-text-muted)]">
                   {candidate.source}
                 </span>{' '}
-                {candidate.title || candidate.url}
+                <a
+                  href={candidate.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--color-text-primary)] underline-offset-2 hover:underline"
+                >
+                  {candidate.title || candidate.url}
+                </a>
               </li>
+            ))}
+          </ul>
+        </InsightCard>
+      ) : null}
+
+      {exportData.operatorQueries?.length ? (
+        <InsightCard title="Operator searches (Google)">
+          <ul className="space-y-2 pl-0">
+            {exportData.operatorQueries.map((item) => (
+              <li key={`${item.bucket}-${item.query}`} className="list-none">
+                <p className="text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">
+                  {item.label}
+                </p>
+                <code className="mt-1 block whitespace-pre-wrap break-all rounded bg-white px-2 py-1 text-[10px] text-[var(--color-text-primary)]">
+                  {item.query}
+                </code>
+              </li>
+            ))}
+          </ul>
+        </InsightCard>
+      ) : null}
+
+      {exportData.featuredSnippetCandidate ? (
+        <InsightCard title="Featured snippet target">
+          <p>{exportData.featuredSnippetCandidate}</p>
+        </InsightCard>
+      ) : null}
+
+      {exportData.newsHooks?.length ? (
+        <InsightCard title="Timely angles">
+          <ul className="list-disc space-y-1 pl-4">
+            {exportData.newsHooks.slice(0, 4).map((hook) => (
+              <li key={hook}>{hook}</li>
+            ))}
+          </ul>
+        </InsightCard>
+      ) : null}
+
+      {exportData.localAngleHint ? (
+        <InsightCard title="Local SMB angle">
+          <p>{exportData.localAngleHint}</p>
+        </InsightCard>
+      ) : null}
+
+      {exportData.supplementalPaaQuestions?.length ? (
+        <InsightCard title="Extra question ideas">
+          <ul className="list-disc space-y-1 pl-4">
+            {exportData.supplementalPaaQuestions.slice(0, 6).map((question) => (
+              <li key={question}>{question}</li>
             ))}
           </ul>
         </InsightCard>

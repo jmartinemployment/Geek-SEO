@@ -9,7 +9,8 @@ namespace GeekSeo.Application.Services.Seo;
 
 public sealed class WritingResearchContextLoader(
     IAnalysisRunRepository analysisRuns,
-    ISiteAnalyzer2SiteProfileRepository siteProfiles)
+    ISiteAnalyzer2SiteProfileRepository siteProfiles,
+    OperatorResearchEnricher operatorResearch)
 {
     public async Task<Result<WritingResearchContext>> LoadAsync(
         Guid userId,
@@ -64,7 +65,35 @@ public sealed class WritingResearchContextLoader(
             export,
             document.TargetKeyword);
 
-        return Result<WritingResearchContext>.Success(ApplySiteFocus(context, focus));
+        var enriched = await operatorResearch.EnrichContextAsync(
+            ApplySiteFocus(context, focus),
+            ct);
+
+        return Result<WritingResearchContext>.Success(enriched);
+    }
+
+    public async Task<Result<ContentWriterSerpExport>> LoadEnrichedExportAsync(
+        SeoContentDocument document,
+        CancellationToken ct = default)
+    {
+        if (document.AnalysisRunId is not Guid runId || runId == Guid.Empty)
+            return Result<ContentWriterSerpExport>.Failure("Analysis run is required.");
+
+        var exportResult = await analysisRuns.GetContentWriterExportAsync(runId, ct);
+        if (!exportResult.IsSuccess || exportResult.Value is null)
+            return Result<ContentWriterSerpExport>.Failure(exportResult.Error ?? "Analysis run not found");
+
+        var location = string.IsNullOrWhiteSpace(document.TargetLocation)
+            ? "United States"
+            : document.TargetLocation;
+
+        var enriched = await operatorResearch.EnrichExportAsync(
+            exportResult.Value,
+            document.TargetKeyword ?? exportResult.Value.Keyword,
+            location,
+            ct);
+
+        return Result<ContentWriterSerpExport>.Success(enriched);
     }
 
     public static WritingResearchContext ApplySiteFocus(
