@@ -93,6 +93,13 @@ public partial class SeoDbContext
             e.HasIndex(x => new { x.ProjectId, x.Keyword }).IsUnique();
         });
         modelBuilder.Entity<SeoGscConnection>(e => { e.ToTable("seo_gsc_connections"); e.HasKey(x => x.Id); e.HasIndex(x => x.ProjectId).IsUnique(); });
+        modelBuilder.Entity<SeoGtmAccountConnection>(e =>
+        {
+            e.ToTable("seo_gtm_account_connections");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.AccountKey).HasMaxLength(128);
+            e.HasIndex(x => new { x.UserId, x.AccountKey }).IsUnique();
+        });
         modelBuilder.Entity<SeoSubscription>(e => { e.ToTable("seo_subscriptions"); e.HasKey(x => x.Id); e.HasIndex(x => x.UserId).IsUnique(); });
         modelBuilder.Entity<SeoReport>(e => { e.ToTable("seo_reports"); e.HasKey(x => x.Id); });
         modelBuilder.Entity<SeoAlert>(e => { e.ToTable("seo_alerts"); e.HasKey(x => x.Id); });

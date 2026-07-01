@@ -135,9 +135,9 @@ public static class SeoBackendExtensions
         services.AddSingleton<IGoogleOAuthStateStore, SignedGoogleOAuthStateStore>();
         services.AddSingleton(_ => new GoogleOAuthOptions
         {
-            ClientId = ReadEnv("GOOGLE_CLIENT_ID"),
-            ClientSecret = ReadEnv("GOOGLE_CLIENT_SECRET"),
-            RedirectUri = ReadEnv("GOOGLE_REDIRECT_URI"),
+            ClientId = GoogleOAuthEnv.ClientId,
+            ClientSecret = GoogleOAuthEnv.ClientSecret,
+            RedirectUri = GoogleOAuthEnv.RedirectUri,
         });
         services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
         services.AddScoped<IGoogleDataService, GoogleDataService>();

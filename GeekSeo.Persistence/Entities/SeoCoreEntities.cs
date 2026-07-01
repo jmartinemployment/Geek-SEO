@@ -197,6 +197,19 @@ public sealed class SeoGscConnection
     public DateTimeOffset ConnectedAt { get; set; }
 }
 
+/// <summary>Google Tag Manager OAuth identity keyed by friendly alias per Geek user.</summary>
+public sealed class SeoGtmAccountConnection
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public required string AccountKey { get; set; }
+    public string? GoogleEmail { get; set; }
+    public byte[] EncryptedRefreshToken { get; set; } = [];
+    public byte[] EncryptionIv { get; set; } = [];
+    public byte[] EncryptionTag { get; set; } = [];
+    public DateTimeOffset ConnectedAt { get; set; }
+}
+
 public sealed class SeoSubscription
 {
     public Guid Id { get; set; }

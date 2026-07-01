@@ -519,7 +519,7 @@ public sealed class GoogleOAuthService(
         }
 
         throw new GoogleIntegrationException(
-            "Google OAuth is not configured. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI.",
+            "Google OAuth is not configured. Set GOOGLE_CLIENT_ID (or GOOGLE_OAUTH_CLIENT_ID), GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI.",
             StatusCodes.Status503ServiceUnavailable);
     }
 }

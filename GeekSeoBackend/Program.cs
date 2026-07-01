@@ -1,9 +1,9 @@
 using DotNetEnv;
 using GeekSeo.Application.Interfaces.Seo;
+using GeekSeoBackend.Infrastructure;
 using GeekSeoBackend.Endpoints;
 using GeekSeoBackend.Extensions;
 using GeekSeoBackend.Hubs;
-using GeekSeoBackend.Infrastructure;
 using GeekSeoBackend.Middleware;
 using GeekSeoBackend.Providers.Seo;
 using GeekSeoBackend.Services;
@@ -15,7 +15,7 @@ Env.TraversePath().Load();
 var builder = WebApplication.CreateBuilder(args);
 if (!builder.Environment.IsDevelopment())
 {
-    ValidateRequiredGoogleOAuthEnv();
+    GoogleOAuthEnv.EnsureConfigured();
 }
 
 builder.Services.AddControllers()
@@ -127,18 +127,5 @@ app.MapHub<SeoContentScoringHub>("/hubs/seo-scoring");
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5051";
 app.Run($"http://0.0.0.0:{port}");
-
-static void ValidateRequiredGoogleOAuthEnv()
-{
-    var required = new[] { "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI" };
-    var missing = required
-        .Where(key => string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(key)))
-        .ToArray();
-    if (missing.Length > 0)
-    {
-        throw new InvalidOperationException(
-            $"Missing required Google OAuth environment variables: {string.Join(", ", missing)}");
-    }
-}
 
 public partial class Program;
