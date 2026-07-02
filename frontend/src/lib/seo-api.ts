@@ -1127,10 +1127,6 @@ export type ApplySuggestionResult = {
   scoreUpdate?: ScoreUpdate | null;
 };
 
-export type ApplySuggestionOutcome =
-  | { kind: 'completed'; result: ApplySuggestionResult }
-  | { kind: 'queued'; job: BackgroundJobStatus };
-
 export type AiDetectionResult = {
   aiProbability: number;
   summary: string;
@@ -1249,15 +1245,14 @@ export async function applyScoreSuggestion(
   suggestionId: string,
   accessToken?: string | null,
   contentHtml?: string,
-): Promise<ApplySuggestionOutcome> {
+): Promise<ApplySuggestionResult> {
   const res = await fetch(`${API_URL}/api/seo/content/${documentId}/apply-suggestion`, {
     method: 'POST',
     headers: apiHeaders(accessToken),
     body: JSON.stringify({ suggestionId, contentHtml }),
   });
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
-  const result = (await res.json()) as ApplySuggestionResult;
-  return { kind: 'completed', result };
+  return res.json() as Promise<ApplySuggestionResult>;
 }
 
 export async function insertResearchCitation(

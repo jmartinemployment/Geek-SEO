@@ -174,19 +174,19 @@ export function WritingWorkspaceProvider({
       await save(html, doc.targetKeyword, doc.title, doc.targetLocation ?? '', {
         scheduleScore: false,
       });
-      const outcome = await applyScoreSuggestion(
+      const result = await applyScoreSuggestion(
         doc.id,
         suggestion.id,
         accessToken,
         html,
       );
 
-      setHtml(outcome.result.contentHtml);
-      if (outcome.result.scoreUpdate) {
-        receiveScoreUpdate(outcome.result.scoreUpdate);
+      setHtml(result.contentHtml);
+      if (result.scoreUpdate) {
+        receiveScoreUpdate(result.scoreUpdate);
       }
       await save(
-        outcome.result.contentHtml,
+        result.contentHtml,
         doc.targetKeyword,
         doc.title,
         doc.targetLocation ?? '',
