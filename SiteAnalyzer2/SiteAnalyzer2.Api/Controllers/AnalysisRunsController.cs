@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using SiteAnalyzer2.Serp;
 using SiteAnalyzer2.Services.Integrations;
 
 namespace SiteAnalyzer2.Api.Controllers;
@@ -59,6 +60,38 @@ public sealed class AnalysisRunsController(
             return UnprocessableEntity(new { error = ex.Message });
         }
     }
+
+    [HttpPost("{runId:guid}/serp/import-paa-batch")]
+    public async Task<IActionResult> ImportPaaBatch(
+        Guid runId,
+        [FromQuery] string topic,
+        [FromBody] PaaBatchImportRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var files = (request.Files ?? [])
+                .Select(f => new PaaLaneImportFile(f.FileName, f.Content))
+                .ToList();
+            var result = await manualLaneImport.ImportPaaBatchAsync(runId, files, topic, ct);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return UnprocessableEntity(new { error = ex.Message });
+        }
+    }
+}
+
+public sealed record PaaBatchImportRequest
+{
+    public List<PaaBatchImportFile> Files { get; init; } = [];
+}
+
+public sealed record PaaBatchImportFile
+{
+    public string? FileName { get; init; }
+    public required string Content { get; init; }
 }
 
 [ApiController]

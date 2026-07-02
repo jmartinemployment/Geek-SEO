@@ -76,6 +76,39 @@ public sealed class ManualResearchLaneMergerTests
     }
 
     [Fact]
+    public void Merge_drops_off_topic_paa_lane_questions()
+    {
+        var export = new ContentWriterSerpExport
+        {
+            RunId = Guid.NewGuid(),
+            Keyword = "ai customer journey",
+            ManualResearchLanes =
+            [
+                new ContentWriterManualResearchLane
+                {
+                    Lane = SerpResearchLanes.Paa,
+                    Label = "People Also Ask",
+                    OrganicCount = 0,
+                    PaaCount = 2,
+                    PaaQuestions =
+                    [
+                        "What is an AI customer journey?",
+                        "What is GAAP accounting?",
+                    ],
+                },
+            ],
+        };
+
+        var merged = ManualResearchLaneMerger.Merge(export);
+
+        Assert.Contains(merged.Serp, i =>
+            string.Equals(i.Type, "people_also_ask", StringComparison.OrdinalIgnoreCase)
+            && i.RelatedQuestions.Contains("What is an AI customer journey?"));
+        Assert.DoesNotContain(merged.Serp, i =>
+            i.RelatedQuestions.Any(q => q.Contains("GAAP", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
     public void Merge_appends_paa_lane_questions_to_export_serp()
     {
         var export = new ContentWriterSerpExport

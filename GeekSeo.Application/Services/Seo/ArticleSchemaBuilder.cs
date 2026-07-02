@@ -95,10 +95,13 @@ public static class ArticleSchemaBuilder
                 .Take(ContentWritingRules.ClosingFaqCount)
                 .ToList(),
             PeopleAlsoAsk = research.PeopleAlsoAsk.Select(p => p.Question).ToList(),
+            AuthorOrganizationName = research.SiteFocus?.SiteName,
+            AuthorOrganizationUrl = research.SiteFocus?.SiteUrl,
             SchemaBlueprint = new SchemaBlueprint
             {
                 PrimaryType = "TechArticle",
                 AdditionalTypes = ["FAQPage"],
+                AboutEntities = research.SiteFocus?.GapTopics.Take(3).ToList() ?? [],
             },
         };
 

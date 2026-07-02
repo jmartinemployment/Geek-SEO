@@ -22,7 +22,6 @@ public sealed class ContentController(
     IContentResearchWritingService researchWriting,
     IContentDraftJobService draftJobs,
     ContentDraftJobChannel draftJobChannel,
-    ApplySourcesJobChannel applySourcesJobChannel,
     IContentFeaturedImageService featuredImages,
     IArticleRenderService renderer,
     ICompetitorInsightsService competitors,
@@ -398,13 +397,24 @@ public sealed class ContentController(
         if (!result.IsSuccess || result.Value is null)
             return BadRequest(new { error = result.Error, suggestionId = request.SuggestionId });
 
-        if (string.Equals(result.Value.Outcome, "queued", StringComparison.Ordinal))
-        {
-            applySourcesJobChannel.Notify();
-            return Accepted(result.Value.Job);
-        }
-
         return Ok(result.Value.Result);
+    }
+
+    [HttpPost("{id:guid}/insert-citation")]
+    public async Task<IActionResult> InsertCitation(Guid id, [FromBody] InsertResearchCitationRequest request, CancellationToken ct)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.Url))
+            return BadRequest(new { error = "url is required" });
+
+        var result = await scoring.InsertResearchCitationAsync(
+            user.RequireUserId(),
+            id,
+            request.Url,
+            request.Title,
+            request.ContentHtml,
+            ct);
+
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(new { error = result.Error });
     }
 
     [HttpPost("{id:guid}/social/generate")]

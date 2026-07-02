@@ -23,6 +23,21 @@ public sealed class ArticleRenderService(
         var doc = document.Value;
         IReadOnlyList<string> schemaScripts;
         IReadOnlyList<string> schemaTypes;
+        var bodyHtml = PrependFeaturedImage(doc);
+
+        if (ScoreSuggestionApplicator.HasArticleSchema(doc.ContentHtml))
+        {
+            schemaScripts = ScoreSuggestionApplicator.ExtractSchemaScripts(doc.ContentHtml);
+            schemaTypes = ScoreSuggestionApplicator.InferSchemaTypes(schemaScripts);
+            return Result<RenderedArticleResult>.Success(new RenderedArticleResult
+            {
+                BodyHtml = doc.ContentHtml,
+                RenderedHtml = bodyHtml,
+                SchemaScripts = schemaScripts,
+                SchemaTypes = schemaTypes,
+                FeaturedImageUrl = doc.FeaturedImageUrl,
+            });
+        }
 
         if (ResearchBackedWriteGate.IsResearchBacked(doc))
         {
@@ -51,12 +66,12 @@ public sealed class ArticleRenderService(
         }
 
         var renderedHtml = schemaScripts.Count == 0
-            ? PrependFeaturedImage(doc)
-            : $"{PrependFeaturedImage(doc)}\n{string.Join("\n", schemaScripts)}";
+            ? bodyHtml
+            : $"{bodyHtml}\n{string.Join("\n", schemaScripts)}";
 
         return Result<RenderedArticleResult>.Success(new RenderedArticleResult
         {
-            BodyHtml = PrependFeaturedImage(doc),
+            BodyHtml = doc.ContentHtml,
             RenderedHtml = renderedHtml,
             SchemaScripts = schemaScripts,
             SchemaTypes = schemaTypes,

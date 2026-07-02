@@ -24,11 +24,11 @@ import {
   formatRenderedArticleForClipboard,
   getContent,
   getRenderedContentHtml,
+  insertResearchCitation,
   scoreContentDocument,
   updateContent,
   type SeoContentDocument,
 } from '@/lib/seo-api';
-import { beginDraftJobWait } from '@/lib/draft-job-signalr';
 import { useSeoHub } from '@/components/signalr/seo-hub-provider';
 import { copyTextFromPromise } from '@/lib/copy-to-clipboard';
 
@@ -49,6 +49,7 @@ type WritingWorkspaceContextValue = {
   scoreError: ReturnType<typeof useContentScoring>['error'];
   connected: ReturnType<typeof useContentScoring>['connected'];
   applyingSuggestionId: string | null;
+  applyingCitationUrl: string | null;
   copyHint: string | null;
   save: (
     nextHtml: string,
@@ -58,6 +59,7 @@ type WritingWorkspaceContextValue = {
     options?: { scheduleScore?: boolean },
   ) => Promise<void>;
   handleApplySuggestion: (suggestion: ScoreSuggestion) => Promise<void>;
+  handleInsertCitation: (url: string, title?: string) => Promise<void>;
   refreshSerp: () => void;
   copyRenderedHtml: () => void;
   scheduleScore: (nextHtml: string, nextKeyword: string) => void;
@@ -98,6 +100,7 @@ export function WritingWorkspaceProvider({
   const [copyHint, setCopyHint] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [applyingSuggestionId, setApplyingSuggestionId] = useState<string | null>(null);
+  const [applyingCitationUrl, setApplyingCitationUrl] = useState<string | null>(null);
   const [blogSpokeRevision, setBlogSpokeRevision] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialScoreSentRef = useRef(false);
@@ -165,16 +168,9 @@ export function WritingWorkspaceProvider({
       debounceRef.current = null;
     }
     setApplyingSuggestionId(suggestion.id);
-    const isAsyncSources = suggestion.id === 'geo_citations' && suggestion.applyMode === 'ai';
-    const listener = isAsyncSources
-      ? beginDraftJobWait({ hub, accessToken })
-      : null;
     try {
       onError(null);
       setAiError(null);
-      if (listener) {
-        await listener.whenReady();
-      }
       await save(html, doc.targetKeyword, doc.title, doc.targetLocation ?? '', {
         scheduleScore: false,
       });
@@ -184,31 +180,6 @@ export function WritingWorkspaceProvider({
         accessToken,
         html,
       );
-      if (outcome.kind === 'queued') {
-        const terminal = await listener!.waitFor(outcome.job.jobId);
-        if (terminal.status === 'failed') {
-          throw new Error(terminal.errorMessage ?? 'Source discovery failed');
-        }
-        const updated = await getContent(doc.id, accessToken);
-        setHtml(updated.contentHtml);
-        onDocumentChange(updated);
-        const scored = await scoreContentDocument(
-          doc.id,
-          { contentHtml: updated.contentHtml, targetKeyword: doc.targetKeyword },
-          accessToken,
-        );
-        if (scored.scoreUpdate) {
-          receiveScoreUpdate(scored.scoreUpdate);
-        }
-        await save(
-          updated.contentHtml,
-          doc.targetKeyword,
-          doc.title,
-          doc.targetLocation ?? '',
-          { scheduleScore: false },
-        );
-        return;
-      }
 
       setHtml(outcome.result.contentHtml);
       if (outcome.result.scoreUpdate) {
@@ -226,8 +197,44 @@ export function WritingWorkspaceProvider({
       setAiError(`Could not apply “${suggestion.proposedChange}”: ${detail}`);
       onError(applyError);
     } finally {
-      listener?.dispose();
       setApplyingSuggestionId(null);
+    }
+  }
+
+  async function handleInsertCitation(url: string, title?: string) {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    setApplyingCitationUrl(url);
+    try {
+      onError(null);
+      setAiError(null);
+      await save(html, doc.targetKeyword, doc.title, doc.targetLocation ?? '', {
+        scheduleScore: false,
+      });
+      const result = await insertResearchCitation(
+        doc.id,
+        { url, title, contentHtml: html },
+        accessToken,
+      );
+      setHtml(result.contentHtml);
+      if (result.scoreUpdate) {
+        receiveScoreUpdate(result.scoreUpdate);
+      }
+      await save(
+        result.contentHtml,
+        doc.targetKeyword,
+        doc.title,
+        doc.targetLocation ?? '',
+        { scheduleScore: false },
+      );
+    } catch (applyError) {
+      const detail = applyError instanceof Error ? applyError.message : 'Add citation failed';
+      setAiError(`Could not add citation: ${detail}`);
+      onError(applyError);
+    } finally {
+      setApplyingCitationUrl(null);
     }
   }
 
@@ -276,9 +283,11 @@ export function WritingWorkspaceProvider({
     scoreError,
     connected,
     applyingSuggestionId,
+    applyingCitationUrl,
     copyHint,
     save,
     handleApplySuggestion,
+    handleInsertCitation,
     refreshSerp,
     copyRenderedHtml,
     scheduleScore,
@@ -321,6 +330,7 @@ export function WritingScoreLeft({ keyword }: { keyword: string }) {
         connected={connected}
         onRefreshSerp={refreshSerp}
         serpRefreshEnabled={!doc.analysisRunId}
+        researchBacked={Boolean(doc.analysisRunId)}
       />
     </div>
   );
@@ -342,6 +352,9 @@ export function WritingInsightsRight({ keyword }: { keyword: string }) {
     refreshSerp,
     copyRenderedHtml,
     copyHint,
+    handleInsertCitation,
+    applyingCitationUrl,
+    html,
   } = useWritingWorkspace();
 
   return (
@@ -360,6 +373,7 @@ export function WritingInsightsRight({ keyword }: { keyword: string }) {
         onRefreshSerp={refreshSerp}
         serpRefreshEnabled={!doc.analysisRunId}
         onCopyHtml={copyRenderedHtml}
+        researchBacked={Boolean(doc.analysisRunId)}
       />
       {copyHint ? (
         <p className="border-t px-3 py-2 text-xs text-emerald-700 xl:px-4">{copyHint}</p>

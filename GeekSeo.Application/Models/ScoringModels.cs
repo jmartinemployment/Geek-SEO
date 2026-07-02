@@ -41,6 +41,14 @@ public sealed record ApplySuggestionRequest
     public string? ContentHtml { get; init; }
 }
 
+public sealed record InsertResearchCitationRequest
+{
+    public required string Url { get; init; }
+    public string? Title { get; init; }
+    /// <summary>Current editor HTML when it may differ from the last saved document.</summary>
+    public string? ContentHtml { get; init; }
+}
+
 public sealed record ScoreContentRequest
 {
     /// <summary>When omitted, scores the last saved document HTML.</summary>
@@ -84,6 +92,12 @@ public sealed record EeatAdvisory
 {
     public required string Code { get; init; }
     public required string ActionText { get; init; }
+    /// <summary>Maps to apply-suggestion id (may alias geo_* suggestions).</summary>
+    public string? SuggestionId { get; init; }
+    /// <summary>deterministic | ai | none</summary>
+    public string ApplyMode { get; init; } = "none";
+    public string? ProposedChange { get; init; }
+    public string? ButtonLabel { get; init; }
 }
 
 public sealed record AutoOptimizeResult

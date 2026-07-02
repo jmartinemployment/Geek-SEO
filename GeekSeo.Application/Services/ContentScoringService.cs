@@ -11,13 +11,13 @@ namespace GeekSeo.Application.Services.Seo;
 public sealed class ContentScoringService(
     IContentDocumentService documents,
     IContentDocumentRepository documentRepo,
+    IProjectRepository projects,
     WritingResearchContextLoader researchLoader,
     ISerpCacheRepository serpCache,
     ISerpProvider serpProvider,
     CompetitorCrawlService competitorCrawl,
     IRichTextProvider richText,
-    IAIProvider ai,
-    IApplySourcesJobService applySourcesJobs) : IContentScoringService
+    IAIProvider ai) : IContentScoringService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -147,22 +147,50 @@ public sealed class ContentScoringService(
 
         var suggestion = current.Value.ScoreUpdate.Suggestions
                              .FirstOrDefault(s => string.Equals(s.Id, suggestionId, StringComparison.Ordinal))
-                         ?? ResolveSerpFeatureSuggestion(current.Value.ScoreUpdate.SerpFeatures, suggestionId);
+                         ?? ResolveSerpFeatureSuggestion(current.Value.ScoreUpdate.SerpFeatures, suggestionId)
+                         ?? ResolveEeatSuggestion(current.Value.ScoreUpdate.EeatAdvisories, suggestionId);
         if (suggestion is null)
             return Result<ApplySuggestionResponse>.Failure(
                 $"Suggestion “{suggestionId}” is no longer available. Wait for the score to refresh, then try again.");
 
         if (string.Equals(suggestionId, "geo_citations", StringComparison.OrdinalIgnoreCase)
-            && string.Equals(suggestion.ApplyMode, "ai", StringComparison.Ordinal))
+            && ResearchBackedWriteGate.IsResearchBacked(doc))
         {
-            var queued = await applySourcesJobs.EnqueueAsync(userId, documentId, keyword, location, ct);
-            if (!queued.IsSuccess || queued.Value is null)
-                return Result<ApplySuggestionResponse>.Failure(queued.Error ?? "Could not queue source discovery job");
+            var fromResearch = await TryApplyResearchCitationPackAsync(
+                userId, documentId, doc, keyword, baseHtml, suggestion.ProposedChange, ct);
+            if (fromResearch is not null)
+                return fromResearch;
 
+            return Result<ApplySuggestionResponse>.Failure(
+                "No unused citations in your research pack. Use the Citations card in the research rail, or add links manually.");
+        }
+
+        if (string.Equals(suggestionId, "geo_authority", StringComparison.OrdinalIgnoreCase))
+        {
+            var schemaScripts = await BuildArticleSchemaScriptsAsync(userId, doc, baseHtml, ct);
+            var patchedSchemaHtml = ScoreSuggestionApplicator.TryAppendSchemaScripts(baseHtml, schemaScripts);
+            if (patchedSchemaHtml is null || string.Equals(patchedSchemaHtml, baseHtml, StringComparison.Ordinal))
+            {
+                return Result<ApplySuggestionResponse>.Failure(
+                    ScoreSuggestionApplicator.DescribeDeterministicFailure(suggestion.Id, baseHtml, keyword));
+            }
+
+            await documents.UpdateContentAsync(
+                userId,
+                documentId,
+                new UpdateContentRequest { ContentHtml = patchedSchemaHtml },
+                ct);
+
+            var afterSchema = await ScoreAsync(userId, documentId, patchedSchemaHtml, keyword, invalidateCache: false, ct);
             return Result<ApplySuggestionResponse>.Success(new ApplySuggestionResponse
             {
-                Outcome = "queued",
-                Job = queued.Value,
+                Outcome = "completed",
+                Result = new ApplySuggestionResult
+                {
+                    ContentHtml = patchedSchemaHtml,
+                    AppliedChange = suggestion.ProposedChange,
+                    ScoreUpdate = afterSchema.Value?.ScoreUpdate,
+                },
             });
         }
 
@@ -170,6 +198,16 @@ public sealed class ContentScoringService(
         if (string.Equals(suggestionId, "geo_structure", StringComparison.OrdinalIgnoreCase))
         {
             patchedHtml = await ApplyClosingFaqSuggestionAsync(doc, baseHtml, ct);
+            if (string.Equals(patchedHtml, baseHtml, StringComparison.Ordinal))
+            {
+                return Result<ApplySuggestionResponse>.Failure(
+                    ScoreSuggestionApplicator.DescribeDeterministicFailure(suggestion.Id, baseHtml, keyword));
+            }
+        }
+        else if (suggestionId.StartsWith("eeat_", StringComparison.Ordinal))
+        {
+            var eeatContext = await BuildEeatApplyContextAsync(userId, doc, ct);
+            patchedHtml = ScoreSuggestionApplicator.TryApplyEeat(suggestionId, baseHtml, eeatContext) ?? baseHtml;
             if (string.Equals(patchedHtml, baseHtml, StringComparison.Ordinal))
             {
                 return Result<ApplySuggestionResponse>.Failure(
@@ -185,7 +223,8 @@ public sealed class ContentScoringService(
                 benchmarks.AvgTitleLength,
                 plainText,
                 benchmarks.OrganicResults,
-                benchmarkResult.Value!.FeaturedSnippetText) ?? baseHtml;
+                benchmarkResult.Value!.FeaturedSnippetText,
+                benchmarkResult.Value.AiOverviewText) ?? baseHtml;
 
             if (string.Equals(patchedHtml, baseHtml, StringComparison.Ordinal))
             {
@@ -234,6 +273,145 @@ public sealed class ContentScoringService(
                 ScoreUpdate = after.Value?.ScoreUpdate,
             },
         });
+    }
+
+    public async Task<Result<ApplySuggestionResult>> InsertResearchCitationAsync(
+        Guid userId,
+        Guid documentId,
+        string url,
+        string? title = null,
+        string? contentHtml = null,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return Result<ApplySuggestionResult>.Failure("Citation URL is required.");
+
+        var access = await documents.EnsureAccessAsync(userId, documentId, ct);
+        if (!access.IsSuccess || access.Value is null)
+            return Result<ApplySuggestionResult>.Failure(access.Error ?? "Access denied");
+
+        var doc = access.Value;
+        if (!ResearchBackedWriteGate.IsResearchBacked(doc))
+            return Result<ApplySuggestionResult>.Failure("Research citations require a Site Analyzer research pack.");
+
+        var baseHtml = string.IsNullOrWhiteSpace(contentHtml) ? doc.ContentHtml : contentHtml;
+        var patchedHtml = ScoreSuggestionApplicator.TryInsertResearchCitation(baseHtml, url, title);
+        if (patchedHtml is null || string.Equals(patchedHtml, baseHtml, StringComparison.Ordinal))
+        {
+            return Result<ApplySuggestionResult>.Failure(
+                "This source is already linked in the article, or the URL is not valid.");
+        }
+
+        await documents.UpdateContentAsync(
+            userId,
+            documentId,
+            new UpdateContentRequest { ContentHtml = patchedHtml },
+            ct);
+
+        var after = await ScoreAsync(userId, documentId, patchedHtml, doc.TargetKeyword, invalidateCache: false, ct);
+        var label = string.IsNullOrWhiteSpace(title) ? url.Trim() : title.Trim();
+        return Result<ApplySuggestionResult>.Success(new ApplySuggestionResult
+        {
+            ContentHtml = patchedHtml,
+            AppliedChange = $"Added citation: {label}",
+            ScoreUpdate = after.Value?.ScoreUpdate,
+        });
+    }
+
+    private async Task<Result<ApplySuggestionResponse>?> TryApplyResearchCitationPackAsync(
+        Guid userId,
+        Guid documentId,
+        SeoContentDocument doc,
+        string keyword,
+        string baseHtml,
+        string appliedChange,
+        CancellationToken ct)
+    {
+        var loaded = await researchLoader.LoadAsync(userId, doc, ct);
+        if (!loaded.IsSuccess || loaded.Value is null)
+            return null;
+
+        var sources = loaded.Value.CitationCandidates
+            .Where(c => !string.IsNullOrWhiteSpace(c.Url))
+            .Where(c => !string.Equals(c.Source, "organic", StringComparison.OrdinalIgnoreCase))
+            .Select(c => new DiscoveredSource
+            {
+                Url = c.Url.Trim(),
+                Title = string.IsNullOrWhiteSpace(c.Title) ? c.Url.Trim() : c.Title.Trim(),
+                AnchorText = string.IsNullOrWhiteSpace(c.Title) ? c.Domain : c.Title.Trim(),
+            })
+            .ToList();
+
+        if (sources.Count == 0)
+            return null;
+
+        var patchedHtml = ScoreSuggestionApplicator.TryAppendSourcesFromDiscovered(baseHtml, sources);
+        if (patchedHtml is null || string.Equals(patchedHtml, baseHtml, StringComparison.Ordinal))
+            return null;
+
+        await documents.UpdateContentAsync(
+            userId,
+            documentId,
+            new UpdateContentRequest { ContentHtml = patchedHtml },
+            ct);
+
+        var after = await ScoreAsync(userId, documentId, patchedHtml, keyword, invalidateCache: false, ct);
+        return Result<ApplySuggestionResponse>.Success(new ApplySuggestionResponse
+        {
+            Outcome = "completed",
+            Result = new ApplySuggestionResult
+            {
+                ContentHtml = patchedHtml,
+                AppliedChange = appliedChange,
+                ScoreUpdate = after.Value?.ScoreUpdate,
+            },
+        });
+    }
+
+    private async Task<IReadOnlyList<string>> BuildArticleSchemaScriptsAsync(
+        Guid userId,
+        SeoContentDocument doc,
+        string articleHtml,
+        CancellationToken ct)
+    {
+        var title = string.IsNullOrWhiteSpace(doc.Title) ? doc.TargetKeyword : doc.Title;
+
+        if (ResearchBackedWriteGate.IsResearchBacked(doc))
+        {
+            var loaded = await researchLoader.LoadAsync(userId, doc, ct);
+            if (!loaded.IsSuccess || loaded.Value is null)
+                return [];
+
+            return ArticleSchemaBuilder.BuildScripts(loaded.Value, title, articleHtml);
+        }
+
+        var focus = SiteWritingFocusSerializer.TryDeserialize(doc.SiteFocusJson);
+        var orgName = focus?.SiteName;
+        var orgUrl = focus?.SiteUrl;
+        if (string.IsNullOrWhiteSpace(orgName))
+        {
+            var project = await projects.GetByIdAsync(doc.ProjectId, ct);
+            if (project.IsSuccess && project.Value is not null)
+            {
+                orgName = project.Value.Name;
+                orgUrl = project.Value.Url;
+            }
+        }
+
+        var brief = new ContentBrief
+        {
+            Keyword = doc.TargetKeyword,
+            Location = doc.TargetLocation ?? "United States",
+            AuthorOrganizationName = orgName,
+            AuthorOrganizationUrl = orgUrl,
+            SchemaBlueprint = new SchemaBlueprint
+            {
+                PrimaryType = "TechArticle",
+                AdditionalTypes = ["FAQPage"],
+            },
+        };
+
+        return ArticleSchemaBuilder.BuildScripts(brief, title, articleHtml);
     }
 
     private async Task<string> ApplyClosingFaqSuggestionAsync(
@@ -290,6 +468,9 @@ public sealed class ContentScoringService(
         var keyword = string.IsNullOrWhiteSpace(targetKeyword) ? doc.TargetKeyword : targetKeyword;
 
         var enrichedHtml = ContentAutoEnricher.Enrich(contentHtml, keyword, out var enriched);
+        var schemaScripts = await BuildArticleSchemaScriptsAsync(userId, doc, enrichedHtml, ct);
+        enrichedHtml = ContentAutoEnricher.EnsureArticleSchema(enrichedHtml, schemaScripts, out var schemaEnriched);
+        enriched |= schemaEnriched;
         if (enriched && !skipAutoEnrich)
         {
             await documents.UpdateContentAsync(
@@ -381,7 +562,7 @@ public sealed class ContentScoringService(
                 readability = readabilityScore,
             },
             Suggestions = allSuggestions,
-            SerpFeatures = FilterSerpFeatureGuidance(contentHtml, serpFeatures),
+            SerpFeatures = FilterSerpFeatureGuidance(contentHtml, serpFeatures, keyword),
             EeatAdvisories = EeatAdvisoryBuilder.Build(plainText, contentHtml),
             GeoScore = geo.TotalScore,
             GeoGrade = geo.Grade,
@@ -426,6 +607,9 @@ public sealed class ContentScoringService(
             CoverageTerms = coverageTerms,
             ResearchedAt = context.ResearchedAt,
             FeaturedSnippetText = string.Equals(context.Paf.Type, "featured_snippet", StringComparison.OrdinalIgnoreCase)
+                ? SerpCaptureTextSanitizer.Sanitize(context.Paf.Text)
+                : null,
+            AiOverviewText = string.Equals(context.Paf.Type, "ai_overview", StringComparison.OrdinalIgnoreCase)
                 ? SerpCaptureTextSanitizer.Sanitize(context.Paf.Text)
                 : null,
         });
@@ -505,25 +689,108 @@ public sealed class ContentScoringService(
         if (serpFeatures.HasFeaturedSnippet && featuredSnippetText is null)
             serpFeatures = serpFeatures with { HasFeaturedSnippet = false };
 
+        string? aiOverviewText = null;
+        if (serpFeatures.HasAiOverview && !serpFeatures.HasFeaturedSnippet)
+        {
+            aiOverviewText = SerpCaptureTextSanitizer.Sanitize(
+                serpData?.FeaturedSnippetText ?? serpRow?.FeaturedSnippet);
+        }
+
         return Result<BenchmarkResolution>.Success(new BenchmarkResolution
         {
             Benchmarks = benchmarks,
             SerpFeatures = serpFeatures,
             FeaturedSnippetText = featuredSnippetText,
+            AiOverviewText = aiOverviewText,
         });
     }
 
     private static IReadOnlyList<SerpFeatureGuidance> FilterSerpFeatureGuidance(
         string contentHtml,
-        SerpFeatures serpFeatures)
+        SerpFeatures serpFeatures,
+        string keyword)
     {
         var guidance = SerpFeatureGuidanceBuilder.Build(serpFeatures);
-        if (!serpFeatures.HasFeaturedSnippet || !ScoreSuggestionApplicator.HasDirectAnswerAfterFirstH2(contentHtml))
-            return guidance;
-
         return guidance
-            .Where(g => !string.Equals(g.Feature, "featured_snippet", StringComparison.Ordinal))
+            .Where(g =>
+            {
+                if (string.Equals(g.Feature, "featured_snippet", StringComparison.Ordinal)
+                    && serpFeatures.HasFeaturedSnippet
+                    && ScoreSuggestionApplicator.HasDirectAnswerAfterFirstH2(contentHtml))
+                {
+                    return false;
+                }
+
+                if (string.Equals(g.Feature, "ai_overview", StringComparison.Ordinal)
+                    && serpFeatures.HasAiOverview
+                    && ScoreSuggestionApplicator.HasConciseDefinitionInOpening(contentHtml, keyword))
+                {
+                    return false;
+                }
+
+                return true;
+            })
             .ToList();
+    }
+
+    private static ScoreSuggestion? ResolveEeatSuggestion(
+        IReadOnlyList<EeatAdvisory> advisories,
+        string suggestionId)
+    {
+        var advisory = advisories.FirstOrDefault(a =>
+            string.Equals(a.SuggestionId, suggestionId, StringComparison.Ordinal));
+        if (advisory is null || string.IsNullOrWhiteSpace(advisory.SuggestionId))
+            return null;
+        if (!string.Equals(advisory.ApplyMode, "deterministic", StringComparison.Ordinal)
+            && !string.Equals(advisory.ApplyMode, "ai", StringComparison.Ordinal))
+            return null;
+
+        return new ScoreSuggestion
+        {
+            Id = advisory.SuggestionId,
+            Component = "eeat",
+            PointValue = 0,
+            ActionText = advisory.ActionText,
+            ProposedChange = advisory.ProposedChange ?? advisory.ActionText,
+            ApplyMode = advisory.ApplyMode,
+        };
+    }
+
+    private async Task<EeatApplyContext> BuildEeatApplyContextAsync(
+        Guid userId,
+        SeoContentDocument doc,
+        CancellationToken ct)
+    {
+        var focus = SiteWritingFocusSerializer.TryDeserialize(doc.SiteFocusJson);
+        var orgName = focus?.SiteName ?? string.Empty;
+        var orgUrl = focus?.SiteUrl ?? string.Empty;
+        var summary = focus?.BusinessSummary ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(orgName))
+        {
+            var project = await projects.GetByIdAsync(doc.ProjectId, ct);
+            if (project.IsSuccess && project.Value is not null)
+            {
+                orgName = project.Value.Name ?? string.Empty;
+                orgUrl = project.Value.Url ?? orgUrl;
+            }
+        }
+
+        if (ResearchBackedWriteGate.IsResearchBacked(doc) && string.IsNullOrWhiteSpace(summary))
+        {
+            var loaded = await researchLoader.LoadAsync(userId, doc, ct);
+            if (loaded.IsSuccess && loaded.Value?.SiteFocus is { } siteFocus)
+                summary = siteFocus.BusinessSummary;
+        }
+
+        return new EeatApplyContext
+        {
+            Keyword = doc.TargetKeyword,
+            OrganizationName = orgName,
+            OrganizationUrl = orgUrl,
+            BusinessSummary = summary,
+            FeaturedImageUrl = doc.FeaturedImageUrl,
+        };
     }
 
     private static ScoreSuggestion? ResolveSerpFeatureSuggestion(
@@ -544,7 +811,9 @@ public sealed class ContentScoringService(
             Component = "serp",
             PointValue = 0,
             ActionText = feature.ActionText,
-            ProposedChange = "Add a direct answer paragraph after the first H2",
+            ProposedChange = string.Equals(feature.SuggestionId, "serp_ai_overview", StringComparison.Ordinal)
+                ? "Lead with a concise definition in the opening paragraph."
+                : "Add a direct answer paragraph after the first H2",
             ApplyMode = feature.ApplyMode,
         };
     }
@@ -557,6 +826,7 @@ public sealed class ContentScoringService(
         public IReadOnlyList<string> CoverageTerms { get; init; } = [];
         public DateTimeOffset? ResearchedAt { get; init; }
         public string? FeaturedSnippetText { get; init; }
+        public string? AiOverviewText { get; init; }
     }
 
     private static int ScoreReadability(string plainText)

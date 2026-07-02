@@ -49,6 +49,8 @@ public static class SerpFeatureGuidanceBuilder
             list.Add(new SerpFeatureGuidance
             {
                 Feature = "ai_overview",
+                SuggestionId = "serp_ai_overview",
+                ApplyMode = "deterministic",
                 ActionText = AiOverviewInsightActionText,
             });
         }

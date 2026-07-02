@@ -34,6 +34,7 @@ export type ScoreSidebarProps = {
   onCopyHtml?: () => void;
   onApplySuggestion?: (suggestion: ScoreSuggestion) => Promise<void>;
   applyingSuggestionId?: string | null;
+  researchBacked?: boolean;
 };
 
 export function ScoreSidebar({
@@ -49,6 +50,7 @@ export function ScoreSidebar({
   onCopyHtml,
   onApplySuggestion,
   applyingSuggestionId,
+  researchBacked = false,
 }: ScoreSidebarProps) {
   if (!placement) {
     return (
@@ -71,6 +73,7 @@ export function ScoreSidebar({
           onApplySuggestion={onApplySuggestion}
           applyingSuggestionId={applyingSuggestionId}
           onCopyHtml={onCopyHtml}
+          researchBacked={researchBacked}
         />
       </div>
     );
@@ -102,6 +105,7 @@ export function ScoreSidebar({
       onApplySuggestion={onApplySuggestion}
       applyingSuggestionId={applyingSuggestionId}
       onCopyHtml={onCopyHtml}
+      researchBacked={researchBacked}
     />
   );
 }
@@ -331,6 +335,7 @@ function ScoreActionsColumn({
   onApplySuggestion,
   applyingSuggestionId,
   onCopyHtml,
+  researchBacked = false,
 }: Pick<
   ScoreSidebarProps,
   | 'keyword'
@@ -340,6 +345,7 @@ function ScoreActionsColumn({
   | 'onApplySuggestion'
   | 'applyingSuggestionId'
   | 'onCopyHtml'
+  | 'researchBacked'
 > & { compact?: boolean }) {
   const loading = benchmarkRefreshing || Boolean(pendingReason);
 
@@ -373,14 +379,14 @@ function ScoreActionsColumn({
                             onClick={() => void onApplySuggestion(s)}
                           >
                             {applyingSuggestionId === s.id
-                              ? s.id === 'geo_citations' && s.applyMode === 'ai'
-                                ? 'Finding sources…'
-                                : 'Applying…'
-                              : s.id === 'geo_citations' && s.applyMode === 'ai'
-                                ? 'Find Sources with AI'
-                                : s.applyMode === 'ai'
-                                  ? 'Apply with AI'
-                                  : 'Apply'}
+                              ? 'Applying…'
+                              : s.id === 'geo_authority'
+                                ? 'Add schema'
+                                : s.id === 'geo_citations' && researchBacked
+                                  ? 'Add citations'
+                                  : s.applyMode === 'ai'
+                                    ? 'Apply with AI'
+                                    : 'Apply'}
                           </button>
                         ) : null}
                       </div>
@@ -397,10 +403,39 @@ function ScoreActionsColumn({
           {scoreUpdate.eeatAdvisories.length > 0 ? (
             <div>
               <h3 className={`font-semibold ${compact ? 'text-xs' : 'text-sm'}`}>E-E-A-T</h3>
-              <ul className={`mt-2 space-y-2 ${compact ? 'text-[11px]' : 'text-sm'}`}>
+              <ul className={`mt-2 space-y-1.5 text-[var(--color-text-primary)] ${compact ? 'text-[11px]' : 'text-sm'}`}>
                 {scoreUpdate.eeatAdvisories.map((a) => (
-                  <li key={a.code} className="rounded-lg border border-amber-100 bg-amber-50/90 p-2 text-[var(--color-text-primary)]">
-                    {a.actionText}
+                  <li
+                    key={a.code}
+                    className={`rounded-lg border border-amber-100 bg-amber-50/90 ${compact ? 'px-2 py-1.5' : 'p-3'}`}
+                  >
+                    {a.applyMode && a.applyMode !== 'none' && a.suggestionId && onApplySuggestion ? (
+                      <button
+                        type="button"
+                        disabled={applyingSuggestionId === a.suggestionId}
+                        className={`mb-2 w-full rounded-md border border-[var(--color-border-strong)] bg-white font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50 ${compact ? 'px-2 py-1 text-[10px]' : 'px-2 py-1.5 text-xs'}`}
+                        onClick={() =>
+                          void onApplySuggestion({
+                            id: a.suggestionId!,
+                            component: 'eeat',
+                            pointValue: 0,
+                            actionText: a.actionText,
+                            proposedChange: a.proposedChange ?? a.actionText,
+                            applyMode: a.applyMode as ScoreSuggestion['applyMode'],
+                          })
+                        }
+                      >
+                        {applyingSuggestionId === a.suggestionId
+                          ? 'Applying…'
+                          : a.buttonLabel
+                            ?? (a.suggestionId === 'geo_authority'
+                              ? 'Add schema'
+                              : a.suggestionId === 'geo_citations' && researchBacked
+                                ? 'Add citations'
+                                : 'Apply')}
+                      </button>
+                    ) : null}
+                    <span className={compact ? 'text-[11px]' : 'text-sm'}>{a.actionText}</span>
                   </li>
                 ))}
               </ul>
@@ -427,12 +462,19 @@ function ScoreActionsColumn({
                             component: 'serp',
                             pointValue: 0,
                             actionText: f.actionText,
-                            proposedChange: 'Add a direct answer paragraph after the first H2',
+                            proposedChange:
+                              f.suggestionId === 'serp_ai_overview'
+                                ? 'Lead with a concise definition in the opening paragraph.'
+                                : 'Add a direct answer paragraph after the first H2',
                             applyMode: f.applyMode as ScoreSuggestion['applyMode'],
                           })
                         }
                       >
-                        {applyingSuggestionId === f.suggestionId ? 'Applying…' : 'Apply'}
+                        {applyingSuggestionId === f.suggestionId
+                          ? 'Applying…'
+                          : f.suggestionId === 'serp_ai_overview'
+                            ? 'Add definition'
+                            : 'Apply'}
                       </button>
                     ) : null}
                     <span className={compact ? 'text-[11px]' : 'text-sm'}>{f.actionText}</span>

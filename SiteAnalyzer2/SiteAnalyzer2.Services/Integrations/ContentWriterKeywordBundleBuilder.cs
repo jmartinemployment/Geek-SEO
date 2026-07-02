@@ -1,6 +1,7 @@
 using SiteAnalyzer2.Domain;
 using SiteAnalyzer2.Domain.Entities;
 using SiteAnalyzer2.Domain.Enums;
+using SiteAnalyzer2.Serp;
 
 namespace SiteAnalyzer2.Services.Integrations;
 
@@ -22,7 +23,7 @@ public static class ContentWriterKeywordBundleBuilder
             .ToList();
 
         var serp = BuildSerpItems(keywordItems);
-        var manualLanes = BuildManualResearchLanes(supplementalItems);
+        var manualLanes = BuildManualResearchLanes(supplementalItems, run.Keyword);
         var competitors = BuildCompetitors(competitorPages);
         var sourceHeadings = BuildSourceHeadings(run, sourcePages);
         var benchmarks = BuildBenchmarks(competitorPages, competitors);
@@ -59,7 +60,8 @@ public static class ContentWriterKeywordBundleBuilder
     }
 
     private static List<ContentWriterManualResearchLaneDto> BuildManualResearchLanes(
-        IReadOnlyList<SerpItem> supplementalItems)
+        IReadOnlyList<SerpItem> supplementalItems,
+        string keyword)
     {
         return supplementalItems
             .GroupBy(i => i.ResearchLane!, StringComparer.OrdinalIgnoreCase)
@@ -69,7 +71,9 @@ public static class ContentWriterKeywordBundleBuilder
                 var organics = laneItems
                     .Where(i => string.Equals(i.Type, SerpItemTypes.Organic, StringComparison.OrdinalIgnoreCase) && !i.Ads)
                     .ToList();
-                var paaQuestions = CollectPaaQuestions(laneItems);
+                var paaQuestions = string.Equals(group.Key, SerpResearchLanes.Paa, StringComparison.OrdinalIgnoreCase)
+                    ? PaaQuestionRelevanceFilter.Filter(keyword, CollectPaaQuestions(laneItems)).ToList()
+                    : CollectPaaQuestions(laneItems);
                 return new ContentWriterManualResearchLaneDto
                 {
                     Lane = group.Key,

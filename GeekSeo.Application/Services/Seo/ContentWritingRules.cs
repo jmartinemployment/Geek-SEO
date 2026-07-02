@@ -25,7 +25,7 @@ public static class ContentWritingRules
             questions.Add(trimmed);
         }
 
-        foreach (var question in SerpQuestionFilter.Filter(serpPaaQuestions))
+        foreach (var question in SerpQuestionFilter.FilterForKeyword(keyword, serpPaaQuestions))
         {
             Add(question);
             if (questions.Count >= ClosingFaqCount)

@@ -29,6 +29,8 @@ export type ManualLaneImportResult = {
   organicCount: number;
   citationEligibleCount?: number;
   researchMode?: string;
+  fileCount?: number;
+  paaQuestionCount?: number;
 };
 
 export async function fetchContentWriterExport(
@@ -62,6 +64,37 @@ export async function importManualResearchLane(
         'Content-Type': isText ? 'text/plain; charset=utf-8' : 'text/html; charset=utf-8',
       },
       body: html,
+    },
+  );
+  const body = (await res.json().catch(() => ({}))) as ManualLaneImportResult & {
+    error?: string;
+  };
+  if (!res.ok) {
+    throw new Error(body.error || res.statusText || `Import failed (${res.status})`);
+  }
+  return body;
+}
+
+export async function importManualResearchPaaBatch(
+  runId: string,
+  topicSlug: string,
+  files: File[],
+  accessToken?: string | null,
+): Promise<ManualLaneImportResult> {
+  const contents = await Promise.all(
+    files.map(async (file) => ({
+      fileName: file.name,
+      content: await file.text(),
+    })),
+  );
+  const params = new URLSearchParams({ topic: topicSlug });
+  const res = await siteAnalyzer2Fetch(
+    `/analysis-runs/${encodeURIComponent(runId)}/serp/import-paa-batch?${params}`,
+    accessToken,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: contents }),
     },
   );
   const body = (await res.json().catch(() => ({}))) as ManualLaneImportResult & {

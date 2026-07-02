@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import {
   fetchContentWriterExport,
   importManualResearchLane,
+  importManualResearchPaaBatch,
   laneImportStatus,
   MANUAL_RESEARCH_LANE_LABELS,
   MANUAL_RESEARCH_LANE_ORDER,
@@ -42,6 +43,7 @@ export function ManualResearchLanesCard({
   const [importingLane, setImportingLane] = useState<ManualResearchLaneId | null>(null);
   const [importingAll, setImportingAll] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<Partial<Record<ManualResearchLaneId, File>>>({});
+  const [pendingPaaFiles, setPendingPaaFiles] = useState<File[]>([]);
   const [laneError, setLaneError] = useState<string | null>(null);
 
   const refreshExport = useCallback(async () => {
@@ -59,7 +61,40 @@ export function ManualResearchLanesCard({
     void refreshExport();
   }, [refreshExport]);
 
+  async function importPaaLane(files: File[]) {
+    if (!topicSlug.trim()) {
+      setLaneError('Enter a research topic slug first (e.g. customer-journey).');
+      return;
+    }
+    if (files.length === 0) {
+      setLaneError('Choose at least one PAA file to import.');
+      return;
+    }
+    setLaneError(null);
+    setImportingLane('paa');
+    try {
+      if (files.length === 1) {
+        const file = files[0]!;
+        const html = await file.text();
+        await importManualResearchLane(runId, 'paa', topicSlug.trim(), html, accessToken, file.name);
+      } else {
+        await importManualResearchPaaBatch(runId, topicSlug.trim(), files, accessToken);
+      }
+      setPendingPaaFiles([]);
+      await refreshExport();
+      onImported();
+    } catch (e) {
+      setLaneError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setImportingLane(null);
+    }
+  }
+
   async function importLane(lane: ManualResearchLaneId, file: File) {
+    if (lane === 'paa') {
+      await importPaaLane([file]);
+      return;
+    }
     if (!topicSlug.trim()) {
       setLaneError('Enter a research topic slug first (e.g. customer-journey).');
       return;
@@ -84,14 +119,19 @@ export function ManualResearchLanesCard({
   }
 
   async function importAllPending() {
-    const entries = MANUAL_RESEARCH_LANE_ORDER.filter((lane) => pendingFiles[lane]);
-    if (entries.length === 0) {
-      setLaneError('Choose at least one HTML file to import.');
+    const entries = MANUAL_RESEARCH_LANE_ORDER.filter(
+      (lane) => lane !== 'paa' && pendingFiles[lane],
+    );
+    if (entries.length === 0 && pendingPaaFiles.length === 0) {
+      setLaneError('Choose at least one file to import.');
       return;
     }
     setImportingAll(true);
     setLaneError(null);
     try {
+      if (pendingPaaFiles.length > 0) {
+        await importPaaLane(pendingPaaFiles);
+      }
       for (const lane of entries) {
         const file = pendingFiles[lane];
         if (!file) continue;
@@ -116,9 +156,9 @@ export function ManualResearchLanesCard({
         </CardTitle>
         <CardDescription>
           Upload your saved Google HTML for each lane — same files as in{' '}
-          <code className="text-xs">research/&lt;topic&gt;/</code>. For <strong>PAA</strong>, you can
-          use a <code className="text-xs">.txt</code> file with one question per line (e.g.{' '}
-          <code className="text-xs">paa_data.txt</code>) or saved Google HTML.
+          <code className="text-xs">research/&lt;topic&gt;/</code>. For <strong>PAA</strong>, select
+          one or more <code className="text-xs">.txt</code> lists (one question per line) and/or saved
+          Google HTML files.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -150,7 +190,8 @@ export function ManualResearchLanesCard({
         <ul className="space-y-3">
           {MANUAL_RESEARCH_LANE_ORDER.map((lane) => {
             const status = laneImportStatus(lane, exportData, gates);
-            const file = pendingFiles[lane];
+            const file = lane === 'paa' ? undefined : pendingFiles[lane];
+            const paaFiles = lane === 'paa' ? pendingPaaFiles : [];
             const busy = importingLane === lane || importingAll;
             return (
               <li
@@ -175,15 +216,20 @@ export function ManualResearchLanesCard({
                         fileRefs.current[lane] = el;
                       }}
                       type="file"
+                      multiple={lane === 'paa'}
                       accept={
                         lane === 'paa' ? '.html,.htm,.txt,text/html,text/plain' : '.html,.htm,text/html'
                       }
                       className="max-w-[200px] text-xs file:mr-2 file:rounded file:border-0 file:bg-white file:px-2 file:py-1 file:text-xs"
                       disabled={busy}
                       onChange={(e) => {
-                        const picked = e.target.files?.[0];
+                        const picked = Array.from(e.target.files ?? []);
+                        if (lane === 'paa') {
+                          setPendingPaaFiles(picked);
+                          return;
+                        }
                         setPendingFiles((prev) =>
-                          picked ? { ...prev, [lane]: picked } : prev,
+                          picked[0] ? { ...prev, [lane]: picked[0] } : prev,
                         );
                       }}
                     />
@@ -191,8 +237,16 @@ export function ManualResearchLanesCard({
                       type="button"
                       size="sm"
                       variant="outline"
-                      disabled={!file || busy || !topicSlug.trim()}
-                      onClick={() => file && void importLane(lane, file)}
+                      disabled={
+                        (lane === 'paa' ? paaFiles.length === 0 : !file) || busy || !topicSlug.trim()
+                      }
+                      onClick={() => {
+                        if (lane === 'paa') {
+                          void importPaaLane(paaFiles);
+                          return;
+                        }
+                        if (file) void importLane(lane, file);
+                      }}
                     >
                       {importingLane === lane ? (
                         <Loader2 className="size-3.5 animate-spin" />
@@ -202,6 +256,15 @@ export function ManualResearchLanesCard({
                     </Button>
                   </div>
                 </div>
+                {lane === 'paa' && paaFiles.length > 0 ? (
+                  <ul className="mt-1 space-y-0.5 text-xs text-[var(--color-text-secondary)]">
+                    {paaFiles.map((f) => (
+                      <li key={`${f.name}-${f.lastModified}`} className="truncate">
+                        {f.name}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
                 {file ? (
                   <p className="mt-1 truncate text-xs text-[var(--color-text-secondary)]">
                     {file.name}

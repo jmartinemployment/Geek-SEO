@@ -121,14 +121,18 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
         IReadOnlyList<OperatorResearchQueryTemplate> templates,
         IReadOnlyList<OperatorResearchQueryResult> results)
     {
+        var keyword = string.IsNullOrWhiteSpace(context.DerivedKeyword)
+            ? context.SerpKeyword
+            : context.DerivedKeyword.Trim();
         var citations = BuildCitationCandidates(results);
-        var supplementalPaa = CollectSupplementalQuestions(results);
+        var supplementalPaa = CollectSupplementalQuestions(keyword, results);
         var featuredSnippet = PickFeaturedSnippet(results);
         var newsHooks = CollectNewsHooks(results);
         var localAngle = BuildLocalAngleHint(results);
         var ownSitePages = CollectOwnSitePages(results, context.SourceUrl);
 
         var mergedPaa = MergeQuestions(
+            keyword,
             context.PeopleAlsoAsk.Select(p => p.Question),
             supplementalPaa);
 
@@ -187,7 +191,7 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
                     SearchEngine = t.SearchEngine,
                 })
                 .ToList(),
-            SupplementalPaaQuestions = CollectSupplementalQuestions(results),
+            SupplementalPaaQuestions = CollectSupplementalQuestions(export.Keyword, results),
             FeaturedSnippetCandidate = PickFeaturedSnippet(results),
             NewsHooks = CollectNewsHooks(results),
             LocalAngleHint = BuildLocalAngleHint(results),
@@ -251,7 +255,9 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
         _ => "research",
     };
 
-    private static IReadOnlyList<string> CollectSupplementalQuestions(IReadOnlyList<OperatorResearchQueryResult> results)
+    private static IReadOnlyList<string> CollectSupplementalQuestions(
+        string keyword,
+        IReadOnlyList<OperatorResearchQueryResult> results)
     {
         var questions = new List<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -271,7 +277,7 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
             }
         }
 
-        return SerpQuestionFilter.Filter(questions).Take(8).ToList();
+        return SerpQuestionFilter.FilterForKeyword(keyword, questions).Take(8).ToList();
     }
 
     private static void AddQuestion(List<string> questions, HashSet<string> seen, string? question)
@@ -372,6 +378,7 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
         host.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? host[4..] : host;
 
     private static IReadOnlyList<WritingResearchPaa> MergeQuestions(
+        string keyword,
         IEnumerable<string> existing,
         IReadOnlyList<string> supplemental)
     {
@@ -384,7 +391,7 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
             if (string.IsNullOrWhiteSpace(question) || !seen.Add(question.Trim()))
                 continue;
 
-            if (SerpQuestionFilter.IsBlocked(question))
+            if (!SerpQuestionFilter.IsRelevantToKeyword(keyword, question))
                 continue;
 
             merged.Add(new WritingResearchPaa

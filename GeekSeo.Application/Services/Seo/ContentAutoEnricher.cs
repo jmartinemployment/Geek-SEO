@@ -37,6 +37,20 @@ public static partial class ContentAutoEnricher
         return patched;
     }
 
+    public static string EnsureArticleSchema(string html, IReadOnlyList<string> schemaScripts, out bool changed)
+    {
+        changed = false;
+        if (schemaScripts.Count == 0 || ScoreSuggestionApplicator.HasArticleSchema(html))
+            return html;
+
+        var patched = ScoreSuggestionApplicator.TryAppendSchemaScripts(html, schemaScripts);
+        if (patched is null || string.Equals(patched, html, StringComparison.Ordinal))
+            return html;
+
+        changed = true;
+        return patched;
+    }
+
     public static bool HasMetaDescription(string html) =>
         html.Contains("name=\"description\"", StringComparison.OrdinalIgnoreCase)
         || html.Contains("name='description'", StringComparison.OrdinalIgnoreCase);

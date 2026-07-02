@@ -801,6 +801,69 @@ public class PaaTextImportParserTests
   }
 }
 
+public class PaaLaneImportComposerTests
+{
+  [Fact]
+  public void MergeContents_dedupes_questions_across_txt_files()
+  {
+    var merged = PaaLaneImportComposer.MergeContents(
+      [
+        new PaaLaneImportFile("a.txt", "What is an AI customer journey?\n"),
+        new PaaLaneImportFile("b.txt", "How do SMBs map journeys?\nWhat is an AI customer journey?"),
+      ],
+      "ai customer journey");
+
+    Assert.Equal(2, PaaLaneImportComposer.ExtractQuestions(merged).Count);
+  }
+
+  [Fact]
+  public void MergeContents_throws_when_all_files_empty()
+  {
+    Assert.Throws<InvalidOperationException>(() =>
+      PaaLaneImportComposer.MergeContents(
+        [new PaaLaneImportFile("a.txt", "   \n# comments only")],
+        "kw"));
+  }
+
+  [Fact]
+  public void MergeContents_filters_off_topic_questions()
+  {
+    var merged = PaaLaneImportComposer.MergeContents(
+      [
+        new PaaLaneImportFile("a.txt", "What is an AI customer journey?\n"),
+        new PaaLaneImportFile("b.txt", "What is GAAP accounting?\nHow do SMBs map journeys?"),
+      ],
+      "ai customer journey");
+
+    var questions = PaaLaneImportComposer.ExtractQuestions(merged);
+    Assert.Equal(2, questions.Count);
+    Assert.Contains(questions, q => q.Contains("customer journey", StringComparison.OrdinalIgnoreCase));
+    Assert.DoesNotContain(questions, q => q.Contains("GAAP", StringComparison.OrdinalIgnoreCase));
+  }
+
+  [Fact]
+  public void MergeContents_throws_when_all_questions_off_topic()
+  {
+    Assert.Throws<InvalidOperationException>(() =>
+      PaaLaneImportComposer.MergeContents(
+        [new PaaLaneImportFile("a.txt", "What is GAAP?\nHow do taxes work?")],
+        "ai customer journey"));
+  }
+}
+
+public class PaaQuestionRelevanceFilterTests
+{
+  [Theory]
+  [InlineData("ai customer journey", "What is an AI customer journey map?", true)]
+  [InlineData("ai customer journey", "How do SMBs map customer journeys?", true)]
+  [InlineData("ai customer journey", "What is GAAP accounting?", false)]
+  [InlineData("ai customer journey", "Where can I find an AI customer journey PDF?", false)]
+  public void IsRelevantToKeyword_matches_topic_and_blocks_off_intent(string keyword, string question, bool expected)
+  {
+    Assert.Equal(expected, PaaQuestionRelevanceFilter.IsRelevantToKeyword(keyword, question));
+  }
+}
+
 public class SerpGateConfigurationTests
 {
     [Fact]

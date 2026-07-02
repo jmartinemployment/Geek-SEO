@@ -21,4 +21,12 @@ public interface IContentScoringService
 
     Task<Result<ApplySuggestionResponse>> ApplySuggestionAsync(
         Guid userId, Guid documentId, string suggestionId, string? contentHtml = null, CancellationToken ct = default);
+
+    Task<Result<ApplySuggestionResult>> InsertResearchCitationAsync(
+        Guid userId,
+        Guid documentId,
+        string url,
+        string? title = null,
+        string? contentHtml = null,
+        CancellationToken ct = default);
 }

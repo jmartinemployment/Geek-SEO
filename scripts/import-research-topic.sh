@@ -100,6 +100,61 @@ if [[ -z "$RUN_ID" ]]; then
 fi
 
 for lane in paa edu gov local wiki; do
+  if [[ "$lane" == "paa" ]]; then
+    mapfile -t paa_files < <(find "$TOPIC_DIR/paa" -maxdepth 1 -type f \( -name '*.html' -o -name '*.htm' -o -name '*.txt' \) ! -path '*/.*' 2>/dev/null | sort || true)
+    if [[ ${#paa_files[@]} -eq 0 ]]; then
+      echo "Skipping paa — no files in $TOPIC_DIR/paa/"
+      continue
+    fi
+    if [[ ${#paa_files[@]} -eq 1 ]]; then
+      echo "Importing paa from $(basename "${paa_files[0]}")..."
+      "$IMPORT" --run-id "$RUN_ID" "${import_args[@]}" --lane paa "${paa_files[0]}"
+      continue
+    fi
+    echo "Importing paa from ${#paa_files[@]} files (batch merge)..."
+  python3 - "$RUN_ID" "$TOPIC" "${import_args[@]}" "${paa_files[@]}" <<'PY'
+import json, pathlib, sys, urllib.parse, urllib.request
+
+run_id, topic, *rest = sys.argv[1:]
+import_args = []
+files = []
+i = 0
+while i < len(rest):
+    if rest[i] == "--api-url" and i + 1 < len(rest):
+        import_args.extend([rest[i], rest[i + 1]])
+        i += 2
+        continue
+    if rest[i] == "--topic" and i + 1 < len(rest):
+        import_args.extend([rest[i], rest[i + 1]])
+        i += 2
+        continue
+    files.append(rest[i])
+    i += 1
+
+api_url = "http://localhost:5051/api/seo/sa2"
+for j in range(0, len(import_args), 2):
+    if import_args[j] == "--api-url":
+        api_url = import_args[j + 1]
+
+payload = {
+    "files": [
+        {"fileName": pathlib.Path(path).name, "content": pathlib.Path(path).read_text(encoding="utf-8")}
+        for path in files
+    ]
+}
+url = f"{api_url}/analysis-runs/{run_id}/serp/import-paa-batch?{urllib.parse.urlencode({'topic': topic})}"
+req = urllib.request.Request(
+    url,
+    data=json.dumps(payload).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+with urllib.request.urlopen(req) as resp:
+    print(resp.read().decode("utf-8"))
+PY
+    continue
+  fi
+
   lane_file=$(find_lane_file "$lane" || true)
   if [[ -z "$lane_file" ]]; then
     echo "Skipping $lane — no file in $TOPIC_DIR/$lane/"

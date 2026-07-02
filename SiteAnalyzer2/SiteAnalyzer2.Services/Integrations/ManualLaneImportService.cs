@@ -56,26 +56,73 @@ public sealed class ManualLaneImportService(
             OrganicCount = outcome.Counts.OrganicCount,
             CitationEligibleCount = CountCitationEligible(parsed, normalizedLane),
             ResearchMode = run.ResearchMode,
+            PaaQuestionCount = string.Equals(normalizedLane, SerpResearchLanes.Paa, StringComparison.OrdinalIgnoreCase)
+                ? CountPaaQuestions(parsed)
+                : 0,
         };
     }
 
     private static SerpLivePageParseResult ParseLaneContent(string content, string normalizedLane, string keyword)
     {
-        if (string.Equals(normalizedLane, SerpResearchLanes.Paa, StringComparison.OrdinalIgnoreCase)
-            && PaaTextImportParser.LooksLikePaaTextList(content))
+        if (string.Equals(normalizedLane, SerpResearchLanes.Paa, StringComparison.OrdinalIgnoreCase))
         {
-            return PaaTextImportParser.Parse(content, keyword);
+            var parsed = PaaLaneContentParser.Parse(content, keyword);
+            return PaaLaneImportComposer.ApplyKeywordRelevance(parsed, keyword);
         }
 
         if (!GoogleSerpHtmlParser.LooksLikeSerpPage(content))
         {
             throw new InvalidOperationException(
-                string.Equals(normalizedLane, SerpResearchLanes.Paa, StringComparison.OrdinalIgnoreCase)
-                    ? "PAA lane accepts saved Google SERP HTML or a plain-text file with one question per line."
-                    : "Uploaded file does not look like a Google SERP page. Save as 'Webpage, HTML only' from Chrome.");
+                "Uploaded file does not look like a Google SERP page. Save as 'Webpage, HTML only' from Chrome.");
         }
 
         return GoogleSerpHtmlParser.ParseLivePage(content, keywordOverride: keyword);
+    }
+
+    public async Task<ManualLaneImportResultDto> ImportPaaBatchAsync(
+        Guid runId,
+        IReadOnlyList<PaaLaneImportFile> files,
+        string topicSlug,
+        CancellationToken ct = default)
+    {
+        if (runId == Guid.Empty)
+            throw new InvalidOperationException("runId is required.");
+
+        if (files is not { Count: > 0 })
+            throw new InvalidOperationException("At least one PAA file is required.");
+
+        if (string.IsNullOrWhiteSpace(topicSlug))
+            throw new InvalidOperationException("topic query parameter is required.");
+
+        var normalizedTopic = topicSlug.Trim().ToLowerInvariant();
+
+        var run = await db.AnalysisRuns.FirstOrDefaultAsync(r => r.Id == runId, ct)
+            ?? throw new InvalidOperationException("Analysis run not found.");
+
+        await EnforceTopicInvariantAsync(run, normalizedTopic, ct);
+
+        var merged = PaaLaneImportComposer.MergeContents(files, run.Keyword);
+        ValidateParsedLane(SerpResearchLanes.Paa, merged);
+
+        run.TopicSlug = normalizedTopic;
+        run.ResearchMode = ResearchModes.Manual;
+        if (string.IsNullOrWhiteSpace(run.Keyword) && !string.IsNullOrWhiteSpace(merged.Keyword))
+            run.Keyword = merged.Keyword.Trim();
+
+        await htmlImport.ClearSerpDataForLaneAsync(run.Id, SerpResearchLanes.Paa, ct);
+        var outcome = await htmlImport.PersistParsedPageForLaneAsync(run, merged, SerpResearchLanes.Paa, ct);
+
+        return new ManualLaneImportResultDto
+        {
+            RunId = run.Id,
+            Lane = SerpResearchLanes.Paa,
+            TopicSlug = normalizedTopic,
+            OrganicCount = outcome.Counts.OrganicCount,
+            CitationEligibleCount = CountCitationEligible(merged, SerpResearchLanes.Paa),
+            ResearchMode = run.ResearchMode,
+            FileCount = files.Count,
+            PaaQuestionCount = CountPaaQuestions(merged),
+        };
     }
 
     private async Task EnforceTopicInvariantAsync(AnalysisRun run, string topicSlug, CancellationToken ct)
@@ -183,6 +230,8 @@ public sealed record ManualLaneImportResultDto
     public int OrganicCount { get; init; }
     public int CitationEligibleCount { get; init; }
     public string ResearchMode { get; init; } = ResearchModes.Manual;
+    public int FileCount { get; init; } = 1;
+    public int PaaQuestionCount { get; init; }
 }
 
 internal static class ManualCitationDomainRules

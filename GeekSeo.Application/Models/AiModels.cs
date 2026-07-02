@@ -77,10 +77,3 @@ public sealed record ContentDraftJobPayload
     public string? Location { get; init; }
     public string? Title { get; init; }
 }
-
-public sealed record ApplySourcesJobPayload
-{
-    public required Guid DocumentId { get; init; }
-    public required string Keyword { get; init; }
-    public required string Location { get; init; }
-}

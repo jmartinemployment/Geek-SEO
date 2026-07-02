@@ -211,7 +211,7 @@ public static partial class ArticleClosingFaqEnricher
         {
             foreach (var question in ContentWritingRules.BuildClosingFaqQuestions(
                          research.DerivedKeyword,
-                         SerpQuestionFilter.Filter(research.PeopleAlsoAsk.Select(p => p.Question)),
+                         research.PeopleAlsoAsk.Select(p => p.Question),
                          research.SiteFocus?.GapTopics))
             {
                 Add(question);

@@ -400,7 +400,7 @@ public static class ContentWriterSerpExportMapper
 
         foreach (var (question, _) in paaItems)
         {
-            if (SerpQuestionFilter.IsBlocked(question))
+            if (!SerpQuestionFilter.IsRelevantToKeyword(keyword, question))
                 continue;
 
             Add(question, "paa");

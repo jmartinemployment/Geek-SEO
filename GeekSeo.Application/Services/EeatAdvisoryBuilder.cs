@@ -18,6 +18,10 @@ public static class EeatAdvisoryBuilder
             {
                 Code = "first_hand_experience",
                 ActionText = "Add a short section describing first-hand experience with this topic.",
+                SuggestionId = "eeat_first_hand_experience",
+                ApplyMode = "deterministic",
+                ProposedChange = "Insert a first-hand experience paragraph after the first H2.",
+                ButtonLabel = "Add experience",
             });
         }
 
@@ -28,6 +32,10 @@ public static class EeatAdvisoryBuilder
             {
                 Code = "author_schema",
                 ActionText = "Add Article schema with an author property to strengthen trust signals.",
+                SuggestionId = "geo_authority",
+                ApplyMode = "deterministic",
+                ProposedChange = "Add TechArticle JSON-LD with your organization as author.",
+                ButtonLabel = "Add schema",
             });
         }
 
@@ -37,6 +45,10 @@ public static class EeatAdvisoryBuilder
             {
                 Code = "author_bio",
                 ActionText = "Include a visible author bio with relevant credentials or local expertise.",
+                SuggestionId = "eeat_author_bio",
+                ApplyMode = "deterministic",
+                ProposedChange = "Add an About the author block with your organization credentials.",
+                ButtonLabel = "Add author bio",
             });
         }
 
@@ -46,6 +58,10 @@ public static class EeatAdvisoryBuilder
             {
                 Code = "source_citations",
                 ActionText = "Cite reputable external sources to support factual claims.",
+                SuggestionId = "geo_citations",
+                ApplyMode = "deterministic",
+                ProposedChange = "Add citations from your research pack as inline links in the body.",
+                ButtonLabel = "Add citations",
             });
         }
 
@@ -55,6 +71,10 @@ public static class EeatAdvisoryBuilder
             {
                 Code = "original_media",
                 ActionText = "Add original photos or diagrams — stock-only pages weaken E-E-A-T signals.",
+                SuggestionId = "eeat_original_media",
+                ApplyMode = "deterministic",
+                ProposedChange = "Insert a featured image or an image placeholder in the article body.",
+                ButtonLabel = "Add image",
             });
         }
 
@@ -64,6 +84,10 @@ public static class EeatAdvisoryBuilder
             {
                 Code = "freshness_signal",
                 ActionText = "Add a visible last-updated or reviewed date for YMYL topics.",
+                SuggestionId = "eeat_freshness_signal",
+                ApplyMode = "deterministic",
+                ProposedChange = "Add a visible last-updated date near the top of the article.",
+                ButtonLabel = "Add date",
             });
         }
 

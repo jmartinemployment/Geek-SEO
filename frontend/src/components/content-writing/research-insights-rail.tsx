@@ -7,6 +7,7 @@ import {
   getResearchPack,
   listContentSpokes,
   type ContentLinkPlan,
+  type ContentWriterCitationCandidate,
   type ContentWriterSerpExport,
 } from '@/lib/seo-api';
 import { useWritingWorkspace } from '@/components/content-writing/review-workspace-context';
@@ -140,13 +141,119 @@ function relatedSearches(exportData: ContentWriterSerpExport) {
     .flatMap((item) => item.relatedQuestions ?? []);
 }
 
+function normalizeUrlForCompare(url: string): string {
+  return url.trim().toLowerCase().replace(/\/$/, '');
+}
+
+function isCitationLinked(html: string, url: string): boolean {
+  const normalized = normalizeUrlForCompare(url);
+  if (!normalized) return false;
+  return html.toLowerCase().includes(normalized);
+}
+
+function authoritativeCandidates(exportData: ContentWriterSerpExport): ContentWriterCitationCandidate[] {
+  return (exportData.citationCandidates ?? []).filter(
+    (candidate) =>
+      candidate.url &&
+      candidate.source?.toLowerCase() !== 'organic',
+  );
+}
+
+function CitationsInsightCard({
+  candidates,
+  contentHtml,
+  applyingCitationUrl,
+  onInsertCitation,
+  onInsertAll,
+  insertingAll,
+}: {
+  candidates: ContentWriterCitationCandidate[];
+  contentHtml: string;
+  applyingCitationUrl: string | null;
+  onInsertCitation: (url: string, title?: string) => Promise<void>;
+  onInsertAll: () => Promise<void>;
+  insertingAll: boolean;
+}) {
+  const pending = candidates.filter((c) => c.url && !isCitationLinked(contentHtml, c.url));
+  const linkedCount = candidates.length - pending.length;
+
+  return (
+    <InsightCard title="Citations (from research)">
+      <p className="mb-2 text-[10px] text-[var(--color-text-muted)]">
+        These come from your Site Analyzer lane imports (.gov, .edu, wiki). Add them as inline links
+        in the article body.
+      </p>
+      {candidates.length === 0 ? (
+        <p className="text-xs text-amber-800">
+          No authoritative sources in the research pack yet — import gov, edu, or wiki lanes in Site
+          Analyzer.
+        </p>
+      ) : (
+        <>
+          <p className="mb-2 text-[10px] text-[var(--color-text-secondary)]">
+            {linkedCount} linked · {pending.length} available to add
+          </p>
+          {pending.length > 1 ? (
+            <button
+              type="button"
+              disabled={insertingAll || applyingCitationUrl !== null}
+              className="mb-3 w-full rounded-md border border-[var(--color-border-strong)] bg-white px-2 py-1.5 text-[10px] font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
+              onClick={() => void onInsertAll()}
+            >
+              {insertingAll ? 'Adding citations…' : `Add all citations (${pending.length})`}
+            </button>
+          ) : null}
+          <ul className="space-y-2 pl-0">
+            {candidates.map((candidate) => {
+              const linked = candidate.url ? isCitationLinked(contentHtml, candidate.url) : false;
+              const busy = applyingCitationUrl === candidate.url || insertingAll;
+              return (
+                <li key={candidate.url} className="list-none rounded border border-[var(--color-border)] bg-white p-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[10px] uppercase text-[var(--color-text-muted)]">
+                        {candidate.source}
+                      </span>
+                      <a
+                        href={candidate.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-0.5 block truncate text-xs font-medium text-[var(--color-text-primary)] underline-offset-2 hover:underline"
+                      >
+                        {candidate.title || candidate.url}
+                      </a>
+                    </div>
+                    {linked ? (
+                      <span className="shrink-0 text-[10px] font-medium text-emerald-700">Linked ✓</span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={busy || !candidate.url}
+                        className="shrink-0 rounded border border-[var(--color-border-strong)] bg-white px-2 py-1 text-[10px] font-medium hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
+                        onClick={() => void onInsertCitation(candidate.url, candidate.title ?? undefined)}
+                      >
+                        {busy ? 'Adding…' : 'Add citation'}
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+    </InsightCard>
+  );
+}
+
 export function ResearchInsightsRail({ articleKeyword, serpKeyword }: Props) {
-  const { doc } = useWritingWorkspace();
+  const { doc, html, handleInsertCitation, applyingCitationUrl } = useWritingWorkspace();
   const { accessToken } = useAuth();
   const [exportData, setExportData] = useState<ContentWriterSerpExport | null>(null);
   const [clusterPlan, setClusterPlan] = useState<ContentLinkPlan>({ faqItems: [], bodyLinks: [] });
   const [spokePhrases, setSpokePhrases] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [insertingAllCitations, setInsertingAllCitations] = useState(false);
 
   const isClusterPillar = Boolean(doc.analysisRunId) && doc.documentKind !== 'spoke';
 
@@ -197,6 +304,23 @@ export function ResearchInsightsRail({ articleKeyword, serpKeyword }: Props) {
   const organic = useMemo(() => (exportData ? organicItems(exportData) : []), [exportData]);
   const paa = useMemo(() => (exportData ? paaQuestions(exportData) : []), [exportData]);
   const pasf = useMemo(() => (exportData ? relatedSearches(exportData) : []), [exportData]);
+  const citations = useMemo(
+    () => (exportData ? authoritativeCandidates(exportData) : []),
+    [exportData],
+  );
+
+  async function insertAllCitations() {
+    if (!exportData) return;
+    setInsertingAllCitations(true);
+    try {
+      for (const candidate of authoritativeCandidates(exportData)) {
+        if (!candidate.url || isCitationLinked(html, candidate.url)) continue;
+        await handleInsertCitation(candidate.url, candidate.title ?? undefined);
+      }
+    } finally {
+      setInsertingAllCitations(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -360,25 +484,23 @@ export function ResearchInsightsRail({ articleKeyword, serpKeyword }: Props) {
       ) : null}
 
       {exportData.citationCandidates?.length ? (
-        <InsightCard title="Authoritative sources">
-          <ul className="list-disc space-y-1 pl-4">
-            {exportData.citationCandidates.slice(0, 8).map((candidate) => (
-              <li key={candidate.url}>
-                <span className="text-[10px] uppercase text-[var(--color-text-muted)]">
-                  {candidate.source}
-                </span>{' '}
-                <a
-                  href={candidate.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[var(--color-text-primary)] underline-offset-2 hover:underline"
-                >
-                  {candidate.title || candidate.url}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </InsightCard>
+        <CitationsInsightCard
+          candidates={citations}
+          contentHtml={html}
+          applyingCitationUrl={applyingCitationUrl}
+          onInsertCitation={handleInsertCitation}
+          onInsertAll={insertAllCitations}
+          insertingAll={insertingAllCitations}
+        />
+      ) : exportData.researchMode === 'manual' ? (
+        <CitationsInsightCard
+          candidates={[]}
+          contentHtml={html}
+          applyingCitationUrl={applyingCitationUrl}
+          onInsertCitation={handleInsertCitation}
+          onInsertAll={insertAllCitations}
+          insertingAll={insertingAllCitations}
+        />
       ) : null}
 
       {exportData.operatorQueries?.length ? (

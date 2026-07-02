@@ -154,13 +154,13 @@ public sealed class ContentScoringForbiddenTests
         return new ContentScoringService(
             new FakeDocumentService(document),
             repo,
+            new StubProjectRepository(document.ProjectId),
             AnalysisRunTestData.CreateContextLoader(),
             new NoOpSerpCacheRepository(),
             serp,
             new CompetitorCrawlService(new FakeCrawlerProvider(), new FakeCompetitorPageRepository()),
             new FakeRichTextProvider(),
-            new NoOpAiProvider(),
-            new NoOpApplySourcesJobService());
+            new NoOpAiProvider());
     }
 
     private static SeoContentDocument ResearchDocument() => AnalysisRunTestData.FrozenResearchDocument();
@@ -340,14 +340,32 @@ public sealed class ContentScoringForbiddenTests
             throw new NotSupportedException();
     }
 
-    private sealed class NoOpApplySourcesJobService : IApplySourcesJobService
+    private sealed class StubProjectRepository(Guid projectId) : IProjectRepository
     {
-        public Task<Result<BackgroundJobStatus>> EnqueueAsync(
-            Guid userId,
-            Guid documentId,
-            string keyword,
-            string location,
-            CancellationToken ct = default) =>
-            Task.FromResult(Result<BackgroundJobStatus>.Failure("Not implemented in test"));
+        public Task<Result<SeoProject>> GetByIdAsync(Guid id, CancellationToken ct = default) =>
+            id == projectId
+                ? Task.FromResult(Result<SeoProject>.Success(new SeoProject
+                {
+                    Id = projectId,
+                    UserId = UserId,
+                    Name = "Geek @ Your Spot",
+                    Url = "https://geekatyourspot.com",
+                }))
+                : Task.FromResult(Result<SeoProject>.Failure("Not found"));
+
+        public Task<Result<SeoProject>> GetByIdAsync(Guid id, Guid userId, CancellationToken ct = default) =>
+            GetByIdAsync(id, ct);
+
+        public Task<Result<IReadOnlyList<SeoProject>>> ListByUserAsync(Guid userId, CancellationToken ct = default) =>
+            Task.FromResult(Result<IReadOnlyList<SeoProject>>.Success([]));
+
+        public Task<Result<SeoProject>> CreateAsync(Guid userId, CreateProjectRequest request, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result<SeoProject>> UpdateAsync(Guid projectId, UpdateProjectRequest request, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result> DeleteAsync(Guid projectId, CancellationToken ct = default) =>
+            throw new NotSupportedException();
     }
 }

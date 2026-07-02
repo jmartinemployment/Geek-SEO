@@ -392,7 +392,7 @@ public sealed class SerpResearchPackService(
             items.Add(new SerpResearchClosingFaqItem { Question = trimmed, Source = source });
         }
 
-        foreach (var question in SerpQuestionFilter.Filter(paaQuestions))
+        foreach (var question in SerpQuestionFilter.FilterForKeyword(keyword, paaQuestions))
         {
             Add(question, "paa");
             if (items.Count >= ContentWritingRules.ClosingFaqCount)

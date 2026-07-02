@@ -24,3 +24,7 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Local operator SERP saves (uploaded to Site Analyzer; not versioned)
+research/**/*
+!research/.gitkeep

@@ -13,6 +13,8 @@ public sealed class SerpFeatureGuidanceBuilderTests
         var aiOverview = Assert.Single(guidance);
         Assert.Equal("ai_overview", aiOverview.Feature);
         Assert.Equal(SerpFeatureGuidanceBuilder.AiOverviewInsightActionText, aiOverview.ActionText);
+        Assert.Equal("serp_ai_overview", aiOverview.SuggestionId);
+        Assert.Equal("deterministic", aiOverview.ApplyMode);
         Assert.DoesNotContain("authoritative sources", aiOverview.ActionText, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("extractable answers", aiOverview.ActionText, StringComparison.OrdinalIgnoreCase);
     }

@@ -243,7 +243,9 @@ public static class ArticlePromptBuilder
         }
 
         var filteredPaa = SerpQuestionFilter
-            .Filter(research.PeopleAlsoAsk.Select(p => p.Question))
+            .FilterForKeyword(
+                string.IsNullOrWhiteSpace(research.DerivedKeyword) ? research.SerpKeyword : research.DerivedKeyword,
+                research.PeopleAlsoAsk.Select(p => p.Question))
             .Take(8)
             .ToList();
         if (filteredPaa.Count > 0)
@@ -379,7 +381,7 @@ public static class ArticlePromptBuilder
         {
             foreach (var question in ContentWritingRules.BuildClosingFaqQuestions(
                          research.DerivedKeyword,
-                         SerpQuestionFilter.Filter(research.PeopleAlsoAsk.Select(p => p.Question)),
+                         research.PeopleAlsoAsk.Select(p => p.Question),
                          research.SiteFocus?.GapTopics))
             {
                 Add(question);

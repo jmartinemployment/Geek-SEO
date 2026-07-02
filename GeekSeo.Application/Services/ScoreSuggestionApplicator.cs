@@ -6,6 +6,47 @@ namespace GeekSeo.Application.Services.Seo;
 
 public static partial class ScoreSuggestionApplicator
 {
+    public static string? TryAppendSchemaScripts(string html, IReadOnlyList<string> schemaScripts)
+    {
+        if (schemaScripts.Count == 0 || HasArticleSchema(html))
+            return null;
+
+        return $"{html.TrimEnd()}\n{string.Join("\n", schemaScripts)}";
+    }
+
+    public static bool HasArticleSchema(string html) =>
+        html.Contains("application/ld+json", StringComparison.OrdinalIgnoreCase)
+        && (html.Contains("TechArticle", StringComparison.OrdinalIgnoreCase)
+            || html.Contains("\"Article\"", StringComparison.OrdinalIgnoreCase)
+            || html.Contains("@type\":\"Article", StringComparison.OrdinalIgnoreCase));
+
+    public static IReadOnlyList<string> ExtractSchemaScripts(string html)
+    {
+        var scripts = new List<string>();
+        foreach (Match match in SchemaScriptRegex().Matches(html))
+            scripts.Add(match.Value);
+
+        return scripts;
+    }
+
+    public static IReadOnlyList<string> InferSchemaTypes(IReadOnlyList<string> schemaScripts)
+    {
+        var types = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var script in schemaScripts)
+        {
+            if (script.Contains("TechArticle", StringComparison.OrdinalIgnoreCase))
+                types.Add("TechArticle");
+            if (script.Contains("FAQPage", StringComparison.OrdinalIgnoreCase))
+                types.Add("FAQPage");
+            if (script.Contains("SoftwareApplication", StringComparison.OrdinalIgnoreCase))
+                types.Add("SoftwareApplication");
+            if (types.Count == 0 && script.Contains("\"Article\"", StringComparison.OrdinalIgnoreCase))
+                types.Add("Article");
+        }
+
+        return types.Count == 0 ? ["TechArticle"] : types.OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
     public static string? TryApplyDeterministic(
         string suggestionId,
         string contentHtml,
@@ -13,7 +54,8 @@ public static partial class ScoreSuggestionApplicator
         int avgTitleLength,
         string plainText,
         IReadOnlyList<SerpOrganicResult> organicResults,
-        string? featuredSnippetText = null)
+        string? featuredSnippetText = null,
+        string? aiOverviewText = null)
     {
         return suggestionId switch
         {
@@ -26,8 +68,102 @@ public static partial class ScoreSuggestionApplicator
                 keyword,
                 plainText,
                 featuredSnippetText),
+            "serp_ai_overview" => InsertAiOverviewDefinition(
+                contentHtml,
+                keyword,
+                plainText,
+                aiOverviewText),
             _ => null,
         };
+    }
+
+    public static string ProposeAiOverviewDefinition(
+        string keyword,
+        string plainText,
+        string? aiOverviewText = null)
+    {
+        var seed = SerpCaptureTextSanitizer.Sanitize(aiOverviewText);
+        if (string.IsNullOrWhiteSpace(seed))
+            seed = BuildConciseDefinitionSeed(keyword, plainText);
+
+        seed = Regex.Replace(seed, @"\s+", " ").Trim();
+        if (string.IsNullOrWhiteSpace(seed))
+            seed = keyword;
+
+        if (!string.IsNullOrWhiteSpace(keyword)
+            && !seed.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+        {
+            seed = $"{keyword} is {seed.TrimEnd('.')}.";
+        }
+
+        return TrimToWordRange(seed, minWords: 20, maxWords: 35);
+    }
+
+    public static bool HasConciseDefinitionInOpening(string html, string keyword)
+    {
+        var opening = ExtractOpeningParagraphText(html);
+        if (string.IsNullOrWhiteSpace(opening))
+            return false;
+
+        var words = CountWords(opening);
+        if (words is < 15 or > 45)
+            return false;
+
+        return string.IsNullOrWhiteSpace(keyword)
+            || opening.Contains(keyword, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static string? InsertAiOverviewDefinition(
+        string html,
+        string keyword,
+        string plainText,
+        string? aiOverviewText = null)
+    {
+        if (HasConciseDefinitionInOpening(html, keyword))
+            return null;
+
+        var definition = ProposeAiOverviewDefinition(keyword, plainText, aiOverviewText);
+        var paragraph = $"<p>{WebUtility.HtmlEncode(definition)}</p>";
+
+        var h1 = H1Regex().Match(html);
+        if (!h1.Success)
+            return paragraph + "\n" + html.TrimStart();
+
+        var insertAt = h1.Index + h1.Length;
+        return html[..insertAt] + "\n" + paragraph + "\n" + html[insertAt..].TrimStart();
+    }
+
+    private static string? ExtractOpeningParagraphText(string html)
+    {
+        var searchFrom = 0;
+        var h1 = H1Regex().Match(html);
+        if (h1.Success)
+            searchFrom = h1.Index + h1.Length;
+
+        var after = html[searchFrom..].TrimStart();
+        var paragraph = FirstParagraphRegex().Match(after);
+        if (!paragraph.Success)
+            return null;
+
+        return Regex.Replace(paragraph.Groups[1].Value, "<[^>]+>", " ").Trim();
+    }
+
+    private static string BuildConciseDefinitionSeed(string keyword, string plainText)
+    {
+        if (string.IsNullOrWhiteSpace(plainText))
+            return keyword;
+
+        var sentences = plainText
+            .Split(['.', '!', '?'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(s => s.Length > 0)
+            .Take(2)
+            .ToList();
+
+        if (sentences.Count == 0)
+            return plainText;
+
+        var result = string.Join(' ', sentences).Trim();
+        return string.IsNullOrWhiteSpace(result) ? plainText : result.TrimEnd('.') + ".";
     }
 
     public static string ProposeFeaturedSnippetDirectAnswer(
@@ -189,16 +325,161 @@ public static partial class ScoreSuggestionApplicator
 
     public static string? TryAppendSourcesFromDiscovered(string html, IReadOnlyList<DiscoveredSource> sources)
     {
-        var picks = sources
+        var picks = SelectDiscoveredCitationPicks(html, sources);
+        return TryInsertInlineCitations(html, picks);
+    }
+
+    public static string? TryInsertResearchCitation(string html, string url, string? title)
+    {
+        if (!IsValidExternalUrl(url))
+            return null;
+
+        var label = string.IsNullOrWhiteSpace(title) ? url.Trim() : title.Trim();
+        return TryInsertInlineCitations(html, [(url.Trim(), label)]);
+    }
+
+    public static string? TryApplyEeat(string suggestionId, string html, EeatApplyContext context) =>
+        suggestionId switch
+        {
+            "eeat_first_hand_experience" => InsertFirstHandExperience(html, context),
+            "eeat_author_bio" => InsertAuthorBio(html, context),
+            "eeat_original_media" => InsertOriginalMedia(html, context),
+            "eeat_freshness_signal" => InsertFreshnessSignal(html),
+            _ => null,
+        };
+
+    public static bool HasFirstHandExperience(string plainText)
+    {
+        var lower = plainText.ToLowerInvariant();
+        return lower.Contains("our team", StringComparison.Ordinal)
+            || lower.Contains("in our experience", StringComparison.Ordinal)
+            || lower.Contains("we found that", StringComparison.Ordinal);
+    }
+
+    public static bool HasAuthorBio(string plainText)
+    {
+        var lower = plainText.ToLowerInvariant();
+        return lower.Contains("about the author", StringComparison.Ordinal)
+            || lower.Contains("written by", StringComparison.Ordinal);
+    }
+
+    public static bool HasFreshnessSignal(string plainText)
+    {
+        var lower = plainText.ToLowerInvariant();
+        return lower.Contains("updated", StringComparison.Ordinal)
+            || lower.Contains("reviewed", StringComparison.Ordinal);
+    }
+
+    private static string? InsertFirstHandExperience(string html, EeatApplyContext context)
+    {
+        if (HasFirstHandExperience(StripTags(html)))
+            return null;
+
+        var topic = string.IsNullOrWhiteSpace(context.Keyword) ? "this topic" : context.Keyword.Trim();
+        var who = string.IsNullOrWhiteSpace(context.OrganizationName) ? "Our team" : context.OrganizationName.Trim();
+        var paragraph =
+            $"<p>In our experience, {who} has implemented {WebUtility.HtmlEncode(topic)} for local SMB clients — " +
+            "mapping real workflows, testing integrations, and measuring outcomes before scaling.</p>";
+
+        return InsertAfterFirstH2(html, paragraph);
+    }
+
+    private static string? InsertAuthorBio(string html, EeatApplyContext context)
+    {
+        if (HasAuthorBio(StripTags(html)))
+            return null;
+
+        var org = string.IsNullOrWhiteSpace(context.OrganizationName) ? "Our team" : context.OrganizationName.Trim();
+        var summary = string.IsNullOrWhiteSpace(context.BusinessSummary)
+            ? "implementation-focused AI and automation consulting for small businesses."
+            : context.BusinessSummary.Trim();
+        if (summary.Length > 220)
+            summary = summary[..217].TrimEnd() + "…";
+
+        var orgHtml = WebUtility.HtmlEncode(org);
+        var summaryHtml = WebUtility.HtmlEncode(summary);
+        var block =
+            $"<h2>About the author</h2>\n<p>Written by <strong>{orgHtml}</strong> — {summaryHtml}</p>";
+
+        var faqStart = FindFaqSectionStart(html);
+        if (faqStart < 0)
+            return html.TrimEnd() + "\n" + block + "\n";
+
+        return html[..faqStart].TrimEnd() + "\n" + block + "\n" + html[faqStart..].TrimStart();
+    }
+
+    private static string? InsertOriginalMedia(string html, EeatApplyContext context)
+    {
+        if (html.Contains("<img", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        string block;
+        if (!string.IsNullOrWhiteSpace(context.FeaturedImageUrl))
+        {
+            var alt = WebUtility.HtmlEncode(
+                string.IsNullOrWhiteSpace(context.Keyword) ? "Article illustration" : context.Keyword.Trim());
+            var src = context.FeaturedImageUrl.Trim();
+            block = $"<figure class=\"featured-image\"><img src=\"{WebUtility.HtmlEncode(src)}\" alt=\"{alt}\" /></figure>";
+        }
+        else
+        {
+            var topic = WebUtility.HtmlEncode(
+                string.IsNullOrWhiteSpace(context.Keyword) ? "this topic" : context.Keyword.Trim());
+            block =
+                $"<figure class=\"image-placeholder\"><p><strong>Image:</strong> Add an original photo or diagram illustrating {topic}.</p></figure>";
+        }
+
+        return InsertAfterH1(html, block);
+    }
+
+    private static string? InsertFreshnessSignal(string html)
+    {
+        if (HasFreshnessSignal(StripTags(html)))
+            return null;
+
+        var stamp = DateTime.UtcNow.ToString("MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture);
+        var paragraph = $"<p><em>Last updated: {stamp}</em></p>";
+        return InsertAfterH1(html, paragraph);
+    }
+
+    private static string? InsertAfterH1(string html, string insertion)
+    {
+        var match = H1Regex().Match(html);
+        if (!match.Success)
+            return html.TrimEnd() + "\n" + insertion + "\n";
+
+        var insertAt = match.Index + match.Length;
+        return html[..insertAt] + "\n" + insertion + "\n" + html[insertAt..].TrimStart();
+    }
+
+    private static string? InsertAfterFirstH2(string html, string insertion)
+    {
+        var match = FirstH2Regex().Match(html);
+        if (!match.Success)
+            return html.TrimEnd() + "\n" + insertion + "\n";
+
+        var insertAt = match.Index + match.Length;
+        return html[..insertAt] + "\n" + insertion + "\n" + html[insertAt..].TrimStart();
+    }
+
+    private static string StripTags(string html) =>
+        Regex.Replace(html, "<[^>]+>", " ");
+
+    public static IReadOnlyList<(string Url, string Label)> SelectDiscoveredCitationPicks(
+        string html,
+        IReadOnlyList<DiscoveredSource> sources)
+    {
+        var linked = CollectLinkedUrls(html);
+        return sources
             .Where(s => IsValidExternalUrl(s.Url))
-            .Where(s => AuthoritativeCitationRules.IsAcceptableDiscoveredCitationUrl(s.Url))
+            .Where(s => AuthoritativeCitationRules.IsAcceptableDiscoveredCitationUrl(s.Url)
+                || AuthoritativeCitationRules.IsAuthoritativeCitationUrl(s.Url))
+            .Where(s => !IsUrlAlreadyLinked(s.Url.Trim(), linked))
             .Take(3)
             .Select(s => (
                 s.Url.Trim(),
                 string.IsNullOrWhiteSpace(s.AnchorText) ? s.Title : s.AnchorText!))
             .ToList();
-
-        return TryInsertInlineCitations(html, picks);
     }
 
     private static string? TryInsertInlineCitations(
@@ -355,6 +636,26 @@ public static partial class ScoreSuggestionApplicator
                 "Authoritative inline citations are already present. Refresh the score to clear this hint.",
             "geo_citations" =>
                 "No new external sources were available to link, or they are already cited.",
+            "geo_authority" when HasArticleSchema(html) =>
+                "Article JSON-LD is already present. Refresh the score to clear this hint.",
+            "geo_authority" =>
+                "Could not generate JSON-LD schema. Add headings and body content, then try again.",
+            "eeat_first_hand_experience" when HasFirstHandExperience(StripTags(html)) =>
+                "A first-hand experience paragraph is already present.",
+            "eeat_first_hand_experience" =>
+                "Could not insert a first-hand experience paragraph. Add an H2 section first.",
+            "eeat_author_bio" when HasAuthorBio(StripTags(html)) =>
+                "An author bio is already present.",
+            "eeat_author_bio" =>
+                "Could not insert an author bio block.",
+            "eeat_original_media" when html.Contains("<img", StringComparison.OrdinalIgnoreCase) =>
+                "An image is already present in the article.",
+            "eeat_original_media" =>
+                "Could not insert an image block.",
+            "eeat_freshness_signal" when HasFreshnessSignal(StripTags(html)) =>
+                "A freshness date is already present.",
+            "eeat_freshness_signal" =>
+                "Could not insert a last-updated date.",
             "geo_structure" when ArticleClosingFaqEnricher.HasCompleteClosingFaqSection(html) =>
                 "The closing FAQ section is already present with full answers.",
             "geo_structure" when ArticleClosingFaqEnricher.HasClosingFaqSection(html) =>
@@ -365,6 +666,10 @@ public static partial class ScoreSuggestionApplicator
                 "A direct answer paragraph is already present after the first H2.",
             "serp_featured_snippet" =>
                 "Could not insert the direct answer. Add an H2 section first, then try again.",
+            "serp_ai_overview" when HasConciseDefinitionInOpening(html, keyword) =>
+                "A concise definition is already present in the opening paragraph.",
+            "serp_ai_overview" =>
+                "Could not insert the opening definition. Add an H1 heading first, then try again.",
             _ => "Could not apply this change automatically.",
         };
 
@@ -423,6 +728,12 @@ public static partial class ScoreSuggestionApplicator
         string.IsNullOrWhiteSpace(text)
             ? 0
             : text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+
+    [GeneratedRegex(@"<script[^>]*type=[""']application/ld\+json[""'][^>]*>[\s\S]*?</script>", RegexOptions.IgnoreCase)]
+    private static partial Regex SchemaScriptRegex();
+
+    [GeneratedRegex(@"<h1\b[^>]*>.*?</h1>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex H1Regex();
 
     [GeneratedRegex(@"<h2\b[^>]*>.*?</h2>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex FirstH2Regex();

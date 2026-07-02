@@ -164,9 +164,17 @@ public sealed partial class AIWritingService(
             ai,
             ct);
 
+        var title = string.IsNullOrWhiteSpace(request.Title) ? request.Brief?.Keyword ?? request.Keyword : request.Title;
+        var withSchema = request.Brief is not null
+            ? EnsureSchemaInDraft(
+                ArticleMethodologyScaffold.StripMovementLabels(enriched),
+                request.Brief,
+                title)
+            : ArticleMethodologyScaffold.StripMovementLabels(enriched);
+
         return Result<WritingTextResult>.Success(new WritingTextResult
         {
-            Content = ArticleMethodologyScaffold.StripMovementLabels(enriched),
+            Content = withSchema,
         });
     }
 
@@ -212,10 +220,35 @@ public sealed partial class AIWritingService(
             ai,
             ct);
 
+        var title = string.IsNullOrWhiteSpace(request.Title)
+            ? request.Research.DerivedKeyword
+            : request.Title;
+        var withSchema = EnsureSchemaInResearchDraft(
+            ArticleMethodologyScaffold.StripMovementLabels(enriched),
+            request.Research,
+            title);
+
         return Result<WritingTextResult>.Success(new WritingTextResult
         {
-            Content = ArticleMethodologyScaffold.StripMovementLabels(enriched),
+            Content = withSchema,
         });
+    }
+
+    private static string EnsureSchemaInDraft(string html, ContentBrief brief, string title)
+    {
+        if (ScoreSuggestionApplicator.HasArticleSchema(html))
+            return html;
+
+        return ArticleSchemaBuilder.AppendSchemaScripts(html, brief, title);
+    }
+
+    private static string EnsureSchemaInResearchDraft(string html, WritingResearchContext research, string title)
+    {
+        if (ScoreSuggestionApplicator.HasArticleSchema(html))
+            return html;
+
+        var scripts = ArticleSchemaBuilder.BuildScripts(research, title, html);
+        return ScoreSuggestionApplicator.TryAppendSchemaScripts(html, scripts) ?? html;
     }
 
     public async Task<Result<WritingTextResult>> HumanizeAsync(

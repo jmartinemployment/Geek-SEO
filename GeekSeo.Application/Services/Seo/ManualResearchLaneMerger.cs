@@ -19,11 +19,17 @@ public static class ManualResearchLaneMerger
         {
             if (lane.PaaQuestions.Count > 0)
             {
+                var relevantPaa = SerpQuestionFilter
+                    .FilterForKeyword(export.Keyword, lane.PaaQuestions)
+                    .ToList();
+                if (relevantPaa.Count == 0)
+                    continue;
+
                 serp.Add(new ContentWriterSerpItem
                 {
                     Position = position++,
                     Type = "people_also_ask",
-                    RelatedQuestions = lane.PaaQuestions.ToList(),
+                    RelatedQuestions = relevantPaa,
                 });
             }
 

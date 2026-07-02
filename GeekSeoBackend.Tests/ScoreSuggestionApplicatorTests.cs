@@ -36,6 +36,22 @@ public sealed class ScoreSuggestionApplicatorTests
     }
 
     [Fact]
+    public void TryAppendSchemaScripts_appends_tech_article_json_ld()
+    {
+        var html = "<h1>Customer journey mapping</h1><p>Body copy.</p>";
+        var scripts = new[]
+        {
+            "<script type=\"application/ld+json\">{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Customer journey mapping\"}</script>",
+        };
+
+        var patched = ScoreSuggestionApplicator.TryAppendSchemaScripts(html, scripts);
+
+        Assert.NotNull(patched);
+        Assert.Contains("TechArticle", patched!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("application/ld+json", patched!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void TryApplyDeterministic_geo_citations_inserts_inline_authoritative_links()
     {
         var html = "<h1>Guide</h1><p>Body</p>";
@@ -89,6 +105,32 @@ public sealed class ScoreSuggestionApplicatorTests
     }
 
     [Fact]
+    public void TryInsertResearchCitation_inserts_single_inline_link()
+    {
+        var html = "<h1>Guide</h1><p>Body</p>";
+        var patched = ScoreSuggestionApplicator.TryInsertResearchCitation(
+            html,
+            "https://www.nist.gov/ai",
+            "NIST AI guidance");
+
+        Assert.NotNull(patched);
+        Assert.Contains("https://www.nist.gov/ai", patched!, StringComparison.Ordinal);
+        Assert.Contains("NIST AI guidance", patched!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TryInsertResearchCitation_returns_null_when_already_linked()
+    {
+        var html = "<p>See <a href=\"https://www.nist.gov/ai\">NIST</a>.</p>";
+        var patched = ScoreSuggestionApplicator.TryInsertResearchCitation(
+            html,
+            "https://www.nist.gov/ai",
+            "NIST AI guidance");
+
+        Assert.Null(patched);
+    }
+
+    [Fact]
     public void TryApplyDeterministic_meta_description_replaces_weak_existing_meta()
     {
         const string keyword = "local seo checklist";
@@ -132,6 +174,30 @@ public sealed class ScoreSuggestionApplicatorTests
             "widget repair",
             "Widget repair helps small shops fix broken devices quickly and affordably for local customers.");
         Assert.InRange(ScoreSuggestionApplicatorTestsWordCount(answer), 40, 60);
+    }
+
+    [Fact]
+    public void TryApplyDeterministic_serp_ai_overview_inserts_definition_after_h1()
+    {
+        var html = "<h1>Guide</h1><h2>Overview</h2><p>Short intro.</p>";
+        var patched = ScoreSuggestionApplicator.TryApplyDeterministic(
+            "serp_ai_overview",
+            html,
+            "customer journey",
+            55,
+            "A customer journey maps every touchpoint from awareness through purchase and retention.",
+            []);
+
+        Assert.NotNull(patched);
+        Assert.True(
+            Regex.IsMatch(
+                patched!,
+                @"<h1>Guide</h1>\s*<p>.*customer journey.*</p>",
+                RegexOptions.IgnoreCase | RegexOptions.Singleline));
+        var definition = ScoreSuggestionApplicator.ProposeAiOverviewDefinition(
+            "customer journey",
+            "A customer journey maps every touchpoint from awareness through purchase and retention.");
+        Assert.InRange(ScoreSuggestionApplicatorTestsWordCount(definition), 20, 35);
     }
 
     [Fact]
@@ -249,5 +315,100 @@ public sealed class ScoreSuggestionApplicatorTests
 
         Assert.NotNull(patched);
         Assert.Contains("Frequently asked questions", patched!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TryApplyEeat_first_hand_experience_inserts_after_first_h2()
+    {
+        var html = "<h1>Title</h1><h2>Intro</h2><p>Body</p>";
+        var context = new EeatApplyContext { Keyword = "customer journey" };
+
+        var patched = ScoreSuggestionApplicator.TryApplyEeat("eeat_first_hand_experience", html, context);
+
+        Assert.NotNull(patched);
+        Assert.Contains("In our experience", patched!, StringComparison.OrdinalIgnoreCase);
+        Assert.True(patched!.IndexOf("In our experience", StringComparison.OrdinalIgnoreCase)
+            > patched.IndexOf("<h2", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void TryApplyEeat_author_bio_inserts_before_faq()
+    {
+        var html = """
+            <h2>Section</h2><p>Body</p>
+            <h2>Frequently asked questions</h2><h3>Q?</h3><p>A.</p>
+            """;
+        var context = new EeatApplyContext
+        {
+            Keyword = "ai",
+            OrganizationName = "Geek At Your Spot",
+            BusinessSummary = "AI consulting for SMBs.",
+        };
+
+        var patched = ScoreSuggestionApplicator.TryApplyEeat("eeat_author_bio", html, context);
+
+        Assert.NotNull(patched);
+        Assert.Contains("About the author", patched!, StringComparison.OrdinalIgnoreCase);
+        Assert.True(patched!.IndexOf("About the author", StringComparison.OrdinalIgnoreCase)
+            < patched.IndexOf("Frequently asked questions", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void TryApplyEeat_freshness_signal_inserts_after_h1()
+    {
+        var html = "<h1>Title</h1><h2>Section</h2><p>Body</p>";
+        var context = new EeatApplyContext { Keyword = "test" };
+
+        var patched = ScoreSuggestionApplicator.TryApplyEeat("eeat_freshness_signal", html, context);
+
+        Assert.NotNull(patched);
+        Assert.Contains("Last updated:", patched!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TryApplyEeat_original_media_uses_featured_image_when_present()
+    {
+        var html = "<h1>Title</h1><p>Body</p>";
+        var context = new EeatApplyContext
+        {
+            Keyword = "test",
+            FeaturedImageUrl = "https://cdn.example.com/hero.jpg",
+        };
+
+        var patched = ScoreSuggestionApplicator.TryApplyEeat("eeat_original_media", html, context);
+
+        Assert.NotNull(patched);
+        Assert.Contains("hero.jpg", patched!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void EnsureArticleSchema_appends_scripts_when_missing()
+    {
+        const string html = "<h1>Guide</h1><p>Body</p>";
+        var scripts = new[]
+        {
+            "<script type=\"application/ld+json\">{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Guide\"}</script>",
+        };
+
+        var patched = ContentAutoEnricher.EnsureArticleSchema(html, scripts, out var changed);
+
+        Assert.True(changed);
+        Assert.Contains("application/ld+json", patched, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void EnsureArticleSchema_is_idempotent_when_schema_present()
+    {
+        const string html =
+            "<h1>Guide</h1><script type=\"application/ld+json\">{\"@type\":\"TechArticle\"}</script>";
+        var scripts = new[]
+        {
+            "<script type=\"application/ld+json\">{\"@type\":\"TechArticle\"}</script>",
+        };
+
+        var patched = ContentAutoEnricher.EnsureArticleSchema(html, scripts, out var changed);
+
+        Assert.False(changed);
+        Assert.Equal(html, patched);
     }
 }

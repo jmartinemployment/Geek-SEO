@@ -55,7 +55,8 @@ public static class GeoScoringCalculator
             score += 6;
         if (lower.Contains("certified", StringComparison.Ordinal) || lower.Contains("licensed", StringComparison.Ordinal))
             score += 4;
-        if (contentHtml.Contains("schema.org", StringComparison.OrdinalIgnoreCase))
+        if (contentHtml.Contains("application/ld+json", StringComparison.OrdinalIgnoreCase)
+            || contentHtml.Contains("schema.org", StringComparison.OrdinalIgnoreCase))
             score += 6;
         if (RegexQuoteCount(plainText) >= 1)
             score += 4;
@@ -132,7 +133,7 @@ public static class GeoScoringCalculator
         IReadOnlyList<SerpOrganicResult> organicResults)
     {
         var list = new List<ScoreSuggestion>();
-        if (authority < 14)
+        if (authority < 14 && !ScoreSuggestionApplicator.HasArticleSchema(contentHtml))
         {
             list.Add(new ScoreSuggestion
             {
@@ -140,8 +141,8 @@ public static class GeoScoringCalculator
                 Component = "geo",
                 PointValue = 20 - authority,
                 ActionText = "Add Article schema (JSON-LD) and real business credentials — do not invent named experts.",
-                ProposedChange = "Use the JSON-LD panel to add Article or TechArticle schema with your real organization name and credentials.",
-                ApplyMode = "none",
+                ProposedChange = "Add TechArticle JSON-LD with your organization as author.",
+                ApplyMode = "deterministic",
             });
         }
         if (readability < 14)
@@ -178,8 +179,8 @@ public static class GeoScoringCalculator
                 Component = "geo",
                 PointValue = 20 - citations,
                 ActionText = "Link to 2–3 authoritative external sources (.gov, .edu, or recognized research) — not competitor blogs.",
-                ProposedChange = "Add 2–3 inline authoritative external links in the body — no Sources section and no invented experts.",
-                ApplyMode = "ai",
+                ProposedChange = "Add citations from your research pack as inline links in the body.",
+                ApplyMode = "deterministic",
             });
         }
         if (depth < 14)

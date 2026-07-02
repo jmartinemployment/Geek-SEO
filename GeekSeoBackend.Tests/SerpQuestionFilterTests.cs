@@ -26,6 +26,15 @@ public sealed class SerpQuestionFilterTests
         Assert.False(SerpQuestionFilter.IsBlocked(phrase));
     }
 
+    [Theory]
+    [InlineData("ai customer journey", "What is an AI customer journey map?", true)]
+    [InlineData("ai customer journey", "What is GAAP?", false)]
+    [InlineData("ai customer journey", "Where can I find an AI customer journey PDF?", false)]
+    public void IsRelevantToKeyword_filters_by_pillar_keyword(string keyword, string phrase, bool expected)
+    {
+        Assert.Equal(expected, SerpQuestionFilter.IsRelevantToKeyword(keyword, phrase));
+    }
+
     [Fact]
     public void BuildClosingFaqQuestions_skips_blocked_paa()
     {

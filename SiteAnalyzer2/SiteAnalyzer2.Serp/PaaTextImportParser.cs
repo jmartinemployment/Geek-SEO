@@ -39,6 +39,17 @@ public static class PaaTextImportParser
                 "PAA text file has no questions — use one question per line.");
         }
 
+        return BuildFromQuestions(keyword, questions);
+    }
+
+    public static SerpLivePageParseResult BuildFromQuestions(string keyword, IReadOnlyList<string> questions)
+    {
+        if (questions.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "PAA import produced 0 questions.");
+        }
+
         var queries = questions
             .Select((question, index) => new SerpParsedRelatedQuery(
                 index + 1,

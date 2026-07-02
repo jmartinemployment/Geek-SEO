@@ -45,7 +45,14 @@ export type ScoreUpdate = {
     suggestionId?: string | null;
     applyMode?: string | null;
   }[];
-  eeatAdvisories: { code: string; actionText: string }[];
+  eeatAdvisories: {
+    code: string;
+    actionText: string;
+    suggestionId?: string | null;
+    applyMode?: string | null;
+    proposedChange?: string | null;
+    buttonLabel?: string | null;
+  }[];
   benchmarkQuality: string;
   researchedAt?: string | null;
   scoreContextNote?: string | null;

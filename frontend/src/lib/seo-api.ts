@@ -1255,13 +1255,23 @@ export async function applyScoreSuggestion(
     headers: apiHeaders(accessToken),
     body: JSON.stringify({ suggestionId, contentHtml }),
   });
-  if (res.status === 202) {
-    const job = (await res.json()) as BackgroundJobStatus;
-    return { kind: 'queued', job };
-  }
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
   const result = (await res.json()) as ApplySuggestionResult;
   return { kind: 'completed', result };
+}
+
+export async function insertResearchCitation(
+  documentId: string,
+  body: { url: string; title?: string; contentHtml?: string },
+  accessToken?: string | null,
+): Promise<ApplySuggestionResult> {
+  const res = await fetch(`${API_URL}/api/seo/content/${documentId}/insert-citation`, {
+    method: 'POST',
+    headers: apiHeaders(accessToken),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw await parseSeoApiErrorResponse(res);
+  return res.json() as Promise<ApplySuggestionResult>;
 }
 
 /** Below SignalR default 32 KB — large drafts must score over HTTP. */
