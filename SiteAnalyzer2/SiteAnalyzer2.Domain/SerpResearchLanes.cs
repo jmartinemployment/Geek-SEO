@@ -8,12 +8,13 @@ public static class SerpResearchLanes
     public const string Gov = "gov";
     public const string Local = "local";
     public const string Wiki = "wiki";
+    public const string Paa = "paa";
 
     public static readonly IReadOnlySet<string> Supplemental =
-        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { Edu, Gov, Local, Wiki };
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { Edu, Gov, Local, Paa, Wiki };
 
     public static readonly IReadOnlySet<string> All =
-        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { Keyword, Edu, Gov, Local, Wiki };
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { Keyword, Edu, Gov, Local, Paa, Wiki };
 
     public static bool IsSupplemental(string? lane) =>
         !string.IsNullOrWhiteSpace(lane) && Supplemental.Contains(lane);
@@ -37,6 +38,7 @@ public static class SerpResearchLanes
         Gov => "Government",
         Local => "Local",
         Wiki => "Wikipedia",
+        Paa => "People Also Ask",
         _ => lane,
     };
 }

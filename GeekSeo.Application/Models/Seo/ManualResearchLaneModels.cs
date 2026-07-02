@@ -13,9 +13,10 @@ public static class SerpResearchLanes
     public const string Gov = "gov";
     public const string Local = "local";
     public const string Wiki = "wiki";
+    public const string Paa = "paa";
 
     public static readonly IReadOnlySet<string> Supplemental =
-        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { Edu, Gov, Local, Wiki };
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { Edu, Gov, Local, Paa, Wiki };
 }
 
 public sealed record ContentWriterManualResearchLane
@@ -23,5 +24,7 @@ public sealed record ContentWriterManualResearchLane
     public required string Lane { get; init; }
     public required string Label { get; init; }
     public int OrganicCount { get; init; }
+    public int PaaCount { get; init; }
     public IReadOnlyList<ContentWriterSerpItem> OrganicResults { get; init; } = [];
+    public IReadOnlyList<string> PaaQuestions { get; init; } = [];
 }

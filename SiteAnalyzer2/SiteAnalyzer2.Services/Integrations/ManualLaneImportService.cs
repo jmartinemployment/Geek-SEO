@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SiteAnalyzer2.Domain;
 using SiteAnalyzer2.Domain.Entities;
+using SiteAnalyzer2.Domain.Enums;
 using SiteAnalyzer2.Infrastructure.Persistence;
 using SiteAnalyzer2.Serp;
 using SiteAnalyzer2.Serp.Models;
@@ -36,13 +37,7 @@ public sealed class ManualLaneImportService(
 
         await EnforceTopicInvariantAsync(run, normalizedTopic, ct);
 
-        if (!GoogleSerpHtmlParser.LooksLikeSerpPage(html))
-        {
-            throw new InvalidOperationException(
-                "Uploaded HTML does not look like a Google SERP page. Save as 'Webpage, HTML only' from Chrome.");
-        }
-
-        var parsed = GoogleSerpHtmlParser.ParseLivePage(html, keywordOverride: run.Keyword);
+        var parsed = ParseLaneContent(html, normalizedLane, run.Keyword);
         ValidateParsedLane(normalizedLane, parsed);
 
         run.TopicSlug = normalizedTopic;
@@ -62,6 +57,25 @@ public sealed class ManualLaneImportService(
             CitationEligibleCount = CountCitationEligible(parsed, normalizedLane),
             ResearchMode = run.ResearchMode,
         };
+    }
+
+    private static SerpLivePageParseResult ParseLaneContent(string content, string normalizedLane, string keyword)
+    {
+        if (string.Equals(normalizedLane, SerpResearchLanes.Paa, StringComparison.OrdinalIgnoreCase)
+            && PaaTextImportParser.LooksLikePaaTextList(content))
+        {
+            return PaaTextImportParser.Parse(content, keyword);
+        }
+
+        if (!GoogleSerpHtmlParser.LooksLikeSerpPage(content))
+        {
+            throw new InvalidOperationException(
+                string.Equals(normalizedLane, SerpResearchLanes.Paa, StringComparison.OrdinalIgnoreCase)
+                    ? "PAA lane accepts saved Google SERP HTML or a plain-text file with one question per line."
+                    : "Uploaded file does not look like a Google SERP page. Save as 'Webpage, HTML only' from Chrome.");
+        }
+
+        return GoogleSerpHtmlParser.ParseLivePage(content, keywordOverride: keyword);
     }
 
     private async Task EnforceTopicInvariantAsync(AnalysisRun run, string topicSlug, CancellationToken ct)
@@ -114,6 +128,17 @@ public sealed class ManualLaneImportService(
             return;
         }
 
+        if (string.Equals(normalizedLane, SerpResearchLanes.Paa, StringComparison.OrdinalIgnoreCase))
+        {
+            if (CountPaaQuestions(parsed) == 0)
+            {
+                throw new InvalidOperationException(
+                    "PAA lane import produced 0 People Also Ask questions — save a SERP with PAA expanded.");
+            }
+
+            return;
+        }
+
         var eligible = CountCitationEligible(parsed, normalizedLane);
         if (eligible == 0)
         {
@@ -139,6 +164,15 @@ public sealed class ManualLaneImportService(
 
         return count;
     }
+
+    internal static int CountPaaQuestions(SerpLivePageParseResult parsed) =>
+        parsed.Items
+            .Where(i => string.Equals(i.Type, SerpItemTypes.PeopleAlsoAsk, StringComparison.OrdinalIgnoreCase)
+                || i.RelatedQueries?.Count > 0)
+            .SelectMany(i => i.RelatedQueries ?? [])
+            .Count(q => !string.IsNullOrWhiteSpace(q.QueryText)
+                && (q.QueryType == SerpRelatedQueryType.PeopleAlsoAsk
+                    || q.QueryText.Contains('?', StringComparison.Ordinal)));
 }
 
 public sealed record ManualLaneImportResultDto

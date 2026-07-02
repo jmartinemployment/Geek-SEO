@@ -21,17 +21,19 @@ public sealed class KeywordWorkflowService(
     public async Task<KeywordPageImportResultDto> ImportKeywordPageAsync(
         string targetSiteUrl,
         string html,
+        string? topicSlug = null,
         CancellationToken ct = default)
     {
         var normalized = TargetSiteUrlNormalizer.Normalize(targetSiteUrl);
         var projectId = await siteProfiles.ResolveProjectIdForImportAsync(normalized, ct);
-        return await ImportKeywordPageAsync(projectId, normalized, html, ct);
+        return await ImportKeywordPageAsync(projectId, normalized, html, topicSlug, ct);
     }
 
     public async Task<KeywordPageImportResultDto> ImportKeywordPageAsync(
         Guid projectId,
         string targetSiteUrl,
         string html,
+        string? topicSlug = null,
         CancellationToken ct = default)
     {
         var normalized = TargetSiteUrlNormalizer.Normalize(targetSiteUrl);
@@ -42,6 +44,13 @@ public sealed class KeywordWorkflowService(
 
         if (!keywordSaved)
             return FailedKeywordImport(import);
+
+        if (!string.IsNullOrWhiteSpace(topicSlug))
+        {
+            var run = await db.AnalysisRuns.FirstAsync(r => r.Id == import.RunId, ct);
+            run.TopicSlug = topicSlug.Trim().ToLowerInvariant();
+            await db.SaveChangesAsync(ct);
+        }
 
         await runFocus.AfterSerpImportAsync(import.RunId, ct);
         await siteProfiles.TouchAfterRunAsync(normalized, ct);

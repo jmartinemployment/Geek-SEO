@@ -114,7 +114,9 @@ export type ContentWriterManualResearchLane = {
   lane: string;
   label: string;
   organicCount: number;
+  paaCount?: number;
   organicResults?: ContentWriterSerpItem[];
+  paaQuestions?: string[];
 };
 
 export type ContentWriterSerpExport = {

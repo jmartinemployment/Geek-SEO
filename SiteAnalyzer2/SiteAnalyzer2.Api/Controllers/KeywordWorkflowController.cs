@@ -11,6 +11,7 @@ public sealed class KeywordWorkflowController(KeywordWorkflowService workflow) :
     [HttpPost("keyword-page")]
     public async Task<ActionResult<KeywordPageImportResultDto>> ImportKeywordPage(
         [FromQuery] string? targetSiteUrl,
+        [FromQuery] string? topic,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(targetSiteUrl))
@@ -32,7 +33,7 @@ public sealed class KeywordWorkflowController(KeywordWorkflowService workflow) :
 
         try
         {
-            var result = await workflow.ImportKeywordPageAsync(normalizedUrl, html, ct);
+            var result = await workflow.ImportKeywordPageAsync(normalizedUrl, html, topic, ct);
             if (!result.KeywordSaved)
                 return UnprocessableEntity(result);
 

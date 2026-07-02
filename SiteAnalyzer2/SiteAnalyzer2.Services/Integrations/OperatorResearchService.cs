@@ -95,7 +95,26 @@ public sealed class OperatorResearchService(AppDbContext db, SerpRankHistoryServ
         var hasComparison = await db.Findings.AsNoTracking().AnyAsync(f => f.RunId == runId, ct);
 
         var gapReady = run.GapTopics.Count > 0;
-        var researchReady = hasSerp && hasCompetitor && hasTargetHeadings && hasComparison && gapReady;
+        var isManual = string.Equals(run.ResearchMode, ResearchModes.Manual, StringComparison.OrdinalIgnoreCase);
+        IReadOnlyList<ResearchWorkflowGateDto> gates;
+        bool researchReady;
+
+        if (isManual)
+        {
+            (researchReady, gates) = await ManualResearchReadiness.EvaluateAsync(db, run, hasSerp, ct);
+        }
+        else
+        {
+            researchReady = hasSerp && hasCompetitor && hasTargetHeadings && hasComparison && gapReady;
+            gates =
+            [
+                new("serp", "SERP import", hasSerp),
+                new("target_crawl", "Target-site crawl", hasTargetHeadings),
+                new("competitor_crawl", "Competitor crawl", hasCompetitor),
+                new("comparison", "Comparison findings", hasComparison),
+                new("gaps", "Gap topics assembled", gapReady),
+            ];
+        }
 
         var competitorPageIds = await db.CompetitorPages.AsNoTracking()
             .Where(p => p.RunId == runId)
@@ -127,15 +146,6 @@ public sealed class OperatorResearchService(AppDbContext db, SerpRankHistoryServ
             run.GapTopics.Count);
 
         var rankings = await rankHistory.GetSummaryAsync(runId, ct);
-
-        var gates = new List<ResearchWorkflowGateDto>
-        {
-            new("serp", "SERP import", hasSerp),
-            new("target_crawl", "Target-site crawl", hasTargetHeadings),
-            new("competitor_crawl", "Competitor crawl", hasCompetitor),
-            new("comparison", "Comparison findings", hasComparison),
-            new("gaps", "Gap topics assembled", gapReady),
-        };
 
         return new RunResearchFocusDto(
             run.Id,

@@ -47,7 +47,9 @@ public sealed record ContentWriterManualResearchLaneDto
     public required string Lane { get; init; }
     public required string Label { get; init; }
     public int OrganicCount { get; init; }
+    public int PaaCount { get; init; }
     public IReadOnlyList<ContentWriterSerpItemDto> OrganicResults { get; init; } = [];
+    public IReadOnlyList<string> PaaQuestions { get; init; } = [];
 }
 
 public sealed record ContentWriterCitationCandidateDto

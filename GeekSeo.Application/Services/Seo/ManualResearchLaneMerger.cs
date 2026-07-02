@@ -12,9 +12,21 @@ public static class ManualResearchLaneMerger
         var citations = new List<ContentWriterCitationCandidate>(export.CitationCandidates);
         var seen = new HashSet<string>(citations.Select(c => c.Url.Trim()), StringComparer.OrdinalIgnoreCase);
         string? localAngle = export.LocalAngleHint;
+        var serp = new List<ContentWriterSerpItem>(export.Serp);
+        var position = serp.Count > 0 ? serp.Max(i => i.Position) + 1 : 1;
 
         foreach (var lane in export.ManualResearchLanes)
         {
+            if (lane.PaaQuestions.Count > 0)
+            {
+                serp.Add(new ContentWriterSerpItem
+                {
+                    Position = position++,
+                    Type = "people_also_ask",
+                    RelatedQuestions = lane.PaaQuestions.ToList(),
+                });
+            }
+
             if (lane.OrganicCount == 0)
                 continue;
 
@@ -53,6 +65,7 @@ public static class ManualResearchLaneMerger
 
         return export with
         {
+            Serp = serp,
             CitationCandidates = citations,
             LocalAngleHint = localAngle,
         };

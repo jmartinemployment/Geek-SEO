@@ -32,11 +32,13 @@ import {
   normalizeDomainOverview,
   type DomainOverview,
 } from "@/components/site-analyzer2/DomainOverviewPanel";
+import { ManualResearchLanesCard } from "@/components/site-analyzer2/ManualResearchLanesCard";
 import { contentWritingPath } from "@/lib/content-writing-search-params";
 import { getSiteAnalyzer2ApiBase, siteAnalyzer2Fetch } from "@/lib/site-analyzer2-api";
 import { cn } from "@/lib/utils";
 
 const STORAGE_URL = "siteAnalyzer2.projectUrl";
+const STORAGE_TOPIC_SLUG = "siteAnalyzer2.researchTopicSlug";
 const STORAGE_KEYWORD_IMPORT = "siteAnalyzer2.keywordImport";
 const STORAGE_COMPETITOR_CRAWL = "siteAnalyzer2.competitorCrawl";
 const STORAGE_SITE_PROFILE_PANEL = "siteAnalyzer2.siteProfilePanelExpanded";
@@ -1246,6 +1248,7 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
   const [keywordProjectId, setKeywordProjectId] = useState("");
   const [geekSeoProjectId, setGeekSeoProjectId] = useState("");
   const [keyword, setKeyword] = useState("");
+  const [researchTopicSlug, setResearchTopicSlug] = useState("customer-journey");
   const [step, setStep] = useState<Step>("idle");
   const [status, setStatus] = useState<Status | null>(null);
   const [siteProfile, setSiteProfile] = useState<SiteProfile | null>(null);
@@ -1284,8 +1287,14 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
 
   useEffect(() => {
     setProjectUrl(localStorage.getItem(STORAGE_URL) ?? "");
+    setResearchTopicSlug(localStorage.getItem(STORAGE_TOPIC_SLUG) ?? "customer-journey");
     setUrlHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (!urlHydrated) return;
+    localStorage.setItem(STORAGE_TOPIC_SLUG, researchTopicSlug.trim() || "customer-journey");
+  }, [researchTopicSlug, urlHydrated]);
 
   useEffect(() => {
     if (!urlHydrated) return;
@@ -1634,6 +1643,9 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
     try {
       const html = await file.text();
       const params = new URLSearchParams({ targetSiteUrl });
+      if (researchTopicSlug.trim()) {
+        params.set("topic", researchTopicSlug.trim());
+      }
       const res = await siteAnalyzer2Fetch(`/imports/keyword-page?${params}`, accessToken, {
         method: "POST",
         headers: { "Content-Type": "text/html; charset=utf-8" },
@@ -1957,7 +1969,12 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
                 Open Content Writer
               </a>
             ) : (
-              <Button type="button" size="sm" disabled title="Complete all research gates before handoff">
+              <Button
+                type="button"
+                size="sm"
+                disabled
+                title="Import required research lanes (gov + wiki for customer-journey), or complete competitor crawl"
+              >
                 <ExternalLink className="size-3.5" />
                 Open Content Writer
               </Button>
@@ -2172,7 +2189,8 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
 
               {researchFocus && !researchFocus.researchReady ? (
                 <p className="text-xs text-[var(--color-bad)]">
-                  Research pack not ready — competitor crawl must complete with all gates before handoff.
+                  Import required Google research lanes below (gov + wiki for customer-journey), or
+                  complete competitor crawl for the full SA2 path.
                 </p>
               ) : null}
               {keywordSaved && !keywordProjectId ? (
@@ -2182,6 +2200,18 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
               ) : null}
             </CardContent>
           </Card>
+
+          {keywordSaved && keywordProjectId ? (
+            <ManualResearchLanesCard
+              runId={keywordProjectId}
+              accessToken={accessToken}
+              topicSlug={researchTopicSlug}
+              onTopicSlugChange={setResearchTopicSlug}
+              gates={researchFocus?.gates}
+              researchReady={researchFocus?.researchReady}
+              onImported={() => void loadResearchFocus(keywordProjectId)}
+            />
+          ) : null}
         </aside>
 
         <aside className="col-span-12 flex min-h-0 flex-col gap-5 lg:col-span-8 lg:h-full lg:overflow-y-auto">

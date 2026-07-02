@@ -754,6 +754,53 @@ public class GoogleSerpHtmlParserTests
     }
 }
 
+public class PaaTextImportParserTests
+{
+  [Fact]
+  public void LooksLikePaaTextList_true_for_question_lines()
+  {
+    const string text = """
+        What is an AI customer journey?
+        How do SMBs map journeys?
+        """;
+
+    Assert.True(PaaTextImportParser.LooksLikePaaTextList(text));
+  }
+
+  [Fact]
+  public void LooksLikePaaTextList_false_for_serp_html()
+  {
+    Assert.False(PaaTextImportParser.LooksLikePaaTextList(TestFixtures.ReadCanonicalSerpHtml()));
+  }
+
+  [Fact]
+  public void Parse_extracts_questions_and_sets_type()
+  {
+    const string text = """
+        # curated PAA
+        What is an AI customer journey?
+        How do SMBs map journeys?
+        short
+        """;
+
+    var parsed = PaaTextImportParser.Parse(text, "ai customer journey");
+
+    Assert.Equal("ai customer journey", parsed.Keyword);
+    Assert.Single(parsed.Items);
+    Assert.Equal(SerpItemTypes.PeopleAlsoAsk, parsed.Items[0].Type);
+    Assert.Equal(2, parsed.Items[0].RelatedQueries!.Count);
+    Assert.Contains(
+        parsed.Items[0].RelatedQueries!,
+        q => q.QueryText.Contains("AI customer journey", StringComparison.OrdinalIgnoreCase));
+  }
+
+  [Fact]
+  public void Parse_throws_when_no_questions()
+  {
+    Assert.Throws<InvalidOperationException>(() => PaaTextImportParser.Parse("# only comments\nshort", "kw"));
+  }
+}
+
 public class SerpGateConfigurationTests
 {
     [Fact]

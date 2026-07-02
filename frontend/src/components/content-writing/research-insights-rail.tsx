@@ -80,7 +80,7 @@ function InsightCard({
   );
 }
 
-const MANUAL_LANES = ['keyword', 'edu', 'gov', 'local', 'wiki'] as const;
+const MANUAL_LANES = ['keyword', 'paa', 'edu', 'gov', 'local', 'wiki'] as const;
 
 function laneStatus(
   lane: (typeof MANUAL_LANES)[number],
@@ -93,6 +93,9 @@ function laneStatus(
     (l) => l.lane.toLowerCase() === lane,
   );
   if (!manual) return 'empty';
+  if (lane === 'paa') {
+    return (manual.paaCount ?? manual.paaQuestions?.length ?? 0) > 0 ? 'ok' : 'empty';
+  }
   return manual.organicCount > 0 ? 'ok' : 'empty';
 }
 

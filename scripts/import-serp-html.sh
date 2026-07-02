@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Import saved Google SERP HTML into sa2 research lanes.
 # Usage:
-#   ./scripts/import-serp-html.sh --project-id <uuid> --target-url https://www.example.com/ \
+#   ./scripts/import-serp-html.sh --target-url https://www.example.com/ \
 #     --topic customer-journey --lane keyword research/customer-journey/keyword/file.html
 #
 # Supplemental lanes (same run id after keyword import):
@@ -54,12 +54,16 @@ if [[ -z "$TOPIC" ]]; then
 fi
 
 if [[ "$LANE" == "keyword" && -z "$RUN_ID" ]]; then
-  if [[ -z "$PROJECT_ID" || -z "$TARGET_URL" ]]; then
-    echo "Initial keyword import requires --project-id and --target-url." >&2
+  if [[ -z "$TARGET_URL" ]]; then
+    echo "Initial keyword import requires --target-url." >&2
     exit 1
   fi
+  URL_PARAMS="targetSiteUrl=$(python3 -c "import urllib.parse; print(urllib.parse.quote('''$TARGET_URL'''))")"
+  if [[ -n "$TOPIC" ]]; then
+    URL_PARAMS="${URL_PARAMS}&topic=$(python3 -c "import urllib.parse; print(urllib.parse.quote('''$TOPIC'''))")"
+  fi
   RESP=$(curl -sS -w "\n%{http_code}" -X POST \
-    "${API_URL}/imports/serp-html?projectId=${PROJECT_ID}&targetSiteUrl=$(python3 -c "import urllib.parse; print(urllib.parse.quote('''$TARGET_URL'''))")" \
+    "${API_URL}/imports/keyword-page?${URL_PARAMS}" \
     -H "Content-Type: text/html" \
     --data-binary @"$HTML_FILE")
   BODY=$(echo "$RESP" | sed '$d')
@@ -69,9 +73,9 @@ if [[ "$LANE" == "keyword" && -z "$RUN_ID" ]]; then
     echo "Import failed (HTTP $CODE)" >&2
     exit 1
   fi
-  RUN_ID=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('runId',''))")
+  RUN_ID=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('keywordProjectId') or d.get('runId',''))")
   if [[ -n "$RUN_ID" ]]; then
-    echo "Run id: $RUN_ID — import supplemental lanes with --run-id $RUN_ID --topic $TOPIC --lane <edu|gov|local|wiki> ..."
+    echo "Run id: $RUN_ID — import supplemental lanes with --run-id $RUN_ID --topic $TOPIC --lane <paa|edu|gov|local|wiki> ..."
   fi
   exit 0
 fi
@@ -81,9 +85,14 @@ if [[ -z "$RUN_ID" ]]; then
   exit 1
 fi
 
+CONTENT_TYPE="text/html"
+if [[ "$LANE" == "paa" && "$HTML_FILE" == *.txt ]]; then
+  CONTENT_TYPE="text/plain; charset=utf-8"
+fi
+
 RESP=$(curl -sS -w "\n%{http_code}" -X POST \
   "${API_URL}/analysis-runs/${RUN_ID}/serp/import-html?lane=${LANE}&topic=${TOPIC}" \
-  -H "Content-Type: text/html" \
+  -H "Content-Type: ${CONTENT_TYPE}" \
   --data-binary @"$HTML_FILE")
 BODY=$(echo "$RESP" | sed '$d')
 CODE=$(echo "$RESP" | tail -n1)

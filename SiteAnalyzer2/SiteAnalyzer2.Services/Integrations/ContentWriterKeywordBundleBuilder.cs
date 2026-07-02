@@ -1,5 +1,6 @@
 using SiteAnalyzer2.Domain;
 using SiteAnalyzer2.Domain.Entities;
+using SiteAnalyzer2.Domain.Enums;
 
 namespace SiteAnalyzer2.Services.Integrations;
 
@@ -64,14 +65,17 @@ public static class ContentWriterKeywordBundleBuilder
             .GroupBy(i => i.ResearchLane!, StringComparer.OrdinalIgnoreCase)
             .Select(group =>
             {
-                var organics = group
+                var laneItems = group.ToList();
+                var organics = laneItems
                     .Where(i => string.Equals(i.Type, SerpItemTypes.Organic, StringComparison.OrdinalIgnoreCase) && !i.Ads)
                     .ToList();
+                var paaQuestions = CollectPaaQuestions(laneItems);
                 return new ContentWriterManualResearchLaneDto
                 {
                     Lane = group.Key,
                     Label = SerpResearchLanes.DisplayLabel(group.Key),
                     OrganicCount = organics.Count,
+                    PaaCount = paaQuestions.Count,
                     OrganicResults = organics.Select((item, index) => new ContentWriterSerpItemDto
                     {
                         Position = item.RankGroup > 0 ? item.RankGroup : index + 1,
@@ -83,10 +87,32 @@ public static class ContentWriterKeywordBundleBuilder
                         Date = item.PreSnippet,
                         SiteName = item.WebsiteName,
                     }).ToList(),
+                    PaaQuestions = paaQuestions,
                 };
             })
             .OrderBy(l => l.Lane, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static List<string> CollectPaaQuestions(IReadOnlyList<SerpItem> items)
+    {
+        var questions = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in items)
+        {
+            foreach (var query in item.RelatedQueries.OrderBy(q => q.Sequence))
+            {
+                if (string.IsNullOrWhiteSpace(query.QueryText))
+                    continue;
+
+                var trimmed = query.QueryText.Trim();
+                if (seen.Add(trimmed))
+                    questions.Add(trimmed);
+            }
+        }
+
+        return questions;
     }
 
     internal static List<ContentWriterCitationCandidateDto> BuildCitationCandidates(

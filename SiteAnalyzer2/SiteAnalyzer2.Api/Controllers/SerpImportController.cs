@@ -35,7 +35,7 @@ public sealed class SerpImportController(KeywordWorkflowService workflow) : Cont
                 });
             }
 
-            var result = await workflow.ImportKeywordPageAsync(projectId, normalizedUrl, html, ct);
+            var result = await workflow.ImportKeywordPageAsync(projectId, normalizedUrl, html, null, ct);
             if (!result.KeywordSaved)
                 return UnprocessableEntity(result);
 

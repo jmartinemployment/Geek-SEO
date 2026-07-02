@@ -62,7 +62,9 @@ internal static class SiteAnalyzer2ModelMapper
             Lane = l.Lane,
             Label = l.Label,
             OrganicCount = l.OrganicCount,
+            PaaCount = l.PaaCount,
             OrganicResults = l.OrganicResults.Select(ToSerpItem).ToList(),
+            PaaQuestions = l.PaaQuestions.ToList(),
         }).ToList(),
     };
 
