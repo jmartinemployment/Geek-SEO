@@ -33,7 +33,7 @@ import {
   type DomainOverview,
 } from "@/components/site-analyzer2/DomainOverviewPanel";
 import { ManualResearchLanesCard } from "@/components/site-analyzer2/ManualResearchLanesCard";
-import { slugifyResearchTopic, supplementalLanesImported, updateResearchTopicSlug } from "@/lib/manual-research-lanes";
+import { pendingRequiredGateLabels, slugifyResearchTopic, updateResearchTopicSlug } from "@/lib/manual-research-lanes";
 import { contentWritingPath } from "@/lib/content-writing-search-params";
 import { getSiteAnalyzer2ApiBase, siteAnalyzer2Fetch } from "@/lib/site-analyzer2-api";
 import { cn } from "@/lib/utils";
@@ -1290,11 +1290,11 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
   const workflowLocked = step === "complete";
   const keywordSaved = step === "keyword_saved" || step === "complete";
   const filePickerDisabled = keywordSaved || parsing || crawling || workflowLocked;
-  const topicSlugLocked = supplementalLanesImported(researchFocus?.gates);
+  const pendingRequiredGates = pendingRequiredGateLabels(researchTopicSlug, researchFocus?.gates);
 
   async function commitResearchTopicSlug() {
     const slug = researchTopicSlug.trim();
-    if (!slug || !keywordProjectId || topicSlugLocked) return;
+    if (!slug || !keywordProjectId) return;
 
     try {
       const saved = await updateResearchTopicSlug(keywordProjectId, slug, accessToken);
@@ -2074,17 +2074,13 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
                   <ExternalLink className="size-3.5" />
                   Open Content Writer
                 </Button>
-                {researchFocus?.gates?.some((g) => !g.complete) ? (
+                {pendingRequiredGates.length > 0 ? (
                   <p className="text-xs text-[var(--color-warn)]">
-                    Waiting on:{' '}
-                    {researchFocus.gates
-                      .filter((g) => !g.complete)
-                      .map((g) => g.label)
-                      .join(', ')}
+                    Waiting on: {pendingRequiredGates.join(', ')}
                   </p>
                 ) : (
                   <p className="text-xs text-[var(--color-text-muted)]">
-                    Import required research lanes (gov + wiki for customer-journey).
+                    Import required research lanes (gov for customer-journey).
                   </p>
                 )}
               </div>
@@ -2236,20 +2232,14 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
                   id="keyword-research-topic-slug"
                   type="text"
                   value={researchTopicSlug}
-                  readOnly={topicSlugLocked}
                   onChange={(e) => setResearchTopicSlug(e.target.value)}
                   onBlur={() => void commitResearchTopicSlug()}
                   disabled={parsing || crawling || workflowLocked}
                   placeholder="customer-journey"
-                  className={cn(
-                    "mt-1.5 w-full rounded-[var(--radius-button)] border border-[var(--color-border-strong)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[rgba(59,179,122,0.2)] disabled:opacity-50",
-                    topicSlugLocked && "cursor-not-allowed bg-[var(--color-surface-muted)]/30 text-[var(--color-text-secondary)]",
-                  )}
+                  className="mt-1.5 w-full rounded-[var(--radius-button)] border border-[var(--color-border-strong)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[rgba(59,179,122,0.2)] disabled:opacity-50"
                 />
                 <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                  {topicSlugLocked
-                    ? "Locked after supplemental lane imports. Use Start new keyword to change topic."
-                    : "Folder name under research/ — set before Parse keyword page, editable until gov/wiki/paa lanes import."}
+                  Folder name under research/ — syncs to this run on blur.
                 </p>
               </div>
 
@@ -2327,8 +2317,8 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
 
               {researchFocus && !researchFocus.researchReady ? (
                 <p className="text-xs text-[var(--color-bad)]">
-                  Import required Google research lanes below (gov + wiki for customer-journey), or
-                  complete competitor crawl for the full SA2 path.
+                  Import required Google research lanes below (gov for customer-journey), or complete
+                  competitor crawl for the full SA2 path.
                 </p>
               ) : null}
               {keywordSaved && !keywordProjectId ? (
@@ -2345,7 +2335,6 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
               accessToken={accessToken}
               topicSlug={researchTopicSlug}
               keyword={keyword}
-              topicSlugLocked={topicSlugLocked}
               onTopicSlugChange={setResearchTopicSlug}
               onTopicSlugBlur={commitResearchTopicSlug}
               gates={researchFocus?.gates}

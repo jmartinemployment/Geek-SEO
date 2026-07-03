@@ -11,7 +11,6 @@ export const MANUAL_RESEARCH_LANE_ORDER: ManualResearchLaneId[] = [
   'edu',
   'gov',
   'local',
-  'wiki',
 ];
 
 export const MANUAL_RESEARCH_LANE_LABELS: Record<ManualResearchLaneId, string> = {
@@ -32,8 +31,6 @@ export function manualResearchLaneQueryHint(
     ? `"${keyword.trim().replace(/"/g, '')}"`
     : '"your keyword"';
   switch (lane) {
-    case 'wiki':
-      return `Google: ${phrase} site:en.wikipedia.org ${LANE_JUNK} — results must be en.wikipedia.org (not .wiki sites)`;
     case 'gov':
       return `Google: ${phrase} (site:nist.gov OR site:ftc.gov OR site:usa.gov OR site:cdc.gov OR site:nih.gov) ${LANE_JUNK}`;
     case 'edu':
@@ -41,12 +38,6 @@ export function manualResearchLaneQueryHint(
     default:
       return null;
   }
-}
-
-export function supplementalLanesImported(
-  gates?: { id: string; complete: boolean }[],
-): boolean {
-  return gates?.some((g) => g.id !== 'keyword' && g.complete) ?? false;
 }
 
 export async function updateResearchTopicSlug(
@@ -71,7 +62,7 @@ export async function updateResearchTopicSlug(
 }
 
 export function requiredManualLanesForTopic(topicSlug: string): ManualResearchLaneId[] {
-  return topicSlug.trim().toLowerCase() === 'customer-journey' ? ['gov', 'wiki'] : [];
+  return topicSlug.trim().toLowerCase() === 'customer-journey' ? ['gov'] : [];
 }
 
 export function pendingRequiredGateLabels(
@@ -96,21 +87,6 @@ export function validateManualLaneFileContent(
   fileName?: string,
 ): string | null {
   if (lane === 'paa') return null;
-
-  const lower = content.toLowerCase();
-  const name = (fileName ?? '').toLowerCase();
-
-  if (lane === 'wiki') {
-    if (lower.includes('wikipedia.org')) return null;
-    if (
-      /https?:\/\/[a-z0-9.-]+\.wiki[\s"'/<>\\]/i.test(content)
-      || name.includes('site_wiki')
-      || (name.includes('site:wiki') && !name.includes('wikipedia'))
-    ) {
-      return 'Wrong wiki SERP: this file has .wiki sites (e.g. aisdr.wiki), not en.wikipedia.org. Use Google site:en.wikipedia.org and save Webpage, HTML only.';
-    }
-    return 'No wikipedia.org URLs in this file. Re-run Google with site:en.wikipedia.org, then save Webpage, HTML only.';
-  }
 
   if (lane === 'gov' && !/\.gov[\s"'/<>\\]/i.test(content)) {
     return 'No .gov URLs found. Save a Google SERP from the government query shown below.';

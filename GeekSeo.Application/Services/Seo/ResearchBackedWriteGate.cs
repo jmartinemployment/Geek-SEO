@@ -50,7 +50,7 @@ public static class ResearchBackedWriteGate
     private static IReadOnlyList<string> ResolveRequiredSupplementalLanes(string? topicSlug)
     {
         if (string.Equals(topicSlug, "customer-journey", StringComparison.OrdinalIgnoreCase))
-            return [SerpResearchLanes.Gov, SerpResearchLanes.Wiki];
+            return [SerpResearchLanes.Gov];
 
         return [];
     }

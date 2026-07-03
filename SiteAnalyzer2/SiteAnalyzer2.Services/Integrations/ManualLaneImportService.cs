@@ -234,22 +234,10 @@ public sealed class ManualLaneImportService(
         var run = await db.AnalysisRuns.FirstOrDefaultAsync(r => r.Id == runId, ct)
             ?? throw new InvalidOperationException("Analysis run not found.");
 
-        if (await HasSupplementalLaneImportsAsync(runId, ct))
-        {
-            throw new InvalidOperationException(
-                "Topic slug cannot change after supplemental lanes (gov, wiki, paa, etc.) are imported. Use Start new keyword.");
-        }
-
         run.TopicSlug = normalized;
         await db.SaveChangesAsync(ct);
         return normalized;
     }
-
-    private async Task<bool> HasSupplementalLaneImportsAsync(Guid runId, CancellationToken ct) =>
-        await db.SerpItems.AsNoTracking()
-            .AnyAsync(
-                i => i.RunId == runId && !string.IsNullOrWhiteSpace(i.ResearchLane),
-                ct);
 
     internal static int CountPaaQuestions(SerpLivePageParseResult parsed) =>
         parsed.Items

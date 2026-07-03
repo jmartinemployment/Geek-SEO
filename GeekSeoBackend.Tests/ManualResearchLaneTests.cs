@@ -157,29 +157,26 @@ public sealed class ManualResearchGateTests
     }
 
     [Fact]
-    public void ValidateManualResearchExport_customer_journey_requires_gov_and_wiki()
+    public void ValidateManualResearchExport_customer_journey_requires_gov()
     {
         var export = ManualExport() with
         {
             TopicSlug = "customer-journey",
-            ManualResearchLanes =
-            [
-                GovLane(1),
-            ],
+            ManualResearchLanes = [],
         };
 
         var result = ResearchBackedWriteGate.ValidateManualResearchExport(export);
         Assert.False(result.IsSuccess);
-        Assert.Contains("wiki", result.Error!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("gov", result.Error!, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void ValidateManualResearchExport_passes_with_keyword_gov_wiki()
+    public void ValidateManualResearchExport_passes_with_keyword_and_gov()
     {
         var export = ManualExport() with
         {
             TopicSlug = "customer-journey",
-            ManualResearchLanes = [GovLane(1), WikiLane(1)],
+            ManualResearchLanes = [GovLane(1)],
         };
 
         var result = ResearchBackedWriteGate.ValidateManualResearchExport(export);

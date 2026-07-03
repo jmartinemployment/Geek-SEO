@@ -26,7 +26,6 @@ type Props = {
   accessToken?: string | null;
   topicSlug: string;
   keyword?: string;
-  topicSlugLocked?: boolean;
   onTopicSlugChange: (value: string) => void;
   onTopicSlugBlur?: () => void | Promise<void>;
   gates?: Gate[];
@@ -39,7 +38,6 @@ export function ManualResearchLanesCard({
   accessToken,
   topicSlug,
   keyword = '',
-  topicSlugLocked = false,
   onTopicSlugChange,
   onTopicSlugBlur,
   gates,
@@ -172,8 +170,8 @@ export function ManualResearchLanesCard({
 
   const requiredHint =
     topicSlug.trim().toLowerCase() === 'customer-journey'
-      ? 'Required for this topic: gov + wiki. Optional: paa, edu, local.'
-      : 'Import any lanes you saved. gov + wiki are required only for customer-journey.';
+      ? 'Required for this topic: gov. Optional: paa, edu, local.'
+      : 'Import any lanes you saved. gov is required only for customer-journey.';
 
   const pendingRequired = pendingRequiredGateLabels(topicSlug, gates);
 
@@ -213,27 +211,14 @@ export function ManualResearchLanesCard({
             id="research-topic-slug"
             type="text"
             value={topicSlug}
-            readOnly={topicSlugLocked}
             onChange={(e) => onTopicSlugChange(e.target.value)}
             onBlur={() => void onTopicSlugBlur?.()}
             placeholder="customer-journey"
-            className={cn(
-              'mt-1.5 w-full rounded-[var(--radius-button)] border border-[var(--color-border-strong)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[rgba(59,179,122,0.2)]',
-              topicSlugLocked && 'cursor-not-allowed bg-[var(--color-surface-muted)]/30 text-[var(--color-text-secondary)]',
-            )}
+            className="mt-1.5 w-full rounded-[var(--radius-button)] border border-[var(--color-border-strong)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[rgba(59,179,122,0.2)]"
           />
           <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-            {topicSlugLocked ? (
-              <>
-                Locked after supplemental lane imports — matches{' '}
-                <code className="text-xs">research/{topicSlug || '…'}/</code>. Use{' '}
-                <strong>Start new keyword</strong> to switch topics.
-              </>
-            ) : (
-              <>
-                {requiredHint} Matches folder <code className="text-xs">research/{topicSlug || '…'}/</code>.
-              </>
-            )}
+            {requiredHint} Matches folder <code className="text-xs">research/{topicSlug || '…'}/</code>.
+            Syncs to this run on blur.
           </p>
         </div>
 
@@ -379,15 +364,6 @@ export function ManualResearchLanesCard({
             );
           })}
         </ul>
-
-        {topicSlug.trim().toLowerCase() === 'customer-journey' ? (
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Wiki lane: use{' '}
-            <code className="text-[10px]">research/customer-journey/wiki/</code> (en.wikipedia.org
-            results). Do not use the sales <code className="text-[10px]">site_wiki</code> file —
-            those are .wiki TLD sites, not Wikipedia.
-          </p>
-        ) : null}
 
         <Button
           type="button"

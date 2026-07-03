@@ -81,7 +81,7 @@ function InsightCard({
   );
 }
 
-const MANUAL_LANES = ['keyword', 'paa', 'edu', 'gov', 'local', 'wiki'] as const;
+const MANUAL_LANES = ['keyword', 'paa', 'edu', 'gov', 'local'] as const;
 
 function laneStatus(
   lane: (typeof MANUAL_LANES)[number],
@@ -180,12 +180,12 @@ function CitationsInsightCard({
   return (
     <InsightCard title="Citations (from research)">
       <p className="mb-2 text-[10px] text-[var(--color-text-muted)]">
-        These come from your Site Analyzer lane imports (.gov, .edu, wiki). Add them as inline links
+        These come from your Site Analyzer lane imports (.gov, .edu). Add them as inline links
         in the article body.
       </p>
       {candidates.length === 0 ? (
         <p className="text-xs text-amber-800">
-          No authoritative sources in the research pack yet — import gov, edu, or wiki lanes in Site
+          No authoritative sources in the research pack yet — import gov or edu lanes in Site
           Analyzer.
         </p>
       ) : (

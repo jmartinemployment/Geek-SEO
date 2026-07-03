@@ -10,7 +10,7 @@ internal static class ManualResearchReadiness
 {
     public static IReadOnlyList<string> RequiredSupplementalLanes(string? topicSlug) =>
         string.Equals(topicSlug, "customer-journey", StringComparison.OrdinalIgnoreCase)
-            ? [SerpResearchLanes.Gov, SerpResearchLanes.Wiki]
+            ? [SerpResearchLanes.Gov]
             : [];
 
     public static async Task<(bool Ready, IReadOnlyList<ResearchWorkflowGateDto> Gates)> EvaluateAsync(
@@ -27,7 +27,6 @@ internal static class ManualResearchReadiness
             new("edu", "Research (.edu)", stats.OrganicCount(SerpResearchLanes.Edu) > 0),
             new("gov", "Government", stats.OrganicCount(SerpResearchLanes.Gov) > 0),
             new("local", "Local", stats.LocalReady),
-            new("wiki", "Wikipedia", stats.OrganicCount(SerpResearchLanes.Wiki) > 0),
         };
 
         if (!hasKeywordSerp)
