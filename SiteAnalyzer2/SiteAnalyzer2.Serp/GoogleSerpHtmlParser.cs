@@ -885,33 +885,9 @@ public static class GoogleSerpHtmlParser
         return block.QuerySelector("[data-text-ad], .uEierd, .cu-container") != null;
     }
 
-    private static string? NormalizeResultUrl(string? href)
-    {
-        if (string.IsNullOrWhiteSpace(href))
-            return null;
+    private static string? NormalizeResultUrl(string? href) => SerpResultUrlNormalizer.Normalize(href);
 
-        if (href.StartsWith("/url?", StringComparison.Ordinal))
-        {
-            var queryString = href.AsSpan("/url?".Length);
-            foreach (var part in queryString.ToString().Split('&', StringSplitOptions.RemoveEmptyEntries))
-            {
-                if (part.StartsWith("q=", StringComparison.Ordinal))
-                    return Uri.UnescapeDataString(part["q=".Length..]);
-                if (part.StartsWith("url=", StringComparison.Ordinal))
-                    return Uri.UnescapeDataString(part["url=".Length..]);
-            }
-
-            return null;
-        }
-
-        if (Uri.TryCreate(href, UriKind.Absolute, out var uri)
-            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
-        {
-            return uri.ToString();
-        }
-
-        return null;
-    }
+    public static bool ShouldSkipResultUrlPublic(string href) => ShouldSkipResultUrl(href);
 
     private static bool ShouldSkipResultUrl(string href)
     {

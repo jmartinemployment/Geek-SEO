@@ -2282,6 +2282,7 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
               runId={keywordProjectId}
               accessToken={accessToken}
               topicSlug={researchTopicSlug}
+              keyword={keyword}
               topicSlugLocked={Boolean(keywordProjectId)}
               onTopicSlugChange={setResearchTopicSlug}
               gates={researchFocus?.gates}

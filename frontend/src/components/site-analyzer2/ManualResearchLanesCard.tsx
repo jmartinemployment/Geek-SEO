@@ -12,6 +12,7 @@ import {
   laneImportStatus,
   MANUAL_RESEARCH_LANE_LABELS,
   MANUAL_RESEARCH_LANE_ORDER,
+  manualResearchLaneQueryHint,
   type ManualResearchLaneId,
 } from '@/lib/manual-research-lanes';
 import type { ContentWriterSerpExport } from '@/lib/seo-api';
@@ -22,6 +23,7 @@ type Props = {
   runId: string;
   accessToken?: string | null;
   topicSlug: string;
+  keyword?: string;
   topicSlugLocked?: boolean;
   onTopicSlugChange: (value: string) => void;
   gates?: Gate[];
@@ -33,6 +35,7 @@ export function ManualResearchLanesCard({
   runId,
   accessToken,
   topicSlug,
+  keyword = '',
   topicSlugLocked = false,
   onTopicSlugChange,
   gates,
@@ -203,6 +206,7 @@ export function ManualResearchLanesCard({
             const file = lane === 'paa' ? undefined : pendingFiles[lane];
             const paaFiles = lane === 'paa' ? pendingPaaFiles : [];
             const busy = importingLane === lane || importingAll;
+            const queryHint = manualResearchLaneQueryHint(lane, keyword);
             return (
               <li
                 key={lane}
@@ -279,6 +283,9 @@ export function ManualResearchLanesCard({
                   <p className="mt-1 truncate text-xs text-[var(--color-text-secondary)]">
                     {file.name}
                   </p>
+                ) : null}
+                {queryHint ? (
+                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">{queryHint}</p>
                 ) : null}
               </li>
             );

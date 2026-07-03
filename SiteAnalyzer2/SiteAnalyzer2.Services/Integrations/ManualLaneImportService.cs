@@ -38,7 +38,7 @@ public sealed class ManualLaneImportService(
         EnforceTopicInvariant(run, normalizedTopic);
 
         var parsed = ParseLaneContent(html, normalizedLane, run.Keyword);
-        ValidateParsedLane(normalizedLane, parsed);
+        ValidateParsedLane(normalizedLane, parsed, run.Keyword);
 
         run.TopicSlug = normalizedTopic;
         run.ResearchMode = ResearchModes.Manual;
@@ -66,8 +66,8 @@ public sealed class ManualLaneImportService(
     {
         if (string.Equals(normalizedLane, SerpResearchLanes.Paa, StringComparison.OrdinalIgnoreCase))
         {
-            var parsed = PaaLaneContentParser.Parse(content, keyword);
-            return PaaLaneImportComposer.ApplyKeywordRelevance(parsed, keyword);
+            var paaParsed = PaaLaneContentParser.Parse(content, keyword);
+            return PaaLaneImportComposer.ApplyKeywordRelevance(paaParsed, keyword);
         }
 
         if (!GoogleSerpHtmlParser.LooksLikeSerpPage(content))
@@ -76,7 +76,8 @@ public sealed class ManualLaneImportService(
                 "Uploaded file does not look like a Google SERP page. Save as 'Webpage, HTML only' from Chrome.");
         }
 
-        return GoogleSerpHtmlParser.ParseLivePage(content, keywordOverride: keyword);
+        var parsed = GoogleSerpHtmlParser.ParseLivePage(content, keywordOverride: keyword);
+        return CitationLaneHtmlFallback.Enrich(parsed, content, normalizedLane);
     }
 
     public async Task<ManualLaneImportResultDto> ImportPaaBatchAsync(
@@ -102,7 +103,7 @@ public sealed class ManualLaneImportService(
         EnforceTopicInvariant(run, normalizedTopic);
 
         var merged = PaaLaneImportComposer.MergeContents(files, run.Keyword);
-        ValidateParsedLane(SerpResearchLanes.Paa, merged);
+        ValidateParsedLane(SerpResearchLanes.Paa, merged, run.Keyword);
 
         run.TopicSlug = normalizedTopic;
         run.ResearchMode = ResearchModes.Manual;
@@ -141,7 +142,7 @@ public sealed class ManualLaneImportService(
             $"topic_slug '{topicSlug}' does not match existing topic '{run.TopicSlug}' for this run.{hint}");
     }
 
-    internal static void ValidateParsedLane(string normalizedLane, SerpLivePageParseResult parsed)
+    internal static void ValidateParsedLane(string normalizedLane, SerpLivePageParseResult parsed, string? keyword = null)
     {
         var organicCount = parsed.Items.Count(i =>
             string.Equals(i.Type, SerpItemTypes.Organic, StringComparison.OrdinalIgnoreCase) && !i.Ads);
@@ -183,8 +184,21 @@ public sealed class ManualLaneImportService(
         var eligible = CountCitationEligible(parsed, normalizedLane);
         if (eligible == 0)
         {
+            var domains = parsed.Items
+                .Where(i => string.Equals(i.Type, SerpItemTypes.Organic, StringComparison.OrdinalIgnoreCase) && !i.Ads)
+                .Select(i => i.Domain)
+                .Where(d => !string.IsNullOrWhiteSpace(d))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(6)
+                .ToList();
+
+            var domainHint = domains.Count > 0
+                ? $" Parsed {organicCount} organic result(s); domains seen: {string.Join(", ", domains)}."
+                : $" Parsed {organicCount} organic result(s).";
+
+            var queryHint = CitationLaneQueryHints.ForLane(normalizedLane, keyword);
             throw new InvalidOperationException(
-                $"Lane '{normalizedLane}' produced 0 citation-eligible URLs after domain validation.");
+                $"Lane '{normalizedLane}' produced 0 citation-eligible URLs after domain validation.{domainHint}{queryHint}");
         }
     }
 
@@ -199,7 +213,7 @@ public sealed class ManualLaneImportService(
             if (string.IsNullOrWhiteSpace(item.Url))
                 continue;
 
-            if (ManualCitationDomainRules.IsEligibleForLane(item.Url, normalizedLane))
+            if (CitationLaneDomainRules.IsEligibleUrl(item.Url, normalizedLane))
                 count++;
         }
 
@@ -226,22 +240,4 @@ public sealed record ManualLaneImportResultDto
     public string ResearchMode { get; init; } = ResearchModes.Manual;
     public int FileCount { get; init; } = 1;
     public int PaaQuestionCount { get; init; }
-}
-
-internal static class ManualCitationDomainRules
-{
-    internal static bool IsEligibleForLane(string url, string lane)
-    {
-        if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri))
-            return false;
-
-        var host = uri.Host.ToLowerInvariant();
-        return lane.ToLowerInvariant() switch
-        {
-            SerpResearchLanes.Gov => host.EndsWith(".gov", StringComparison.Ordinal),
-            SerpResearchLanes.Edu => host.EndsWith(".edu", StringComparison.Ordinal),
-            SerpResearchLanes.Wiki => host.Contains("wikipedia.org", StringComparison.Ordinal),
-            _ => true,
-        };
-    }
 }

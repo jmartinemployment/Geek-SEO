@@ -657,6 +657,81 @@ public class SerpCanonicalFixtureTests
     }
 }
 
+public class CitationLaneHtmlFallbackTests
+{
+    [Fact]
+    public void Enrich_finds_wikipedia_urls_when_primary_parser_missed_them()
+    {
+        const string html = """
+            <html><body id="search">
+            <script>["https://en.wikipedia.org/wiki/Customer_journey",null]</script>
+            </body></html>
+            """;
+        var parsed = new SerpLivePageParseResult(
+            "ai customer journey",
+            2840,
+            "en",
+            "desktop",
+            "windows",
+            0,
+            "google.com",
+            "https://www.google.com/search?q=test",
+            DateTime.UtcNow,
+            null,
+            1,
+            [],
+            false,
+            false,
+            []);
+
+        var enriched = CitationLaneHtmlFallback.Enrich(parsed, html, SerpResearchLanes.Wiki);
+        var wiki = enriched.Items.Where(i =>
+            i.Type == SerpItemTypes.Organic
+            && (i.Url ?? "").Contains("wikipedia.org", StringComparison.OrdinalIgnoreCase)).ToList();
+
+        Assert.NotEmpty(wiki);
+    }
+
+    [Fact]
+    public void ParseLivePage_CustomerJourneyWikiSerp_passes_wiki_lane_validation()
+    {
+        var path = ResolveResearchWikiHtml();
+        if (!File.Exists(path))
+            return;
+
+        var html = File.ReadAllText(path);
+        var parsed = GoogleSerpHtmlParser.ParseLivePage(html, "ai customer journey");
+        parsed = CitationLaneHtmlFallback.Enrich(parsed, html, SerpResearchLanes.Wiki);
+
+        var eligible = parsed.Items.Count(i =>
+            i.Type == SerpItemTypes.Organic
+            && !i.Ads
+            && !string.IsNullOrWhiteSpace(i.Url)
+            && CitationLaneDomainRules.IsEligibleUrl(i.Url!, SerpResearchLanes.Wiki));
+
+        Assert.True(eligible > 0, $"Expected wiki-eligible organics, found {eligible}");
+    }
+
+    private static string ResolveResearchWikiHtml()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            var candidate = Path.Combine(
+                dir.FullName,
+                "research",
+                "customer-journey",
+                "wiki",
+                "wikipedia ai customer journey - Google Search.html");
+            if (File.Exists(candidate))
+                return candidate;
+            dir = dir.Parent;
+        }
+
+        return "";
+    }
+}
+
 public class GoogleSerpHtmlParserTests
 {
     [Fact]

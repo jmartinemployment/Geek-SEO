@@ -22,6 +22,27 @@ export const MANUAL_RESEARCH_LANE_LABELS: Record<ManualResearchLaneId, string> =
   wiki: 'Wikipedia',
 };
 
+const LANE_JUNK = '-template -pdf -generator -reddit -quora -course -syllabus';
+
+export function manualResearchLaneQueryHint(
+  lane: ManualResearchLaneId,
+  keyword: string,
+): string | null {
+  const phrase = keyword.trim()
+    ? `"${keyword.trim().replace(/"/g, '')}"`
+    : '"your keyword"';
+  switch (lane) {
+    case 'wiki':
+      return `Google: ${phrase} site:en.wikipedia.org ${LANE_JUNK}`;
+    case 'gov':
+      return `Google: ${phrase} (site:nist.gov OR site:ftc.gov OR site:usa.gov OR site:cdc.gov OR site:nih.gov) ${LANE_JUNK}`;
+    case 'edu':
+      return `Google: ${phrase} site:edu ${LANE_JUNK}`;
+    default:
+      return null;
+  }
+}
+
 export type ManualLaneImportResult = {
   runId: string;
   lane: string;
