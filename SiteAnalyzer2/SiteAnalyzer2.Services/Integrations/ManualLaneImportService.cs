@@ -196,9 +196,10 @@ public sealed class ManualLaneImportService(
                 ? $" Parsed {organicCount} organic result(s); domains seen: {string.Join(", ", domains)}."
                 : $" Parsed {organicCount} organic result(s).";
 
+            var wrongDomainHint = CitationLaneValidationMessages.WrongDomainHint(normalizedLane, domains) ?? "";
             var queryHint = CitationLaneQueryHints.ForLane(normalizedLane, keyword);
             throw new InvalidOperationException(
-                $"Lane '{normalizedLane}' produced 0 citation-eligible URLs after domain validation.{domainHint}{queryHint}");
+                $"Lane '{normalizedLane}' produced 0 citation-eligible URLs after domain validation.{domainHint}{wrongDomainHint}{queryHint}");
         }
     }
 

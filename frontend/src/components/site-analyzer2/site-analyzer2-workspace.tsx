@@ -2045,15 +2045,30 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
                 Open Content Writer
               </a>
             ) : (
-              <Button
-                type="button"
-                size="sm"
-                disabled
-                title="Import required research lanes (gov + wiki for customer-journey), or complete competitor crawl"
-              >
-                <ExternalLink className="size-3.5" />
-                Open Content Writer
-              </Button>
+              <div className="space-y-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled
+                  title="Complete required research lanes first"
+                >
+                  <ExternalLink className="size-3.5" />
+                  Open Content Writer
+                </Button>
+                {researchFocus?.gates?.some((g) => !g.complete) ? (
+                  <p className="text-xs text-[var(--color-warn)]">
+                    Waiting on:{' '}
+                    {researchFocus.gates
+                      .filter((g) => !g.complete)
+                      .map((g) => g.label)
+                      .join(', ')}
+                  </p>
+                ) : (
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    Import required research lanes (gov + wiki for customer-journey).
+                  </p>
+                )}
+              </div>
             )}
           </div>
         ) : null}

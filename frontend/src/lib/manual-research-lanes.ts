@@ -33,7 +33,7 @@ export function manualResearchLaneQueryHint(
     : '"your keyword"';
   switch (lane) {
     case 'wiki':
-      return `Google: ${phrase} site:en.wikipedia.org ${LANE_JUNK}`;
+      return `Google: ${phrase} site:en.wikipedia.org ${LANE_JUNK} — results must be en.wikipedia.org (not .wiki sites)`;
     case 'gov':
       return `Google: ${phrase} (site:nist.gov OR site:ftc.gov OR site:usa.gov OR site:cdc.gov OR site:nih.gov) ${LANE_JUNK}`;
     case 'edu':
@@ -41,6 +41,53 @@ export function manualResearchLaneQueryHint(
     default:
       return null;
   }
+}
+
+export function requiredManualLanesForTopic(topicSlug: string): ManualResearchLaneId[] {
+  return topicSlug.trim().toLowerCase() === 'customer-journey' ? ['gov', 'wiki'] : [];
+}
+
+export function pendingRequiredGateLabels(
+  topicSlug: string,
+  gates?: { id: string; label: string; complete: boolean }[],
+): string[] {
+  const required = requiredManualLanesForTopic(topicSlug);
+  if (!gates?.length || required.length === 0) return [];
+
+  return required
+    .filter((lane) => {
+      const gate = gates.find((g) => g.id === lane);
+      return gate ? !gate.complete : true;
+    })
+    .map((lane) => MANUAL_RESEARCH_LANE_LABELS[lane]);
+}
+
+/** Client-side check before POST — catches wrong SERP saves early. */
+export function validateManualLaneFileContent(
+  lane: ManualResearchLaneId,
+  content: string,
+): string | null {
+  if (lane === 'paa') return null;
+
+  const lower = content.toLowerCase();
+
+  if (lane === 'wiki') {
+    if (lower.includes('wikipedia.org')) return null;
+    if (/https?:\/\/[a-z0-9.-]+\.wiki[\s"'/<>\\]/i.test(content)) {
+      return 'This SERP has .wiki sites (e.g. aisdr.wiki), not en.wikipedia.org. Re-run Google with site:en.wikipedia.org, then save Webpage, HTML only.';
+    }
+    return 'No wikipedia.org URLs in this file. Re-run Google with site:en.wikipedia.org, then save Webpage, HTML only.';
+  }
+
+  if (lane === 'gov' && !/\.gov[\s"'/<>\\]/i.test(content)) {
+    return 'No .gov URLs found. Save a Google SERP from the government query shown below.';
+  }
+
+  if (lane === 'edu' && !/\.edu[\s"'/<>\\]/i.test(content)) {
+    return 'No .edu URLs found. Save a Google SERP from the .edu query shown below.';
+  }
+
+  return null;
 }
 
 export type ManualLaneImportResult = {

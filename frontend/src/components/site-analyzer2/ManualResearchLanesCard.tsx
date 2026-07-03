@@ -13,6 +13,8 @@ import {
   MANUAL_RESEARCH_LANE_LABELS,
   MANUAL_RESEARCH_LANE_ORDER,
   manualResearchLaneQueryHint,
+  pendingRequiredGateLabels,
+  validateManualLaneFileContent,
   type ManualResearchLaneId,
 } from '@/lib/manual-research-lanes';
 import type { ContentWriterSerpExport } from '@/lib/seo-api';
@@ -108,6 +110,11 @@ export function ManualResearchLanesCard({
     setImportingLane(lane);
     try {
       const html = await file.text();
+      const preflight = validateManualLaneFileContent(lane, html);
+      if (preflight) {
+        setLaneError(preflight);
+        return;
+      }
       await importManualResearchLane(runId, lane, topicSlug.trim(), html, accessToken, file.name);
       setPendingFiles((prev) => {
         const next = { ...prev };
@@ -152,6 +159,8 @@ export function ManualResearchLanesCard({
       ? 'Required for this topic: gov + wiki. Optional: paa, edu, local.'
       : 'Import any lanes you saved. gov + wiki are required only for customer-journey.';
 
+  const pendingRequired = pendingRequiredGateLabels(topicSlug, gates);
+
   return (
     <Card>
       <CardHeader>
@@ -167,6 +176,16 @@ export function ManualResearchLanesCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {keyword.trim() ? (
+          <p className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)]/20 px-3 py-2 text-xs text-[var(--color-text-secondary)]">
+            <span className="font-semibold text-[var(--color-text-primary)]">Pillar keyword for this run:</span>{' '}
+            {keyword.trim()}
+            <span className="mt-1 block text-[var(--color-text-muted)]">
+              Use this phrase in each Google search below — lane files must match this keyword, not a different topic.
+            </span>
+          </p>
+        ) : null}
+
         <div>
           <label
             htmlFor="research-topic-slug"
@@ -187,11 +206,22 @@ export function ManualResearchLanesCard({
             )}
           />
           <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-            {topicSlugLocked
-              ? 'Locked to this keyword run — matches your research/ folder name, not the pillar keyword phrase.'
-              : requiredHint}
+            {topicSlugLocked ? (
+              <>
+                Locked to folder <code className="text-xs">research/{topicSlug || '…'}/</code> for this
+                run. To research a different topic, use <strong>Start new keyword</strong> above.
+              </>
+            ) : (
+              requiredHint
+            )}
           </p>
         </div>
+
+        {pendingRequired.length > 0 ? (
+          <p className="text-xs font-medium text-[var(--color-warn)]">
+            Still required for Content Writer: {pendingRequired.join(', ')}
+          </p>
+        ) : null}
 
         {loadingExport ? (
           <p className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
@@ -242,9 +272,16 @@ export function ManualResearchLanesCard({
                           setPendingPaaFiles(picked);
                           return;
                         }
+                        const nextFile = picked[0];
                         setPendingFiles((prev) =>
-                          picked[0] ? { ...prev, [lane]: picked[0] } : prev,
+                          nextFile ? { ...prev, [lane]: nextFile } : prev,
                         );
+                        if (nextFile && lane !== 'paa') {
+                          void nextFile.text().then((html) => {
+                            const err = validateManualLaneFileContent(lane, html);
+                            if (err) setLaneError(`[${lane}] ${err}`);
+                          });
+                        }
                       }}
                     />
                     <Button

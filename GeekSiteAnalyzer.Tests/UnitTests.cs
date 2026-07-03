@@ -657,6 +657,27 @@ public class SerpCanonicalFixtureTests
     }
 }
 
+public class CitationLaneDomainRulesTests
+{
+    [Theory]
+    [InlineData("en.wikipedia.org", true)]
+    [InlineData("wikipedia.org", true)]
+    [InlineData("aisdr.wiki", false)]
+    [InlineData("rfp.wiki", false)]
+    public void IsWikipediaHost_distinguishes_wikipedia_from_wiki_tld(string host, bool expected)
+    {
+        Assert.Equal(expected, CitationLaneDomainRules.IsWikipediaHost(host));
+    }
+
+    [Theory]
+    [InlineData("aisdr.wiki", true)]
+    [InlineData("en.wikipedia.org", false)]
+    public void IsNonWikipediaWikiTld(string host, bool expected)
+    {
+        Assert.Equal(expected, CitationLaneDomainRules.IsNonWikipediaWikiTld(host));
+    }
+}
+
 public class CitationLaneHtmlFallbackTests
 {
     [Fact]

@@ -12,8 +12,19 @@ public static class CitationLaneDomainRules
         {
             SerpResearchLanes.Gov => host.EndsWith(".gov", StringComparison.Ordinal),
             SerpResearchLanes.Edu => host.EndsWith(".edu", StringComparison.Ordinal),
-            SerpResearchLanes.Wiki => host.Contains("wikipedia.org", StringComparison.Ordinal),
+            SerpResearchLanes.Wiki => IsWikipediaHost(host),
             _ => true,
         };
+    }
+
+    public static bool IsWikipediaHost(string host) =>
+        host.Equals("wikipedia.org", StringComparison.Ordinal)
+        || host.EndsWith(".wikipedia.org", StringComparison.Ordinal);
+
+    /// <summary>True for custom .wiki TLD hosts (aisdr.wiki) — not en.wikipedia.org.</summary>
+    public static bool IsNonWikipediaWikiTld(string host)
+    {
+        var normalized = host.ToLowerInvariant();
+        return normalized.EndsWith(".wiki", StringComparison.Ordinal) && !IsWikipediaHost(normalized);
     }
 }
