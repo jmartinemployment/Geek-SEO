@@ -2342,6 +2342,68 @@ public class OperatorResearchServiceTests
     }
 
     [Fact]
+    public async Task GetResearchFocus_ReadyWhenGapTopicsExistWithoutFindings()
+    {
+        await using var db = CreateDb();
+        var projectId = Guid.NewGuid();
+        var runId = Guid.NewGuid();
+        var pageId = Guid.NewGuid();
+
+        db.AnalysisRuns.Add(new AnalysisRun
+        {
+            Id = runId,
+            ProjectId = projectId,
+            Keyword = "ai customer journey",
+            TargetSiteUrl = "https://www.geekatyourspot.com/",
+            GapTopics = ["ai customer journey", "journey mapping"],
+        });
+        db.CompetitorPages.Add(new CompetitorPage
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = projectId,
+            RunId = runId,
+            Domain = "competitor.com",
+            Url = "https://competitor.com/",
+            SeedRankAbsolute = 1,
+        });
+        db.SerpItems.Add(new SerpItem
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = projectId,
+            RunId = runId,
+            Type = SerpItemTypes.Organic,
+            RankAbsolute = 1,
+            Url = "https://competitor.com/",
+            Ads = false,
+        });
+        db.Pages.Add(new Page
+        {
+            Id = pageId,
+            ProjectId = projectId,
+            RunId = runId,
+            Url = "https://www.geekatyourspot.com/",
+            IsTargetSite = true,
+        });
+        db.PageHeadings.Add(new PageHeading
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = projectId,
+            PageId = pageId,
+            Level = 2,
+            Text = "Services",
+            Sequence = 0,
+        });
+        await db.SaveChangesAsync();
+
+        var service = new OperatorResearchService(db, new SerpRankHistoryService(db));
+        var focus = await service.GetResearchFocusAsync(runId);
+
+        Assert.NotNull(focus);
+        Assert.True(focus!.ResearchReady);
+        Assert.True(focus.Gates.Single(g => g.Id == "comparison").Complete);
+    }
+
+    [Fact]
     public async Task ListByProject_ReportsContentWritingReadyFromResearchGates()
     {
         await using var db = CreateDb();

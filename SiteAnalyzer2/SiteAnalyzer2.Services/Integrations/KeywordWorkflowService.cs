@@ -148,9 +148,12 @@ public sealed class KeywordWorkflowService(
         }
         catch (InvalidOperationException ex)
         {
+            var stats = await CompetitorCrawlStatsQuery.LoadAsync(db, keywordProjectId, ct);
             return new CompetitorCrawlWorkflowResultDto
             {
                 CompetitorSaved = false,
+                TotalPages = stats.TotalPages,
+                DomainCount = stats.DomainCount,
                 Message = ex.Message,
             };
         }

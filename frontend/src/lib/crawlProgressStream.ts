@@ -92,9 +92,7 @@ export function normalizeCrawlStatusResponse(
   return {
     runId,
     crawlStatus,
-    competitorSaved:
-      competitorSaved ||
-      (crawlStatus === "complete" && totalPages > 0),
+    competitorSaved,
     totalPages,
     domainCount: domainCount > 0 ? domainCount : domains.length,
     domains,

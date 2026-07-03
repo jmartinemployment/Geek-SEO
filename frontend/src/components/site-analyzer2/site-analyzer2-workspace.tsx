@@ -108,6 +108,7 @@ type RunResearchFocus = {
   gapTopics: string[];
   writingInstructions?: string | null;
   researchReady: boolean;
+  researchMode?: string;
   gates: ResearchWorkflowGate[];
   packStats: ResearchPackStats;
   rankings: RunRankingsSummary;
@@ -565,6 +566,7 @@ function normalizeResearchFocus(value: unknown): RunResearchFocus | null {
     writingInstructions:
       readString(record.writingInstructions) ?? readString(record.WritingInstructions),
     researchReady: record.researchReady === true || record.ResearchReady === true,
+    researchMode: readString(record.researchMode) ?? readString(record.ResearchMode) ?? undefined,
     gates,
     packStats: normalizePackStats(record.packStats ?? record.PackStats),
     rankings: normalizeRankingsSummary(record.rankings ?? record.Rankings),
@@ -1705,19 +1707,8 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
   }
 
   async function finishCompetitorCrawl(body: CompetitorCrawlProgressPayload) {
+    persistUrl();
     const saved = body.competitorSaved === true;
-    if (!saved) {
-      setStatus({
-        kind: "err",
-        text: [
-          body.message ?? "Competitor crawl data was not saved.",
-          "Keyword data is still saved. Fix issues and run competitor crawl again.",
-          ...(body.qualityWarnings ?? []),
-        ].join("\n"),
-      });
-      return;
-    }
-
     let totalPages = readCount(body.totalPages);
     let domainCount = readCount(body.domainCount);
     let domains = body.domains ?? [];
@@ -1733,6 +1724,23 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
         qualityWarnings = status.qualityWarnings ?? qualityWarnings;
         message = status.message ?? message;
       }
+    }
+
+    if (!saved) {
+      setStatus({
+        kind: "err",
+        text: [
+          message ?? body.message ?? "Competitor crawl data was not saved.",
+          totalPages > 0
+            ? buildCrawlSummaryMessage({ totalPages, domainCount, message })
+            : null,
+          "Keyword data is still saved. Fix issues and run competitor crawl again.",
+          ...qualityWarnings,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      });
+      return;
     }
 
     const summary: CompetitorCrawlStorage = {
@@ -1751,12 +1759,39 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
 
     const focus = await waitForResearchPackReady(keywordProjectId);
     if (!focus?.researchReady) {
+      const pendingGates = focus?.gates.filter((gate) => !gate.complete).map((gate) => gate.label) ?? [];
+      const isManual = focus?.researchMode === "manual";
+
+      if (isManual) {
+        setStatus({
+          kind: "ok",
+          text: [
+            buildCrawlSummaryMessage(summary),
+            "Competitor crawl saved.",
+            pendingGates.length > 0
+              ? `Finish manual research lanes before Content Writer: ${pendingGates.join(", ")}.`
+              : "Finish remaining manual research lanes before Content Writer.",
+          ].join("\n"),
+        });
+        return;
+      }
+
       setStatus({
         kind: "err",
         text: [
           buildCrawlSummaryMessage(summary),
-          "Research pack assembly did not complete. Run competitor crawl again.",
-        ].join("\n"),
+          focus?.packStats.gapTopicCount
+            ? "Research pack is partially assembled."
+            : "Research pack assembly did not complete.",
+          pendingGates.length > 0
+            ? `Still needed: ${pendingGates.join(", ")}.`
+            : "Run competitor crawl again.",
+          focus?.packStats.gapTopicCount
+            ? `Gap themes saved: ${focus.packStats.gapTopicCount}.`
+            : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
       });
       return;
     }
@@ -1805,6 +1840,12 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
           .filter(Boolean)
           .join("\n"),
       });
+      return;
+    }
+
+    if (payload.crawlStatus === "pages_saved") {
+      crawlSettledRef.current = true;
+      void finishCompetitorCrawl(payload);
       return;
     }
 

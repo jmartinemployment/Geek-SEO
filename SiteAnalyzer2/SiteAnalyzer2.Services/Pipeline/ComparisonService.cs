@@ -63,9 +63,30 @@ public class ComparisonService(AppDbContext db)
 
         var targetPages = await db.Pages.Where(p => p.RunId == runId && p.IsTargetSite).ToListAsync(ct);
         var competitorPages = await db.CompetitorPages.Where(p => p.RunId == runId).ToListAsync(ct);
+        var checks = new List<ComparisonCheck>();
+        var findings = new List<Finding>();
 
         if (targetPages.Count == 0 || competitorPages.Count == 0)
-            return (0, 0);
+        {
+            checks.Add(new ComparisonCheck
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = run.ProjectId,
+                RunId = run.Id,
+                FindingType = FindingType.HeadingStructureGap,
+                Outcome = ComparisonOutcome.NoFinding,
+                PayloadJson = JsonSerializer.Serialize(new
+                {
+                    skipped = true,
+                    reason = targetPages.Count == 0
+                        ? "Target-site pages missing during operator comparison."
+                        : "Competitor pages missing during operator comparison.",
+                }),
+            });
+            await db.ComparisonChecks.AddRangeAsync(checks, ct);
+            await db.SaveChangesAsync(ct);
+            return (checks.Count, 0);
+        }
 
         var targetPageIds = targetPages.Select(p => p.Id).ToList();
         var competitorPageIds = competitorPages.Select(p => p.Id).ToList();
@@ -80,9 +101,6 @@ public class ComparisonService(AppDbContext db)
         var competitorJsonLd = await db.CompetitorPageJsonLdBlocks
             .Where(j => competitorPageIds.Contains(j.CompetitorPageId))
             .ToListAsync(ct);
-
-        var checks = new List<ComparisonCheck>();
-        var findings = new List<Finding>();
 
         EvaluateOperatorStructuredDataGap(run, targetJsonLd, competitorJsonLd, checks, findings);
         EvaluateOperatorHeadingStructureGap(run, targetHeadings, competitorHeadings, checks, findings);

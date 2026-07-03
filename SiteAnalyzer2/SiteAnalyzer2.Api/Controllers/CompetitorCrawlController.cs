@@ -13,7 +13,8 @@ namespace SiteAnalyzer2.Api.Controllers;
 public class CompetitorCrawlController(
     AppDbContext db,
     CompetitorCrawlJobService crawlJobs,
-    OperatorRunFocusService runFocus) : ControllerBase
+    OperatorRunFocusService runFocus,
+    OperatorResearchService operatorResearch) : ControllerBase
 {
     [HttpPost]
     public async Task<IActionResult> Start(Guid runId, CancellationToken ct)
@@ -55,14 +56,18 @@ public class CompetitorCrawlController(
             }
 
             var stats = await CompetitorCrawlStatsQuery.LoadAsync(db, runId, ct);
+            var focus = await operatorResearch.GetResearchFocusAsync(runId, ct);
+            var researchReady = focus?.ResearchReady ?? false;
             return Ok(new
             {
-                crawlStatus = CompetitorCrawlStatuses.Complete,
-                competitorSaved = true,
+                crawlStatus = researchReady ? CompetitorCrawlStatuses.Complete : CompetitorCrawlStatuses.PagesSaved,
+                competitorSaved = researchReady,
                 totalPages = stats.TotalPages,
                 domainCount = stats.DomainCount,
                 domains = stats.Domains.Select(d => new { domain = d.Domain, pagesCrawled = d.PagesCrawled }),
-                message = $"Saved {stats.TotalPages} pages across {stats.DomainCount} competitor domains. Research pack ready.",
+                message = researchReady
+                    ? $"Saved {stats.TotalPages} pages across {stats.DomainCount} competitor domains. Research pack ready."
+                    : $"Saved {stats.TotalPages} pages across {stats.DomainCount} competitor domains. Research pack assembly did not complete.",
             });
         }
 

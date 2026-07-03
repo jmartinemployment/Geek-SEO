@@ -31,6 +31,7 @@ public sealed record RunResearchFocusDto(
     IReadOnlyList<string> GapTopics,
     string? WritingInstructions,
     bool ResearchReady,
+    string? ResearchMode,
     IReadOnlyList<ResearchWorkflowGateDto> Gates,
     ResearchPackStatsDto PackStats,
     RunRankingsSummaryDto Rankings);
@@ -92,7 +93,8 @@ public sealed class OperatorResearchService(AppDbContext db, SerpRankHistoryServ
         var hasTargetHeadings = targetPageIds.Count > 0
             && await db.PageHeadings.AsNoTracking().AnyAsync(h => targetPageIds.Contains(h.PageId), ct);
 
-        var hasComparison = await db.Findings.AsNoTracking().AnyAsync(f => f.RunId == runId, ct);
+        var hasComparison = await db.Findings.AsNoTracking().AnyAsync(f => f.RunId == runId, ct)
+            || await db.ComparisonChecks.AsNoTracking().AnyAsync(c => c.RunId == runId, ct);
 
         var gapReady = run.GapTopics.Count > 0;
         var isManual = string.Equals(run.ResearchMode, ResearchModes.Manual, StringComparison.OrdinalIgnoreCase);
@@ -105,13 +107,13 @@ public sealed class OperatorResearchService(AppDbContext db, SerpRankHistoryServ
         }
         else
         {
-            researchReady = hasSerp && hasCompetitor && hasTargetHeadings && hasComparison && gapReady;
+            researchReady = hasSerp && hasCompetitor && hasTargetHeadings && gapReady;
             gates =
             [
                 new("serp", "SERP import", hasSerp),
                 new("target_crawl", "Target-site crawl", hasTargetHeadings),
                 new("competitor_crawl", "Competitor crawl", hasCompetitor),
-                new("comparison", "Comparison findings", hasComparison),
+                new("comparison", "Comparison findings", hasComparison || gapReady),
                 new("gaps", "Gap topics assembled", gapReady),
             ];
         }
@@ -156,6 +158,7 @@ public sealed class OperatorResearchService(AppDbContext db, SerpRankHistoryServ
             run.GapTopics,
             run.WritingInstructions,
             researchReady,
+            run.ResearchMode,
             gates,
             packStats,
             rankings);
