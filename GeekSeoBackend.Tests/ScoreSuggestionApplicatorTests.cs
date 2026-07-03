@@ -86,6 +86,37 @@ public sealed class ScoreSuggestionApplicatorTests
     }
 
     [Fact]
+    public void TryAppendSourcesFromDiscovered_inserts_section_even_when_url_already_linked_inline()
+    {
+        const string wiki = "https://en.wikipedia.org/wiki/Prospecting";
+        var html = $"""
+            <h1>Guide</h1>
+            <p>See <a href="{wiki}">Wikipedia</a> for background.</p>
+            <h2>Frequently asked questions</h2>
+            <h3>Question?</h3><p>Answer</p>
+            """;
+        var sources = new List<DiscoveredSource>
+        {
+            new() { Url = wiki, Title = "Prospecting", AnchorText = "Prospecting — Wikipedia" },
+        };
+
+        var patched = ScoreSuggestionApplicator.TryAppendSourcesFromDiscovered(html, sources);
+
+        Assert.NotNull(patched);
+        Assert.Contains("<h2>Sources</h2>", patched!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(wiki, patched!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void EnsureArticleH1_prepends_heading_when_missing()
+    {
+        var html = "<h2>Section</h2><p>Body</p>";
+        var patched = ScoreSuggestionApplicator.EnsureArticleH1(html, "AI for Prospecting & Lead Intelligence");
+        Assert.StartsWith("<h1>", patched, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("AI for Prospecting", patched, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TryAppendSourcesFromDiscovered_inserts_inline_links()
     {
         var html = "<h1>Guide</h1><p>Body</p>";

@@ -365,21 +365,47 @@ public static class ContentWriterSerpExportMapper
         }
 
         foreach (var pasf in pasfQueries)
-            Add(pasf);
+        {
+            if (IsScorableCoverageTerm(pasf))
+                Add(pasf);
+        }
 
         foreach (var paa in paaQuestions)
-            Add(paa);
+        {
+            if (IsScorableCoverageTerm(paa))
+                Add(paa);
+        }
+
+        Add(keyword);
 
         foreach (var token in keyword.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-            Add(token);
+        {
+            if (token.Length >= 3)
+                Add(token);
+        }
 
         foreach (var title in organic.Take(5).Select(o => o.Title))
-            Add(title);
+        {
+            if (IsScorableCoverageTerm(title))
+                Add(title);
+        }
 
         return terms
             .Take(20)
             .Select((term, index) => new WritingResearchTerm { Term = term, DisplayOrder = index + 1 })
             .ToList();
+    }
+
+    private static bool IsScorableCoverageTerm(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        var trimmed = value.Trim();
+        if (trimmed.Contains('?', StringComparison.Ordinal))
+            return false;
+
+        return trimmed.Length <= 48;
     }
 
     private static IReadOnlyList<WritingResearchClosingFaq> BuildClosingFaqs(

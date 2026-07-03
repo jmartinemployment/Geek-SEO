@@ -56,6 +56,8 @@ export function ManualResearchLanesCard({
     Partial<Record<ManualResearchLaneId, string>>
   >({});
   const [laneSuccess, setLaneSuccess] = useState<string | null>(null);
+  const [laneError, setLaneError] = useState<string | null>(null);
+  const [lastBatchImport, setLastBatchImport] = useState<string[] | null>(null);
 
   const effectiveTopicSlug =
     topicSlug.trim() || (keyword.trim() ? slugifyResearchTopic(keyword) : '');
@@ -85,7 +87,8 @@ export function ManualResearchLanesCard({
     void refreshExport();
   }, [refreshExport]);
 
-  async function importPaaLane(files: File[]) {
+  async function importPaaLane(files: File[], options?: { batch?: boolean }) {
+    const batch = options?.batch === true;
     if (!effectiveTopicSlug) {
       setLaneError('Enter a research topic slug or import the keyword SERP first (slug auto-derives from keyword).');
       return;
@@ -105,8 +108,10 @@ export function ManualResearchLanesCard({
         await importManualResearchPaaBatch(runId, effectiveTopicSlug, files, accessToken);
       }
       setPendingPaaFiles([]);
-      await refreshExport();
-      onImported();
+      if (!batch) {
+        await refreshExport();
+        onImported();
+      }
     } catch (e) {
       setLaneError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -114,7 +119,12 @@ export function ManualResearchLanesCard({
     }
   }
 
-  async function importLane(lane: ManualResearchLaneId, file: File): Promise<boolean> {
+  async function importLane(
+    lane: ManualResearchLaneId,
+    file: File,
+    options?: { batch?: boolean },
+  ): Promise<boolean> {
+    const batch = options?.batch === true;
     if (lane === 'paa') {
       await importPaaLane([file]);
       return true;
@@ -146,9 +156,11 @@ export function ManualResearchLanesCard({
         delete next[lane];
         return next;
       });
-      await refreshExport();
-      onImported();
-      setLaneSuccess(`[${lane}] imported successfully.`);
+      if (!batch) {
+        await refreshExport();
+        onImported();
+        setLaneSuccess(`[${lane}] imported successfully.`);
+      }
       return true;
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -179,12 +191,14 @@ export function ManualResearchLanesCard({
     setImportingAll(true);
     setLaneError(null);
     setLaneSuccess(null);
+    setLastBatchImport(null);
     const rejected: string[] = [];
     const imported: string[] = [];
     try {
       if (paaFiles.length > 0) {
         try {
-          await importPaaLane(paaFiles);
+          await importPaaLane(paaFiles, { batch: true });
+          imported.push('paa');
         } catch (e) {
           rejected.push(`paa: ${e instanceof Error ? e.message : String(e)}`);
         }
@@ -192,12 +206,23 @@ export function ManualResearchLanesCard({
       for (const lane of entries) {
         const file = resolveLaneFile(lane);
         if (!file) continue;
-        const ok = await importLane(lane, file);
+        const ok = await importLane(lane, file, { batch: true });
         if (!ok) rejected.push(lane);
         else imported.push(lane);
       }
       if (imported.length > 0) {
-        setLaneSuccess(`Imported: ${imported.join(', ')}.`);
+        await refreshExport();
+        onImported();
+        setLastBatchImport(imported);
+        setLaneSuccess(
+          `Successfully imported ${imported.length} lane${imported.length === 1 ? '' : 's'}: ${imported.join(', ')}.`,
+        );
+        setPendingFiles({});
+        setPendingPaaFiles([]);
+        for (const lane of MANUAL_RESEARCH_LANE_ORDER) {
+          const input = fileRefs.current[lane];
+          if (input) input.value = '';
+        }
       }
       if (rejected.length > 0) {
         setLaneError(
@@ -277,6 +302,8 @@ export function ManualResearchLanesCard({
         <ul className="space-y-3">
           {MANUAL_RESEARCH_LANE_ORDER.map((lane) => {
             const status = laneImportStatus(lane, exportData, gates);
+            const justImported = lastBatchImport?.includes(lane) ?? false;
+            const showImported = status === 'ok' || justImported;
             const file = lane === 'paa' ? undefined : resolveLaneFile(lane);
             const paaFiles = lane === 'paa' ? resolvePaaFiles() : [];
             const busy = importingLane === lane || importingAll;
@@ -284,7 +311,7 @@ export function ManualResearchLanesCard({
             const preflightError = lanePreflightErrors[lane];
             const importBlocked = Boolean(preflightError);
             const statusLabel =
-              status === 'ok'
+              showImported
                 ? 'Imported'
                 : status === 'na'
                   ? lane === 'wiki'
@@ -298,7 +325,7 @@ export function ManualResearchLanesCard({
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    {status === 'ok' ? (
+                    {showImported ? (
                       <CheckCircle2 className="size-4 text-[var(--color-good)]" />
                     ) : status === 'na' ? (
                       <span className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
@@ -442,6 +469,16 @@ export function ManualResearchLanesCard({
           )}
         </Button>
 
+        {lastBatchImport && laneSuccess ? (
+          <div
+            role="status"
+            className="flex items-start gap-2 rounded-lg border border-[var(--color-good)]/40 bg-[var(--color-good)]/10 px-3 py-2 text-sm text-[var(--color-good)]"
+          >
+            <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+            <span>{laneSuccess}</span>
+          </div>
+        ) : null}
+
         {researchReady ? (
           <p className="text-xs text-[var(--color-good)]">
             Research lanes ready — you can open Content Writer.
@@ -452,7 +489,7 @@ export function ManualResearchLanesCard({
           </p>
         )}
 
-        {laneSuccess ? (
+        {laneSuccess && !lastBatchImport ? (
           <p className="text-xs text-[var(--color-good)]">{laneSuccess}</p>
         ) : null}
 

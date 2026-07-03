@@ -1640,6 +1640,7 @@ public class SiteProfileAssemblerHelpersTests
 
         Assert.Contains("Broward County", write.ServiceAreaDescription!);
         Assert.Contains("Florida", write.ServiceAreaDescription!);
+        Assert.Contains("Geek at Your Spot", write.HomepageBusinessSchemaJson!, StringComparison.Ordinal);
         SiteAnalyzer2.Services.ProfileAssembly.SiteProfileAssemblerHelpers.ValidateHomepageOutput(write);
     }
 
@@ -1871,6 +1872,46 @@ public class SiteProfileAssemblerHelpersTests
             SiteAnalyzer2.Services.ProfileAssembly.SiteProfileAssemblerHelpers.ContentQualityBarInstruction,
             instructions);
         Assert.Contains("integrations", instructions, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void HomepageJsonLdRecommendationBuilder_PrefersCrawledHomepageBusinessBlock()
+    {
+        var profile = new SiteProfile
+        {
+            SiteUrl = "https://www.geekatyourspot.com/",
+            DisplayName = "geekatyourspot.com",
+            BusinessProfileAt = DateTime.UtcNow,
+            BusinessType = "Local business · Professional service",
+            PrimaryNiche = "Geek at Your Spot",
+            HomepageBusinessSchemaJson = """
+                {
+                  "@context": "https://schema.org",
+                  "@graph": [
+                    {
+                      "@type": ["LocalBusiness", "ProfessionalService"],
+                      "name": "Geek at Your Spot",
+                      "telephone": "+1-561-555-0100",
+                      "sameAs": ["https://www.linkedin.com/company/geekatyourspot"],
+                      "description": "AI consulting for SMBs."
+                    },
+                    {
+                      "@type": "WebSite",
+                      "name": "Geek at Your Spot",
+                      "url": "https://www.geekatyourspot.com/"
+                    }
+                  ]
+                }
+                """,
+        };
+
+        var snippets = SiteAnalyzer2.Services.ProfileAssembly.HomepageJsonLdRecommendationBuilder.Build(profile);
+
+        Assert.Equal(2, snippets.Count);
+        Assert.Contains("telephone", snippets[0].Json, StringComparison.Ordinal);
+        Assert.Contains("sameAs", snippets[0].Json, StringComparison.Ordinal);
+        Assert.Contains("Imported from your homepage JSON-LD", snippets[0].Description, StringComparison.Ordinal);
+        Assert.Contains("WebSite", snippets[1].Json, StringComparison.Ordinal);
     }
 
     [Fact]

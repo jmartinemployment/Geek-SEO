@@ -41,6 +41,7 @@ public sealed class SiteProfileAssemblyWrite
     public IReadOnlyList<string> CompetitorDomains { get; init; } = [];
     public IReadOnlyList<string> AuthorityPageUrls { get; init; } = [];
     public IReadOnlyList<string> WritingRecommendations { get; init; } = [];
+    public string? HomepageBusinessSchemaJson { get; init; }
 }
 
 public sealed class RunWritingFocusWrite

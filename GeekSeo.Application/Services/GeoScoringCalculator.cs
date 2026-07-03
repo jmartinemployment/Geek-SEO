@@ -179,7 +179,7 @@ public static class GeoScoringCalculator
                 Component = "geo",
                 PointValue = 20 - citations,
                 ActionText = "Link to 2–3 authoritative external sources (.gov, .edu, or recognized research) — not competitor blogs.",
-                ProposedChange = "Add citations from your research pack as inline links in the body.",
+                ProposedChange = "Add a Sources section before the FAQ with gov/edu/wiki links from your research pack.",
                 ApplyMode = "deterministic",
             });
         }

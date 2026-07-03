@@ -247,6 +247,20 @@ public static partial class ScoreSuggestionApplicator
         return title;
     }
 
+    public static string EnsureArticleH1(string html, string title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+            return html;
+
+        var encoded = WebUtility.HtmlEncode(title.Trim());
+        if (H1Regex().IsMatch(html))
+        {
+            return H1Regex().Replace(html, $"<h1>{encoded}</h1>", 1);
+        }
+
+        return $"<h1>{encoded}</h1>\n{html.TrimStart()}";
+    }
+
     public static string ProposeMetaDescription(string plainText, string keyword)
     {
         var body = string.IsNullOrWhiteSpace(plainText) ? keyword : plainText.Trim();
@@ -328,7 +342,7 @@ public static partial class ScoreSuggestionApplicator
 
     public static string? TryAppendSourcesFromDiscovered(string html, IReadOnlyList<DiscoveredSource> sources)
     {
-        var picks = SelectResearchSourcesPicks(html, sources);
+        var picks = SelectResearchSourcesForSection(sources);
         return TryAppendResearchSourcesSection(html, picks);
     }
 
@@ -493,6 +507,20 @@ public static partial class ScoreSuggestionApplicator
         string html,
         IReadOnlyList<DiscoveredSource> sources) =>
         SelectResearchSourcesPicks(html, sources);
+
+    private static List<(string Url, string Label)> SelectResearchSourcesForSection(
+        IReadOnlyList<DiscoveredSource> sources) =>
+        sources
+            .Where(s => IsValidExternalUrl(s.Url))
+            .Where(s => AuthoritativeCitationRules.IsAcceptableDiscoveredCitationUrl(s.Url)
+                || AuthoritativeCitationRules.IsAuthoritativeCitationUrl(s.Url))
+            .Take(ContentWritingRules.MaxResearchSourcesCount)
+            .Select(s => (
+                s.Url.Trim(),
+                string.IsNullOrWhiteSpace(s.AnchorText)
+                    ? (string.IsNullOrWhiteSpace(s.Title) ? s.Url.Trim() : s.Title.Trim())
+                    : s.AnchorText!.Trim()))
+            .ToList();
 
     private static List<(string Url, string Label)> SelectResearchSourcesPicks(
         string html,

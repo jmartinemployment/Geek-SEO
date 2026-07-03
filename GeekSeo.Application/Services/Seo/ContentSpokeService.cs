@@ -134,7 +134,15 @@ public sealed class ContentSpokeService(
         if (!updated.IsSuccess || updated.Value is null)
             return Result<ContentSpokeSummary>.Failure(updated.Error ?? "Failed to save spoke shell content");
 
-        return Result<ContentSpokeSummary>.Success(ToSummary(updated.Value));
+        var statusUpdated = await documentRepo.UpdateStatusAsync(
+            createResult.Value.Id,
+            SpokeLinkStatuses.ShellCreated,
+            ct);
+
+        if (!statusUpdated.IsSuccess || statusUpdated.Value is null)
+            return Result<ContentSpokeSummary>.Failure(statusUpdated.Error ?? "Failed to mark spoke shell status");
+
+        return Result<ContentSpokeSummary>.Success(ToSummary(statusUpdated.Value));
     }
 
     public async Task<Result<ContentSpokeSummary>> GenerateAsync(
@@ -313,8 +321,7 @@ public sealed class ContentSpokeService(
     }
 
     private static bool IsGeneratedSummary(ContentSpokeSummary spoke) =>
-        string.Equals(spoke.Status, SpokeLinkStatuses.BodyGenerated, StringComparison.OrdinalIgnoreCase) ||
-        spoke.WordCount > 80;
+        string.Equals(spoke.Status, SpokeLinkStatuses.BodyGenerated, StringComparison.OrdinalIgnoreCase);
 
     private async Task<Result<SeoContentDocument>> RequirePillarAsync(
         Guid userId, Guid documentId, CancellationToken ct)

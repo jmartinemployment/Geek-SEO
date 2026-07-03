@@ -1136,6 +1136,9 @@ namespace SiteAnalyzer2.Infrastructure.Migrations
                     b.Property<string>("GeneratedSchemaJson")
                         .HasColumnType("text");
 
+                    b.Property<string>("HomepageBusinessSchemaJson")
+                        .HasColumnType("text");
+
                     b.Property<string>("GeoAnchorNodes")
                         .HasColumnType("jsonb");
 

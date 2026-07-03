@@ -339,10 +339,16 @@ public static partial class ContentClusterLinkPlanner
     public static string RewriteQuestion(string phrase, string pillarKeyword)
     {
         var trimmed = phrase.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+            return trimmed;
+
         if (trimmed.Contains('?', StringComparison.Ordinal))
             return trimmed;
 
         var lower = trimmed.ToLowerInvariant();
+
+        if (StartsWithQuestionLead(lower))
+            return $"{trimmed}?";
 
         if (lower.Contains("companies", StringComparison.Ordinal))
             return $"Which companies offer {trimmed}?";
@@ -363,11 +369,25 @@ public static partial class ContentClusterLinkPlanner
         if (ContainsToken(lower, "vs") || ContainsToken(lower, "versus") || ContainsToken(lower, "compare"))
             return $"How does {trimmed} compare to alternatives?";
 
-        if (ContainsToken(lower, "how"))
+        if (lower.StartsWith("how to ", StringComparison.Ordinal))
             return $"How do you get started with {trimmed}?";
 
         return $"What are the key considerations for {trimmed}?";
     }
+
+    private static bool StartsWithQuestionLead(string lower) =>
+        lower.StartsWith("how ", StringComparison.Ordinal)
+        || lower.StartsWith("what ", StringComparison.Ordinal)
+        || lower.StartsWith("why ", StringComparison.Ordinal)
+        || lower.StartsWith("when ", StringComparison.Ordinal)
+        || lower.StartsWith("where ", StringComparison.Ordinal)
+        || lower.StartsWith("who ", StringComparison.Ordinal)
+        || lower.StartsWith("can ", StringComparison.Ordinal)
+        || lower.StartsWith("should ", StringComparison.Ordinal)
+        || lower.StartsWith("does ", StringComparison.Ordinal)
+        || lower.StartsWith("do ", StringComparison.Ordinal)
+        || lower.StartsWith("is ", StringComparison.Ordinal)
+        || lower.StartsWith("are ", StringComparison.Ordinal);
 
     private static string ResolveBusinessContext(ContentClusterPlannerInput input)
     {

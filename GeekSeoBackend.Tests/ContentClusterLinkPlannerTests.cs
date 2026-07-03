@@ -139,6 +139,8 @@ public sealed class ContentClusterLinkPlannerTests
     [InlineData("best ai for market analysis", "Which ai for market analysis are best?")]
     [InlineData("ai market research companies", "Which companies offer ai market research companies?")]
     [InlineData("free ai tools for market research", "Are there free options for free ai tools for market research?")]
+    [InlineData("How can AI help with prospecting", "How can AI help with prospecting?")]
+    [InlineData("How can AI help with prospecting?", "How can AI help with prospecting?")]
     public void RewriteQuestion_applies_intent_patterns(string phrase, string expected)
     {
         Assert.Equal(expected, ContentClusterLinkPlanner.RewriteQuestion(phrase, PillarKeyword));

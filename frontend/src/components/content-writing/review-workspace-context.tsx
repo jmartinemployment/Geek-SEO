@@ -16,6 +16,7 @@ import { ResearchInsightsRail } from '@/components/content-writing/research-insi
 import { JsonLdPanel } from '@/components/content-writing/json-ld-panel';
 import { ContentGuidelinesPanel } from '@/components/content-writing/content-guidelines-panel';
 import { BlogSpokePanel } from '@/components/content-writing/blog-spoke-panel';
+import { ClusterPlanPanel } from '@/components/content-writing/cluster-plan-panel';
 import { SpokePillarBanner } from '@/components/content-writing/spoke-pillar-banner';
 import { useContentScoring, type ScoreSuggestion } from '@/hooks/useContentScoring';
 import {
@@ -453,6 +454,7 @@ export function WritingEditorPane({
 
       <div className="space-y-4 p-5">
         <SpokePillarBanner />
+        {doc.documentKind !== 'spoke' && doc.analysisRunId ? <ClusterPlanPanel /> : null}
         {isResearchBacked ? (
           <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-[var(--color-text-secondary)]">
             Keyword and location come from Site Analyzer. You can edit the target keyword if your

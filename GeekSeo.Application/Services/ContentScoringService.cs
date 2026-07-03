@@ -1,10 +1,12 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using GeekSeo.Persistence.Entities;
 using GeekSeo.Application.Infrastructure;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Mapping;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
+using GeekSeo.Application.Services;
 
 namespace GeekSeo.Application.Services.Seo;
 
@@ -342,6 +344,9 @@ public sealed class ContentScoringService(
         if (sources.Count == 0)
             return false;
 
+        if (ScoreSuggestionApplicator.HasResearchSourcesSection(contentHtml))
+            return false;
+
         var patchedHtml = ScoreSuggestionApplicator.TryAppendSourcesFromDiscovered(contentHtml, sources);
         return patchedHtml is not null && !string.Equals(patchedHtml, contentHtml, StringComparison.Ordinal);
     }
@@ -634,14 +639,7 @@ public sealed class ContentScoringService(
             return Result<BenchmarkResolution>.Failure(loaded.Error ?? "Research not found");
 
         var context = loaded.Value;
-        var coverageTerms = context.RecommendedTerms
-            .OrderBy(t => t.DisplayOrder)
-            .Select(t => t.Term)
-            .Where(t => !string.IsNullOrWhiteSpace(t))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        if (coverageTerms.Count == 0 && !string.IsNullOrWhiteSpace(context.DerivedKeyword))
-            coverageTerms = context.DerivedKeyword.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+        var coverageTerms = BuildResearchCoverageTerms(context);
 
         return Result<BenchmarkResolution>.Success(new BenchmarkResolution
         {
@@ -897,21 +895,63 @@ public sealed class ContentScoringService(
 
     private static int ScoreTermCoverage(string plainText, IReadOnlyList<string> terms)
     {
-        if (terms.Count == 0)
+        if (terms.Count == 0 || string.IsNullOrWhiteSpace(plainText))
             return 0;
 
-        var lower = plainText.ToLowerInvariant();
+        var normalizedText = NormalizeCoverageText(plainText);
+        if (normalizedText.Length == 0)
+            return 0;
+
         var normalized = terms
             .Where(t => !string.IsNullOrWhiteSpace(t))
-            .Select(t => t.ToLowerInvariant())
-            .Distinct()
+            .Select(t => NormalizeCoverageText(t))
+            .Where(t => t.Length >= 2)
+            .Distinct(StringComparer.Ordinal)
             .ToList();
         if (normalized.Count == 0)
             return 0;
 
-        var found = normalized.Count(t => lower.Contains(t, StringComparison.Ordinal));
+        var found = normalized.Count(term => normalizedText.Contains(term, StringComparison.Ordinal));
         return (int)Math.Round((double)found / normalized.Count * 35);
     }
+
+    internal static IReadOnlyList<string> BuildResearchCoverageTerms(WritingResearchContext context)
+    {
+        var terms = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void Add(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return;
+
+            var trimmed = value.Trim();
+            if (trimmed.Contains('?', StringComparison.Ordinal) || trimmed.Length > 48)
+                return;
+
+            if (seen.Add(trimmed))
+                terms.Add(trimmed);
+        }
+
+        Add(context.DerivedKeyword);
+
+        foreach (var term in context.RecommendedTerms.OrderBy(t => t.DisplayOrder))
+            Add(term.Term);
+
+        if (terms.Count <= 1 && !string.IsNullOrWhiteSpace(context.DerivedKeyword))
+        {
+            foreach (var token in context.DerivedKeyword.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (token.Length >= 3)
+                    Add(token);
+            }
+        }
+
+        return terms;
+    }
+
+    private static string NormalizeCoverageText(string value) =>
+        Regex.Replace(value.ToLowerInvariant(), @"[^\p{L}\p{N}\s]+", " ").Trim();
 
     private static int ScoreWordCount(int wordCount, int target) =>
         wordCount >= target
@@ -924,7 +964,23 @@ public sealed class ContentScoringService(
             return 0;
         var score = 0;
         if (title.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+        {
             score += 6;
+        }
+        else
+        {
+            var keywordTokens = keyword
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Select(t => t.Trim())
+                .Where(t => t.Length >= 4)
+                .ToList();
+            if (keywordTokens.Count > 0
+                && keywordTokens.Any(token => title.Contains(token, StringComparison.OrdinalIgnoreCase)))
+            {
+                score += 4;
+            }
+        }
+
         if (title.Length is >= 30 and <= 65)
             score += 4;
         else if (Math.Abs(title.Length - avgLength) < 20)

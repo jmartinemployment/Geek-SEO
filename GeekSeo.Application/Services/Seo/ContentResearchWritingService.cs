@@ -2,6 +2,7 @@ using GeekSeo.Persistence.Entities;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
+using GeekSeo.Application.Services;
 
 namespace GeekSeo.Application.Services.Seo;
 
@@ -66,12 +67,16 @@ public sealed class ContentResearchWritingService(
         if (!draft.IsSuccess || draft.Value is null)
             return draft;
 
+        var articleTitle = ScoreSuggestionApplicator.ProposeTitle(
+            string.IsNullOrWhiteSpace(doc.Title) || doc.Title == "Untitled Document" ? null : doc.Title,
+            context.DerivedKeyword,
+            context.Benchmarks.MedianTitleLengthTop10);
+        var contentWithH1 = ScoreSuggestionApplicator.EnsureArticleH1(draft.Value.Content, articleTitle);
+
         var updated = await documents.UpdateContentAsync(userId, documentId, new UpdateContentRequest
         {
-            ContentHtml = draft.Value.Content,
-            Title = string.IsNullOrWhiteSpace(doc.Title) || doc.Title == "Untitled Document"
-                ? context.DerivedKeyword
-                : doc.Title,
+            ContentHtml = contentWithH1,
+            Title = articleTitle,
             TargetKeyword = context.DerivedKeyword,
             TargetLocation = context.SearchLocation,
         }, ct);
@@ -79,7 +84,10 @@ public sealed class ContentResearchWritingService(
         if (!updated.IsSuccess)
             return Result<WritingTextResult>.Failure(updated.Error ?? "Failed to save draft");
 
-        return draft;
+        return Result<WritingTextResult>.Success(new WritingTextResult
+        {
+            Content = contentWithH1,
+        });
     }
 
     private async Task<SupportingBlogPostHint?> TryCreateBlogHintAsync(
@@ -101,9 +109,14 @@ public sealed class ContentResearchWritingService(
 
         try
         {
+            var spokeTitle = topic.Trim();
+            if (!spokeTitle.Contains('?', StringComparison.Ordinal))
+                spokeTitle += "?";
+
             var spoke = await spokes.CreateAsync(userId, doc.Id, new CreateContentSpokeRequest
             {
                 Phrase = topic.Trim(),
+                Title = spokeTitle,
                 SourceType = SpokeSourceTypes.Paa,
             }, ct);
 

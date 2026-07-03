@@ -117,6 +117,33 @@ public static class SiteProfileAssemblerHelpers
         return null;
     }
 
+    /// <summary>Raw JSON-LD for the best business entity block on the homepage (may include @graph).</summary>
+    public static string? ExtractBestBusinessJsonLdRaw(IReadOnlyList<PageJsonLd> jsonLdBlocks)
+    {
+        foreach (var block in PrioritizeBusinessJsonLd(jsonLdBlocks))
+        {
+            if (string.IsNullOrWhiteSpace(block.RawJson))
+                continue;
+
+            var types = ParseJsonLdTypes(block.RawJson);
+            if (types.Count == 0 && !string.IsNullOrWhiteSpace(block.ParsedType))
+                types = [block.ParsedType.Trim()];
+
+            if (types.Count == 0)
+                continue;
+
+            if (types.Any(t => PreferredBusinessSchemaTypes.Contains(t, StringComparer.OrdinalIgnoreCase))
+                || types.Any(t => t.Contains("Business", StringComparison.OrdinalIgnoreCase)
+                    || t.Contains("Organization", StringComparison.OrdinalIgnoreCase)
+                    || t.Contains("Service", StringComparison.OrdinalIgnoreCase)))
+            {
+                return block.RawJson.Trim();
+            }
+        }
+
+        return null;
+    }
+
     public static string? ExtractBusinessName(IReadOnlyList<PageJsonLd> jsonLdBlocks)
     {
         foreach (var block in PrioritizeBusinessJsonLd(jsonLdBlocks))
@@ -322,6 +349,7 @@ public static class SiteProfileAssemblerHelpers
             geoNodes,
             nicheTags,
             businessDescription);
+        var homepageBusinessSchemaJson = ExtractBestBusinessJsonLdRaw(allJsonLd);
 
         return new SiteProfileAssemblyWrite
         {
@@ -336,6 +364,7 @@ public static class SiteProfileAssemblerHelpers
             CompetitorDomains = [],
             AuthorityPageUrls = [],
             WritingRecommendations = writingRecommendations,
+            HomepageBusinessSchemaJson = homepageBusinessSchemaJson,
         };
     }
 
@@ -559,6 +588,8 @@ public static class SiteProfileAssemblerHelpers
         var nicheTags = source.SiteProfile.NicheTags.Count > 0
             ? source.SiteProfile.NicheTags
             : BuildNicheTags(source.SerpItems);
+        var homepageJsonLd = homepage?.JsonLdBlocks ?? [];
+        var homepageBusinessSchemaJson = ExtractBestBusinessJsonLdRaw(homepageJsonLd.Count > 0 ? homepageJsonLd : allJsonLd);
 
         return new SiteProfileAssemblyWrite
         {
@@ -572,6 +603,7 @@ public static class SiteProfileAssemblerHelpers
             NicheTags = nicheTags,
             CompetitorDomains = competitorDomains,
             AuthorityPageUrls = ExtractAuthorityPageUrls(source.SerpItems),
+            HomepageBusinessSchemaJson = homepageBusinessSchemaJson,
         };
     }
 

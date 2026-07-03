@@ -11,6 +11,8 @@ public class SiteProfile
     public string? BusinessType { get; set; }
     public string? BusinessDescription { get; set; }
     public string? GeneratedSchemaJson { get; set; }
+    /// <summary>Best business JSON-LD block from the crawled homepage (verbatim), used for recommended Block 1.</summary>
+    public string? HomepageBusinessSchemaJson { get; set; }
     public DateTime? BusinessProfileAt { get; set; }
     public DateTime? LastRunAt { get; set; }
 

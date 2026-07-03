@@ -31,10 +31,7 @@ import {
   type ContentLinkPlan,
   type ContentSpokeSummary,
 } from '@/lib/seo-api';
-
-function isSpokeGenerated(spoke: ContentSpokeSummary): boolean {
-  return spoke.status === 'body_generated' || spoke.wordCount > 80;
-}
+import { isSpokeGenerated } from '@/lib/content-spoke-shell';
 
 function plansEqual(a: ContentLinkFaqItem[], b: ContentLinkFaqItem[]): boolean {
   return JSON.stringify(a) === JSON.stringify(b);

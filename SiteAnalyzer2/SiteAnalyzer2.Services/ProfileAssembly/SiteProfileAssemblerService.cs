@@ -126,6 +126,8 @@ public sealed class SiteProfileAssemblerService(
             CompetitorDomains = siteWrite.CompetitorDomains,
             AuthorityPageUrls = siteWrite.AuthorityPageUrls,
             WritingRecommendations = baselineRecommendations,
+            HomepageBusinessSchemaJson = siteWrite.HomepageBusinessSchemaJson
+                ?? source.SiteProfile.HomepageBusinessSchemaJson,
         };
 
         var matchedPillarTopic = SiteProfileAssemblerHelpers.FindMatchedPillarTopic(keyword, headingTexts);
@@ -167,6 +169,7 @@ public sealed class SiteProfileAssemblerService(
                 siteWriteWithBaseline,
                 runWrite,
                 keyword),
+            HomepageBusinessSchemaJson = siteWriteWithBaseline.HomepageBusinessSchemaJson,
         };
 
         ValidateRunOutput(enrichedSiteWrite);
@@ -226,6 +229,8 @@ public sealed class SiteProfileAssemblerService(
             CompetitorDomains = siteWrite.CompetitorDomains,
             AuthorityPageUrls = siteWrite.AuthorityPageUrls,
             WritingRecommendations = baselineRecommendations,
+            HomepageBusinessSchemaJson = siteWrite.HomepageBusinessSchemaJson
+                ?? source.SiteProfile.HomepageBusinessSchemaJson,
         };
 
         var matchedPillarTopic = keyword;

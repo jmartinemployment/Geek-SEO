@@ -2,9 +2,12 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { useWritingWorkspace } from '@/components/content-writing/review-workspace-context';
 import { contentWritingPath } from '@/lib/content-writing-search-params';
+import { isSpokeShellDocument } from '@/lib/content-spoke-shell';
 import { generateContentSpoke } from '@/lib/seo-api';
+import { Button } from '@/components/ui/button';
 
 export function SpokePillarBanner() {
   const { doc, accessToken, reloadDocument } = useWritingWorkspace();
@@ -15,10 +18,7 @@ export function SpokePillarBanner() {
     return null;
   }
 
-  const isShell =
-    doc.status !== 'body_generated' &&
-    (doc.wordCount ?? 0) < 80 &&
-    (doc.contentHtml?.includes('Spoke draft shell') ?? false);
+  const isShell = isSpokeShellDocument(doc);
 
   async function handleGenerate() {
     if (!accessToken || !doc.parentDocumentId) return;
@@ -36,28 +36,53 @@ export function SpokePillarBanner() {
 
   return (
     <div className="space-y-2">
-      <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-        Blog post linked from pillar.{' '}
-        <Link
-          href={contentWritingPath({ documentId: doc.parentDocumentId })}
-          className="font-medium underline"
-        >
-          Open pillar article
-        </Link>
-        {isShell ? (
-          <>
-            {' · '}
-            <button
+      {isShell ? (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-semibold">Blog spoke shell — content not generated yet</p>
+          <p className="mt-1 text-xs leading-relaxed text-amber-900/90">
+            This page was created as a placeholder for a cluster blog post linked from your pillar
+            article. Generate the full 800–1,200 word spoke draft from the pillar content and research
+            pack.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
               type="button"
-              disabled={generating}
+              size="sm"
+              disabled={generating || !accessToken}
               onClick={() => void handleGenerate()}
-              className="font-medium underline disabled:opacity-50"
             >
-              {generating ? 'Generating…' : 'Generate blog post content'}
-            </button>
-          </>
-        ) : null}
-      </p>
+              {generating ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Generating spoke…
+                </>
+              ) : (
+                'Generate blog post content'
+              )}
+            </Button>
+            <Link
+              href={contentWritingPath({ documentId: doc.parentDocumentId })}
+              className="text-xs font-medium text-amber-900 underline underline-offset-2"
+            >
+              Open pillar article
+            </Link>
+          </div>
+          <p className="mt-2 text-[11px] text-amber-800/80">
+            Tip: On the pillar, open <strong>Cluster plan</strong> below the editor to generate all
+            spoke shells at once.
+          </p>
+        </div>
+      ) : (
+        <p className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)]/30 px-3 py-2 text-xs text-[var(--color-text-secondary)]">
+          Blog post linked from pillar.{' '}
+          <Link
+            href={contentWritingPath({ documentId: doc.parentDocumentId })}
+            className="font-medium text-[var(--color-accent)] underline"
+          >
+            Open pillar article
+          </Link>
+        </p>
+      )}
       {error ? <p className="text-xs text-red-700">{error}</p> : null}
     </div>
   );

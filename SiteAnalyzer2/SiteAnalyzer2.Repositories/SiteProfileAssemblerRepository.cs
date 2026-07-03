@@ -176,6 +176,8 @@ public sealed class SiteProfileAssemblerRepository(AppDbContext db) : ISiteProfi
         profile.CompetitorDomains = siteWrite.CompetitorDomains.ToList();
         profile.AuthorityPageUrls = siteWrite.AuthorityPageUrls.ToList();
         profile.WritingRecommendations = siteWrite.WritingRecommendations.ToList();
+        if (!string.IsNullOrWhiteSpace(siteWrite.HomepageBusinessSchemaJson))
+            profile.HomepageBusinessSchemaJson = siteWrite.HomepageBusinessSchemaJson.Trim();
         profile.BusinessProfileAt = DateTime.UtcNow;
         profile.UpdatedAt = DateTime.UtcNow;
     }
