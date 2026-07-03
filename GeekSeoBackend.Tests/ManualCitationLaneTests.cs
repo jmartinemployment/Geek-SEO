@@ -61,3 +61,39 @@ public sealed class CitationLaneHostRulesTests
         Assert.Equal(expected, CitationLaneHostRules.IsNonWikipediaWikiTld(host));
     }
 }
+
+public sealed class CitationLaneHtmlPreflightTests
+{
+    [Fact]
+    public void ValidateWiki_accepts_en_wikipedia_result_url()
+    {
+        const string html = """
+            <a href="https://en.wikipedia.org/wiki/Customer_journey">Customer journey</a>
+            """;
+
+        Assert.Null(CitationLaneHtmlPreflight.ValidateWiki(html));
+    }
+
+    [Fact]
+    public void ValidateWiki_rejects_aisdr_wiki_tld()
+    {
+        const string html = """<a href="https://aisdr.wiki/foo">bad</a>""";
+
+        var message = CitationLaneHtmlPreflight.ValidateWiki(html);
+        Assert.NotNull(message);
+        Assert.Contains("Wrong wiki SERP", message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ValidateWiki_rejects_serp_without_wikipedia_hosts()
+    {
+        const string html = """
+            <a href="https://www.forbes.com/article">Forbes</a>
+            <a href="https://example.com/page">Example</a>
+            """;
+
+        var message = CitationLaneHtmlPreflight.ValidateWiki(html);
+        Assert.NotNull(message);
+        Assert.Contains("No wikipedia.org URLs", message, StringComparison.Ordinal);
+    }
+}

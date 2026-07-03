@@ -114,25 +114,27 @@ export function ManualResearchLanesCard({
     }
   }
 
-  async function importLane(lane: ManualResearchLaneId, file: File) {
+  async function importLane(lane: ManualResearchLaneId, file: File): Promise<boolean> {
     if (lane === 'paa') {
       await importPaaLane([file]);
-      return;
+      return true;
     }
     if (!effectiveTopicSlug) {
       setLaneError('Enter a research topic slug or import the keyword SERP first (slug auto-derives from keyword).');
-      return;
+      return false;
     }
+
+    const html = await file.text();
+    const preflight = validateManualLaneFileContent(lane, html, file.name);
+    if (preflight) {
+      setLanePreflightErrors((prev) => ({ ...prev, [lane]: preflight }));
+      setLaneError(`[${lane}] ${preflight}`);
+      return false;
+    }
+
     setLaneError(null);
     setImportingLane(lane);
     try {
-      const html = await file.text();
-      const preflight = validateManualLaneFileContent(lane, html, file.name);
-      if (preflight) {
-        setLanePreflightErrors((prev) => ({ ...prev, [lane]: preflight }));
-        setLaneError(preflight);
-        return;
-      }
       setLanePreflightErrors((prev) => {
         const next = { ...prev };
         delete next[lane];
@@ -144,15 +146,14 @@ export function ManualResearchLanesCard({
         delete next[lane];
         return next;
       });
-      setLanePreflightErrors((prev) => {
-        const next = { ...prev };
-        delete next[lane];
-        return next;
-      });
       await refreshExport();
       onImported();
+      return true;
     } catch (e) {
-      setLaneError(e instanceof Error ? e.message : String(e));
+      const message = e instanceof Error ? e.message : String(e);
+      setLanePreflightErrors((prev) => ({ ...prev, [lane]: message }));
+      setLaneError(`[${lane}] ${message}`);
+      return false;
     } finally {
       setImportingLane(null);
     }
@@ -176,14 +177,25 @@ export function ManualResearchLanesCard({
     }
     setImportingAll(true);
     setLaneError(null);
+    const rejected: string[] = [];
     try {
       if (paaFiles.length > 0) {
-        await importPaaLane(paaFiles);
+        try {
+          await importPaaLane(paaFiles);
+        } catch (e) {
+          rejected.push(`paa: ${e instanceof Error ? e.message : String(e)}`);
+        }
       }
       for (const lane of entries) {
         const file = resolveLaneFile(lane);
         if (!file) continue;
-        await importLane(lane, file);
+        const ok = await importLane(lane, file);
+        if (!ok) rejected.push(lane);
+      }
+      if (rejected.length > 0) {
+        setLaneError(
+          `Some lanes were not imported (${rejected.join(', ')}). Fix validation errors on those rows and try again.`,
+        );
       }
     } finally {
       setImportingAll(false);
@@ -340,6 +352,8 @@ export function ManualResearchLanesCard({
                               delete next[lane];
                               return next;
                             });
+                            const input = fileRefs.current[lane];
+                            if (input) input.value = '';
                             return;
                           }
                           setPendingFiles((prev) => ({ ...prev, [lane]: nextFile }));

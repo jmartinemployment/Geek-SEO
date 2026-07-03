@@ -24,6 +24,39 @@ export const MANUAL_RESEARCH_LANE_LABELS: Record<ManualResearchLaneId, string> =
 
 const LANE_JUNK = '-template -pdf -generator -reddit -quora -course -syllabus';
 
+const HTTP_URL_RE = /https?:\/\/[^\s"'<>\\]+/gi;
+
+function extractHttpUrls(content: string): string[] {
+  const seen = new Set<string>();
+  const urls: string[] = [];
+  for (const match of content.matchAll(HTTP_URL_RE)) {
+    const raw = match[0].replace(/["'),;\]}>]+$/u, '');
+    if (!seen.has(raw.toLowerCase())) {
+      seen.add(raw.toLowerCase());
+      urls.push(raw);
+    }
+  }
+  return urls;
+}
+
+function isWikipediaHost(host: string): boolean {
+  const normalized = host.toLowerCase();
+  return normalized === 'wikipedia.org' || normalized.endsWith('.wikipedia.org');
+}
+
+function isNonWikipediaWikiTld(host: string): boolean {
+  const normalized = host.toLowerCase();
+  return normalized.endsWith('.wiki') && !isWikipediaHost(normalized);
+}
+
+function urlHost(url: string): string | null {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
 export function manualResearchLaneQueryHint(
   lane: ManualResearchLaneId,
   keyword: string,
@@ -91,19 +124,22 @@ export function validateManualLaneFileContent(
 ): string | null {
   if (lane === 'paa') return null;
 
-  const lower = content.toLowerCase();
   const name = (fileName ?? '').toLowerCase();
 
   if (lane === 'wiki') {
-    if (lower.includes('wikipedia.org')) return null;
+    const urls = extractHttpUrls(content);
+    const hosts = urls.map(urlHost).filter((host): host is string => Boolean(host));
     if (
-      /https?:\/\/[a-z0-9.-]+\.wiki[\s"'/<>\\]/i.test(content)
+      hosts.some(isNonWikipediaWikiTld)
       || name.includes('site_wiki')
       || (name.includes('site:wiki') && !name.includes('wikipedia'))
     ) {
       return 'Wrong wiki SERP: this file has .wiki sites (e.g. aisdr.wiki), not en.wikipedia.org. Use Google site:en.wikipedia.org and save Webpage, HTML only.';
     }
-    return 'No wikipedia.org URLs in this file. Re-run Google with site:en.wikipedia.org, then save Webpage, HTML only.';
+    if (!hosts.some(isWikipediaHost)) {
+      return 'No wikipedia.org URLs in this file. Re-run Google with site:en.wikipedia.org, then save Webpage, HTML only.';
+    }
+    return null;
   }
 
   if (lane === 'gov' && !/\.gov[\s"'/<>\\]/i.test(content)) {

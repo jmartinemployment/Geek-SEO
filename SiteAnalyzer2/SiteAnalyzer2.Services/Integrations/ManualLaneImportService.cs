@@ -39,6 +39,13 @@ public sealed class ManualLaneImportService(
 
         EnforceTopicInvariant(run, normalizedTopic);
 
+        if (string.Equals(normalizedLane, SerpResearchLanes.Wiki, StringComparison.OrdinalIgnoreCase))
+        {
+            var wikiPreflight = CitationLaneHtmlPreflight.ValidateWiki(html);
+            if (wikiPreflight is not null)
+                throw new InvalidOperationException(wikiPreflight);
+        }
+
         var parsed = ParseLaneContent(html, normalizedLane, run.Keyword);
         ValidateParsedLane(normalizedLane, parsed, run.Keyword);
 
