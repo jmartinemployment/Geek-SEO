@@ -47,13 +47,7 @@ public static class ResearchBackedWriteGate
         return Result.Success();
     }
 
-    private static IReadOnlyList<string> ResolveRequiredSupplementalLanes(string? topicSlug)
-    {
-        if (string.Equals(topicSlug, "customer-journey", StringComparison.OrdinalIgnoreCase))
-            return [SerpResearchLanes.Gov];
-
-        return [];
-    }
+    private static IReadOnlyList<string> ResolveRequiredSupplementalLanes(string? topicSlug) => [];
 
     /// <summary>
     /// Aligns with Site Analyzer <c>research-focus</c> gates — thin packs fail at document create.

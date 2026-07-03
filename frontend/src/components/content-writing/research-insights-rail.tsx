@@ -81,7 +81,9 @@ function InsightCard({
   );
 }
 
-const MANUAL_LANES = ['keyword', 'paa', 'edu', 'gov', 'local'] as const;
+const MANUAL_LANES = ['keyword', 'paa', 'edu', 'gov', 'local', 'wiki'] as const;
+
+const OPTIONAL_MANUAL_LANES = new Set<string>(['paa', 'edu', 'gov', 'local', 'wiki']);
 
 function laneStatus(
   lane: (typeof MANUAL_LANES)[number],
@@ -93,7 +95,7 @@ function laneStatus(
   const manual = exportData.manualResearchLanes?.find(
     (l) => l.lane.toLowerCase() === lane,
   );
-  if (!manual) return 'empty';
+  if (!manual) return OPTIONAL_MANUAL_LANES.has(lane) ? 'na' : 'empty';
   if (lane === 'paa') {
     return (manual.paaCount ?? manual.paaQuestions?.length ?? 0) > 0 ? 'ok' : 'empty';
   }
@@ -110,13 +112,15 @@ function LaneChip({
   const styles =
     status === 'ok'
       ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
-      : 'border-amber-400 bg-amber-50 text-amber-900';
+      : status === 'na'
+        ? 'border-[var(--color-border)] bg-[var(--color-surface-muted)] text-[var(--color-text-muted)]'
+        : 'border-amber-400 bg-amber-50 text-amber-900';
   return (
     <span
       className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${styles}`}
     >
       {lane}
-      {status === 'ok' ? ' ✓' : ' —'}
+      {status === 'ok' ? ' ✓' : status === 'na' ? ' na' : ' —'}
     </span>
   );
 }

@@ -1,6 +1,7 @@
 using GeekSeo.Application.Configuration;
 using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
+using GeekSeo.Application.Services.Seo;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Providers.Seo;
 using GeekSeoBackend.Providers.Seo.Metering;
@@ -47,6 +48,7 @@ public static class SeoProviderRegistration
         RegisterSerpProviderImplementations(services, config);
         RegisterKeywordProvider(services, config);
         services.AddScoped<IKeywordDiscoveryProvider, InternalKeywordDiscoveryProvider>();
+        services.AddSingleton<IManualCitationLaneSerpFilter, ManualCitationLaneSerpFilter>();
         RegisterRankSnapshotImplementations(services, config);
 
         services.AddScoped<IRankSnapshotProvider>(sp => new MeteredRankSnapshotProvider(

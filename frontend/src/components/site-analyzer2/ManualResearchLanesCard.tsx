@@ -73,7 +73,7 @@ export function ManualResearchLanesCard({
 
   async function importPaaLane(files: File[]) {
     if (!topicSlug.trim()) {
-      setLaneError('Enter a research topic slug first (e.g. customer-journey).');
+      setLaneError('Enter a research topic slug first (e.g. auto-from-keyword).');
       return;
     }
     if (files.length === 0) {
@@ -106,7 +106,7 @@ export function ManualResearchLanesCard({
       return;
     }
     if (!topicSlug.trim()) {
-      setLaneError('Enter a research topic slug first (e.g. customer-journey).');
+      setLaneError('Enter a research topic slug first (e.g. auto-from-keyword).');
       return;
     }
     setLaneError(null);
@@ -169,9 +169,7 @@ export function ManualResearchLanesCard({
   }
 
   const requiredHint =
-    topicSlug.trim().toLowerCase() === 'customer-journey'
-      ? 'Required for this topic: gov. Optional: paa, edu, local.'
-      : 'Import any lanes you saved. gov is required only for customer-journey.';
+    'Import any lanes you saved. Keyword is required; gov, edu, local, paa, and wiki are optional.';
 
   const pendingRequired = pendingRequiredGateLabels(topicSlug, gates);
 
@@ -213,12 +211,12 @@ export function ManualResearchLanesCard({
             value={topicSlug}
             onChange={(e) => onTopicSlugChange(e.target.value)}
             onBlur={() => void onTopicSlugBlur?.()}
-            placeholder="customer-journey"
+            placeholder="auto-from-keyword"
             className="mt-1.5 w-full rounded-[var(--radius-button)] border border-[var(--color-border-strong)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[rgba(59,179,122,0.2)]"
           />
           <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
             {requiredHint} Matches folder <code className="text-xs">research/{topicSlug || '…'}/</code>.
-            Syncs to this run on blur.
+            Leave blank to auto-derive from keyword on import; edit anytime. Syncs to this run on blur.
           </p>
         </div>
 
@@ -244,6 +242,14 @@ export function ManualResearchLanesCard({
             const queryHint = manualResearchLaneQueryHint(lane, keyword);
             const preflightError = lanePreflightErrors[lane];
             const importBlocked = Boolean(preflightError);
+            const statusLabel =
+              status === 'ok'
+                ? 'Imported'
+                : status === 'na'
+                  ? lane === 'wiki'
+                    ? 'Skip — no Wikipedia for this keyword'
+                    : 'Optional — not imported'
+                  : 'Waiting on import';
             return (
               <li
                 key={lane}
@@ -253,6 +259,10 @@ export function ManualResearchLanesCard({
                   <div className="flex items-center gap-2">
                     {status === 'ok' ? (
                       <CheckCircle2 className="size-4 text-[var(--color-good)]" />
+                    ) : status === 'na' ? (
+                      <span className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                        na
+                      </span>
                     ) : (
                       <span className="size-4 rounded-full border border-[var(--color-border)]" />
                     )}
@@ -360,6 +370,14 @@ export function ManualResearchLanesCard({
                 {queryHint ? (
                   <p className="mt-1 text-xs text-[var(--color-text-muted)]">{queryHint}</p>
                 ) : null}
+                {status === 'na' && lane === 'wiki' ? (
+                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                    Skip if Google has no en.wikipedia.org results — not required for Content Writer.
+                  </p>
+                ) : null}
+                {status !== 'ok' ? (
+                  <p className="mt-1 text-[10px] text-[var(--color-text-muted)]">{statusLabel}</p>
+                ) : null}
               </li>
             );
           })}
@@ -387,7 +405,7 @@ export function ManualResearchLanesCard({
           </p>
         ) : (
           <p className="text-xs text-[var(--color-text-secondary)]">
-            Finish required lanes, then Content Writer will use your saved research.
+            Import keyword SERP to unlock Content Writer. Supplemental lanes are optional.
           </p>
         )}
 

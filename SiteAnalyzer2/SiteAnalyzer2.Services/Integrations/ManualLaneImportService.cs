@@ -1,9 +1,11 @@
+using GeekSeo.Application.Services.Seo;
 using Microsoft.EntityFrameworkCore;
 using SiteAnalyzer2.Domain;
 using SiteAnalyzer2.Domain.Entities;
 using SiteAnalyzer2.Domain.Enums;
 using SiteAnalyzer2.Infrastructure.Persistence;
 using SiteAnalyzer2.Serp;
+using SiteAnalyzer2.Serp.ManualImport;
 using SiteAnalyzer2.Serp.Models;
 using SiteAnalyzer2.Services.Pipeline;
 
@@ -77,7 +79,7 @@ public sealed class ManualLaneImportService(
         }
 
         var parsed = GoogleSerpHtmlParser.ParseLivePage(content, keywordOverride: keyword);
-        return CitationLaneHtmlFallback.Enrich(parsed, content, normalizedLane);
+        return ManualCitationLaneHtmlEnricher.Enrich(parsed, content, normalizedLane);
     }
 
     public async Task<ManualLaneImportResultDto> ImportPaaBatchAsync(
@@ -192,14 +194,8 @@ public sealed class ManualLaneImportService(
                 .Take(6)
                 .ToList();
 
-            var domainHint = domains.Count > 0
-                ? $" Parsed {organicCount} organic result(s); domains seen: {string.Join(", ", domains)}."
-                : $" Parsed {organicCount} organic result(s).";
-
-            var wrongDomainHint = CitationLaneValidationMessages.WrongDomainHint(normalizedLane, domains) ?? "";
-            var queryHint = CitationLaneQueryHints.ForLane(normalizedLane, keyword);
             throw new InvalidOperationException(
-                $"Lane '{normalizedLane}' produced 0 citation-eligible URLs after domain validation.{domainHint}{wrongDomainHint}{queryHint}");
+                ManualCitationLaneImportSupport.ImportFailureMessage(normalizedLane, organicCount, domains, keyword));
         }
     }
 
@@ -214,7 +210,7 @@ public sealed class ManualLaneImportService(
             if (string.IsNullOrWhiteSpace(item.Url))
                 continue;
 
-            if (CitationLaneDomainRules.IsEligibleUrl(item.Url, normalizedLane))
+            if (CitationLaneHostRules.IsEligibleUrl(item.Url, normalizedLane))
                 count++;
         }
 

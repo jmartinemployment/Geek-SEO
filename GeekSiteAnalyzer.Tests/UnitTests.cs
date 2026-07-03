@@ -666,7 +666,7 @@ public class CitationLaneDomainRulesTests
     [InlineData("rfp.wiki", false)]
     public void IsWikipediaHost_distinguishes_wikipedia_from_wiki_tld(string host, bool expected)
     {
-        Assert.Equal(expected, CitationLaneDomainRules.IsWikipediaHost(host));
+        Assert.Equal(expected, GeekSeo.Application.Services.Seo.CitationLaneHostRules.IsWikipediaHost(host));
     }
 
     [Theory]
@@ -674,7 +674,7 @@ public class CitationLaneDomainRulesTests
     [InlineData("en.wikipedia.org", false)]
     public void IsNonWikipediaWikiTld(string host, bool expected)
     {
-        Assert.Equal(expected, CitationLaneDomainRules.IsNonWikipediaWikiTld(host));
+        Assert.Equal(expected, GeekSeo.Application.Services.Seo.CitationLaneHostRules.IsNonWikipediaWikiTld(host));
     }
 }
 
@@ -705,7 +705,8 @@ public class CitationLaneHtmlFallbackTests
             false,
             []);
 
-        var enriched = CitationLaneHtmlFallback.Enrich(parsed, html, SerpResearchLanes.Wiki);
+        var enriched = SiteAnalyzer2.Serp.ManualImport.ManualCitationLaneHtmlEnricher.Enrich(
+            parsed, html, SerpResearchLanes.Wiki);
         var wiki = enriched.Items.Where(i =>
             i.Type == SerpItemTypes.Organic
             && (i.Url ?? "").Contains("wikipedia.org", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -722,13 +723,15 @@ public class CitationLaneHtmlFallbackTests
 
         var html = File.ReadAllText(path);
         var parsed = GoogleSerpHtmlParser.ParseLivePage(html, "ai customer journey");
-        parsed = CitationLaneHtmlFallback.Enrich(parsed, html, SerpResearchLanes.Wiki);
+        parsed = SiteAnalyzer2.Serp.ManualImport.ManualCitationLaneHtmlEnricher.Enrich(
+            parsed, html, SerpResearchLanes.Wiki);
 
         var eligible = parsed.Items.Count(i =>
             i.Type == SerpItemTypes.Organic
             && !i.Ads
             && !string.IsNullOrWhiteSpace(i.Url)
-            && CitationLaneDomainRules.IsEligibleUrl(i.Url!, SerpResearchLanes.Wiki));
+            && GeekSeo.Application.Services.Seo.CitationLaneHostRules.IsEligibleUrl(
+                i.Url!, SerpResearchLanes.Wiki));
 
         Assert.True(eligible > 0, $"Expected wiki-eligible organics, found {eligible}");
     }

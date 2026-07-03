@@ -1,6 +1,10 @@
-namespace SiteAnalyzer2.Domain;
+namespace GeekSeo.Application.Services.Seo;
 
-public static class CitationLaneDomainRules
+/// <summary>
+/// Host eligibility for manual citation lane imports (gov, edu, wiki).
+/// Rebuilt for M2+ tier — replaces dormant SiteAnalyzer2 <c>CitationLaneDomainRules</c>.
+/// </summary>
+public static class CitationLaneHostRules
 {
     public static bool IsEligibleUrl(string url, string lane)
     {
@@ -10,9 +14,9 @@ public static class CitationLaneDomainRules
         var host = uri.Host.ToLowerInvariant();
         return lane.ToLowerInvariant() switch
         {
-            SerpResearchLanes.Gov => host.EndsWith(".gov", StringComparison.Ordinal),
-            SerpResearchLanes.Edu => host.EndsWith(".edu", StringComparison.Ordinal),
-            SerpResearchLanes.Wiki => IsWikipediaHost(host),
+            Models.Seo.SerpResearchLanes.Gov => host.EndsWith(".gov", StringComparison.Ordinal),
+            Models.Seo.SerpResearchLanes.Edu => host.EndsWith(".edu", StringComparison.Ordinal),
+            Models.Seo.SerpResearchLanes.Wiki => IsWikipediaHost(host),
             _ => true,
         };
     }

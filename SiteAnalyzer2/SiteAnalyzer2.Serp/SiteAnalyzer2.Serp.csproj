@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SiteAnalyzer2.Domain\SiteAnalyzer2.Domain.csproj" />
+    <ProjectReference Include="..\..\GeekSeo.Application\GeekSeo.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>

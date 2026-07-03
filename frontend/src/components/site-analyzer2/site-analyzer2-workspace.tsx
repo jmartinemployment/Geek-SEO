@@ -1254,7 +1254,9 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
   const [keywordProjectId, setKeywordProjectId] = useState("");
   const [geekSeoProjectId, setGeekSeoProjectId] = useState("");
   const [keyword, setKeyword] = useState("");
-  const [researchTopicSlug, setResearchTopicSlug] = useState("customer-journey");
+  const [researchTopicSlug, setResearchTopicSlug] = useState("");
+  const topicSlugDirtyRef = useRef(false);
+  const topicSlugFocusedRef = useRef(false);
   const [step, setStep] = useState<Step>("idle");
   const [status, setStatus] = useState<Status | null>(null);
   const [siteProfile, setSiteProfile] = useState<SiteProfile | null>(null);
@@ -1299,6 +1301,7 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
     try {
       const saved = await updateResearchTopicSlug(keywordProjectId, slug, accessToken);
       setResearchTopicSlug(saved);
+      topicSlugDirtyRef.current = false;
     } catch (e) {
       setStatus({
         kind: "err",
@@ -1312,13 +1315,21 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
 
   useEffect(() => {
     setProjectUrl(localStorage.getItem(STORAGE_URL) ?? "");
-    setResearchTopicSlug(localStorage.getItem(STORAGE_TOPIC_SLUG) ?? "customer-journey");
+    const storedSlug = localStorage.getItem(STORAGE_TOPIC_SLUG);
+    if (storedSlug && storedSlug !== "customer-journey") {
+      setResearchTopicSlug(storedSlug);
+    }
     setUrlHydrated(true);
   }, []);
 
   useEffect(() => {
     if (!urlHydrated) return;
-    localStorage.setItem(STORAGE_TOPIC_SLUG, researchTopicSlug.trim() || "customer-journey");
+    const trimmed = researchTopicSlug.trim();
+    if (trimmed) {
+      localStorage.setItem(STORAGE_TOPIC_SLUG, trimmed);
+    } else {
+      localStorage.removeItem(STORAGE_TOPIC_SLUG);
+    }
   }, [researchTopicSlug, urlHydrated]);
 
   useEffect(() => {
@@ -1503,7 +1514,7 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
       const body: unknown = await res.json().catch(() => null);
       const focus = normalizeResearchFocus(body);
       setResearchFocus(focus);
-      if (focus?.topicSlug) {
+      if (focus?.topicSlug && !topicSlugDirtyRef.current && !topicSlugFocusedRef.current) {
         setResearchTopicSlug(focus.topicSlug);
       }
       return focus;
@@ -1713,6 +1724,7 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
       } else if (kw) {
         setResearchTopicSlug(slugifyResearchTopic(kw));
       }
+      topicSlugDirtyRef.current = false;
       setStep("keyword_saved");
       void loadContentPillars(targetSiteUrl);
       void loadResearchFocus(id);
@@ -2080,7 +2092,7 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
                   </p>
                 ) : (
                   <p className="text-xs text-[var(--color-text-muted)]">
-                    Import required research lanes (gov for customer-journey).
+                    Import keyword SERP to unlock Content Writer.
                   </p>
                 )}
               </div>
@@ -2232,14 +2244,24 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
                   id="keyword-research-topic-slug"
                   type="text"
                   value={researchTopicSlug}
-                  onChange={(e) => setResearchTopicSlug(e.target.value)}
-                  onBlur={() => void commitResearchTopicSlug()}
+                  onChange={(e) => {
+                    topicSlugDirtyRef.current = true;
+                    setResearchTopicSlug(e.target.value);
+                  }}
+                  onFocus={() => {
+                    topicSlugFocusedRef.current = true;
+                  }}
+                  onBlur={() => {
+                    topicSlugFocusedRef.current = false;
+                    void commitResearchTopicSlug();
+                  }}
                   disabled={parsing || crawling || workflowLocked}
-                  placeholder="customer-journey"
+                  placeholder="auto-from-keyword"
                   className="mt-1.5 w-full rounded-[var(--radius-button)] border border-[var(--color-border-strong)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[rgba(59,179,122,0.2)] disabled:opacity-50"
                 />
                 <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                  Folder name under research/ — syncs to this run on blur.
+                  Matches folder <code className="text-xs">research/&lt;slug&gt;/</code>. Leave blank to
+                  auto-derive from keyword on import; edit anytime.
                 </p>
               </div>
 
@@ -2317,7 +2339,7 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
 
               {researchFocus && !researchFocus.researchReady ? (
                 <p className="text-xs text-[var(--color-bad)]">
-                  Import required Google research lanes below (gov for customer-journey), or complete
+                  Import optional Google research lanes below, or complete
                   competitor crawl for the full SA2 path.
                 </p>
               ) : null}
@@ -2335,7 +2357,10 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
               accessToken={accessToken}
               topicSlug={researchTopicSlug}
               keyword={keyword}
-              onTopicSlugChange={setResearchTopicSlug}
+              onTopicSlugChange={(value) => {
+                topicSlugDirtyRef.current = true;
+                setResearchTopicSlug(value);
+              }}
               onTopicSlugBlur={commitResearchTopicSlug}
               gates={researchFocus?.gates}
               researchReady={researchFocus?.researchReady}

@@ -1,15 +1,17 @@
 using System.Net;
 using System.Text.RegularExpressions;
+using GeekSeo.Application.Services.Seo;
 using SiteAnalyzer2.Domain;
 using SiteAnalyzer2.Domain.Enums;
 using SiteAnalyzer2.Serp.Models;
 
-namespace SiteAnalyzer2.Serp;
+namespace SiteAnalyzer2.Serp.ManualImport;
 
 /// <summary>
-/// When the primary SERP parser finds no citation-lane URLs, scan saved HTML for eligible links.
+/// Scans saved Google SERP HTML for citation-lane URLs when the primary parser missed them.
+/// Rebuilt implementation — do not restore dormant <c>CitationLaneHtmlFallback</c>.
 /// </summary>
-public static class CitationLaneHtmlFallback
+public static class ManualCitationLaneHtmlEnricher
 {
     private static readonly Regex ModernResultHref = new(
         @"jsname=""UWckNb""[^>]*href=""([^""]+)""",
@@ -86,7 +88,7 @@ public static class CitationLaneHtmlFallback
             string.Equals(i.Type, SerpItemTypes.Organic, StringComparison.OrdinalIgnoreCase)
             && !i.Ads
             && !string.IsNullOrWhiteSpace(i.Url)
-            && CitationLaneDomainRules.IsEligibleUrl(i.Url!, lane));
+            && CitationLaneHostRules.IsEligibleUrl(i.Url!, lane));
 
     private static List<string> ExtractUrls(string html, string lane)
     {
@@ -114,7 +116,7 @@ public static class CitationLaneHtmlFallback
         if (string.IsNullOrWhiteSpace(normalized))
             return;
 
-        if (!CitationLaneDomainRules.IsEligibleUrl(normalized, lane))
+        if (!CitationLaneHostRules.IsEligibleUrl(normalized, lane))
             return;
 
         if (GoogleSerpHtmlParser.ShouldSkipResultUrlPublic(normalized))

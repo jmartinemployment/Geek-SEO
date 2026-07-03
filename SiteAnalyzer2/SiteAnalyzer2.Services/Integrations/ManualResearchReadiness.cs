@@ -8,10 +8,7 @@ namespace SiteAnalyzer2.Services.Integrations;
 
 internal static class ManualResearchReadiness
 {
-    public static IReadOnlyList<string> RequiredSupplementalLanes(string? topicSlug) =>
-        string.Equals(topicSlug, "customer-journey", StringComparison.OrdinalIgnoreCase)
-            ? [SerpResearchLanes.Gov]
-            : [];
+    public static IReadOnlyList<string> RequiredSupplementalLanes(string? _) => [];
 
     public static async Task<(bool Ready, IReadOnlyList<ResearchWorkflowGateDto> Gates)> EvaluateAsync(
         AppDbContext db,
@@ -27,15 +24,13 @@ internal static class ManualResearchReadiness
             new("edu", "Research (.edu)", stats.OrganicCount(SerpResearchLanes.Edu) > 0),
             new("gov", "Government", stats.OrganicCount(SerpResearchLanes.Gov) > 0),
             new("local", "Local", stats.LocalReady),
+            new("wiki", "Wikipedia", stats.OrganicCount(SerpResearchLanes.Wiki) > 0),
         };
 
         if (!hasKeywordSerp)
             return (false, gates);
 
-        var ready = RequiredSupplementalLanes(run.TopicSlug)
-            .All(lane => stats.OrganicCount(lane) > 0);
-
-        return (ready, gates);
+        return (hasKeywordSerp, gates);
     }
 
     private static async Task<LaneImportStats> LoadLaneStatsAsync(
