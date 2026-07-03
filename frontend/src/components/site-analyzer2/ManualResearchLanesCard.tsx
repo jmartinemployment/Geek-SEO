@@ -22,6 +22,7 @@ type Props = {
   runId: string;
   accessToken?: string | null;
   topicSlug: string;
+  topicSlugLocked?: boolean;
   onTopicSlugChange: (value: string) => void;
   gates?: Gate[];
   researchReady?: boolean;
@@ -32,6 +33,7 @@ export function ManualResearchLanesCard({
   runId,
   accessToken,
   topicSlug,
+  topicSlugLocked = false,
   onTopicSlugChange,
   gates,
   researchReady,
@@ -173,11 +175,19 @@ export function ManualResearchLanesCard({
             id="research-topic-slug"
             type="text"
             value={topicSlug}
+            readOnly={topicSlugLocked}
             onChange={(e) => onTopicSlugChange(e.target.value)}
             placeholder="customer-journey"
-            className="mt-1.5 w-full rounded-[var(--radius-button)] border border-[var(--color-border-strong)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[rgba(59,179,122,0.2)]"
+            className={cn(
+              'mt-1.5 w-full rounded-[var(--radius-button)] border border-[var(--color-border-strong)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[rgba(59,179,122,0.2)]',
+              topicSlugLocked && 'cursor-not-allowed bg-[var(--color-surface-muted)]/30 text-[var(--color-text-secondary)]',
+            )}
           />
-          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{requiredHint}</p>
+          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+            {topicSlugLocked
+              ? 'Locked to this keyword run — matches your research/ folder name, not the pillar keyword phrase.'
+              : requiredHint}
+          </p>
         </div>
 
         {loadingExport ? (

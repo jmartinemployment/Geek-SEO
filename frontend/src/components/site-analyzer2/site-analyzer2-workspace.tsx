@@ -33,6 +33,7 @@ import {
   type DomainOverview,
 } from "@/components/site-analyzer2/DomainOverviewPanel";
 import { ManualResearchLanesCard } from "@/components/site-analyzer2/ManualResearchLanesCard";
+import { slugifyResearchTopic } from "@/lib/manual-research-lanes";
 import { contentWritingPath } from "@/lib/content-writing-search-params";
 import { getSiteAnalyzer2ApiBase, siteAnalyzer2Fetch } from "@/lib/site-analyzer2-api";
 import { cn } from "@/lib/utils";
@@ -102,6 +103,7 @@ type RunRankingsSummary = {
 type RunResearchFocus = {
   runId: string;
   keyword: string;
+  topicSlug?: string | null;
   matchedPillarTopic?: string | null;
   matchedPillarIntent?: string | null;
   matchedPillarAngle?: string | null;
@@ -349,6 +351,7 @@ type KeywordImportApiBody = {
     previousCapturedAt?: string | null;
     currentCapturedAt?: string;
   } | null;
+  topicSlug?: string | null;
 };
 
 function formatRankPosition(position?: number | null): string {
@@ -559,6 +562,7 @@ function normalizeResearchFocus(value: unknown): RunResearchFocus | null {
   return {
     runId,
     keyword,
+    topicSlug: readString(record.topicSlug) ?? readString(record.TopicSlug),
     matchedPillarTopic: readString(record.matchedPillarTopic) ?? readString(record.MatchedPillarTopic),
     matchedPillarIntent: readString(record.matchedPillarIntent) ?? readString(record.MatchedPillarIntent),
     matchedPillarAngle: readString(record.matchedPillarAngle) ?? readString(record.MatchedPillarAngle),
@@ -1480,6 +1484,9 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
       const body: unknown = await res.json().catch(() => null);
       const focus = normalizeResearchFocus(body);
       setResearchFocus(focus);
+      if (focus?.topicSlug) {
+        setResearchTopicSlug(focus.topicSlug);
+      }
       return focus;
     } catch {
       setResearchFocus(null);
@@ -1682,6 +1689,11 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
       setKeywordProjectId(id);
       setGeekSeoProjectId(projectId);
       setKeyword(kw);
+      if (body.topicSlug?.trim()) {
+        setResearchTopicSlug(body.topicSlug.trim());
+      } else if (kw) {
+        setResearchTopicSlug(slugifyResearchTopic(kw));
+      }
       setStep("keyword_saved");
       void loadContentPillars(targetSiteUrl);
       void loadResearchFocus(id);
@@ -2270,6 +2282,7 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
               runId={keywordProjectId}
               accessToken={accessToken}
               topicSlug={researchTopicSlug}
+              topicSlugLocked={Boolean(keywordProjectId)}
               onTopicSlugChange={setResearchTopicSlug}
               gates={researchFocus?.gates}
               researchReady={researchFocus?.researchReady}

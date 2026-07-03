@@ -48,8 +48,17 @@ public sealed class KeywordWorkflowService(
         if (!string.IsNullOrWhiteSpace(topicSlug))
         {
             var run = await db.AnalysisRuns.FirstAsync(r => r.Id == import.RunId, ct);
-            run.TopicSlug = topicSlug.Trim().ToLowerInvariant();
+            run.TopicSlug = ResearchTopicSlug.Normalize(topicSlug);
             await db.SaveChangesAsync(ct);
+        }
+        else
+        {
+            var run = await db.AnalysisRuns.FirstAsync(r => r.Id == import.RunId, ct);
+            if (string.IsNullOrWhiteSpace(run.TopicSlug) && !string.IsNullOrWhiteSpace(run.Keyword))
+            {
+                run.TopicSlug = ResearchTopicSlug.FromKeyword(run.Keyword);
+                await db.SaveChangesAsync(ct);
+            }
         }
 
         await runFocus.AfterSerpImportAsync(import.RunId, ct);
@@ -237,6 +246,7 @@ public sealed class KeywordWorkflowService(
             TargetOrganicPosition = rankSummary.LatestDelta?.CurrentPosition ?? rankSummary.History.LastOrDefault()?.TargetPosition,
             TargetOrganicUrl = rankSummary.History.LastOrDefault()?.TargetUrl,
             RankingsDelta = rankSummary.LatestDelta,
+            TopicSlug = run.TopicSlug,
         };
     }
 

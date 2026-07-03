@@ -1455,6 +1455,24 @@ public class SiteProfileServiceTests
     }
 }
 
+public class ResearchTopicSlugTests
+{
+    [Fact]
+    public void FromKeyword_slugifies_pillar_phrase()
+    {
+        var slug = SiteAnalyzer2.Domain.ResearchTopicSlug.FromKeyword("AI for Prospecting & Lead Intelligence");
+        Assert.Equal("ai-for-prospecting-and-lead-intelligence", slug);
+    }
+
+    [Theory]
+    [InlineData("customer-journey", "customer-journey")]
+    [InlineData("  Customer-Journey  ", "customer-journey")]
+    public void Normalize_preserves_slug(string input, string expected)
+    {
+        Assert.Equal(expected, SiteAnalyzer2.Domain.ResearchTopicSlug.Normalize(input));
+    }
+}
+
 public class CompetitorCrawlStatusMessagesTests
 {
     [Fact]

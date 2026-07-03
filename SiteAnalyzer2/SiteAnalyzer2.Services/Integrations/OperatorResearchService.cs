@@ -25,6 +25,7 @@ public sealed record ResearchPackStatsDto(
 public sealed record RunResearchFocusDto(
     Guid RunId,
     string Keyword,
+    string? TopicSlug,
     string? MatchedPillarTopic,
     string? MatchedPillarIntent,
     string? MatchedPillarAngle,
@@ -152,6 +153,7 @@ public sealed class OperatorResearchService(AppDbContext db, SerpRankHistoryServ
         return new RunResearchFocusDto(
             run.Id,
             run.Keyword.Trim(),
+            run.TopicSlug,
             run.MatchedPillarTopic,
             run.MatchedPillarIntent,
             run.MatchedPillarAngle,

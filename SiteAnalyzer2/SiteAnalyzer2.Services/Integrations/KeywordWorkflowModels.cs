@@ -26,6 +26,7 @@ public sealed record KeywordPageImportResultDto
     public int? TargetOrganicPosition { get; init; }
     public string? TargetOrganicUrl { get; init; }
     public RankingsDeltaDto? RankingsDelta { get; init; }
+    public string? TopicSlug { get; init; }
 }
 
 public sealed record CompetitorCrawlWorkflowResultDto

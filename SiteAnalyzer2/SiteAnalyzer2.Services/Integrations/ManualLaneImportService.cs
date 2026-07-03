@@ -30,12 +30,12 @@ public sealed class ManualLaneImportService(
             throw new InvalidOperationException("topic query parameter is required.");
 
         var normalizedLane = SerpResearchLanes.Normalize(lane);
-        var normalizedTopic = topicSlug.Trim().ToLowerInvariant();
+        var normalizedTopic = ResearchTopicSlug.Normalize(topicSlug);
 
         var run = await db.AnalysisRuns.FirstOrDefaultAsync(r => r.Id == runId, ct)
             ?? throw new InvalidOperationException("Analysis run not found.");
 
-        await EnforceTopicInvariantAsync(run, normalizedTopic, ct);
+        EnforceTopicInvariant(run, normalizedTopic);
 
         var parsed = ParseLaneContent(html, normalizedLane, run.Keyword);
         ValidateParsedLane(normalizedLane, parsed);
@@ -94,12 +94,12 @@ public sealed class ManualLaneImportService(
         if (string.IsNullOrWhiteSpace(topicSlug))
             throw new InvalidOperationException("topic query parameter is required.");
 
-        var normalizedTopic = topicSlug.Trim().ToLowerInvariant();
+        var normalizedTopic = ResearchTopicSlug.Normalize(topicSlug);
 
         var run = await db.AnalysisRuns.FirstOrDefaultAsync(r => r.Id == runId, ct)
             ?? throw new InvalidOperationException("Analysis run not found.");
 
-        await EnforceTopicInvariantAsync(run, normalizedTopic, ct);
+        EnforceTopicInvariant(run, normalizedTopic);
 
         var merged = PaaLaneImportComposer.MergeContents(files, run.Keyword);
         ValidateParsedLane(SerpResearchLanes.Paa, merged);
@@ -125,26 +125,20 @@ public sealed class ManualLaneImportService(
         };
     }
 
-    private async Task EnforceTopicInvariantAsync(AnalysisRun run, string topicSlug, CancellationToken ct)
+    private static void EnforceTopicInvariant(AnalysisRun run, string topicSlug)
     {
-        if (!string.IsNullOrWhiteSpace(run.TopicSlug)
-            && !string.Equals(run.TopicSlug, topicSlug, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException(
-                $"topic_slug '{topicSlug}' does not match existing topic '{run.TopicSlug}' for this run.");
-        }
+        if (string.IsNullOrWhiteSpace(run.TopicSlug))
+            return;
 
-        var storedTopic = await db.SerpItems.AsNoTracking()
-            .Where(i => i.RunId == run.Id && i.ResearchLane != null)
-            .Select(i => run.TopicSlug)
-            .FirstOrDefaultAsync(ct);
+        if (string.Equals(run.TopicSlug, topicSlug, StringComparison.OrdinalIgnoreCase))
+            return;
 
-        if (!string.IsNullOrWhiteSpace(storedTopic)
-            && !string.Equals(storedTopic, topicSlug, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException(
-                $"topic_slug '{topicSlug}' does not match existing topic '{storedTopic}' for this run.");
-        }
+        var hint = topicSlug.Contains(' ', StringComparison.Ordinal)
+            ? $" Use the research folder slug stored on this run ('{run.TopicSlug}'), not the pillar keyword phrase."
+            : string.Empty;
+
+        throw new InvalidOperationException(
+            $"topic_slug '{topicSlug}' does not match existing topic '{run.TopicSlug}' for this run.{hint}");
     }
 
     internal static void ValidateParsedLane(string normalizedLane, SerpLivePageParseResult parsed)

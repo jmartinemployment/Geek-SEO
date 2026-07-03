@@ -45,6 +45,16 @@ export async function fetchContentWriterExport(
   return res.json() as Promise<ContentWriterSerpExport>;
 }
 
+export function slugifyResearchTopic(value: string): string {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return (slug.length > 80 ? slug.slice(0, 80).replace(/-+$/g, '') : slug) || 'research-topic';
+}
+
 export async function importManualResearchLane(
   runId: string,
   lane: ManualResearchLaneId,
@@ -70,6 +80,7 @@ export async function importManualResearchLane(
     error?: string;
   };
   if (!res.ok) {
+    console.error('[manual-research-lane] import failed', { lane, topicSlug, status: res.status, body });
     throw new Error(body.error || res.statusText || `Import failed (${res.status})`);
   }
   return body;
@@ -101,6 +112,7 @@ export async function importManualResearchPaaBatch(
     error?: string;
   };
   if (!res.ok) {
+    console.error('[manual-research-lane] PAA batch import failed', { topicSlug, status: res.status, body });
     throw new Error(body.error || res.statusText || `Import failed (${res.status})`);
   }
   return body;
