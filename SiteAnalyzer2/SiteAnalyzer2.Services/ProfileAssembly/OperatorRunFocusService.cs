@@ -48,6 +48,13 @@ public sealed class OperatorRunFocusService(
         run.MatchedPillarAngle = SiteProfileAssemblerHelpers.FindMatchedPillarAngle(serpItems);
         run.GapTopics = [];
         run.WritingInstructions = null;
+        if (string.Equals(run.CompetitorCrawlStatus, CompetitorCrawlStatuses.Complete, StringComparison.OrdinalIgnoreCase))
+        {
+            run.CompetitorCrawlStatus = CompetitorCrawlStatuses.PagesSaved;
+            run.CompetitorCrawlMessage =
+                "SERP updated. Run competitor crawl again to refresh the research pack.";
+        }
+
         await db.SaveChangesAsync(ct);
 
         _ = RunTargetCrawlInBackgroundAsync(runId);

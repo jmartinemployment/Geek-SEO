@@ -1455,6 +1455,34 @@ public class SiteProfileServiceTests
     }
 }
 
+public class CompetitorCrawlStatusMessagesTests
+{
+    [Fact]
+    public void ResolveStatusMessage_ignores_stale_research_pack_ready_when_not_ready()
+    {
+        var message = SiteAnalyzer2.Services.CompetitorCrawl.CompetitorCrawlStatusMessages.ResolveStatusMessage(
+            9,
+            9,
+            researchPackReady: false,
+            "Saved 9 pages across 9 competitor domains. Research pack ready.");
+
+        Assert.Contains("assembly did not complete", message);
+        Assert.DoesNotContain("Research pack ready", message);
+    }
+
+    [Fact]
+    public void ResolveStatusMessage_keeps_specific_assembly_error()
+    {
+        var message = SiteAnalyzer2.Services.CompetitorCrawl.CompetitorCrawlStatusMessages.ResolveStatusMessage(
+            9,
+            9,
+            researchPackReady: false,
+            "No site profile exists for geekatyourspot.com. Create the site profile before running analysis.");
+
+        Assert.Contains("No site profile exists", message);
+    }
+}
+
 public class SiteProfileAssemblerHelpersTests
 {
     [Fact]

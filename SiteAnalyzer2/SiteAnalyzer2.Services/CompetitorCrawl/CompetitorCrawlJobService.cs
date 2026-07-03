@@ -105,13 +105,13 @@ public sealed class CompetitorCrawlJobService(
             else if (pageCount > 0)
             {
                 run.CompetitorCrawlStatus = CompetitorCrawlStatuses.PagesSaved;
-                run.CompetitorCrawlMessage = BuildFailureMessage(result);
+                run.CompetitorCrawlMessage = BuildFailureMessage(result, pageCount, result.DomainCount);
                 run.Status = RunStatus.ResearchFailed;
             }
             else
             {
                 run.CompetitorCrawlStatus = CompetitorCrawlStatuses.Failed;
-                run.CompetitorCrawlMessage = BuildFailureMessage(result);
+                run.CompetitorCrawlMessage = BuildFailureMessage(result, pageCount, result.DomainCount);
             }
 
             await db.SaveChangesAsync();
@@ -173,14 +173,27 @@ public sealed class CompetitorCrawlJobService(
             saved,
             result.TotalPages,
             result.DomainCount,
-            saved ? result.Message : BuildFailureMessage(result),
+            saved
+                ? result.Message
+                : BuildFailureMessage(result, pageCount, result.DomainCount),
             result.QualityWarnings));
     }
 
-    private static string BuildFailureMessage(CompetitorCrawlWorkflowResultDto result)
+    private static string BuildFailureMessage(CompetitorCrawlWorkflowResultDto result, int pageCount, int domainCount)
     {
-        if (!string.IsNullOrWhiteSpace(result.Message))
+        if (!string.IsNullOrWhiteSpace(result.Message)
+            && !result.Message.Contains("Research pack ready", StringComparison.OrdinalIgnoreCase))
+        {
             return result.Message.Trim();
+        }
+
+        if (pageCount > 0)
+        {
+            return CompetitorCrawlStatusMessages.BuildSavedPagesMessage(
+                pageCount,
+                domainCount,
+                researchPackReady: false);
+        }
 
         if (result.QualityWarnings.Count > 0)
             return string.Join(" ", result.QualityWarnings);

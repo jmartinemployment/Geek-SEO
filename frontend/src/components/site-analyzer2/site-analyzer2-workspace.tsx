@@ -1490,14 +1490,16 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
   }
 
   async function waitForResearchPackReady(runId: string, maxAttempts = 12): Promise<RunResearchFocus | null> {
+    let lastFocus: RunResearchFocus | null = null;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const focus = await loadResearchFocus(runId);
+      lastFocus = focus;
       if (focus?.researchReady) return focus;
       if (attempt < maxAttempts - 1) {
         await new Promise((resolve) => setTimeout(resolve, 2000));
       }
     }
-    return null;
+    return lastFocus;
   }
 
   async function loadSiteProfile(siteUrl: string) {
@@ -1727,13 +1729,25 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
     }
 
     if (!saved) {
+      const assemblyError =
+        body.assemblyError ??
+        (message && !/research pack ready/i.test(message) ? message : null) ??
+        body.message;
+      console.error("[competitor-crawl] pages saved but research pack incomplete", {
+        runId: keywordProjectId,
+        crawlStatus: body.crawlStatus,
+        competitorSaved: body.competitorSaved,
+        message: body.message,
+        assemblyError,
+        totalPages,
+        domainCount,
+      });
       setStatus({
         kind: "err",
         text: [
-          message ?? body.message ?? "Competitor crawl data was not saved.",
-          totalPages > 0
-            ? buildCrawlSummaryMessage({ totalPages, domainCount, message })
-            : null,
+          buildCrawlSummaryMessage({ totalPages, domainCount, message }),
+          assemblyError ??
+            "Research pack assembly did not complete. Check that the site profile exists and target-site crawl finished.",
           "Keyword data is still saved. Fix issues and run competitor crawl again.",
           ...qualityWarnings,
         ]
@@ -1776,6 +1790,11 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
         return;
       }
 
+      console.error("[competitor-crawl] saved but research gates incomplete", {
+        runId: keywordProjectId,
+        pendingGates,
+        packStats: focus?.packStats,
+      });
       setStatus({
         kind: "err",
         text: [
@@ -1830,6 +1849,7 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
 
     if (payload.crawlStatus === "failed") {
       crawlSettledRef.current = true;
+      console.error("[competitor-crawl] failed", payload);
       setStatus({
         kind: "err",
         text: [
@@ -1843,15 +1863,18 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
       return;
     }
 
-    if (payload.crawlStatus === "pages_saved") {
+    if (
+      payload.crawlStatus === "pages_saved" ||
+      (payload.crawlStatus === "complete" && payload.competitorSaved === true)
+    ) {
       crawlSettledRef.current = true;
       void finishCompetitorCrawl(payload);
       return;
     }
 
-    if (payload.competitorSaved === true || payload.crawlStatus === "complete") {
+    if (payload.crawlStatus === "complete" && payload.competitorSaved !== true) {
       crawlSettledRef.current = true;
-      void finishCompetitorCrawl(payload);
+      void finishCompetitorCrawl({ ...payload, competitorSaved: false, crawlStatus: "pages_saved" });
     }
   }
 
@@ -1874,7 +1897,7 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
       const deadline = Date.now() + 12 * 60 * 1000;
 
       const startRes = await siteAnalyzer2Fetch(
-        `/runs/${encodeURIComponent(keywordProjectId)}/competitor-crawl`,
+        `/runs/${encodeURIComponent(keywordProjectId)}/competitor-crawl?force=true`,
         accessToken,
         { method: "POST" },
       );

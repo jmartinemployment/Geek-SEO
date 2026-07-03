@@ -14,6 +14,7 @@ export type CompetitorCrawlProgressPayload = {
   domainCount?: number;
   domains?: CompetitorDomainSummary[];
   message?: string;
+  assemblyError?: string;
   qualityWarnings?: string[];
 };
 
@@ -24,6 +25,7 @@ export type CrawlStatusResponse = {
   domainCount?: number;
   domains?: CompetitorDomainSummary[];
   message?: string;
+  assemblyError?: string;
   qualityWarnings?: string[];
 };
 
@@ -97,6 +99,7 @@ export function normalizeCrawlStatusResponse(
     domainCount: domainCount > 0 ? domainCount : domains.length,
     domains,
     message: readString(body.message ?? body.Message) ?? undefined,
+    assemblyError: readString(body.assemblyError ?? body.AssemblyError) ?? undefined,
     qualityWarnings: readStringList(body.qualityWarnings ?? body.QualityWarnings),
   };
 }
@@ -148,16 +151,16 @@ export function shouldReplaceCrawlProgress(
 ): boolean {
   if (!current) return true;
 
-  if (incoming.competitorSaved === true) return true;
-  if (incoming.crawlStatus === "failed") return true;
-  if (incoming.crawlStatus === "complete" && (incoming.totalPages ?? 0) > 0) return true;
-  if (current.competitorSaved === true || current.crawlStatus === "failed") return false;
-
   const incomingSeq = incoming.sequenceNumber ?? 0;
   const currentSeq = current.sequenceNumber ?? 0;
   if (incomingSeq > 0 && currentSeq > 0 && incomingSeq !== currentSeq) {
     return incomingSeq > currentSeq;
   }
+
+  if (incoming.crawlStatus === "failed") return true;
+  if (incoming.crawlStatus === "pages_saved") return true;
+  if (incoming.crawlStatus === "complete" && incoming.competitorSaved === true) return true;
+  if (current.competitorSaved === true || current.crawlStatus === "failed") return false;
 
   return (incoming.totalPages ?? 0) >= (current.totalPages ?? 0);
 }

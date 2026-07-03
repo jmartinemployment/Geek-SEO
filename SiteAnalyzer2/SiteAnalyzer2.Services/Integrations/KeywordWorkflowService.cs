@@ -115,9 +115,10 @@ public sealed class KeywordWorkflowService(
             };
         }
 
+        CompetitorCrawlOutcome? outcome = null;
         try
         {
-            var outcome = await competitorCrawl.RunAsync(keywordProjectId, ct);
+            outcome = await competitorCrawl.RunAsync(keywordProjectId, ct);
             var competitorSaved = outcome.TotalPages > 0 && await HasCompetitorDataAsync(keywordProjectId, ct);
 
             if (!competitorSaved)
@@ -127,7 +128,7 @@ public sealed class KeywordWorkflowService(
                     CompetitorSaved = false,
                     TotalPages = outcome.TotalPages,
                     DomainCount = outcome.DomainCount,
-                    QualityWarnings = outcome.QualityWarnings,
+                    QualityWarnings = outcome?.QualityWarnings ?? [],
                     Message = outcome.TotalPages == 0
                         ? "Competitor crawl fetched zero pages. Check SERP competitor URLs and try again."
                         : "Competitor crawl data was not saved.",
@@ -136,14 +137,27 @@ public sealed class KeywordWorkflowService(
 
             await runFocus.TryCompleteResearchFocusAsync(keywordProjectId, ct);
 
+            var gapTopicCount = await db.AnalysisRuns.AsNoTracking()
+                .Where(r => r.Id == keywordProjectId)
+                .Select(r => r.GapTopics.Count)
+                .FirstAsync(ct);
+            if (gapTopicCount == 0)
+            {
+                throw new InvalidOperationException(
+                    "Research pack assembly did not persist gap themes.");
+            }
+
+            var stats = await CompetitorCrawlStatsQuery.LoadAsync(db, keywordProjectId, ct);
             return new CompetitorCrawlWorkflowResultDto
             {
                 CompetitorSaved = true,
-                TotalPages = outcome.TotalPages,
-                DomainCount = outcome.DomainCount,
-                QualityWarnings = outcome.QualityWarnings,
-                Message =
-                    $"Saved {outcome.TotalPages} pages across {outcome.DomainCount} competitor domains. Research pack ready.",
+                TotalPages = stats.TotalPages,
+                DomainCount = stats.DomainCount,
+                QualityWarnings = outcome?.QualityWarnings ?? [],
+                Message = CompetitorCrawlStatusMessages.BuildSavedPagesMessage(
+                    stats.TotalPages,
+                    stats.DomainCount,
+                    researchPackReady: true),
             };
         }
         catch (InvalidOperationException ex)
@@ -154,6 +168,19 @@ public sealed class KeywordWorkflowService(
                 CompetitorSaved = false,
                 TotalPages = stats.TotalPages,
                 DomainCount = stats.DomainCount,
+                QualityWarnings = outcome?.QualityWarnings ?? [],
+                Message = ex.Message,
+            };
+        }
+        catch (Exception ex)
+        {
+            var stats = await CompetitorCrawlStatsQuery.LoadAsync(db, keywordProjectId, ct);
+            return new CompetitorCrawlWorkflowResultDto
+            {
+                CompetitorSaved = false,
+                TotalPages = stats.TotalPages,
+                DomainCount = stats.DomainCount,
+                QualityWarnings = outcome?.QualityWarnings ?? [],
                 Message = ex.Message,
             };
         }

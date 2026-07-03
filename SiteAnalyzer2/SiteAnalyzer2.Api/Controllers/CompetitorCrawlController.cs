@@ -17,14 +17,14 @@ public class CompetitorCrawlController(
     OperatorResearchService operatorResearch) : ControllerBase
 {
     [HttpPost]
-    public async Task<IActionResult> Start(Guid runId, CancellationToken ct)
+    public async Task<IActionResult> Start(Guid runId, [FromQuery] bool force = false, CancellationToken ct = default)
     {
         var runExists = await db.AnalysisRuns.AnyAsync(r => r.Id == runId, ct);
         if (!runExists)
             return NotFound();
 
         var existingPages = await db.CompetitorPages.AsNoTracking().CountAsync(p => p.RunId == runId, ct);
-        if (existingPages > 0)
+        if (!force && existingPages > 0)
         {
             var run = await db.AnalysisRuns.AsNoTracking().FirstOrDefaultAsync(r => r.Id == runId, ct);
             if (run is not null && run.GapTopics.Count == 0)
@@ -35,22 +35,39 @@ public class CompetitorCrawlController(
                 }
                 catch (Exception ex)
                 {
-                    return StatusCode(500, new
+                    var failStats = await CompetitorCrawlStatsQuery.LoadAsync(db, runId, ct);
+                    return Ok(new
                     {
-                        error = ex.Message,
-                        crawlStatus = CompetitorCrawlStatuses.Failed,
+                        crawlStatus = CompetitorCrawlStatuses.PagesSaved,
                         competitorSaved = false,
+                        totalPages = failStats.TotalPages,
+                        domainCount = failStats.DomainCount,
+                        domains = failStats.Domains.Select(d => new { domain = d.Domain, pagesCrawled = d.PagesCrawled }),
+                        message = CompetitorCrawlStatusMessages.ResolveStatusMessage(
+                            failStats.TotalPages,
+                            failStats.DomainCount,
+                            researchPackReady: false,
+                            ex.Message),
+                        assemblyError = ex.Message,
                     });
                 }
 
                 run = await db.AnalysisRuns.AsNoTracking().FirstOrDefaultAsync(r => r.Id == runId, ct);
                 if (run is null || run.GapTopics.Count == 0)
                 {
-                    return StatusCode(500, new
+                    var failStats = await CompetitorCrawlStatsQuery.LoadAsync(db, runId, ct);
+                    return Ok(new
                     {
-                        error = "Research pack assembly did not persist gap themes.",
-                        crawlStatus = CompetitorCrawlStatuses.Failed,
+                        crawlStatus = CompetitorCrawlStatuses.PagesSaved,
                         competitorSaved = false,
+                        totalPages = failStats.TotalPages,
+                        domainCount = failStats.DomainCount,
+                        domains = failStats.Domains.Select(d => new { domain = d.Domain, pagesCrawled = d.PagesCrawled }),
+                        message = CompetitorCrawlStatusMessages.BuildSavedPagesMessage(
+                            failStats.TotalPages,
+                            failStats.DomainCount,
+                            researchPackReady: false),
+                        assemblyError = "Research pack assembly did not persist gap themes.",
                     });
                 }
             }
@@ -58,6 +75,7 @@ public class CompetitorCrawlController(
             var stats = await CompetitorCrawlStatsQuery.LoadAsync(db, runId, ct);
             var focus = await operatorResearch.GetResearchFocusAsync(runId, ct);
             var researchReady = focus?.ResearchReady ?? false;
+            var jobState = await crawlJobs.GetStateAsync(db, runId, ct);
             return Ok(new
             {
                 crawlStatus = researchReady ? CompetitorCrawlStatuses.Complete : CompetitorCrawlStatuses.PagesSaved,
@@ -65,9 +83,12 @@ public class CompetitorCrawlController(
                 totalPages = stats.TotalPages,
                 domainCount = stats.DomainCount,
                 domains = stats.Domains.Select(d => new { domain = d.Domain, pagesCrawled = d.PagesCrawled }),
-                message = researchReady
-                    ? $"Saved {stats.TotalPages} pages across {stats.DomainCount} competitor domains. Research pack ready."
-                    : $"Saved {stats.TotalPages} pages across {stats.DomainCount} competitor domains. Research pack assembly did not complete.",
+                message = CompetitorCrawlStatusMessages.ResolveStatusMessage(
+                    stats.TotalPages,
+                    stats.DomainCount,
+                    researchReady,
+                    jobState.Message),
+                assemblyError = researchReady ? null : jobState.Message,
             });
         }
 
@@ -153,30 +174,23 @@ public class CompetitorCrawlController(
             });
         }
 
-        if (jobState.Status == CompetitorCrawlJobStatus.Complete && pages.Count > 0 && !researchPackReady)
+        if ((jobState.Status == CompetitorCrawlJobStatus.Complete || jobState.Status == CompetitorCrawlJobStatus.PagesSaved)
+            && pages.Count > 0
+            && !researchPackReady)
         {
+            var domainCount = pages.Select(p => p.Domain).Distinct(StringComparer.OrdinalIgnoreCase).Count();
             return Ok(new
             {
                 crawlStatus = CompetitorCrawlStatuses.PagesSaved,
                 competitorSaved = false,
                 totalPages = pages.Count,
-                domainCount = pages.Select(p => p.Domain).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
-                message = jobState.Message
-                    ?? "Competitor pages saved but research pack assembly did not complete.",
-                qualityWarnings = Array.Empty<string>(),
-            });
-        }
-
-        if (jobState.Status == CompetitorCrawlJobStatus.PagesSaved)
-        {
-            return Ok(new
-            {
-                crawlStatus = CompetitorCrawlStatuses.PagesSaved,
-                competitorSaved = false,
-                totalPages = pages.Count,
-                domainCount = pages.Select(p => p.Domain).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
-                message = jobState.Message
-                    ?? "Competitor pages saved but research pack assembly did not complete.",
+                domainCount,
+                message = CompetitorCrawlStatusMessages.ResolveStatusMessage(
+                    pages.Count,
+                    domainCount,
+                    researchPackReady: false,
+                    jobState.Message),
+                assemblyError = jobState.Message,
                 qualityWarnings = Array.Empty<string>(),
             });
         }
@@ -214,14 +228,19 @@ public class CompetitorCrawlController(
 
         if (pages.Count > 0 && !researchPackReady)
         {
+            var domainCount = pages.Select(p => p.Domain).Distinct(StringComparer.OrdinalIgnoreCase).Count();
             return Ok(new
             {
                 crawlStatus = CompetitorCrawlStatuses.PagesSaved,
                 competitorSaved = false,
                 totalPages = pages.Count,
-                domainCount = pages.Select(p => p.Domain).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
-                message = jobState.Message
-                    ?? "Competitor pages saved but research pack assembly did not complete.",
+                domainCount,
+                message = CompetitorCrawlStatusMessages.ResolveStatusMessage(
+                    pages.Count,
+                    domainCount,
+                    researchPackReady: false,
+                    jobState.Message),
+                assemblyError = jobState.Message,
                 qualityWarnings = Array.Empty<string>(),
             });
         }
@@ -319,14 +338,19 @@ public class CompetitorCrawlController(
             .Select(d => new { domain = d.Domain, pagesCrawled = d.PagesCrawled })
             .ToList();
 
-        var message = researchPackReady
-            ? $"Saved {totalPages} pages across {domainCount} competitor domains. Research pack ready."
-            : totalPages > 0
-                ? jobState.Message
-                  ?? "Competitor pages saved but research pack assembly did not complete."
-                : jobState.Status == CompetitorCrawlJobStatus.Running
-                    ? $"Crawled {totalPages} pages across {domainCount} domains so far."
-                    : jobState.Message;
+        var message = totalPages > 0
+            ? CompetitorCrawlStatusMessages.ResolveStatusMessage(
+                totalPages,
+                domainCount,
+                researchPackReady,
+                jobState.Message)
+            : jobState.Status == CompetitorCrawlJobStatus.Running
+                ? $"Crawled {totalPages} pages across {domainCount} domains so far."
+                : CompetitorCrawlStatusMessages.ResolveStatusMessage(
+                    totalPages,
+                    domainCount,
+                    researchPackReady,
+                    jobState.Message);
 
         return Ok(new
         {
@@ -336,6 +360,7 @@ public class CompetitorCrawlController(
             domainCount,
             domains = domainSummaries,
             message,
+            assemblyError = researchPackReady ? null : jobState.Message,
             qualityWarnings = Array.Empty<string>(),
         });
     }
