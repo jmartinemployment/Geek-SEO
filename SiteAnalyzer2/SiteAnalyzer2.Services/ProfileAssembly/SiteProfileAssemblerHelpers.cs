@@ -736,7 +736,7 @@ public static class SiteProfileAssemblerHelpers
             {
                 foreach (var type in types.EnumerateArray())
                 {
-                    var value = type.GetString();
+                    var value = TryReadJsonString(type);
                     if (!string.IsNullOrWhiteSpace(value))
                         topics.Add($"Add {value.Trim()} schema markup");
                 }
@@ -748,7 +748,7 @@ public static class SiteProfileAssemblerHelpers
             {
                 foreach (var block in blocks.EnumerateArray())
                 {
-                    var value = block.GetString();
+                    var value = TryReadJsonString(block);
                     if (!string.IsNullOrWhiteSpace(value))
                         topics.Add($"Add {value.Trim()} content block");
                 }
@@ -810,7 +810,7 @@ public static class SiteProfileAssemblerHelpers
                         || property.NameEquals("addressCountry")
                         || property.NameEquals("streetAddress"))
                     {
-                        var text = property.Value.GetString();
+                        var text = TryReadJsonString(property.Value);
                         if (!string.IsNullOrWhiteSpace(text))
                             yield return text.Trim();
                     }
@@ -1003,21 +1003,23 @@ public static class SiteProfileAssemblerHelpers
 
     private static string? FormatPlaceName(JsonElement element)
     {
-        if (element.ValueKind == JsonValueKind.String)
-            return element.GetString()?.Trim();
+        if (element.ValueKind is JsonValueKind.String or JsonValueKind.Number)
+            return TryReadJsonString(element);
 
         if (element.ValueKind != JsonValueKind.Object)
             return null;
 
-        var name = element.TryGetProperty("name", out var nameProp) ? nameProp.GetString() : null;
-        var region = element.TryGetProperty("containedInPlace", out var regionProp)
-            ? regionProp.GetString()
-            : element.TryGetProperty("addressRegion", out var stateProp) ? stateProp.GetString() : null;
+        var name = element.TryGetProperty("name", out var nameProp) ? TryReadJsonString(nameProp) : null;
+        string? region = null;
+        if (element.TryGetProperty("containedInPlace", out var regionProp))
+            region = FormatPlaceName(regionProp) ?? TryReadJsonString(regionProp);
+        else if (element.TryGetProperty("addressRegion", out var stateProp))
+            region = TryReadJsonString(stateProp);
 
         if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(region))
             return $"{name.Trim()} ({region.Trim()})";
 
-        return name?.Trim();
+        return !string.IsNullOrWhiteSpace(name) ? name.Trim() : region?.Trim();
     }
 
     private static IEnumerable<string> ExtractTopicTagsFromJsonLd(IReadOnlyList<PageJsonLd> jsonLdBlocks)
@@ -1165,7 +1167,7 @@ public static class SiteProfileAssemblerHelpers
             }
 
             if (element.TryGetProperty("type", out var altType))
-                return altType.GetString();
+                return TryReadJsonString(altType);
 
             if (element.TryGetProperty("@graph", out var graph) && graph.ValueKind == JsonValueKind.Array)
             {
@@ -1201,14 +1203,7 @@ public static class SiteProfileAssemblerHelpers
             foreach (var property in element.EnumerateObject())
             {
                 if (property.NameEquals(propertyName))
-                {
-                    return property.Value.ValueKind switch
-                    {
-                        JsonValueKind.String => property.Value.GetString(),
-                        JsonValueKind.Object when property.Value.TryGetProperty("name", out var name) => name.GetString(),
-                        _ => null,
-                    };
-                }
+                    return TryReadJsonString(property.Value);
 
                 var nested = FindStringProperty(property.Value, propertyName);
                 if (!string.IsNullOrWhiteSpace(nested))
@@ -1226,5 +1221,36 @@ public static class SiteProfileAssemblerHelpers
         }
 
         return null;
+    }
+
+    private static string? TryReadJsonString(JsonElement element)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.String:
+                return element.GetString()?.Trim();
+            case JsonValueKind.Number:
+            case JsonValueKind.True:
+            case JsonValueKind.False:
+                return element.GetRawText().Trim();
+            case JsonValueKind.Object:
+                if (element.TryGetProperty("name", out var name))
+                {
+                    var fromName = TryReadJsonString(name);
+                    if (!string.IsNullOrWhiteSpace(fromName))
+                        return fromName;
+                }
+
+                if (element.TryGetProperty("@value", out var value))
+                {
+                    var fromValue = TryReadJsonString(value);
+                    if (!string.IsNullOrWhiteSpace(fromValue))
+                        return fromValue;
+                }
+
+                return null;
+            default:
+                return null;
+        }
     }
 }

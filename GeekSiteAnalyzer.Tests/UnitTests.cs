@@ -1458,6 +1458,47 @@ public class SiteProfileServiceTests
 public class SiteProfileAssemblerHelpersTests
 {
     [Fact]
+    public void BuildSiteProfileFromHomepage_handles_nested_containedInPlace_objects()
+    {
+        var homepage = new TargetPageSnapshot
+        {
+            Page = new Page { Url = "https://www.geekatyourspot.com/" },
+            JsonLdBlocks =
+            [
+                new PageJsonLd
+                {
+                    ParsedType = "LocalBusiness",
+                    RawJson = """
+                        {
+                          "@type": "LocalBusiness",
+                          "name": "Geek at Your Spot",
+                          "description": "AI consulting for SMBs.",
+                          "areaServed": [
+                            {
+                              "@type": "County",
+                              "name": "Broward County",
+                              "containedInPlace": {
+                                "@type": "State",
+                                "name": "Florida"
+                              }
+                            }
+                          ]
+                        }
+                        """,
+                },
+            ],
+        };
+
+        var write = SiteAnalyzer2.Services.ProfileAssembly.SiteProfileAssemblerHelpers.BuildSiteProfileFromHomepage(
+            homepage,
+            "geekatyourspot.com");
+
+        Assert.Contains("Broward County", write.ServiceAreaDescription!);
+        Assert.Contains("Florida", write.ServiceAreaDescription!);
+        SiteAnalyzer2.Services.ProfileAssembly.SiteProfileAssemblerHelpers.ValidateHomepageOutput(write);
+    }
+
+    [Fact]
     public void BuildSiteProfileFromHomepage_UsesJsonLdAndHeadings()
     {
         var homepage = new TargetPageSnapshot
