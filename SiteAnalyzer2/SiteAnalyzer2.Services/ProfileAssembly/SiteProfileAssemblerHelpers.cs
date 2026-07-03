@@ -9,6 +9,12 @@ namespace SiteAnalyzer2.Services.ProfileAssembly;
 
 public static class SiteProfileAssemblerHelpers
 {
+    private static readonly string[] PreferredBusinessSchemaTypes =
+    [
+        "LocalBusiness", "ProfessionalService", "Organization", "Corporation",
+        "Store", "Restaurant", "MedicalBusiness", "LegalService",
+    ];
+
     /// <summary>Frase quality bar — appended to run-level writing instructions for Content Writer.</summary>
     public const string ContentQualityBarInstruction =
         "Quality bar: fully answer this pillar better than the seed pages; cite named sources for factual claims; human-edit AI drafts before publish.";
@@ -839,13 +845,7 @@ public static class SiteProfileAssemblerHelpers
             if (types.Count == 0 && !string.IsNullOrWhiteSpace(block.ParsedType))
                 types = [block.ParsedType];
 
-            string[] preferred =
-            [
-                "LocalBusiness", "ProfessionalService", "Organization", "Corporation",
-                "Store", "Restaurant", "MedicalBusiness", "LegalService",
-            ];
-
-            return types.Any(t => preferred.Contains(t, StringComparer.OrdinalIgnoreCase));
+            return types.Any(t => PreferredBusinessSchemaTypes.Contains(t, StringComparer.OrdinalIgnoreCase));
         }
 
         var business = jsonLdBlocks.Where(IsBusinessBlock).ToList();
@@ -870,22 +870,23 @@ public static class SiteProfileAssemblerHelpers
         switch (element.ValueKind)
         {
             case JsonValueKind.Object:
-                if (element.TryGetProperty("@type", out var typeProp))
-                    return ReadTypeValues(typeProp);
-
                 if (element.TryGetProperty("@graph", out var graph) && graph.ValueKind == JsonValueKind.Array)
                 {
-                    foreach (var item in graph.EnumerateArray())
-                    {
-                        var graphTypes = ParseTypesElement(item);
-                        if (graphTypes.Count > 0)
-                            return graphTypes;
-                    }
+                    var preferred = SelectPreferredGraphEntity(element);
+                    if (preferred is { } entity && entity.TryGetProperty("@type", out var graphType))
+                        return ReadTypeValues(graphType);
                 }
+
+                if (element.TryGetProperty("@type", out var typeProp))
+                    return ReadTypeValues(typeProp);
 
                 return [];
 
             case JsonValueKind.Array:
+                var bestEntity = SelectBestEntityFromArray(element);
+                if (bestEntity is { } best && best.TryGetProperty("@type", out var bestType))
+                    return ReadTypeValues(bestType);
+
                 foreach (var item in element.EnumerateArray())
                 {
                     var arrayTypes = ParseTypesElement(item);
@@ -898,6 +899,59 @@ public static class SiteProfileAssemblerHelpers
             default:
                 return [];
         }
+    }
+
+    private static JsonElement? SelectPreferredGraphEntity(JsonElement root)
+    {
+        if (root.ValueKind != JsonValueKind.Object)
+            return null;
+
+        if (root.TryGetProperty("@type", out var rootType) && ScoreBusinessTypes(ReadTypeValues(rootType)) > 0)
+            return root;
+
+        if (!root.TryGetProperty("@graph", out var graph) || graph.ValueKind != JsonValueKind.Array)
+            return null;
+
+        return SelectBestEntityFromArray(graph);
+    }
+
+    private static JsonElement? SelectBestEntityFromArray(JsonElement array)
+    {
+        if (array.ValueKind != JsonValueKind.Array)
+            return null;
+
+        JsonElement? best = null;
+        var bestScore = 0;
+
+        foreach (var item in array.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object)
+                continue;
+
+            if (!item.TryGetProperty("@type", out var typeProp))
+                continue;
+
+            var score = ScoreBusinessTypes(ReadTypeValues(typeProp));
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = item;
+            }
+        }
+
+        return bestScore > 0 ? best : null;
+    }
+
+    private static int ScoreBusinessTypes(IReadOnlyList<string> types)
+    {
+        var score = 0;
+        for (var i = 0; i < PreferredBusinessSchemaTypes.Length; i++)
+        {
+            if (types.Any(t => string.Equals(t, PreferredBusinessSchemaTypes[i], StringComparison.OrdinalIgnoreCase)))
+                score = Math.Max(score, PreferredBusinessSchemaTypes.Length - i);
+        }
+
+        return score;
     }
 
     private static List<string> ReadTypeValues(JsonElement typeProp)
@@ -947,6 +1001,14 @@ public static class SiteProfileAssemblerHelpers
         try
         {
             using var doc = JsonDocument.Parse(rawJson);
+            var preferred = SelectPreferredGraphEntity(doc.RootElement);
+            if (preferred is { } entity)
+            {
+                var fromEntity = FormatAreaServedElement(entity);
+                if (!string.IsNullOrWhiteSpace(fromEntity))
+                    return fromEntity;
+            }
+
             return FormatAreaServedElement(doc.RootElement);
         }
         catch (JsonException)
@@ -1188,12 +1250,34 @@ public static class SiteProfileAssemblerHelpers
         try
         {
             using var doc = JsonDocument.Parse(rawJson);
+            var preferred = SelectPreferredGraphEntity(doc.RootElement);
+            if (preferred is { } entity)
+            {
+                var direct = ReadStringPropertyFromObject(entity, propertyName);
+                if (!string.IsNullOrWhiteSpace(direct))
+                    return direct;
+            }
+
             return FindStringProperty(doc.RootElement, propertyName);
         }
         catch (JsonException)
         {
             return null;
         }
+    }
+
+    private static string? ReadStringPropertyFromObject(JsonElement element, string propertyName)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+            return null;
+
+        foreach (var property in element.EnumerateObject())
+        {
+            if (property.NameEquals(propertyName))
+                return TryReadJsonString(property.Value);
+        }
+
+        return null;
     }
 
     private static string? FindStringProperty(JsonElement element, string propertyName)

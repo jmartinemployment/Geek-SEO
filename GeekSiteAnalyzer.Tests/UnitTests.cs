@@ -1499,6 +1499,57 @@ public class SiteProfileAssemblerHelpersTests
     }
 
     [Fact]
+    public void BuildSiteProfileFromHomepage_prefers_business_entity_in_graph_over_person()
+    {
+        var homepage = new TargetPageSnapshot
+        {
+            Page = new Page { Url = "https://www.geekatyourspot.com/" },
+            JsonLdBlocks =
+            [
+                new PageJsonLd
+                {
+                    ParsedType = "Person",
+                    RawJson = """
+                        {
+                          "@context": "https://schema.org",
+                          "@graph": [
+                            {
+                              "@type": "Person",
+                              "@id": "https://www.geekatyourspot.com/#person",
+                              "name": "Jeff Martin",
+                              "jobTitle": "Founder"
+                            },
+                            {
+                              "@type": ["LocalBusiness", "ProfessionalService"],
+                              "@id": "https://www.geekatyourspot.com/#business",
+                              "name": "Geek at Your Spot",
+                              "description": "AI consulting for SMBs in South Florida."
+                            },
+                            {
+                              "@type": "WebSite",
+                              "name": "Geek at Your Spot",
+                              "url": "https://www.geekatyourspot.com/"
+                            }
+                          ]
+                        }
+                        """,
+                },
+            ],
+        };
+
+        var write = SiteAnalyzer2.Services.ProfileAssembly.SiteProfileAssemblerHelpers.BuildSiteProfileFromHomepage(
+            homepage,
+            "geekatyourspot.com");
+
+        Assert.Contains("Local business", write.BusinessType!);
+        Assert.Contains("Professional Service", write.BusinessType!);
+        Assert.DoesNotContain("Person", write.BusinessType!);
+        Assert.Equal("AI consulting for SMBs in South Florida.", write.BusinessDescription);
+        Assert.StartsWith("Geek at Your Spot", write.BusinessSummary!);
+        SiteAnalyzer2.Services.ProfileAssembly.SiteProfileAssemblerHelpers.ValidateHomepageOutput(write);
+    }
+
+    [Fact]
     public void BuildSiteProfileFromHomepage_UsesJsonLdAndHeadings()
     {
         var homepage = new TargetPageSnapshot
