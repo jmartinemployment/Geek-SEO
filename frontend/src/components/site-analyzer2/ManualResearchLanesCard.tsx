@@ -14,6 +14,7 @@ import {
   MANUAL_RESEARCH_LANE_ORDER,
   manualResearchLaneQueryHint,
   pendingRequiredGateLabels,
+  slugifyResearchTopic,
   validateManualLaneFileContent,
   type ManualResearchLaneId,
 } from '@/lib/manual-research-lanes';
@@ -56,6 +57,19 @@ export function ManualResearchLanesCard({
   >({});
   const [laneError, setLaneError] = useState<string | null>(null);
 
+  const effectiveTopicSlug =
+    topicSlug.trim() || (keyword.trim() ? slugifyResearchTopic(keyword) : '');
+
+  function resolveLaneFile(lane: ManualResearchLaneId): File | undefined {
+    if (lane === 'paa') return undefined;
+    return pendingFiles[lane] ?? fileRefs.current[lane]?.files?.[0] ?? undefined;
+  }
+
+  function resolvePaaFiles(): File[] {
+    if (pendingPaaFiles.length > 0) return pendingPaaFiles;
+    return Array.from(fileRefs.current.paa?.files ?? []);
+  }
+
   const refreshExport = useCallback(async () => {
     if (!runId) return;
     setLoadingExport(true);
@@ -72,8 +86,8 @@ export function ManualResearchLanesCard({
   }, [refreshExport]);
 
   async function importPaaLane(files: File[]) {
-    if (!topicSlug.trim()) {
-      setLaneError('Enter a research topic slug first (e.g. auto-from-keyword).');
+    if (!effectiveTopicSlug) {
+      setLaneError('Enter a research topic slug or import the keyword SERP first (slug auto-derives from keyword).');
       return;
     }
     if (files.length === 0) {
@@ -86,9 +100,9 @@ export function ManualResearchLanesCard({
       if (files.length === 1) {
         const file = files[0]!;
         const html = await file.text();
-        await importManualResearchLane(runId, 'paa', topicSlug.trim(), html, accessToken, file.name);
+        await importManualResearchLane(runId, 'paa', effectiveTopicSlug, html, accessToken, file.name);
       } else {
-        await importManualResearchPaaBatch(runId, topicSlug.trim(), files, accessToken);
+        await importManualResearchPaaBatch(runId, effectiveTopicSlug, files, accessToken);
       }
       setPendingPaaFiles([]);
       await refreshExport();
@@ -105,8 +119,8 @@ export function ManualResearchLanesCard({
       await importPaaLane([file]);
       return;
     }
-    if (!topicSlug.trim()) {
-      setLaneError('Enter a research topic slug first (e.g. auto-from-keyword).');
+    if (!effectiveTopicSlug) {
+      setLaneError('Enter a research topic slug or import the keyword SERP first (slug auto-derives from keyword).');
       return;
     }
     setLaneError(null);
@@ -124,7 +138,7 @@ export function ManualResearchLanesCard({
         delete next[lane];
         return next;
       });
-      await importManualResearchLane(runId, lane, topicSlug.trim(), html, accessToken, file.name);
+      await importManualResearchLane(runId, lane, effectiveTopicSlug, html, accessToken, file.name);
       setPendingFiles((prev) => {
         const next = { ...prev };
         delete next[lane];
@@ -145,21 +159,29 @@ export function ManualResearchLanesCard({
   }
 
   async function importAllPending() {
-    const entries = MANUAL_RESEARCH_LANE_ORDER.filter(
-      (lane) => lane !== 'paa' && pendingFiles[lane],
-    );
-    if (entries.length === 0 && pendingPaaFiles.length === 0) {
-      setLaneError('Choose at least one file to import.');
+    const entries = MANUAL_RESEARCH_LANE_ORDER.filter((lane) => {
+      if (lane === 'paa') return false;
+      return Boolean(resolveLaneFile(lane));
+    });
+    const paaFiles = resolvePaaFiles();
+    if (entries.length === 0 && paaFiles.length === 0) {
+      setLaneError(
+        'Choose at least one lane file to import. If you already picked files, wait for preflight to finish or fix validation errors on that row.',
+      );
+      return;
+    }
+    if (!effectiveTopicSlug) {
+      setLaneError('Enter a research topic slug or import the keyword SERP first (slug auto-derives from keyword).');
       return;
     }
     setImportingAll(true);
     setLaneError(null);
     try {
-      if (pendingPaaFiles.length > 0) {
-        await importPaaLane(pendingPaaFiles);
+      if (paaFiles.length > 0) {
+        await importPaaLane(paaFiles);
       }
       for (const lane of entries) {
-        const file = pendingFiles[lane];
+        const file = resolveLaneFile(lane);
         if (!file) continue;
         await importLane(lane, file);
       }
@@ -236,8 +258,8 @@ export function ManualResearchLanesCard({
         <ul className="space-y-3">
           {MANUAL_RESEARCH_LANE_ORDER.map((lane) => {
             const status = laneImportStatus(lane, exportData, gates);
-            const file = lane === 'paa' ? undefined : pendingFiles[lane];
-            const paaFiles = lane === 'paa' ? pendingPaaFiles : [];
+            const file = lane === 'paa' ? undefined : resolveLaneFile(lane);
+            const paaFiles = lane === 'paa' ? resolvePaaFiles() : [];
             const busy = importingLane === lane || importingAll;
             const queryHint = manualResearchLaneQueryHint(lane, keyword);
             const preflightError = lanePreflightErrors[lane];
@@ -332,7 +354,7 @@ export function ManualResearchLanesCard({
                       disabled={
                         (lane === 'paa' ? paaFiles.length === 0 : !file || importBlocked)
                         || busy
-                        || !topicSlug.trim()
+                        || !effectiveTopicSlug
                       }
                       onClick={() => {
                         if (lane === 'paa') {
@@ -386,7 +408,7 @@ export function ManualResearchLanesCard({
         <Button
           type="button"
           className="w-full"
-          disabled={importingAll || importingLane !== null || !topicSlug.trim()}
+          disabled={importingAll || importingLane !== null || !effectiveTopicSlug}
           onClick={() => void importAllPending()}
         >
           {importingAll ? (
