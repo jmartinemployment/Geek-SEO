@@ -28,6 +28,7 @@ type Props = {
   keyword?: string;
   topicSlugLocked?: boolean;
   onTopicSlugChange: (value: string) => void;
+  onTopicSlugBlur?: () => void | Promise<void>;
   gates?: Gate[];
   researchReady?: boolean;
   onImported: () => void;
@@ -40,6 +41,7 @@ export function ManualResearchLanesCard({
   keyword = '',
   topicSlugLocked = false,
   onTopicSlugChange,
+  onTopicSlugBlur,
   gates,
   researchReady,
   onImported,
@@ -51,6 +53,9 @@ export function ManualResearchLanesCard({
   const [importingAll, setImportingAll] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<Partial<Record<ManualResearchLaneId, File>>>({});
   const [pendingPaaFiles, setPendingPaaFiles] = useState<File[]>([]);
+  const [lanePreflightErrors, setLanePreflightErrors] = useState<
+    Partial<Record<ManualResearchLaneId, string>>
+  >({});
   const [laneError, setLaneError] = useState<string | null>(null);
 
   const refreshExport = useCallback(async () => {
@@ -110,13 +115,24 @@ export function ManualResearchLanesCard({
     setImportingLane(lane);
     try {
       const html = await file.text();
-      const preflight = validateManualLaneFileContent(lane, html);
+      const preflight = validateManualLaneFileContent(lane, html, file.name);
       if (preflight) {
+        setLanePreflightErrors((prev) => ({ ...prev, [lane]: preflight }));
         setLaneError(preflight);
         return;
       }
+      setLanePreflightErrors((prev) => {
+        const next = { ...prev };
+        delete next[lane];
+        return next;
+      });
       await importManualResearchLane(runId, lane, topicSlug.trim(), html, accessToken, file.name);
       setPendingFiles((prev) => {
+        const next = { ...prev };
+        delete next[lane];
+        return next;
+      });
+      setLanePreflightErrors((prev) => {
         const next = { ...prev };
         delete next[lane];
         return next;
@@ -199,6 +215,7 @@ export function ManualResearchLanesCard({
             value={topicSlug}
             readOnly={topicSlugLocked}
             onChange={(e) => onTopicSlugChange(e.target.value)}
+            onBlur={() => void onTopicSlugBlur?.()}
             placeholder="customer-journey"
             className={cn(
               'mt-1.5 w-full rounded-[var(--radius-button)] border border-[var(--color-border-strong)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[rgba(59,179,122,0.2)]',
@@ -208,11 +225,14 @@ export function ManualResearchLanesCard({
           <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
             {topicSlugLocked ? (
               <>
-                Locked to folder <code className="text-xs">research/{topicSlug || '…'}/</code> for this
-                run. To research a different topic, use <strong>Start new keyword</strong> above.
+                Locked after supplemental lane imports — matches{' '}
+                <code className="text-xs">research/{topicSlug || '…'}/</code>. Use{' '}
+                <strong>Start new keyword</strong> to switch topics.
               </>
             ) : (
-              requiredHint
+              <>
+                {requiredHint} Matches folder <code className="text-xs">research/{topicSlug || '…'}/</code>.
+              </>
             )}
           </p>
         </div>
@@ -237,6 +257,8 @@ export function ManualResearchLanesCard({
             const paaFiles = lane === 'paa' ? pendingPaaFiles : [];
             const busy = importingLane === lane || importingAll;
             const queryHint = manualResearchLaneQueryHint(lane, keyword);
+            const preflightError = lanePreflightErrors[lane];
+            const importBlocked = Boolean(preflightError);
             return (
               <li
                 key={lane}
@@ -273,15 +295,39 @@ export function ManualResearchLanesCard({
                           return;
                         }
                         const nextFile = picked[0];
-                        setPendingFiles((prev) =>
-                          nextFile ? { ...prev, [lane]: nextFile } : prev,
-                        );
-                        if (nextFile && lane !== 'paa') {
-                          void nextFile.text().then((html) => {
-                            const err = validateManualLaneFileContent(lane, html);
-                            if (err) setLaneError(`[${lane}] ${err}`);
+                        if (!nextFile) {
+                          setPendingFiles((prev) => {
+                            const next = { ...prev };
+                            delete next[lane];
+                            return next;
                           });
+                          setLanePreflightErrors((prev) => {
+                            const next = { ...prev };
+                            delete next[lane];
+                            return next;
+                          });
+                          return;
                         }
+                        void nextFile.text().then((html) => {
+                          const err = validateManualLaneFileContent(lane, html, nextFile.name);
+                          setLanePreflightErrors((prev) => {
+                            const next = { ...prev };
+                            if (err) next[lane] = err;
+                            else delete next[lane];
+                            return next;
+                          });
+                          if (err) {
+                            setLaneError(`[${lane}] ${err}`);
+                            setPendingFiles((prev) => {
+                              const next = { ...prev };
+                              delete next[lane];
+                              return next;
+                            });
+                            return;
+                          }
+                          setPendingFiles((prev) => ({ ...prev, [lane]: nextFile }));
+                          setLaneError(null);
+                        });
                       }}
                     />
                     <Button
@@ -289,7 +335,9 @@ export function ManualResearchLanesCard({
                       size="sm"
                       variant="outline"
                       disabled={
-                        (lane === 'paa' ? paaFiles.length === 0 : !file) || busy || !topicSlug.trim()
+                        (lane === 'paa' ? paaFiles.length === 0 : !file || importBlocked)
+                        || busy
+                        || !topicSlug.trim()
                       }
                       onClick={() => {
                         if (lane === 'paa') {
@@ -321,6 +369,9 @@ export function ManualResearchLanesCard({
                     {file.name}
                   </p>
                 ) : null}
+                {preflightError ? (
+                  <p className="mt-1 text-xs text-[var(--color-bad)]">{preflightError}</p>
+                ) : null}
                 {queryHint ? (
                   <p className="mt-1 text-xs text-[var(--color-text-muted)]">{queryHint}</p>
                 ) : null}
@@ -328,6 +379,15 @@ export function ManualResearchLanesCard({
             );
           })}
         </ul>
+
+        {topicSlug.trim().toLowerCase() === 'customer-journey' ? (
+          <p className="text-xs text-[var(--color-text-muted)]">
+            Wiki lane: use{' '}
+            <code className="text-[10px]">research/customer-journey/wiki/</code> (en.wikipedia.org
+            results). Do not use the sales <code className="text-[10px]">site_wiki</code> file —
+            those are .wiki TLD sites, not Wikipedia.
+          </p>
+        ) : null}
 
         <Button
           type="button"

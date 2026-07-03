@@ -81,6 +81,28 @@ public sealed class AnalysisRunsController(
             return UnprocessableEntity(new { error = ex.Message });
         }
     }
+
+    [HttpPatch("{runId:guid}/topic-slug")]
+    public async Task<IActionResult> UpdateTopicSlug(
+        Guid runId,
+        [FromBody] UpdateTopicSlugRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var slug = await manualLaneImport.UpdateTopicSlugAsync(runId, request.TopicSlug, ct);
+            return Ok(new { topicSlug = slug });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return UnprocessableEntity(new { error = ex.Message });
+        }
+    }
+}
+
+public sealed record UpdateTopicSlugRequest
+{
+    public required string TopicSlug { get; init; }
 }
 
 public sealed record PaaBatchImportRequest

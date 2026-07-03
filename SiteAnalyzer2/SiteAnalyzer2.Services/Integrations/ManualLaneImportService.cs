@@ -221,6 +221,36 @@ public sealed class ManualLaneImportService(
         return count;
     }
 
+    public async Task<string> UpdateTopicSlugAsync(Guid runId, string topicSlug, CancellationToken ct = default)
+    {
+        if (runId == Guid.Empty)
+            throw new InvalidOperationException("runId is required.");
+
+        if (string.IsNullOrWhiteSpace(topicSlug))
+            throw new InvalidOperationException("topic slug is required.");
+
+        var normalized = ResearchTopicSlug.Normalize(topicSlug);
+
+        var run = await db.AnalysisRuns.FirstOrDefaultAsync(r => r.Id == runId, ct)
+            ?? throw new InvalidOperationException("Analysis run not found.");
+
+        if (await HasSupplementalLaneImportsAsync(runId, ct))
+        {
+            throw new InvalidOperationException(
+                "Topic slug cannot change after supplemental lanes (gov, wiki, paa, etc.) are imported. Use Start new keyword.");
+        }
+
+        run.TopicSlug = normalized;
+        await db.SaveChangesAsync(ct);
+        return normalized;
+    }
+
+    private async Task<bool> HasSupplementalLaneImportsAsync(Guid runId, CancellationToken ct) =>
+        await db.SerpItems.AsNoTracking()
+            .AnyAsync(
+                i => i.RunId == runId && !string.IsNullOrWhiteSpace(i.ResearchLane),
+                ct);
+
     internal static int CountPaaQuestions(SerpLivePageParseResult parsed) =>
         parsed.Items
             .Where(i => string.Equals(i.Type, SerpItemTypes.PeopleAlsoAsk, StringComparison.OrdinalIgnoreCase)

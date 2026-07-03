@@ -33,7 +33,7 @@ import {
   type DomainOverview,
 } from "@/components/site-analyzer2/DomainOverviewPanel";
 import { ManualResearchLanesCard } from "@/components/site-analyzer2/ManualResearchLanesCard";
-import { slugifyResearchTopic } from "@/lib/manual-research-lanes";
+import { slugifyResearchTopic, supplementalLanesImported, updateResearchTopicSlug } from "@/lib/manual-research-lanes";
 import { contentWritingPath } from "@/lib/content-writing-search-params";
 import { getSiteAnalyzer2ApiBase, siteAnalyzer2Fetch } from "@/lib/site-analyzer2-api";
 import { cn } from "@/lib/utils";
@@ -1290,6 +1290,25 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
   const workflowLocked = step === "complete";
   const keywordSaved = step === "keyword_saved" || step === "complete";
   const filePickerDisabled = keywordSaved || parsing || crawling || workflowLocked;
+  const topicSlugLocked = supplementalLanesImported(researchFocus?.gates);
+
+  async function commitResearchTopicSlug() {
+    const slug = researchTopicSlug.trim();
+    if (!slug || !keywordProjectId || topicSlugLocked) return;
+
+    try {
+      const saved = await updateResearchTopicSlug(keywordProjectId, slug, accessToken);
+      setResearchTopicSlug(saved);
+    } catch (e) {
+      setStatus({
+        kind: "err",
+        text: e instanceof Error ? e.message : String(e),
+      });
+      if (researchFocus?.topicSlug) {
+        setResearchTopicSlug(researchFocus.topicSlug);
+      }
+    }
+  }
 
   useEffect(() => {
     setProjectUrl(localStorage.getItem(STORAGE_URL) ?? "");
@@ -2208,6 +2227,34 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
             <CardContent className="space-y-4">
               <div>
                 <label
+                  htmlFor="keyword-research-topic-slug"
+                  className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]"
+                >
+                  Research topic slug
+                </label>
+                <input
+                  id="keyword-research-topic-slug"
+                  type="text"
+                  value={researchTopicSlug}
+                  readOnly={topicSlugLocked}
+                  onChange={(e) => setResearchTopicSlug(e.target.value)}
+                  onBlur={() => void commitResearchTopicSlug()}
+                  disabled={parsing || crawling || workflowLocked}
+                  placeholder="customer-journey"
+                  className={cn(
+                    "mt-1.5 w-full rounded-[var(--radius-button)] border border-[var(--color-border-strong)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[rgba(59,179,122,0.2)] disabled:opacity-50",
+                    topicSlugLocked && "cursor-not-allowed bg-[var(--color-surface-muted)]/30 text-[var(--color-text-secondary)]",
+                  )}
+                />
+                <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                  {topicSlugLocked
+                    ? "Locked after supplemental lane imports. Use Start new keyword to change topic."
+                    : "Folder name under research/ — set before Parse keyword page, editable until gov/wiki/paa lanes import."}
+                </p>
+              </div>
+
+              <div>
+                <label
                   htmlFor="keyword-html"
                   className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]"
                 >
@@ -2298,8 +2345,9 @@ export function SiteAnalyzer2Workspace({ accessToken }: { accessToken: string | 
               accessToken={accessToken}
               topicSlug={researchTopicSlug}
               keyword={keyword}
-              topicSlugLocked={Boolean(keywordProjectId)}
+              topicSlugLocked={topicSlugLocked}
               onTopicSlugChange={setResearchTopicSlug}
+              onTopicSlugBlur={commitResearchTopicSlug}
               gates={researchFocus?.gates}
               researchReady={researchFocus?.researchReady}
               onImported={() => void loadResearchFocus(keywordProjectId)}

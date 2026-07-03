@@ -43,6 +43,33 @@ export function manualResearchLaneQueryHint(
   }
 }
 
+export function supplementalLanesImported(
+  gates?: { id: string; complete: boolean }[],
+): boolean {
+  return gates?.some((g) => g.id !== 'keyword' && g.complete) ?? false;
+}
+
+export async function updateResearchTopicSlug(
+  runId: string,
+  topicSlug: string,
+  accessToken?: string | null,
+): Promise<string> {
+  const res = await siteAnalyzer2Fetch(
+    `/analysis-runs/${encodeURIComponent(runId)}/topic-slug`,
+    accessToken,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topicSlug }),
+    },
+  );
+  const body = (await res.json().catch(() => ({}))) as { topicSlug?: string; error?: string };
+  if (!res.ok) {
+    throw new Error(body.error || res.statusText || `Could not update topic slug (${res.status})`);
+  }
+  return body.topicSlug ?? topicSlug;
+}
+
 export function requiredManualLanesForTopic(topicSlug: string): ManualResearchLaneId[] {
   return topicSlug.trim().toLowerCase() === 'customer-journey' ? ['gov', 'wiki'] : [];
 }
@@ -66,15 +93,21 @@ export function pendingRequiredGateLabels(
 export function validateManualLaneFileContent(
   lane: ManualResearchLaneId,
   content: string,
+  fileName?: string,
 ): string | null {
   if (lane === 'paa') return null;
 
   const lower = content.toLowerCase();
+  const name = (fileName ?? '').toLowerCase();
 
   if (lane === 'wiki') {
     if (lower.includes('wikipedia.org')) return null;
-    if (/https?:\/\/[a-z0-9.-]+\.wiki[\s"'/<>\\]/i.test(content)) {
-      return 'This SERP has .wiki sites (e.g. aisdr.wiki), not en.wikipedia.org. Re-run Google with site:en.wikipedia.org, then save Webpage, HTML only.';
+    if (
+      /https?:\/\/[a-z0-9.-]+\.wiki[\s"'/<>\\]/i.test(content)
+      || name.includes('site_wiki')
+      || (name.includes('site:wiki') && !name.includes('wikipedia'))
+    ) {
+      return 'Wrong wiki SERP: this file has .wiki sites (e.g. aisdr.wiki), not en.wikipedia.org. Use Google site:en.wikipedia.org and save Webpage, HTML only.';
     }
     return 'No wikipedia.org URLs in this file. Re-run Google with site:en.wikipedia.org, then save Webpage, HTML only.';
   }
