@@ -55,7 +55,7 @@ export function ManualResearchLanesCard({
   const [lanePreflightErrors, setLanePreflightErrors] = useState<
     Partial<Record<ManualResearchLaneId, string>>
   >({});
-  const [laneError, setLaneError] = useState<string | null>(null);
+  const [laneSuccess, setLaneSuccess] = useState<string | null>(null);
 
   const effectiveTopicSlug =
     topicSlug.trim() || (keyword.trim() ? slugifyResearchTopic(keyword) : '');
@@ -148,6 +148,7 @@ export function ManualResearchLanesCard({
       });
       await refreshExport();
       onImported();
+      setLaneSuccess(`[${lane}] imported successfully.`);
       return true;
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -177,7 +178,9 @@ export function ManualResearchLanesCard({
     }
     setImportingAll(true);
     setLaneError(null);
+    setLaneSuccess(null);
     const rejected: string[] = [];
+    const imported: string[] = [];
     try {
       if (paaFiles.length > 0) {
         try {
@@ -191,6 +194,10 @@ export function ManualResearchLanesCard({
         if (!file) continue;
         const ok = await importLane(lane, file);
         if (!ok) rejected.push(lane);
+        else imported.push(lane);
+      }
+      if (imported.length > 0) {
+        setLaneSuccess(`Imported: ${imported.join(', ')}.`);
       }
       if (rejected.length > 0) {
         setLaneError(
@@ -444,6 +451,10 @@ export function ManualResearchLanesCard({
             Import keyword SERP to unlock Content Writer. Supplemental lanes are optional.
           </p>
         )}
+
+        {laneSuccess ? (
+          <p className="text-xs text-[var(--color-good)]">{laneSuccess}</p>
+        ) : null}
 
         {laneError ? (
           <p className={cn('text-xs text-[var(--color-bad)] whitespace-pre-wrap')}>{laneError}</p>

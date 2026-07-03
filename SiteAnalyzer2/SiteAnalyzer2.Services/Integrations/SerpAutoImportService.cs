@@ -1,3 +1,4 @@
+using GeekSeo.Application.Services.Seo;
 using Microsoft.EntityFrameworkCore;
 using SiteAnalyzer2.Domain;
 using SiteAnalyzer2.Domain.Entities;
@@ -31,7 +32,9 @@ public sealed class SerpAutoImportService(
         await EnsureGeekSeoProjectAsync(projectId, normalizedUrl, ct);
 
         var parsed = GoogleSerpHtmlParser.ParseLivePage(html, keywordOverride: null);
-        var keyword = string.IsNullOrWhiteSpace(parsed.Keyword) ? "unknown keyword" : parsed.Keyword.Trim();
+        var keyword = SerpSearchKeywordNormalizer.Normalize(parsed.Keyword);
+        if (string.IsNullOrWhiteSpace(keyword))
+            keyword = "unknown keyword";
 
         var run = await FindOrCreateRunAsync(projectId, keyword, normalizedUrl, ct);
         await htmlImport.ClearSerpDataForRunAsync(run.Id, ct);

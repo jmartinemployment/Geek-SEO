@@ -318,6 +318,34 @@ public sealed class ContentScoringService(
         });
     }
 
+    private async Task<bool> HasPendingResearchCitationsAsync(
+        Guid userId,
+        SeoContentDocument doc,
+        string contentHtml,
+        CancellationToken ct)
+    {
+        var loaded = await researchLoader.LoadAsync(userId, doc, ct);
+        if (!loaded.IsSuccess || loaded.Value is null)
+            return false;
+
+        var sources = loaded.Value.CitationCandidates
+            .Where(c => !string.IsNullOrWhiteSpace(c.Url))
+            .Where(c => !string.Equals(c.Source, "organic", StringComparison.OrdinalIgnoreCase))
+            .Select(c => new DiscoveredSource
+            {
+                Url = c.Url.Trim(),
+                Title = string.IsNullOrWhiteSpace(c.Title) ? c.Url.Trim() : c.Title.Trim(),
+                AnchorText = string.IsNullOrWhiteSpace(c.Title) ? c.Domain : c.Title.Trim(),
+            })
+            .ToList();
+
+        if (sources.Count == 0)
+            return false;
+
+        var patchedHtml = ScoreSuggestionApplicator.TryAppendSourcesFromDiscovered(contentHtml, sources);
+        return patchedHtml is not null && !string.Equals(patchedHtml, contentHtml, StringComparison.Ordinal);
+    }
+
     private async Task<Result<ApplySuggestionResponse>?> TryApplyResearchCitationPackAsync(
         Guid userId,
         Guid documentId,
@@ -547,6 +575,21 @@ public sealed class ContentScoringService(
             keyword,
             benchmarks.OrganicResults);
         var allSuggestions = suggestions.Concat(geo.Suggestions).OrderByDescending(s => s.PointValue).ToList();
+        var eeatAdvisories = EeatAdvisoryBuilder.Build(plainText, contentHtml);
+
+        if (ResearchBackedWriteGate.IsResearchBacked(doc))
+        {
+            var pendingCitations = await HasPendingResearchCitationsAsync(userId, doc, contentHtml, ct);
+            if (!pendingCitations)
+            {
+                allSuggestions = allSuggestions
+                    .Where(s => !string.Equals(s.Id, "geo_citations", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                eeatAdvisories = eeatAdvisories
+                    .Where(a => !string.Equals(a.SuggestionId, "geo_citations", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+        }
 
         var update = new ScoreUpdateMessage
         {
@@ -563,7 +606,7 @@ public sealed class ContentScoringService(
             },
             Suggestions = allSuggestions,
             SerpFeatures = FilterSerpFeatureGuidance(contentHtml, serpFeatures, keyword),
-            EeatAdvisories = EeatAdvisoryBuilder.Build(plainText, contentHtml),
+            EeatAdvisories = eeatAdvisories,
             GeoScore = geo.TotalScore,
             GeoGrade = geo.Grade,
             GeoComponents = geo.Components,

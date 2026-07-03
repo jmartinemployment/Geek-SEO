@@ -67,6 +67,9 @@ public static class AuthoritativeCitationRules
 
     private static bool IsBlockedHost(string host)
     {
+        if (CitationLaneHostRules.IsNonWikipediaWikiTld(host))
+            return true;
+
         foreach (var fragment in BlockedHostFragments)
         {
             if (host.Contains(fragment, StringComparison.OrdinalIgnoreCase))

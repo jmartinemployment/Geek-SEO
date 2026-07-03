@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using AngleSharp;
 using AngleSharp.Dom;
+using GeekSeo.Application.Services.Seo;
 using SiteAnalyzer2.Domain;
 using SiteAnalyzer2.Domain.Enums;
 using SiteAnalyzer2.Serp.Models;
@@ -855,7 +856,7 @@ public static class GoogleSerpHtmlParser
         if (title.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
             title = title[..^suffix.Length].Trim();
 
-        return title;
+        return SerpSearchKeywordNormalizer.Normalize(title);
     }
 
     private static bool ShouldSkipRelatedQuery(string question, string? keyword)

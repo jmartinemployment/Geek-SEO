@@ -26,13 +26,16 @@ public sealed class ContentWriterHandoffService(IAnalysisRunRepository analysisR
         if (!runGate.IsSuccess)
             return Result<ContentWriterHandoffResult>.Failure(runGate.Error ?? "Analysis run is not ready");
 
-        var targetKeyword = string.IsNullOrWhiteSpace(articleKeyword) ? export.Keyword : articleKeyword.Trim();
+        var serpKeyword = SerpSearchKeywordNormalizer.Normalize(export.Keyword);
+        var targetKeyword = string.IsNullOrWhiteSpace(articleKeyword)
+            ? serpKeyword
+            : SerpSearchKeywordNormalizer.Normalize(articleKeyword);
 
         return Result<ContentWriterHandoffResult>.Success(new ContentWriterHandoffResult
         {
             GeekSeoProjectId = export.GeekSeoProjectId,
             TargetKeyword = targetKeyword,
-            SerpKeyword = export.Keyword,
+            SerpKeyword = serpKeyword,
             AnalysisRunId = analysisRunId,
         });
     }

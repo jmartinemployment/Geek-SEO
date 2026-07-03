@@ -1,4 +1,5 @@
 using System.Text.Json;
+using GeekSeo.Application.Services.Seo;
 using Microsoft.EntityFrameworkCore;
 using SiteAnalyzer2.Domain;
 using SiteAnalyzer2.Domain.Entities;
@@ -60,7 +61,7 @@ public class SerpHtmlImportService(AppDbContext db, RunGateService runGate)
         if (existing)
             throw new InvalidOperationException("SERP items already exist for this run.");
 
-        run.Keyword = string.IsNullOrWhiteSpace(parsed.Keyword) ? run.Keyword : parsed.Keyword;
+        run.Keyword = SanitizeRunKeyword(string.IsNullOrWhiteSpace(parsed.Keyword) ? run.Keyword : parsed.Keyword);
         run.SerpLocationCode = parsed.LocationCode;
         run.SerpLanguageCode = parsed.LanguageCode;
         run.SerpDevice = parsed.Device;
@@ -95,7 +96,7 @@ public class SerpHtmlImportService(AppDbContext db, RunGateService runGate)
     {
         if (string.Equals(normalizedLane, SerpResearchLanes.Keyword, StringComparison.OrdinalIgnoreCase))
         {
-            run.Keyword = string.IsNullOrWhiteSpace(parsed.Keyword) ? run.Keyword : parsed.Keyword;
+            run.Keyword = SanitizeRunKeyword(string.IsNullOrWhiteSpace(parsed.Keyword) ? run.Keyword : parsed.Keyword);
             run.SerpLocationCode = parsed.LocationCode;
             run.SerpLanguageCode = parsed.LanguageCode;
             run.SerpDevice = parsed.Device;
@@ -222,6 +223,9 @@ public class SerpHtmlImportService(AppDbContext db, RunGateService runGate)
 
         return entity;
     }
+
+    private static string SanitizeRunKeyword(string? keyword) =>
+        SerpSearchKeywordNormalizer.Normalize(keyword);
 }
 
 public sealed record SerpImportCounts(

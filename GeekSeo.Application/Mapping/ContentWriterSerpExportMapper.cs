@@ -11,10 +11,13 @@ public static class ContentWriterSerpExportMapper
         string searchLocation = "United States",
         string? articleKeyword = null)
     {
-        var serpKeyword = export.Keyword;
-        var derivedKeyword = string.IsNullOrWhiteSpace(articleKeyword) ? serpKeyword : articleKeyword.Trim();
+        var serpKeyword = SerpSearchKeywordNormalizer.Normalize(export.Keyword);
+        var derivedKeyword = string.IsNullOrWhiteSpace(articleKeyword)
+            ? serpKeyword
+            : SerpSearchKeywordNormalizer.Normalize(articleKeyword);
         var organicItems = export.Serp
             .Where(i => string.Equals(i.Type, "organic", StringComparison.OrdinalIgnoreCase))
+            .Where(i => SerpOrganicUrlQuality.IsUsableOrganicUrl(i.Url))
             .OrderBy(i => i.Position)
             .ToList();
 

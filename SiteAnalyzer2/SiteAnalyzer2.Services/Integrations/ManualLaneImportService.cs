@@ -51,8 +51,6 @@ public sealed class ManualLaneImportService(
 
         run.TopicSlug = normalizedTopic;
         run.ResearchMode = ResearchModes.Manual;
-        if (string.IsNullOrWhiteSpace(run.Keyword) && !string.IsNullOrWhiteSpace(parsed.Keyword))
-            run.Keyword = parsed.Keyword.Trim();
 
         await htmlImport.ClearSerpDataForLaneAsync(run.Id, normalizedLane, ct);
         var outcome = await htmlImport.PersistParsedPageForLaneAsync(run, parsed, normalizedLane, ct);
@@ -116,8 +114,6 @@ public sealed class ManualLaneImportService(
 
         run.TopicSlug = normalizedTopic;
         run.ResearchMode = ResearchModes.Manual;
-        if (string.IsNullOrWhiteSpace(run.Keyword) && !string.IsNullOrWhiteSpace(merged.Keyword))
-            run.Keyword = merged.Keyword.Trim();
 
         await htmlImport.ClearSerpDataForLaneAsync(run.Id, SerpResearchLanes.Paa, ct);
         var outcome = await htmlImport.PersistParsedPageForLaneAsync(run, merged, SerpResearchLanes.Paa, ct);

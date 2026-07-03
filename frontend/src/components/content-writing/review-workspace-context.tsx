@@ -455,7 +455,8 @@ export function WritingEditorPane({
         <SpokePillarBanner />
         {isResearchBacked ? (
           <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-[var(--color-text-secondary)]">
-            Keyword and location are fixed from your Site Analyzer handoff.
+            Keyword and location come from Site Analyzer. You can edit the target keyword if your
+            saved SERP title accidentally included Google operators (e.g. <code>site:wiki</code>).
           </p>
         ) : null}
 
@@ -465,11 +466,10 @@ export function WritingEditorPane({
             <input
               className="mt-1 block w-full rounded-lg border border-[var(--color-border-strong)] px-3 py-2 shadow-sm disabled:bg-[var(--color-surface-muted)]"
               value={keyword}
-              readOnly={isResearchBacked}
               onChange={(event) => setKeyword(event.target.value)}
               onBlur={() => {
                 void save(html, keyword, title, location);
-                if (!isResearchBacked && keyword !== keywordRef.current) {
+                if (keyword !== keywordRef.current) {
                   keywordRef.current = keyword;
                   void notifyKeywordChanged(html, keyword, location);
                 }

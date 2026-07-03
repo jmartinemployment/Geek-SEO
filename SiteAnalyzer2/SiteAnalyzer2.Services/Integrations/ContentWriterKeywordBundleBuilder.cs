@@ -1,3 +1,4 @@
+using GeekSeo.Application.Services.Seo;
 using SiteAnalyzer2.Domain;
 using SiteAnalyzer2.Domain.Entities;
 using SiteAnalyzer2.Domain.Enums;
@@ -35,7 +36,7 @@ public static class ContentWriterKeywordBundleBuilder
             CapturedAt = capturedAt,
             RunId = run.Id,
             ProjectId = run.ProjectId,
-            Keyword = run.Keyword,
+            Keyword = SerpSearchKeywordNormalizer.Normalize(run.Keyword),
             TargetSiteUrl = run.TargetSiteUrl,
             Status = run.Status.ToString(),
             SerpSeResultsCount = run.SerpSeResultsCount ?? 0,
@@ -152,6 +153,9 @@ public static class ContentWriterKeywordBundleBuilder
         {
             if (string.Equals(item.Type, SerpItemTypes.Organic, StringComparison.OrdinalIgnoreCase) && !item.Ads)
             {
+                if (!SerpOrganicUrlQuality.IsUsableOrganicUrl(item.Url))
+                    continue;
+
                 serp.Add(new ContentWriterSerpItemDto
                 {
                     Position = item.RankGroup > 0 ? item.RankGroup : position++,
