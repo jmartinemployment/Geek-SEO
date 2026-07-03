@@ -187,7 +187,7 @@ public sealed partial class AIWritingService(
 
         var response = await ai.CompleteAsync(new AIRequest
         {
-            SystemPrompt = ArticlePromptBuilder.BuildResearchDraftSystemPrompt(),
+            SystemPrompt = ArticlePromptBuilder.BuildResearchDraftSystemPrompt(request.Research),
             UserPrompt = ArticlePromptBuilder.BuildResearchDraftUserPrompt(request),
             MaxTokens = 8192,
             Temperature = 0.7,
@@ -220,11 +220,21 @@ public sealed partial class AIWritingService(
             ai,
             ct);
 
+        var withSources = ScoreSuggestionApplicator.TryEnsureResearchSourcesFromCandidates(
+            enriched,
+            request.Research.CitationCandidates) ?? enriched;
+
+        var withOriginality = await DraftPlagiarismDraftEnricher.EnsureOriginalDraftAsync(
+            withSources,
+            request.Research,
+            ai,
+            ct);
+
         var title = string.IsNullOrWhiteSpace(request.Title)
             ? request.Research.DerivedKeyword
             : request.Title;
         var withSchema = EnsureSchemaInResearchDraft(
-            ArticleMethodologyScaffold.StripMovementLabels(enriched),
+            ArticleMethodologyScaffold.StripMovementLabels(withOriginality),
             request.Research,
             title);
 

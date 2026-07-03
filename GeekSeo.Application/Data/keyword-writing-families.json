@@ -1,0 +1,70 @@
+{
+  "families": [
+    {
+      "id": "prospecting",
+      "matchTerms": [
+        "prospect",
+        "lead intelligence",
+        "outbound",
+        "enrichment",
+        "pipeline",
+        "sdr",
+        "bdr",
+        "icp",
+        "sales navigator"
+      ],
+      "toolExamples": [
+        "Apollo",
+        "Clay",
+        "ZoomInfo",
+        "LinkedIn Sales Navigator",
+        "HubSpot",
+        "Salesforce",
+        "GoHighLevel"
+      ],
+      "capabilityPhrases": [
+        "sales intelligence workflows",
+        "CRM enrichment"
+      ],
+      "writingRecommendation": "Position as the consultancy that wires enrichment, scoring, and CRM follow-up tasks — not a listicle of AI tools."
+    },
+    {
+      "id": "customer_journey",
+      "matchTerms": [
+        "customer journey",
+        "journey map",
+        "touchpoint",
+        "journey mapping",
+        "cx map"
+      ],
+      "toolExamples": [
+        "HubSpot",
+        "Shopify",
+        "Postgres",
+        "React",
+        "Zapier"
+      ],
+      "capabilityPhrases": [
+        "journey analytics",
+        "touchpoint mapping"
+      ],
+      "writingRecommendation": "Show how you map live touchpoints and build dashboards or bots on the client's stack."
+    },
+    {
+      "id": "general",
+      "isDefault": true,
+      "matchTerms": [],
+      "toolExamples": [
+        "Shopify",
+        "HubSpot",
+        "QuickBooks",
+        "WordPress",
+        "Postgres",
+        "React",
+        "Zapier"
+      ],
+      "capabilityPhrases": [],
+      "writingRecommendation": null
+    }
+  ]
+}

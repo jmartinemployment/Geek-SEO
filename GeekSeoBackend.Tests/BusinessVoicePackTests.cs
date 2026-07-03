@@ -76,46 +76,6 @@ public sealed class BusinessVoicePackTests
         Assert.True(BusinessVoiceValidator.PassesAllGates(html, pack));
     }
 
-    private static WritingResearchContext GeekAtYourSpotResearch() => new()
-    {
-        AnalysisRunId = Guid.NewGuid(),
-        ProjectId = Guid.NewGuid(),
-        UserId = Guid.NewGuid(),
-        SourceUrl = "https://www.geekatyourspot.com/",
-        DerivedKeyword = "ai customer journey",
-        SerpKeyword = "ai customer journey",
-        SearchLocation = "Delray Beach, FL",
-        BusinessContext =
-            "Geek at Your Spot Technology consultancy in Delray Beach, Florida specializing in AI, Process Automation, AI Chatbots, Data Analytics, React, Node.js, Postgres for SMBs in Broward, Palm Beach and Miami-Dade Counties.",
-        SiteFocus = new SiteWritingFocus
-        {
-            SiteName = "Geek at Your Spot",
-            SiteUrl = "https://www.geekatyourspot.com/",
-            BusinessSummary =
-                "Technology consultancy integrating AI, chatbots, automation, and custom React/Node apps for South Florida SMBs.",
-            PrimaryNiche = "AI implementation for SMBs",
-            ServiceAreaDescription = "Broward County, Palm Beach County, Miami-Dade County",
-            GeoAnchorNodes = ["Delray Beach, FL, US"],
-            NicheTags = ["AI Chatbots", "Process Automation", "React", "Postgres"],
-            WritingInstructions =
-                "Positioning: you sell AI implementation for SMBs in South Florida. Show named tools and deployment scenarios.",
-        },
-        IntentPrimary = "informational",
-        IntentJustification = "guide",
-        DirectAnswerInstruction = "Lead with a concise definition.",
-        Paf = new WritingResearchPaf { Type = "none", Format = "text" },
-        Benchmarks = new WritingResearchBenchmarks
-        {
-            MedianWordCountTop5 = 1800,
-            DominantContentFormat = "guide",
-        },
-        RecommendedTerms = [],
-        SectionHints = [],
-        ClosingFaqs = [],
-        PeopleAlsoAsk = [],
-        RelatedSearches = [],
-        Organic = [],
-        Competitors = [],
-        SourceHeadings = [],
-    };
+    private static WritingResearchContext GeekAtYourSpotResearch() =>
+        BusinessVoicePackTestsFixtures.GeekAtYourSpotResearch();
 }

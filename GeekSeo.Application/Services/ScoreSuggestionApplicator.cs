@@ -320,13 +320,37 @@ public static partial class ScoreSuggestionApplicator
     public static bool HasUsableSerpCitationPicks(string html, IReadOnlyList<SerpOrganicResult> organicResults) =>
         SelectSerpCitationPicks(html, organicResults).Count > 0;
 
+    public static bool HasResearchSourcesSection(string html) =>
+        SourcesHeadingRegex().IsMatch(html);
+
     public static string? TryAppendSourcesFromSerp(string html, IReadOnlyList<SerpOrganicResult> organicResults) =>
-        TryInsertInlineCitations(html, SelectSerpCitationPicks(html, organicResults));
+        TryAppendResearchSourcesSection(html, SelectSerpCitationPicks(html, organicResults));
 
     public static string? TryAppendSourcesFromDiscovered(string html, IReadOnlyList<DiscoveredSource> sources)
     {
-        var picks = SelectDiscoveredCitationPicks(html, sources);
-        return TryInsertInlineCitations(html, picks);
+        var picks = SelectResearchSourcesPicks(html, sources);
+        return TryAppendResearchSourcesSection(html, picks);
+    }
+
+    public static string? TryEnsureResearchSourcesFromCandidates(
+        string html,
+        IReadOnlyList<WritingResearchCitationCandidate> candidates)
+    {
+        if (candidates.Count == 0)
+            return null;
+
+        var sources = candidates
+            .Where(c => !string.IsNullOrWhiteSpace(c.Url))
+            .Where(c => !string.Equals(c.Source, "organic", StringComparison.OrdinalIgnoreCase))
+            .Select(c => new DiscoveredSource
+            {
+                Url = c.Url.Trim(),
+                Title = string.IsNullOrWhiteSpace(c.Title) ? c.Url.Trim() : c.Title.Trim(),
+                AnchorText = string.IsNullOrWhiteSpace(c.Title) ? c.Domain : c.Title.Trim(),
+            })
+            .ToList();
+
+        return TryAppendSourcesFromDiscovered(html, sources);
     }
 
     public static string? TryInsertResearchCitation(string html, string url, string? title)
@@ -467,6 +491,11 @@ public static partial class ScoreSuggestionApplicator
 
     public static IReadOnlyList<(string Url, string Label)> SelectDiscoveredCitationPicks(
         string html,
+        IReadOnlyList<DiscoveredSource> sources) =>
+        SelectResearchSourcesPicks(html, sources);
+
+    private static List<(string Url, string Label)> SelectResearchSourcesPicks(
+        string html,
         IReadOnlyList<DiscoveredSource> sources)
     {
         var linked = CollectLinkedUrls(html);
@@ -475,11 +504,41 @@ public static partial class ScoreSuggestionApplicator
             .Where(s => AuthoritativeCitationRules.IsAcceptableDiscoveredCitationUrl(s.Url)
                 || AuthoritativeCitationRules.IsAuthoritativeCitationUrl(s.Url))
             .Where(s => !IsUrlAlreadyLinked(s.Url.Trim(), linked))
-            .Take(3)
+            .Take(ContentWritingRules.MaxResearchSourcesCount)
             .Select(s => (
                 s.Url.Trim(),
-                string.IsNullOrWhiteSpace(s.AnchorText) ? s.Title : s.AnchorText!))
+                string.IsNullOrWhiteSpace(s.AnchorText)
+                    ? (string.IsNullOrWhiteSpace(s.Title) ? s.Url.Trim() : s.Title.Trim())
+                    : s.AnchorText!.Trim()))
             .ToList();
+    }
+
+    private static string? TryAppendResearchSourcesSection(
+        string html,
+        IReadOnlyList<(string Url, string Label)> picks)
+    {
+        if (picks.Count == 0)
+            return null;
+
+        if (HasResearchSourcesSection(html))
+            return null;
+
+        var block = BuildResearchSourcesSectionHtml(picks);
+        var faqStart = FindFaqSectionStart(html);
+        if (faqStart < 0)
+            return html.TrimEnd() + "\n" + block + "\n";
+
+        return html[..faqStart].TrimEnd() + "\n" + block + "\n" + html[faqStart..].TrimStart();
+    }
+
+    private static string BuildResearchSourcesSectionHtml(IReadOnlyList<(string Url, string Label)> picks)
+    {
+        var items = picks
+            .Select(pick =>
+                $"<li><a href=\"{WebUtility.HtmlEncode(pick.Url)}\" rel=\"noopener noreferrer\">{WebUtility.HtmlEncode(pick.Label)}</a></li>")
+            .ToList();
+
+        return $"<h2>{ContentWritingRules.SourcesHeading}</h2>\n<ul>\n{string.Join("\n", items)}\n</ul>";
     }
 
     private static string? TryInsertInlineCitations(
@@ -562,6 +621,9 @@ public static partial class ScoreSuggestionApplicator
     [GeneratedRegex("<h2[^>]*>\\s*[^<]*faq[^<]*</h2>", RegexOptions.IgnoreCase)]
     private static partial Regex FaqHeadingRegex();
 
+    [GeneratedRegex("<h2[^>]*>\\s*[^<]*sources[^<]*</h2>", RegexOptions.IgnoreCase)]
+    private static partial Regex SourcesHeadingRegex();
+
     private static bool IsValidExternalUrl(string url) =>
         Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri)
         && (uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
@@ -632,8 +694,8 @@ public static partial class ScoreSuggestionApplicator
                 "The title already matches the suggested change. Refresh the score to clear this hint.",
             "meta_description" =>
                 "A meta description is already present with the suggested content.",
-            "geo_citations" when HasInlineAuthoritativeCitations(html) =>
-                "Authoritative inline citations are already present. Refresh the score to clear this hint.",
+            "geo_citations" when HasResearchSourcesSection(html) || HasInlineAuthoritativeCitations(html) =>
+                "A Sources section or authoritative citations are already present. Refresh the score to clear this hint.",
             "geo_citations" =>
                 "No new external sources were available to link, or they are already cited.",
             "geo_authority" when HasArticleSchema(html) =>

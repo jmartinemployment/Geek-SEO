@@ -24,6 +24,10 @@ public static partial class BusinessVoiceValidator
         "crm",
         "llm",
         "openai",
+        "apollo",
+        "clay",
+        "zoominfo",
+        "linkedin sales navigator",
     ];
 
     public sealed record GateResult(string GateId, bool Passed, string Detail);
@@ -89,7 +93,9 @@ public static partial class BusinessVoiceValidator
         var lower = $" {plain.ToLowerInvariant()} ";
         var hasImplementLanguage = ImplementSignals.Any(signal => lower.Contains(signal, StringComparison.Ordinal));
         var mentionsCapability = pack.DeclaredCapabilities.Any(cap =>
-            CapabilityMentioned(lower, cap));
+            CapabilityMentioned(lower, cap))
+            || pack.FamilyCapabilityPhrases.Any(phrase =>
+                lower.Contains(phrase.ToLowerInvariant(), StringComparison.Ordinal));
         var passed = hasImplementLanguage && mentionsCapability;
         return new GateResult(
             "capability_bridge",

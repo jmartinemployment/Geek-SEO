@@ -26,6 +26,8 @@ public static class ArticleMethodologyPrompt
 
         builder.AppendLine(
             $"Competitor heading patterns are inspiration only. They must not replace the {methodology.PhaseDefinitions.Count} required body sections.");
+        builder.AppendLine(
+            $"Depth: each body section should be ~{ResearchDraftWordTarget.MinWordsPerMethodologySection}+ words (multiple paragraphs) — not thin summaries.");
         return builder.ToString().TrimEnd();
     }
 

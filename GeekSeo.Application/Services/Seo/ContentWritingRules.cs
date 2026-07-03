@@ -4,6 +4,8 @@ public static class ContentWritingRules
 {
     public const int ClosingFaqCount = 5;
     public const string ClosingFaqHeading = "Frequently Asked Questions";
+    public const string SourcesHeading = "Sources";
+    public const int MaxResearchSourcesCount = 12;
 
     public static IReadOnlyList<string> BuildClosingFaqQuestions(
         string keyword,

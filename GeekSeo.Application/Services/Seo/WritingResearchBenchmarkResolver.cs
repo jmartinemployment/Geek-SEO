@@ -28,7 +28,7 @@ public static class WritingResearchBenchmarkResolver
 
         return new SerpBenchmarksPayload
         {
-            AvgWordCount = Math.Max(800, research.Benchmarks.MedianWordCountTop5),
+            AvgWordCount = ResearchDraftWordTarget.Resolve(0, research.Benchmarks.MedianWordCountTop5),
             AvgTitleLength = Math.Max(30, research.Benchmarks.MedianTitleLengthTop10),
             BenchmarkQuality = quality,
             TopDomains = organic.Select(o => o.Domain ?? string.Empty).Where(d => d.Length > 0).Distinct().Take(10).ToList(),

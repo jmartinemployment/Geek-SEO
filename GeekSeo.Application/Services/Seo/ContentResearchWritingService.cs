@@ -57,7 +57,9 @@ public sealed class ContentResearchWritingService(
             Title = string.IsNullOrWhiteSpace(doc.Title) || doc.Title == "Untitled Document"
                 ? context.DerivedKeyword
                 : doc.Title,
-            TargetWordCount = context.Benchmarks.MedianWordCountTop5,
+            TargetWordCount = ResearchDraftWordTarget.Resolve(
+                0,
+                context.Benchmarks.MedianWordCountTop5),
             SupportingBlogPost = blogHint,
         }, ct);
 

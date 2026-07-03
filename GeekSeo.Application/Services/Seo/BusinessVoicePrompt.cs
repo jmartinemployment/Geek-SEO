@@ -53,8 +53,10 @@ public static class BusinessVoicePrompt
                 + $"{pack.SiteName} implements this for clients using: {string.Join(", ", pack.DeclaredCapabilities)}.");
         }
 
-        builder.AppendLine("- Open with two short paragraphs max — punchy, direct-answer first, no dense wall of text.");
-        builder.AppendLine("- Do not invent named experts, credentials, or a Sources section.");
+        builder.AppendLine("- Open with two concise direct-answer paragraphs — punchy, not a dense wall of text.");
+        builder.AppendLine(
+            $"- Each methodology <h2> section needs depth: at least 2–3 paragraphs (~{ResearchDraftWordTarget.MinWordsPerMethodologySection}+ words per section).");
+        builder.AppendLine("- Do not invent named experts, credentials, or competitor URLs. Do not add a Sources section (it is appended from research).");
         builder.AppendLine("- Skip resource-download intents (PDFs, templates, generators).");
 
         if (pack.WritingRecommendations.Count > 0)
@@ -72,7 +74,8 @@ public static class BusinessVoicePrompt
 
     public static string BuildRepairSystemPrompt() =>
         "You revise SEO article HTML to satisfy business voice gates. Preserve the existing <h1>, exactly four methodology <h2> body sections, and the closing FAQ. " +
-        "Output HTML only. Add missing concrete tool examples, traditional-vs-AI contrast, implementation bridge, and CTA — do not remove factual content. No Sources section. No markdown fences.";
+        "Output HTML only. Original prose only — do not copy or closely paraphrase SERP snippets or competitor headings. " +
+        "Add missing concrete tool examples, traditional-vs-AI contrast, implementation bridge, and CTA — do not remove factual content. No Sources section. No markdown fences.";
 
     public static string BuildRepairUserPrompt(
         string html,

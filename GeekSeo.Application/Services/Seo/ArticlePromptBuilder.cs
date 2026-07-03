@@ -131,17 +131,45 @@ public static class ArticlePromptBuilder
         return builder.ToString().Trim();
     }
 
-    public static string BuildResearchDraftSystemPrompt(WritingMethodologySpec? methodology = null)
+    public static string BuildResearchDraftSystemPrompt(
+        WritingResearchContext? research = null,
+        WritingMethodologySpec? methodology = null)
     {
         methodology ??= WritingMethodologySpec.FourPhase;
         var sectionCount = methodology.PhaseDefinitions.Count;
-        return
-            "You write SEO articles in HTML (h1 once, multiple h2/h3, paragraphs). Natural tone. No markdown fences. " +
-            $"Before the closing FAQ, write exactly {sectionCount} body sections as specified — one topic-specific <h2> per methodology phase. " +
-            "Competitor and PAA topics are <h3> subtopics only, never extra body <h2> sections. " +
-            "Follow the business voice pack: named-tool examples, traditional-vs-AI contrast, implementation authority, topic-specific CTA. " +
-            "Do not invent named experts, fictional credentials, or a Sources section. " +
-            $"Always close with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> containing exactly {ContentWritingRules.ClosingFaqCount} topic FAQs as <h3> + <p> pairs.";
+        var builder = new StringBuilder();
+
+        if (research is not null)
+        {
+            var pack = BusinessVoicePackBuilder.Build(research);
+            var identity = ResearchDraftIdentityPrompt.BuildIdentityLine(research, pack);
+            if (!string.IsNullOrWhiteSpace(identity))
+            {
+                builder.Append(identity);
+                builder.Append(' ');
+            }
+        }
+
+        builder.Append(
+            "You write SEO articles in HTML (h1 once, multiple h2/h3, paragraphs). Natural tone. No markdown fences. ");
+        builder.Append(
+            "Original prose only — do not copy or closely paraphrase competitor articles, SERP snippets, or source headings. ");
+        builder.Append(
+            $"Before the closing FAQ, write exactly {sectionCount} body sections as specified — one topic-specific <h2> per methodology phase. ");
+        builder.Append(
+            $"Aim for at least {ResearchDraftWordTarget.MinPillarWordCount} words total with substantive paragraphs in every section. ");
+        builder.Append(
+            "Competitor and PAA topics are <h3> subtopics only, never extra body <h2> sections. ");
+        builder.Append(
+            "Follow the business voice pack: named-tool examples, traditional-vs-AI contrast, implementation authority, topic-specific CTA. ");
+        builder.Append(
+            "Do not invent named experts, fictional credentials, or competitor URLs. ");
+        builder.Append(
+            "A <h2>Sources</h2> block is appended automatically from gov/edu/wiki research — do not duplicate it. ");
+        builder.Append(
+            $"Always close with <h2>{ContentWritingRules.ClosingFaqHeading}</h2> containing exactly {ContentWritingRules.ClosingFaqCount} topic FAQs as <h3> + <p> pairs.");
+
+        return builder.ToString();
     }
 
     public static string BuildResearchDraftUserPrompt(ResearchDraftRequest request)
@@ -149,9 +177,9 @@ public static class ArticlePromptBuilder
         var research = request.Research;
         var keyword = research.DerivedKeyword;
         var methodology = WritingMethodologySpec.FourPhase;
-        var target = request.TargetWordCount > 0
-            ? request.TargetWordCount
-            : Math.Max(800, research.Benchmarks.MedianWordCountTop5);
+        var target = ResearchDraftWordTarget.Resolve(
+            request.TargetWordCount,
+            research.Benchmarks.MedianWordCountTop5);
 
         var builder = new StringBuilder();
         builder.AppendLine($"Title: {request.Title ?? keyword}");
@@ -159,6 +187,7 @@ public static class ArticlePromptBuilder
         builder.AppendLine($"Source page: {research.SourceUrl}");
         builder.AppendLine($"Location: {research.SearchLocation}");
         builder.AppendLine($"Target words: {target}");
+        builder.AppendLine(ResearchDraftWordTarget.BuildLengthInstructions(target));
         builder.AppendLine($"Search intent: {research.IntentPrimary} — {research.IntentJustification}");
         builder.AppendLine();
         if (!string.IsNullOrWhiteSpace(research.BusinessContext))
@@ -191,6 +220,14 @@ public static class ArticlePromptBuilder
         builder.AppendLine();
         var voicePack = BusinessVoicePackBuilder.Build(research);
         BusinessVoicePrompt.AppendInstructions(builder, voicePack);
+
+        var identityLine = ResearchDraftIdentityPrompt.BuildIdentityLine(research, voicePack);
+        if (!string.IsNullOrWhiteSpace(identityLine))
+        {
+            builder.AppendLine();
+            builder.AppendLine("Author identity (required voice):");
+            builder.AppendLine(identityLine);
+        }
 
         builder.AppendLine();
         builder.AppendLine(ArticleMethodologyPrompt.BuildWeaveInstructions(keyword, methodology));
@@ -262,16 +299,26 @@ public static class ArticlePromptBuilder
         if (filteredPasf.Count > 0)
             builder.AppendLine($"Related searches (subtopic ideas only): {string.Join("; ", filteredPasf)}");
 
+        var structuralPatterns = CompetitorPromptFilter.BuildStructuralPatterns(research);
+        if (structuralPatterns.Count > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine(
+                "Structural subtopic patterns to cover as original <h3> wording (do not reuse source titles or brand names):");
+            foreach (var pattern in structuralPatterns)
+                builder.AppendLine($"- {pattern}");
+        }
+
         var competitorHeadings = research.Competitors
             .SelectMany(c => c.Headings.Where(h => h.Level <= 3).Select(h => h.Text))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(12)
             .ToList();
-        if (competitorHeadings.Count > 0)
+        if (competitorHeadings.Count > 0 && structuralPatterns.Count == 0)
         {
             builder.AppendLine();
             builder.AppendLine(
-                $"Competitor heading patterns (use as <h3> subtopics only — never as extra body <h2>): {string.Join("; ", competitorHeadings)}");
+                $"Competitor heading patterns (use as <h3> subtopics only — never as extra body <h2>; original wording only): {string.Join("; ", competitorHeadings)}");
         }
 
         var competitorSchema = research.Competitors
@@ -290,10 +337,10 @@ public static class ArticlePromptBuilder
         {
             builder.AppendLine();
             builder.AppendLine(
-                "Authoritative external citations (inline <a> links only — no Sources section, no invented experts):");
+                "Research citations for the closing Sources block (gov/edu/wiki only — never cite competitors or keyword SERP organics):");
             foreach (var candidate in research.CitationCandidates
                          .Where(c => !string.Equals(c.Source, "organic", StringComparison.OrdinalIgnoreCase))
-                         .Take(10))
+                         .Take(ContentWritingRules.MaxResearchSourcesCount))
             {
                 var label = string.IsNullOrWhiteSpace(candidate.Title) ? candidate.Url : candidate.Title;
                 builder.AppendLine($"- [{candidate.Source}] {label} ({candidate.Url})");

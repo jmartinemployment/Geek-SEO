@@ -37,10 +37,7 @@ public static class ManualResearchLaneMerger
                 continue;
 
             if (string.Equals(lane.Lane, SerpResearchLanes.Local, StringComparison.OrdinalIgnoreCase))
-            {
                 localAngle = BuildLocalAngle(lane) ?? localAngle;
-                continue;
-            }
 
             foreach (var organic in lane.OrganicResults)
             {

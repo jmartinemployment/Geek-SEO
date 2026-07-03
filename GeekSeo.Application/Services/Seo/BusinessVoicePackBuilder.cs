@@ -50,8 +50,14 @@ public static class BusinessVoicePackBuilder
         var hasLocalMarket = !string.IsNullOrWhiteSpace(geo);
         var siteName = focus?.SiteName?.Trim() ?? string.Empty;
         var siteUrl = focus?.SiteUrl?.Trim() ?? research.SourceUrl.Trim();
-        var recommendations = CollectWritingRecommendations(focus, corpus);
-        var toolExamples = PickToolExamples(corpus, research.RecommendedTerms.Select(t => t.Term));
+        var recommendations = CollectWritingRecommendations(focus, corpus).ToList();
+        var familyId = KeywordWritingFamilyCatalog.DetectFamilyId(
+            research.DerivedKeyword,
+            research.RecommendedTerms.Select(t => t.Term));
+        var family = KeywordWritingFamilyCatalog.GetFamily(familyId);
+        var toolExamples = PickToolExamples(corpus, research.RecommendedTerms.Select(t => t.Term), family);
+        if (!string.IsNullOrWhiteSpace(family.WritingRecommendation))
+            recommendations.Add(family.WritingRecommendation);
 
         var enabled = focus is not null
             || !string.IsNullOrWhiteSpace(research.BusinessContext)
@@ -68,6 +74,8 @@ public static class BusinessVoicePackBuilder
             DeclaredCapabilities = capabilities,
             SuggestedToolExamples = toolExamples,
             WritingRecommendations = recommendations,
+            KeywordFamilyId = familyId,
+            FamilyCapabilityPhrases = family.CapabilityPhrases,
             MinimumConcreteExamples = isImplementation ? 3 : 2,
             RequiresTraditionalVsAiContrast = isImplementation,
             RequiresPerSectionContrast = isImplementation,
@@ -124,19 +132,38 @@ public static class BusinessVoicePackBuilder
             .ToList();
     }
 
-    private static IReadOnlyList<string> PickToolExamples(string corpus, IEnumerable<string> recommendedTerms)
+    private static IReadOnlyList<string> PickToolExamples(
+        string corpus,
+        IEnumerable<string> recommendedTerms,
+        KeywordWritingFamilyDefinition family)
     {
         var lower = corpus.ToLowerInvariant();
-        var picks = BusinessVoiceValidator.KnownToolTokens
+        var familyTools = family.ToolExamples;
+        var tokenPool = BusinessVoiceValidator.KnownToolTokens
+            .Concat(familyTools.Select(t => t.ToLowerInvariant()))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        var picks = tokenPool
             .Where(tool => lower.Contains(tool, StringComparison.OrdinalIgnoreCase)
                 || recommendedTerms.Any(term => term.Contains(tool, StringComparison.OrdinalIgnoreCase)))
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(5)
             .ToList();
 
-        foreach (var fallback in DefaultToolExamples)
+        foreach (var familyTool in familyTools)
         {
-            if (picks.Count >= 4)
+            if (picks.Count >= 5)
+                break;
+
+            if (!picks.Contains(familyTool, StringComparer.OrdinalIgnoreCase))
+                picks.Add(familyTool);
+        }
+
+        var fallbackTools = family.IsDefault
+            ? DefaultToolExamples
+            : family.ToolExamples.ToArray();
+        foreach (var fallback in fallbackTools)
+        {
+            if (picks.Count >= 5)
                 break;
 
             if (!picks.Contains(fallback, StringComparer.OrdinalIgnoreCase))

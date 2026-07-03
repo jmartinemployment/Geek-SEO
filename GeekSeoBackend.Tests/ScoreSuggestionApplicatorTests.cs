@@ -71,8 +71,7 @@ public sealed class ScoreSuggestionApplicatorTests
             organic);
 
         Assert.NotNull(patched);
-        Assert.Contains("For authoritative context", patched!, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("<h2>Sources</h2>", patched!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("<h2>Sources</h2>", patched!, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("https://www.cdc.gov/example", patched!, StringComparison.Ordinal);
         Assert.Contains("https://www.ed.gov/policy", patched!, StringComparison.Ordinal);
         Assert.DoesNotContain("competitor.com", patched!, StringComparison.OrdinalIgnoreCase);
@@ -99,8 +98,7 @@ public sealed class ScoreSuggestionApplicatorTests
         var patched = ScoreSuggestionApplicator.TryAppendSourcesFromDiscovered(html, sources);
 
         Assert.NotNull(patched);
-        Assert.Contains("For authoritative context", patched!, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("<h2>Sources</h2>", patched!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("<h2>Sources</h2>", patched!, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("https://www.cdc.gov/example", patched!, StringComparison.Ordinal);
     }
 
@@ -267,10 +265,10 @@ public sealed class ScoreSuggestionApplicatorTests
         var patched = ScoreSuggestionApplicator.TryAppendSourcesFromDiscovered(html, sources);
 
         Assert.NotNull(patched);
-        var citationIndex = patched!.IndexOf("For authoritative context", StringComparison.OrdinalIgnoreCase);
+        var sourcesIndex = patched!.IndexOf("<h2>Sources</h2>", StringComparison.OrdinalIgnoreCase);
         var faqIndex = patched.IndexOf("Frequently asked questions", StringComparison.OrdinalIgnoreCase);
-        Assert.True(citationIndex >= 0);
-        Assert.True(faqIndex > citationIndex);
+        Assert.True(sourcesIndex >= 0);
+        Assert.True(faqIndex > sourcesIndex);
     }
 
     [Fact]

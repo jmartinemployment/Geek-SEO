@@ -280,8 +280,8 @@ public static class ContentWriterSerpExportMapper
             return new WritingResearchBenchmarks
             {
                 MedianWordCountTop5 = exportBenchmarks.MedianWordCountTop5 > 0
-                    ? exportBenchmarks.MedianWordCountTop5
-                    : 1200,
+                    ? Math.Max(ResearchDraftWordTarget.MinPillarWordCount, exportBenchmarks.MedianWordCountTop5)
+                    : ResearchDraftWordTarget.DefaultPillarWordCount,
                 MedianTitleLengthTop10 = medianTitle,
                 MedianH2CountTop5 = exportBenchmarks.MedianH2CountTop5 > 0
                     ? exportBenchmarks.MedianH2CountTop5
@@ -308,8 +308,10 @@ public static class ContentWriterSerpExportMapper
                 : (titleLengths[titleLengths.Count / 2 - 1] + titleLengths[titleLengths.Count / 2]) / 2;
 
         var medianWords = organic.Count == 0
-            ? 1200
-            : organic.Take(5).Select(o => EstimateWordCount(o.Snippet)).OrderBy(v => v).ElementAt(organic.Take(5).Count() / 2);
+            ? ResearchDraftWordTarget.DefaultPillarWordCount
+            : Math.Max(
+                ResearchDraftWordTarget.MinPillarWordCount,
+                organic.Take(5).Select(o => EstimateWordCount(o.Snippet)).OrderBy(v => v).ElementAt(organic.Take(5).Count() / 2));
 
         var guideCount = organic.Count(o => InferContentType(o) == "guide");
         var dominantFormat = guideCount >= 3 ? "how_to" : "mixed";
@@ -459,5 +461,7 @@ public static class ContentWriterSerpExportMapper
     }
 
     private static int EstimateWordCount(string? snippet) =>
-        string.IsNullOrWhiteSpace(snippet) ? 1200 : Math.Max(800, snippet.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length * 12);
+        string.IsNullOrWhiteSpace(snippet)
+            ? ResearchDraftWordTarget.DefaultPillarWordCount
+            : Math.Max(ResearchDraftWordTarget.MinPillarWordCount, snippet.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length * 40);
 }

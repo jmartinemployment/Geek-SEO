@@ -15,6 +15,8 @@ public sealed record BusinessVoicePack
     public IReadOnlyList<string> DeclaredCapabilities { get; init; } = [];
     public IReadOnlyList<string> SuggestedToolExamples { get; init; } = [];
     public IReadOnlyList<string> WritingRecommendations { get; init; } = [];
+    public string KeywordFamilyId { get; init; } = "general";
+    public IReadOnlyList<string> FamilyCapabilityPhrases { get; init; } = [];
     public int MinimumConcreteExamples { get; init; } = 3;
     public bool RequiresTraditionalVsAiContrast { get; init; }
     public bool RequiresPerSectionContrast { get; init; }
