@@ -2080,7 +2080,7 @@ public class ContentWriterKeywordBundleBuilderTests
         Assert.Equal("informational", export.MatchedPillarIntent);
         Assert.Equal("implementation framework", export.MatchedPillarAngle);
         Assert.Equal(["content operations", "customer journeys"], export.GapTopics);
-        Assert.Contains(export.WritingRecommendations, r => r.Contains("AI Content Marketing", StringComparison.OrdinalIgnoreCase));
+        Assert.Empty(export.WritingRecommendations);
         Assert.Equal("complete", export.CompetitorCrawlStatus);
     }
 
