@@ -10,49 +10,29 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
     private const int MaxCitationsPerBucket = 2;
     private const int MaxTotalCitations = 10;
 
+    private static readonly HashSet<string> ExcludedOperatorQueryBuckets = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "scholar",
+        "own_site",
+        "local_angle",
+        "contrast_traditional",
+        "news",
+        "featured_snippet_alt",
+        "featured_snippet",
+    };
+
     public async Task<WritingResearchContext> EnrichContextAsync(
         WritingResearchContext context,
         IReadOnlyList<ContentWriterManualResearchLane>? manualLanes = null,
-        CancellationToken ct = default)
-    {
-        var keyword = string.IsNullOrWhiteSpace(context.DerivedKeyword)
-            ? context.SerpKeyword
-            : context.DerivedKeyword.Trim();
-        if (string.IsNullOrWhiteSpace(keyword))
-            return context;
-
-        var options = BuildOptions(context, keyword);
-        var templates = FilterTemplates(OperatorResearchQueryPack.Build(options), manualLanes ?? []);
-        if (templates.Count == 0)
-            return context;
-
-        var results = await RunQueriesAsync(templates, context.SearchLocation, ct);
-        return ApplyResults(context, templates, results);
-    }
+        CancellationToken ct = default) =>
+        await Task.FromResult(context);
 
     public async Task<ContentWriterSerpExport> EnrichExportAsync(
         ContentWriterSerpExport export,
         string articleKeyword,
         string searchLocation,
-        CancellationToken ct = default)
-    {
-        var keyword = string.IsNullOrWhiteSpace(articleKeyword) ? export.Keyword : articleKeyword.Trim();
-        if (string.IsNullOrWhiteSpace(keyword))
-            return export;
-
-        var options = new OperatorResearchQueryOptions
-        {
-            Keyword = keyword,
-            TargetSiteUrl = export.TargetSiteUrl,
-            LocalCity = ResolveLocalCity(searchLocation, null),
-        };
-        var templates = FilterTemplates(OperatorResearchQueryPack.Build(options), export.ManualResearchLanes);
-        if (templates.Count == 0)
-            return export;
-
-        var results = await RunQueriesAsync(templates, searchLocation, ct);
-        return ApplyExportResults(export, templates, results);
-    }
+        CancellationToken ct = default) =>
+        await Task.FromResult(export);
 
     private static IReadOnlyList<OperatorResearchQueryTemplate> FilterTemplates(
         IReadOnlyList<OperatorResearchQueryTemplate> templates,
@@ -85,10 +65,9 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
             await gate.WaitAsync(ct);
             try
             {
-                if (string.Equals(template.SearchEngine, "google_scholar", StringComparison.OrdinalIgnoreCase)
-                    && !SupportsScholar(serpProvider.ProviderName))
+                if (string.Equals(template.SearchEngine, "google_scholar", StringComparison.OrdinalIgnoreCase))
                 {
-                    return new OperatorResearchQueryResult(template, null, "Scholar not supported by SERP provider.");
+                    return new OperatorResearchQueryResult(template, null, "Scholar queries are disabled.");
                 }
 
                 var fetch = await serpProvider.GetSerpResultsAsync(new SerpRequest
@@ -112,9 +91,6 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
 
         return await Task.WhenAll(tasks);
     }
-
-    private static bool SupportsScholar(string providerName) =>
-        providerName.Contains("serpapi", StringComparison.OrdinalIgnoreCase);
 
     private static WritingResearchContext ApplyResults(
         WritingResearchContext context,
@@ -147,6 +123,7 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
             LocalAngleHint = localAngle,
             OwnSiteLinkCandidates = ownSitePages,
             OperatorQueries = templates
+                .Where(t => !ExcludedOperatorQueryBuckets.Contains(t.Bucket))
                 .Select(t => new WritingResearchOperatorQuery
                 {
                     Bucket = t.Bucket,
@@ -183,6 +160,7 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
         {
             CitationCandidates = merged,
             OperatorQueries = templates
+                .Where(t => !ExcludedOperatorQueryBuckets.Contains(t.Bucket))
                 .Select(t => new ContentWriterOperatorQuery
                 {
                     Bucket = t.Bucket,
@@ -204,8 +182,7 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var citations = new List<WritingResearchCitationCandidate>();
 
-        foreach (var result in results.Where(r => r.Template.Bucket.StartsWith("citations_", StringComparison.Ordinal)
-                                                  || r.Template.Bucket == "scholar"))
+        foreach (var result in results.Where(r => r.Template.Bucket.StartsWith("citations_", StringComparison.Ordinal)))
         {
             if (result.Serp is null)
                 continue;
@@ -216,7 +193,7 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
                 if (citations.Count >= MaxTotalCitations)
                     break;
 
-                if (!IsAcceptableCitation(organic.Url, result.Template.Bucket))
+                if (!AuthoritativeCitationRules.IsAcceptableDiscoveredCitationUrl(organic.Url))
                     continue;
 
                 var normalized = organic.Url.Trim();
@@ -236,22 +213,12 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
         return citations;
     }
 
-    private static bool IsAcceptableCitation(string url, string bucket)
-    {
-        if (bucket == "scholar")
-            return AuthoritativeCitationRules.IsAcceptableDiscoveredCitationUrl(url)
-                   || Uri.TryCreate(url, UriKind.Absolute, out _);
-
-        return AuthoritativeCitationRules.IsAcceptableDiscoveredCitationUrl(url);
-    }
-
     private static string MapCitationSource(string bucket) => bucket switch
     {
         "citations_wikipedia" => "wikipedia",
         "citations_government" => "government",
         "citations_research" => "research",
         "citations_pdf" => "research_pdf",
-        "scholar" => "scholar",
         _ => "research",
     };
 
@@ -416,10 +383,14 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
             if (string.IsNullOrWhiteSpace(candidate.Url))
                 continue;
 
-            if (string.Equals(candidate.Source, "organic", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(candidate.Source, "organic", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(candidate.Source, "scholar", StringComparison.OrdinalIgnoreCase))
                 continue;
 
             var url = candidate.Url.Trim();
+            if (url.Contains("scholar.google", StringComparison.OrdinalIgnoreCase))
+                continue;
+
             if (!AuthoritativeCitationRules.IsAcceptableDiscoveredCitationUrl(url)
                 && !AuthoritativeCitationRules.IsAuthoritativeCitationUrl(url))
                 continue;
@@ -442,10 +413,15 @@ public sealed class OperatorResearchEnricher(ISerpProvider serpProvider)
 
         foreach (var candidate in enriched.Concat(existing))
         {
-            if (string.Equals(candidate.Source, "organic", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(candidate.Source, "organic", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(candidate.Source, "scholar", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            if (!seen.Add(candidate.Url.Trim()))
+            var url = candidate.Url.Trim();
+            if (url.Contains("scholar.google", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (!seen.Add(url))
                 continue;
 
             if (!AuthoritativeCitationRules.IsAcceptableDiscoveredCitationUrl(candidate.Url)

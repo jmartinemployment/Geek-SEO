@@ -17,12 +17,28 @@ public sealed class OperatorResearchQueryPackTests
 
         Assert.Contains(queries, q => q.Bucket == "citations_wikipedia" && q.Query.Contains("site:en.wikipedia.org"));
         Assert.Contains(queries, q => q.Bucket == "paa_supplement" && q.Query.Contains("(how OR why"));
-        Assert.Contains(queries, q => q.Bucket == "featured_snippet" && q.Query.Contains("what is"));
-        Assert.Contains(queries, q => q.Bucket == "news" && q.Query.Contains("after:"));
-        Assert.Contains(queries, q => q.Bucket == "local_angle" && q.Query.Contains("San Francisco"));
-        Assert.Contains(queries, q => q.Bucket == "own_site" && q.Query.Contains("site:geekatyourspot.com"));
+        Assert.DoesNotContain(queries, q => q.Bucket == "featured_snippet");
         Assert.Contains(queries, q => q.Bucket == "citations_wikipedia" && q.Query.Contains("-reddit"));
+        Assert.DoesNotContain(queries, q => q.Bucket == "local_angle");
+        Assert.DoesNotContain(queries, q => q.Bucket == "own_site");
+        Assert.DoesNotContain(queries, q => q.Bucket == "contrast_traditional");
+        Assert.DoesNotContain(queries, q => q.Bucket == "news");
+        Assert.DoesNotContain(queries, q => q.Bucket == "featured_snippet_alt");
     }
+
+    [Fact]
+    public void Build_omits_local_angle_even_when_local_city_set()
+    {
+        var queries = OperatorResearchQueryPack.Build(new OperatorResearchQueryOptions
+        {
+            Keyword = "AI customer journey",
+            TargetSiteUrl = "https://www.geekatyourspot.com/",
+            LocalCity = "San Francisco",
+        });
+
+        Assert.DoesNotContain(queries, q => q.Bucket == "local_angle");
+    }
+
     [Fact]
     public void Build_omits_local_angle_when_no_local_city()
     {
@@ -36,7 +52,7 @@ public sealed class OperatorResearchQueryPackTests
     }
 
     [Fact]
-    public void Build_includes_local_angle_for_resolved_city()
+    public void Build_omits_local_angle_for_resolved_city()
     {
         var queries = OperatorResearchQueryPack.Build(new OperatorResearchQueryOptions
         {
@@ -45,7 +61,7 @@ public sealed class OperatorResearchQueryPackTests
             LocalCity = "Delray Beach",
         });
 
-        Assert.Contains(queries, q => q.Bucket == "local_angle" && q.Query.Contains("Delray Beach"));
+        Assert.DoesNotContain(queries, q => q.Bucket == "local_angle");
     }
 }
 
@@ -71,29 +87,9 @@ public sealed class OperatorResearchLocalCityTests
 public sealed class OperatorResearchEnricherTests
 {
     [Fact]
-    public async Task EnrichContextAsync_merges_authoritative_citations_and_filters_organic()
+    public async Task EnrichContextAsync_returns_context_unchanged_when_operator_queries_disabled()
     {
-        var serp = new FakeOperatorSerpProvider();
-        serp.Responses["wikipedia"] = new SerpResult
-        {
-            Keyword = "x",
-            Location = "United States",
-            OrganicResults =
-            [
-                new SerpOrganicResult
-                {
-                    Position = 1,
-                    Url = "https://en.wikipedia.org/wiki/Customer_journey",
-                    Title = "Customer journey",
-                    Domain = "wikipedia.org",
-                    Snippet = "Overview",
-                },
-            ],
-            Features = new SerpFeatures(),
-            FetchedAt = DateTimeOffset.UtcNow,
-        };
-
-        var enricher = new OperatorResearchEnricher(serp);
+        var enricher = new OperatorResearchEnricher(new FakeOperatorSerpProvider());
         var context = new WritingResearchContext
         {
             AnalysisRunId = Guid.NewGuid(),
@@ -120,34 +116,12 @@ public sealed class OperatorResearchEnricherTests
             ],
         };
 
-        var templates = OperatorResearchQueryPack.Build(new OperatorResearchQueryOptions
-        {
-            Keyword = context.DerivedKeyword,
-            TargetSiteUrl = context.SourceUrl,
-        });
-        foreach (var template in templates)
-        {
-            if (template.Bucket == "citations_wikipedia")
-                serp.Responses[template.Query] = serp.Responses["wikipedia"];
-            else
-                serp.Responses[template.Query] = EmptySerp();
-        }
-
         var enriched = await enricher.EnrichContextAsync(context);
 
-        Assert.Contains(enriched.CitationCandidates, c => c.Url.Contains("wikipedia.org", StringComparison.OrdinalIgnoreCase));
-        Assert.DoesNotContain(enriched.CitationCandidates, c => c.Url.Contains("competitor.com", StringComparison.OrdinalIgnoreCase));
-        Assert.NotEmpty(enriched.OperatorQueries);
+        Assert.Same(context, enriched);
+        Assert.Contains(enriched.CitationCandidates, c => c.Url.Contains("competitor.com", StringComparison.OrdinalIgnoreCase));
+        Assert.Empty(enriched.OperatorQueries);
     }
-
-    private static SerpResult EmptySerp() => new()
-    {
-        Keyword = "x",
-        Location = "United States",
-        OrganicResults = [],
-        Features = new SerpFeatures(),
-        FetchedAt = DateTimeOffset.UtcNow,
-    };
 
     private sealed class FakeOperatorSerpProvider : GeekSeo.Application.Interfaces.Seo.ISerpProvider
     {
@@ -161,7 +135,14 @@ public sealed class OperatorResearchEnricherTests
             if (Responses.TryGetValue(request.Keyword, out var result))
                 return Task.FromResult(GeekSeo.Application.Results.Result<SerpResult>.Success(result));
 
-            return Task.FromResult(GeekSeo.Application.Results.Result<SerpResult>.Success(EmptySerp()));
+            return Task.FromResult(GeekSeo.Application.Results.Result<SerpResult>.Success(new SerpResult
+            {
+                Keyword = request.Keyword,
+                Location = request.Location,
+                OrganicResults = [],
+                Features = new SerpFeatures(),
+                FetchedAt = DateTimeOffset.UtcNow,
+            }));
         }
     }
 }

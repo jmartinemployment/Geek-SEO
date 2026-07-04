@@ -92,8 +92,7 @@ public static class ManualResearchLaneMerger
         {
             "citations_wikipedia" => LaneHasResults(lanes, SerpResearchLanes.Wiki),
             "citations_government" => LaneHasResults(lanes, SerpResearchLanes.Gov),
-            "citations_research" or "citations_pdf" or "scholar" => LaneHasResults(lanes, SerpResearchLanes.Edu),
-            "local_angle" => LaneHasResults(lanes, SerpResearchLanes.Local),
+            "citations_research" or "citations_pdf" => LaneHasResults(lanes, SerpResearchLanes.Edu),
             _ => false,
         };
 

@@ -294,28 +294,7 @@ public static class ContentWriterKeywordBundleBuilder
         };
     }
 
-    private static List<string> BuildKeywordWritingRecommendations(AnalysisRun run)
-    {
-        var recommendations = new List<string>();
-
-        if (!string.IsNullOrWhiteSpace(run.MatchedPillarTopic))
-        {
-            var line = $"Keyword \"{run.Keyword.Trim()}\": align with pillar \"{run.MatchedPillarTopic.Trim()}\"";
-            if (!string.IsNullOrWhiteSpace(run.MatchedPillarIntent))
-                line += $" ({run.MatchedPillarIntent.Trim()} intent)";
-            if (!string.IsNullOrWhiteSpace(run.MatchedPillarAngle))
-                line += $". Angle: {run.MatchedPillarAngle.Trim()}";
-            recommendations.Add(line + ".");
-        }
-
-        if (run.GapTopics.Count > 0)
-        {
-            recommendations.Add(
-                $"Content gaps for \"{run.Keyword.Trim()}\": {string.Join(", ", run.GapTopics.Take(5))}.");
-        }
-
-        return recommendations;
-    }
+    private static List<string> BuildKeywordWritingRecommendations(AnalysisRun run) => [];
 
     private static List<ContentWriterHeadingDto> MapHeadings(IEnumerable<PageHeading> headings) =>
         headings

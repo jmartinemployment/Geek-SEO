@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.RegularExpressions;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Services.Seo;
@@ -179,6 +180,28 @@ public sealed class ScoreSuggestionApplicatorTests
         Assert.Contains("name=\"description\"", patched!, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(keyword, patched!, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Short blurb without the phrase.", patched!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TryApplyDeterministic_meta_description_noops_when_encoded_content_already_matches()
+    {
+        const string keyword = "AI for Prospecting & Lead Intelligence";
+        var plain =
+            "AI for Prospecting & Lead Intelligence: Definition and Implementation for SMBs. Practical guidance on using AI to find and qualify leads without enterprise tooling.";
+        var proposed = ScoreSuggestionApplicator.ProposeMetaDescription(plain, keyword);
+        var encoded = WebUtility.HtmlEncode(proposed);
+        var html =
+            $"<meta name=\"description\" content=\"{encoded}\"><h1>Guide</h1><p>{WebUtility.HtmlEncode(plain)}</p>";
+
+        var patched = ScoreSuggestionApplicator.TryApplyDeterministic(
+            "meta_description",
+            html,
+            keyword,
+            55,
+            plain,
+            []);
+
+        Assert.Null(patched);
     }
 
     [Fact]

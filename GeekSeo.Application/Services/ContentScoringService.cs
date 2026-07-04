@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using GeekSeo.Persistence.Entities;
@@ -962,6 +963,7 @@ public sealed class ContentScoringService(
     {
         if (string.IsNullOrWhiteSpace(title))
             return 0;
+        title = WebUtility.HtmlDecode(title.Trim());
         var score = 0;
         if (title.Contains(keyword, StringComparison.OrdinalIgnoreCase))
         {
@@ -1004,6 +1006,7 @@ public sealed class ContentScoringService(
     {
         if (string.IsNullOrWhiteSpace(meta))
             return 0;
+        meta = WebUtility.HtmlDecode(meta.Trim());
         var score = meta.Length is >= 120 and <= 160 ? 5 : 2;
         if (meta.Contains(keyword, StringComparison.OrdinalIgnoreCase))
             score += 5;
@@ -1134,7 +1137,7 @@ public sealed class ContentScoringService(
 
     private static string SummarizeMetaForSuggestion(string meta)
     {
-        var normalized = meta.Trim();
+        var normalized = WebUtility.HtmlDecode(meta.Trim());
         return normalized.Length <= 72 ? normalized : normalized[..69].TrimEnd() + "…";
     }
 

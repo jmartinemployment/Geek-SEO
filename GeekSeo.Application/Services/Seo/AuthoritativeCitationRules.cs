@@ -32,6 +32,7 @@ public static class AuthoritativeCitationRules
         "medium.com",
         "youtube.",
         "tiktok.",
+        "scholar.google.",
     ];
 
     public static bool IsAuthoritativeCitationUrl(string url)

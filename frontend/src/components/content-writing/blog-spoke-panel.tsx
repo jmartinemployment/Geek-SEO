@@ -171,7 +171,7 @@ export function BlogSpokePanel() {
         <div className="space-y-3 rounded-lg border bg-[var(--color-surface-muted)] p-3 text-xs">
           {clusterDocumentId ? (
             <p className="text-[var(--color-text-secondary)]">
-              Also available as a cluster spoke.{' '}
+              Also available as a linked blog post.{' '}
               <Link
                 href={contentWritingPath({ documentId: clusterDocumentId })}
                 className="font-medium text-[var(--color-accent)] underline"

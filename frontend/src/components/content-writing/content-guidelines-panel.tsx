@@ -69,15 +69,17 @@ export function ContentGuidelinesPanel({ keyword }: { keyword: string }) {
   const targetH2 = bundle?.benchmarks?.medianH2CountTop5 ?? null;
 
   const terms = useMemo(() => {
-    const fromRecommendations = bundle?.writingRecommendations ?? [];
     const fromHeadings =
       bundle?.sourceHeadings
         ?.map((h) => h.text.trim())
-        .filter((t) => t.length > 2 && t.split(/\s+/).length <= 4) ?? [];
+        .filter((t) => t.length > 2 && t.split(/\s+/).length <= 6) ?? [];
+    const fromGaps = bundle?.gapTopics?.map((t) => t.trim()).filter(Boolean) ?? [];
     const unique = new Set<string>();
-    for (const term of [...fromRecommendations, ...fromHeadings, keyword]) {
-      const trimmed = term.trim();
-      if (trimmed) unique.add(trimmed);
+    const normalizedKeyword = keyword.trim();
+    if (normalizedKeyword) unique.add(normalizedKeyword);
+    for (const term of [...fromGaps, ...fromHeadings]) {
+      if (term.includes(':') || term.toLowerCase().startsWith('keyword ')) continue;
+      unique.add(term);
     }
     return [...unique].slice(0, 24);
   }, [bundle, keyword]);

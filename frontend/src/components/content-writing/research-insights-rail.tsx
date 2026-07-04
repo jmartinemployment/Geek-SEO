@@ -3,10 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/components/auth/auth-provider';
 import {
-  getClusterPlan,
   getResearchPack,
-  listContentSpokes,
-  type ContentLinkPlan,
   type ContentWriterCitationCandidate,
   type ContentWriterSerpExport,
 } from '@/lib/seo-api';
@@ -16,53 +13,6 @@ type Props = {
   articleKeyword?: string;
   serpKeyword?: string | null;
 };
-
-function normalizePhrase(value: string): string {
-  return value.toLowerCase().replace(/\s+/g, ' ').trim();
-}
-
-function buildClusterPhraseMarkers(plan: ContentLinkPlan, spokePhrases: string[]): Set<string> {
-  const markers = new Set<string>();
-  for (const item of plan.faqItems) {
-    if (item.question) markers.add(normalizePhrase(item.question));
-    if (item.anchorText) markers.add(normalizePhrase(item.anchorText));
-  }
-  for (const item of plan.bodyLinks) {
-    if (item.anchorText) markers.add(normalizePhrase(item.anchorText));
-  }
-  for (const phrase of spokePhrases) {
-    if (phrase) markers.add(normalizePhrase(phrase));
-  }
-  return markers;
-}
-
-function phraseInClusterPlan(phrase: string, markers: Set<string>): boolean {
-  const normalized = normalizePhrase(phrase);
-  if (!normalized) return false;
-  if (markers.has(normalized)) return true;
-  for (const marker of markers) {
-    if (normalized.includes(marker) || marker.includes(normalized)) return true;
-  }
-  return false;
-}
-
-function ClusterPhraseRow({ phrase, inPlan }: { phrase: string; inPlan: boolean }) {
-  return (
-    <li className="flex items-start gap-2">
-      <span
-        aria-hidden
-        className={`mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] ${
-          inPlan
-            ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-            : 'border-[var(--color-border)] bg-white text-transparent'
-        }`}
-      >
-        ✓
-      </span>
-      <span className={inPlan ? 'text-[var(--color-text-primary)]' : undefined}>{phrase}</span>
-    </li>
-  );
-}
 
 function InsightCard({
   title,
@@ -159,7 +109,9 @@ function authoritativeCandidates(exportData: ContentWriterSerpExport): ContentWr
   return (exportData.citationCandidates ?? []).filter(
     (candidate) =>
       candidate.url &&
-      candidate.source?.toLowerCase() !== 'organic',
+      candidate.source?.toLowerCase() !== 'organic' &&
+      candidate.source?.toLowerCase() !== 'scholar' &&
+      !candidate.url.toLowerCase().includes('scholar.google'),
   );
 }
 
@@ -254,12 +206,8 @@ export function ResearchInsightsRail({ articleKeyword, serpKeyword }: Props) {
   const { doc, html, handleInsertCitation, applyingCitationUrl } = useWritingWorkspace();
   const { accessToken } = useAuth();
   const [exportData, setExportData] = useState<ContentWriterSerpExport | null>(null);
-  const [clusterPlan, setClusterPlan] = useState<ContentLinkPlan>({ faqItems: [], bodyLinks: [] });
-  const [spokePhrases, setSpokePhrases] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [insertingAllCitations, setInsertingAllCitations] = useState(false);
-
-  const isClusterPillar = Boolean(doc.analysisRunId) && doc.documentKind !== 'spoke';
 
   useEffect(() => {
     if (!doc.id || !doc.analysisRunId) return;
@@ -273,37 +221,6 @@ export function ResearchInsightsRail({ articleKeyword, serpKeyword }: Props) {
     });
     return () => { cancelled = true; };
   }, [doc.id, doc.analysisRunId, accessToken]);
-
-  useEffect(() => {
-    if (!doc.id || !isClusterPillar) {
-      setClusterPlan({ faqItems: [], bodyLinks: [] });
-      setSpokePhrases([]);
-      return;
-    }
-    let cancelled = false;
-    void Promise.all([getClusterPlan(doc.id, accessToken), listContentSpokes(doc.id, accessToken)])
-      .then(([plan, spokes]) => {
-        if (cancelled) return;
-        setClusterPlan(plan);
-        setSpokePhrases(
-          spokes
-            .map((spoke) => spoke.spokeSourcePhrase?.trim())
-            .filter((phrase): phrase is string => Boolean(phrase)),
-        );
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setClusterPlan({ faqItems: [], bodyLinks: [] });
-          setSpokePhrases([]);
-        }
-      });
-    return () => { cancelled = true; };
-  }, [doc.id, isClusterPillar, accessToken]);
-
-  const clusterPhraseMarkers = useMemo(
-    () => buildClusterPhraseMarkers(clusterPlan, spokePhrases),
-    [clusterPlan, spokePhrases],
-  );
 
   const organic = useMemo(() => (exportData ? organicItems(exportData) : []), [exportData]);
   const paa = useMemo(() => (exportData ? paaQuestions(exportData) : []), [exportData]);
@@ -368,16 +285,6 @@ export function ResearchInsightsRail({ articleKeyword, serpKeyword }: Props) {
         </InsightCard>
       ) : null}
 
-      {exportData.writingRecommendations?.length ? (
-        <InsightCard title="Recommendations">
-          <ul className="list-disc space-y-1 pl-4">
-            {exportData.writingRecommendations.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </InsightCard>
-      ) : null}
-
       <InsightCard title="SERP overview">
         <ul className="space-y-1">
           <li>Results: {exportData.serpSeResultsCount?.toLocaleString() ?? '—'}</li>
@@ -393,46 +300,20 @@ export function ResearchInsightsRail({ articleKeyword, serpKeyword }: Props) {
 
       {paa.length ? (
         <InsightCard title="People also ask">
-          {isClusterPillar ? (
-            <p className="mb-2 text-[10px] text-[var(--color-text-muted)]">
-              Checked items appear in your saved cluster link plan or spokes.
-            </p>
-          ) : null}
-          <ul className={isClusterPillar ? 'space-y-1' : 'list-disc space-y-1 pl-4'}>
-            {paa.map((question) =>
-              isClusterPillar ? (
-                <ClusterPhraseRow
-                  key={question}
-                  phrase={question}
-                  inPlan={phraseInClusterPlan(question, clusterPhraseMarkers)}
-                />
-              ) : (
-                <li key={question}>{question}</li>
-              ),
-            )}
+          <ul className="list-disc space-y-1 pl-4">
+            {paa.map((question) => (
+              <li key={question}>{question}</li>
+            ))}
           </ul>
         </InsightCard>
       ) : null}
 
       {pasf.length ? (
         <InsightCard title="Related searches">
-          {isClusterPillar ? (
-            <p className="mb-2 text-[10px] text-[var(--color-text-muted)]">
-              Checked items appear in your saved cluster link plan or spokes.
-            </p>
-          ) : null}
-          <ul className={isClusterPillar ? 'space-y-1' : 'list-disc space-y-1 pl-4'}>
-            {pasf.map((search) =>
-              isClusterPillar ? (
-                <ClusterPhraseRow
-                  key={search}
-                  phrase={search}
-                  inPlan={phraseInClusterPlan(search, clusterPhraseMarkers)}
-                />
-              ) : (
-                <li key={search}>{search}</li>
-              ),
-            )}
+          <ul className="list-disc space-y-1 pl-4">
+            {pasf.map((search) => (
+              <li key={search}>{search}</li>
+            ))}
           </ul>
         </InsightCard>
       ) : null}
@@ -507,52 +388,12 @@ export function ResearchInsightsRail({ articleKeyword, serpKeyword }: Props) {
         />
       ) : null}
 
-      {exportData.operatorQueries?.length ? (
-        <InsightCard title="Operator searches (Google)">
-          <ul className="space-y-2 pl-0">
-            {exportData.operatorQueries.map((item) => (
-              <li key={`${item.bucket}-${item.query}`} className="list-none">
-                <p className="text-[10px] font-semibold uppercase text-[var(--color-text-muted)]">
-                  {item.label}
-                </p>
-                <code className="mt-1 block whitespace-pre-wrap break-all rounded bg-white px-2 py-1 text-[10px] text-[var(--color-text-primary)]">
-                  {item.query}
-                </code>
-              </li>
-            ))}
-          </ul>
-        </InsightCard>
-      ) : null}
-
-      {exportData.featuredSnippetCandidate ? (
-        <InsightCard title="Featured snippet target">
-          <p>{exportData.featuredSnippetCandidate}</p>
-        </InsightCard>
-      ) : null}
-
-      {exportData.newsHooks?.length ? (
-        <InsightCard title="Timely angles">
-          <ul className="list-disc space-y-1 pl-4">
-            {exportData.newsHooks.slice(0, 4).map((hook) => (
-              <li key={hook}>{hook}</li>
-            ))}
-          </ul>
-        </InsightCard>
-      ) : null}
-
-      {exportData.localAngleHint ? (
+      {exportData.localAngleHint &&
+      exportData.manualResearchLanes?.some(
+        (lane) => lane.lane.toLowerCase() === 'local' && (lane.organicCount ?? 0) > 0,
+      ) ? (
         <InsightCard title="Local SMB angle">
           <p>{exportData.localAngleHint}</p>
-        </InsightCard>
-      ) : null}
-
-      {exportData.supplementalPaaQuestions?.length ? (
-        <InsightCard title="Extra question ideas">
-          <ul className="list-disc space-y-1 pl-4">
-            {exportData.supplementalPaaQuestions.slice(0, 6).map((question) => (
-              <li key={question}>{question}</li>
-            ))}
-          </ul>
         </InsightCard>
       ) : null}
     </div>

@@ -347,6 +347,14 @@ public static partial class ContentClusterLinkPlanner
 
         var lower = trimmed.ToLowerInvariant();
 
+        if (lower.StartsWith("how to ", StringComparison.Ordinal))
+        {
+            var subject = trimmed[7..].Trim();
+            if (!string.IsNullOrWhiteSpace(subject) && StartsWithQuestionLead(subject.ToLowerInvariant()))
+                return $"{subject}?";
+            return $"How do you get started with {subject}?";
+        }
+
         if (StartsWithQuestionLead(lower))
             return $"{trimmed}?";
 
@@ -368,9 +376,6 @@ public static partial class ContentClusterLinkPlanner
 
         if (ContainsToken(lower, "vs") || ContainsToken(lower, "versus") || ContainsToken(lower, "compare"))
             return $"How does {trimmed} compare to alternatives?";
-
-        if (lower.StartsWith("how to ", StringComparison.Ordinal))
-            return $"How do you get started with {trimmed}?";
 
         return $"What are the key considerations for {trimmed}?";
     }

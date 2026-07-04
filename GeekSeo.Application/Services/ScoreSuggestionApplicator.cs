@@ -314,12 +314,21 @@ public static partial class ScoreSuggestionApplicator
         return ReplaceTagInner(html, "h1", proposed);
     }
 
-    private static string ApplyMetaDescription(string html, string keyword, string plainText)
+    private static string? ApplyMetaDescription(string html, string keyword, string plainText)
     {
-        var meta = WebUtility.HtmlEncode(ProposeMetaDescription(plainText, keyword));
+        var proposed = ProposeMetaDescription(plainText, keyword);
+        var current = ExtractMetaContent(html, "description");
+        if (current is not null
+            && string.Equals(WebUtility.HtmlDecode(current.Trim()), proposed, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var meta = WebUtility.HtmlEncode(proposed);
         var tag = $"<meta name=\"description\" content=\"{meta}\">";
 
-        if (html.Contains("name=\"description\"", StringComparison.OrdinalIgnoreCase))
+        if (html.Contains("name=\"description\"", StringComparison.OrdinalIgnoreCase)
+            || html.Contains("name='description'", StringComparison.OrdinalIgnoreCase))
         {
             return Regex.Replace(
                 html,
@@ -329,6 +338,36 @@ public static partial class ScoreSuggestionApplicator
         }
 
         return tag + "\n" + html;
+    }
+
+    private static string? ExtractMetaContent(string html, string name)
+    {
+        var doubleQuoted = $"name=\"{name}\"";
+        var idx = html.IndexOf(doubleQuoted, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0)
+        {
+            var singleQuoted = $"name='{name}'";
+            idx = html.IndexOf(singleQuoted, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (idx < 0)
+            return null;
+
+        var contentIdx = html.IndexOf("content=\"", idx, StringComparison.OrdinalIgnoreCase);
+        if (contentIdx >= 0)
+        {
+            var start = contentIdx + 9;
+            var end = html.IndexOf('"', start);
+            return end > start ? html[start..end] : null;
+        }
+
+        contentIdx = html.IndexOf("content='", idx, StringComparison.OrdinalIgnoreCase);
+        if (contentIdx < 0)
+            return null;
+
+        var singleStart = contentIdx + 9;
+        var singleEnd = html.IndexOf('\'', singleStart);
+        return singleEnd > singleStart ? html[singleStart..singleEnd] : null;
     }
 
     public static bool HasUsableSerpCitationPicks(string html, IReadOnlyList<SerpOrganicResult> organicResults) =>
@@ -721,7 +760,7 @@ public static partial class ScoreSuggestionApplicator
             "title_keyword" =>
                 "The title already matches the suggested change. Refresh the score to clear this hint.",
             "meta_description" =>
-                "A meta description is already present with the suggested content.",
+                "The meta description already matches the suggested change. Refresh the score to clear this hint.",
             "geo_citations" when HasResearchSourcesSection(html) || HasInlineAuthoritativeCitations(html) =>
                 "A Sources section or authoritative citations are already present. Refresh the score to clear this hint.",
             "geo_citations" =>

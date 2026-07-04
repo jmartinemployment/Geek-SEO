@@ -40,7 +40,7 @@ export function SpokePillarBanner() {
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <p className="font-semibold">Blog spoke shell — content not generated yet</p>
           <p className="mt-1 text-xs leading-relaxed text-amber-900/90">
-            This page was created as a placeholder for a cluster blog post linked from your pillar
+            This page was created as a placeholder blog post linked from your pillar
             article. Generate the full 800–1,200 word spoke draft from the pillar content and research
             pack.
           </p>
@@ -68,8 +68,7 @@ export function SpokePillarBanner() {
             </Link>
           </div>
           <p className="mt-2 text-[11px] text-amber-800/80">
-            Tip: On the pillar, open <strong>Cluster plan</strong> below the editor to generate all
-            spoke shells at once.
+            Requires a drafted pillar article with body content before generation can run.
           </p>
         </div>
       ) : (

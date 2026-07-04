@@ -6,16 +6,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { useWritingWorkspace } from '@/components/content-writing/review-workspace-context';
 import { contentWritingPath } from '@/lib/content-writing-search-params';
 import {
-  buildClusterPlan,
   createContentSpoke,
   generateContentSpoke,
-  generateLinkedFaqs,
   generateSocialPosts,
   getContent,
   getRenderedContentHtml,
   listContentSpokes,
-  saveClusterPlan,
-  type ContentClusterPlanResult,
   type ContentSocialPostResult,
   type ContentSpokeSummary,
 } from '@/lib/seo-api';
@@ -113,10 +109,9 @@ function extractDocumentCandidates(html: string, pillarKeyword: string, existing
 }
 
 export function BlogPostPanel() {
-  const { doc, accessToken, reloadDocument } = useWritingWorkspace();
+  const { doc, accessToken } = useWritingWorkspace();
   const [posts, setPosts] = useState<ContentSpokeSummary[]>([]);
   const [candidates, setCandidates] = useState<DocumentCandidate[]>([]);
-  const [planResult, setPlanResult] = useState<ContentClusterPlanResult | null>(null);
   const [socialResult, setSocialResult] = useState<ContentSocialPostResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -160,27 +155,11 @@ export function BlogPostPanel() {
     setError(null);
     setStatusMsg('Writing blog post…');
     try {
-      const plan = planResult ?? await buildClusterPlan(doc.id, accessToken);
       const created = await createContentSpoke(doc.id, { phrase, sourceType: 'pasf' }, accessToken);
       setStatusMsg('Writing blog post content…');
       const generated = await generateContentSpoke(doc.id, created.id, accessToken);
       setPosts((prev) => [generated, ...prev.filter((p) => p.id !== generated.id)]);
       setCandidates((prev) => prev.filter((c) => c.phrase.toLowerCase() !== phrase.toLowerCase()));
-      if (generated.publishSlug) {
-        await saveClusterPlan(doc.id, {
-          faqItems: [{
-            question: `What should you know about ${phrase}?`,
-            targetDocumentId: generated.id,
-            targetPath: `/blog/${generated.publishSlug}`,
-            anchorText: phrase,
-            source: 'manual' as const,
-          }, ...plan.faqItems],
-          bodyLinks: plan.bodyLinks,
-        }, accessToken);
-      }
-      setStatusMsg('Linking in your article…');
-      const linked = await generateLinkedFaqs(doc.id, accessToken);
-      await reloadDocument();
 
       setStatusMsg('Generating social posts…');
       try {
@@ -194,11 +173,7 @@ export function BlogPostPanel() {
         // social posts are best-effort
       }
 
-      setStatusMsg(
-        linked.linkedCount > 0
-          ? 'Done — blog post linked, social posts ready below.'
-          : 'Done — blog post created, social posts ready below.',
-      );
+      setStatusMsg('Done — blog post created, social posts ready below.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not create blog post');
       setStatusMsg(null);

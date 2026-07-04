@@ -10,13 +10,11 @@ import {
 } from 'react';
 import { ContentEditor, type ContentEditorHandle } from '@/components/editor/content-editor';
 import { EditorAiToolbar } from '@/components/editor/editor-ai-toolbar';
-import { InternalLinksPanel } from '@/components/editor/internal-links-panel';
 import { ScoreSidebar } from '@/components/editor/score-sidebar';
 import { ResearchInsightsRail } from '@/components/content-writing/research-insights-rail';
 import { JsonLdPanel } from '@/components/content-writing/json-ld-panel';
 import { ContentGuidelinesPanel } from '@/components/content-writing/content-guidelines-panel';
 import { BlogSpokePanel } from '@/components/content-writing/blog-spoke-panel';
-import { ClusterPlanPanel } from '@/components/content-writing/cluster-plan-panel';
 import { SpokePillarBanner } from '@/components/content-writing/spoke-pillar-banner';
 import { useContentScoring, type ScoreSuggestion } from '@/hooks/useContentScoring';
 import {
@@ -454,7 +452,6 @@ export function WritingEditorPane({
 
       <div className="space-y-4 p-5">
         <SpokePillarBanner />
-        {doc.documentKind !== 'spoke' && doc.analysisRunId ? <ClusterPlanPanel /> : null}
         {isResearchBacked ? (
           <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-[var(--color-text-secondary)]">
             Keyword and location come from Site Analyzer. You can edit the target keyword if your
@@ -501,17 +498,6 @@ export function WritingEditorPane({
           onChange={(nextHtml) => {
             setHtml(nextHtml);
             scheduleScore(nextHtml, keyword);
-          }}
-        />
-
-        <InternalLinksPanel
-          projectId={doc.projectId}
-          documentId={doc.id}
-          accessToken={accessToken}
-          onInsertLink={(href, anchorText) => editorRef.current?.insertLink(href, anchorText)}
-          onAutoInsertHtml={(nextHtml) => {
-            setHtml(nextHtml);
-            void save(nextHtml, keyword, title, location);
           }}
         />
 
