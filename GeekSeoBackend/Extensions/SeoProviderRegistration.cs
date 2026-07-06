@@ -48,7 +48,6 @@ public static class SeoProviderRegistration
         RegisterSerpProviderImplementations(services, config);
         RegisterKeywordProvider(services, config);
         services.AddScoped<IKeywordDiscoveryProvider, InternalKeywordDiscoveryProvider>();
-        services.AddSingleton<IManualCitationLaneSerpFilter, ManualCitationLaneSerpFilter>();
         RegisterRankSnapshotImplementations(services, config);
 
         services.AddScoped<IRankSnapshotProvider>(sp => new MeteredRankSnapshotProvider(

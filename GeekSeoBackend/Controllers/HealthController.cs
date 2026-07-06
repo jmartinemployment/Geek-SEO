@@ -59,11 +59,6 @@ public sealed class HealthController(
             timestamp = DateTime.UtcNow,
             service = "GeekSeoBackend",
             gateway,
-            siteAnalyzer2 = new
-            {
-                enabled = SiteAnalyzer2BackendExtensions.IsEnabled(configuration),
-                inProcessRepos = SiteAnalyzer2BackendExtensions.UseInProcessRepos(),
-            },
         });
     }
 

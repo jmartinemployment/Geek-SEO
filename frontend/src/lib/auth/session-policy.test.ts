@@ -28,8 +28,8 @@ describe('session-policy', () => {
     expect(requiresAppAuth('/dashboard', false, null)).toBe(true);
     expect(requiresAppAuth('/dashboard', true, null)).toBe(false);
     expect(requiresAppAuth('/dashboard', false, 'dev-user')).toBe(false);
-    expect(requiresAppAuth('/content-writing', false, null)).toBe(true);
-    expect(requiresAppAuth('/content-writing', true, null)).toBe(false);
+    expect(requiresAppAuth('/strategy/topical-map', false, null)).toBe(true);
+    expect(requiresAppAuth('/strategy/topical-map', true, null)).toBe(false);
     expect(requiresAppAuth('/pricing', false, null)).toBe(false);
   });
 });

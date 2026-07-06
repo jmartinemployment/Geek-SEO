@@ -25,7 +25,7 @@ public sealed class CompetitorAnalysisService(
     InternalLinkExtractor internalLinkExtractor,
     UrlPatternExtractor urlPatternExtractor,  // instance — injected
     PillarSelector pillarSelector,
-    IHubContext<SeoContentScoringHub> hub,
+    IHubContext<SeoRealtimeHub> hub,
     ILogger<CompetitorAnalysisService> logger)
 {
     private const int MaxPagesPerCompetitor = 50;

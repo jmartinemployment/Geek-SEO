@@ -33,15 +33,10 @@ function SiteMetricCell({ label, value }: { label: string; value: number | null 
 
 function SiteRow({ project }: { project: ProjectWithDocuments }) {
   const domain = formatDomain(project.url);
-  const scored = project.documents.filter((d) => d.seoScore > 0);
-  const avgDocScore =
-    scored.length === 0
-      ? null
-      : scored.reduce((sum, d) => sum + d.seoScore, 0) / scored.length;
 
   const metricsByLabel: Record<(typeof SITE_METRIC_COLUMNS)[number], number | null> = {
     SEO: project.metrics.seoScore,
-    'Topical Coverage': avgDocScore && avgDocScore > 0 ? avgDocScore : null,
+    'Topical Coverage': null,
     'Site Health': project.metrics.siteHealthScore,
     'Organic Keywords': null,
     Backlinks: null,
@@ -69,10 +64,9 @@ function SiteRow({ project }: { project: ProjectWithDocuments }) {
                 </Link>
               </div>
               <p className="text-xs text-[var(--color-text-secondary)]">
-                {project.documents.length} documents
-                {project.gscConnected ? ' · GSC connected' : ''}
+                {project.gscConnected ? 'GSC connected' : 'GSC not connected'}
                 {project.metrics.latestAuditAt
-                  ? ` · Last audit ${new Date(project.metrics.latestAuditAt).toLocaleDateString()}`
+                  ? `${project.gscConnected ? ' · ' : ''}Last audit ${new Date(project.metrics.latestAuditAt).toLocaleDateString()}`
                   : ''}
               </p>
             </div>
@@ -80,10 +74,10 @@ function SiteRow({ project }: { project: ProjectWithDocuments }) {
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="accent">{project.name}</Badge>
             <Link
-              href={`/content-writing?projectId=${project.id}`}
+              href={`/strategy/topical-map?projectId=${project.id}`}
               className="inline-flex h-8 items-center rounded-[var(--radius-button)] border border-[var(--color-border-strong)] bg-white px-3 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)]"
             >
-              Open content
+              Topical map
             </Link>
             <Link
               href={`/audit/${project.id}`}

@@ -7,12 +7,6 @@ import {
   isDevUserMode,
   trackSeoApiFailures,
 } from './auth-helpers';
-import {
-  createEphemeralContentDocument,
-  deleteProject,
-  devApiHeaders,
-  getSeoApiBaseUrl,
-} from './api-helpers';
 
 const authFile = path.join(__dirname, '.auth/user.json');
 const credentials = getTestCredentials();
@@ -144,42 +138,6 @@ test.describe('authenticated app', () => {
       expect(apiFailures.filter((f) => f.includes(' 500'))).toEqual([]);
     } else {
       assertSeoApiFailures(apiFailures);
-    }
-  });
-
-  test('content editor shows optional plagiarism panel', async ({ page, request }) => {
-    test.skip(!devMode, 'Uses local dev-user flow with GeekSeoBackend data gateway.');
-
-    const probe = await request.post(`${getSeoApiBaseUrl()}/api/seo/projects`, {
-      headers: devApiHeaders(),
-      data: {
-        name: `Gateway probe ${Date.now()}`,
-        url: 'https://example.com',
-        defaultLocation: 'United States',
-      },
-    });
-    if (!probe.ok()) {
-      test.skip(
-        true,
-        `GeekSeoBackend data gateway unavailable (${probe.status()}). Set GEEK_API_URL and GEEK_BACKEND_API_KEY in GeekSeoBackend/.env — see scripts/LOCAL_DEV.md.`,
-      );
-    }
-    const probeProject = (await probe.json()) as { id?: string };
-    if (probeProject.id) {
-      await deleteProject(request, probeProject.id);
-    }
-
-    const apiFailures = trackSeoApiFailures(page);
-    const { projectId, documentId } = await createEphemeralContentDocument(request);
-
-    try {
-      await page.goto(`/content-writing?documentId=${documentId}`, { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: /Review workspace/i })).toBeVisible({
-        timeout: 25_000,
-      });
-      assertSeoApiFailures(apiFailures);
-    } finally {
-      await deleteProject(request, projectId);
     }
   });
 

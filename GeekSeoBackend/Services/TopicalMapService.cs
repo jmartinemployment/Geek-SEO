@@ -15,7 +15,6 @@ namespace GeekSeoBackend.Services;
 
 public sealed class TopicalMapService(
     IGoogleDataService googleData,
-    IContentDocumentRepository documents,
     IProjectRepository projects,
     ITopicalMapRepository topicalMaps,
     INicheProfileRepository nicheProfiles,
@@ -67,10 +66,7 @@ public sealed class TopicalMapService(
                 return cached;
         }
 
-        var docsResult = await documents.GetByProjectAsync(projectId, ct);
-        var docs = docsResult.IsSuccess && docsResult.Value is not null
-            ? docsResult.Value.ToList()
-            : [];
+        var docs = new List<SeoContentDocument>();
 
         var rankings = await googleData.GetRankingsAsync(userId, projectId, null, null, 1000, ct);
         var gscRows = rankings.Rows
@@ -207,10 +203,7 @@ public sealed class TopicalMapService(
 
         var assignedTopics = await hierarchyBuilder.AssignTiersAsync(topics.ToArray(), ct);
 
-        var docsResult = await documents.GetByProjectAsync(projectId, ct);
-        var docs = docsResult.IsSuccess && docsResult.Value is not null
-            ? docsResult.Value.ToList()
-            : [];
+        var docs = new List<SeoContentDocument>();
 
         var enrichedTopics = new List<TopicalMapTopic>();
         foreach (var topic in assignedTopics)
@@ -345,10 +338,7 @@ public sealed class TopicalMapService(
         }
 
         var seeds = NicheTopicalMapSeedResolver.ResolveSeeds(fused);
-        var docsResult = await documents.GetByProjectAsync(projectId, ct);
-        var docs = docsResult.IsSuccess && docsResult.Value is not null
-            ? docsResult.Value.ToList()
-            : [];
+        var docs = new List<SeoContentDocument>();
 
         var topics = fused.SelectedPillars
             .Select(p => ToNichePillarTopic(p, docs))

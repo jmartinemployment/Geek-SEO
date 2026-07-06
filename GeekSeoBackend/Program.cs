@@ -1,9 +1,8 @@
 using DotNetEnv;
 using GeekSeo.Application.Interfaces.Seo;
-using GeekSeoBackend.Infrastructure;
-using GeekSeoBackend.Endpoints;
-using GeekSeoBackend.Extensions;
 using GeekSeoBackend.Hubs;
+using GeekSeoBackend.Infrastructure;
+using GeekSeoBackend.Extensions;
 using GeekSeoBackend.Middleware;
 using GeekSeoBackend.Providers.Seo;
 using GeekSeoBackend.Services;
@@ -18,9 +17,7 @@ if (!builder.Environment.IsDevelopment())
     GoogleOAuthEnv.EnsureConfigured();
 }
 
-builder.Services.AddControllers()
-    .AddSiteAnalyzer2Controllers();
-builder.Services.AddSiteAnalyzer2Backend(builder.Configuration);
+builder.Services.AddControllers();
 
 PlaywrightBrowserHolder? playwrightHolder = null;
 var disablePlaywright = string.Equals(
@@ -42,12 +39,8 @@ if (!disablePlaywright)
 }
 
 builder.Services.AddGeekSeoBackend(builder.Configuration, playwrightHolder);
-builder.Services.AddHostedService<FullArticleJobWorker>();
-builder.Services.AddHostedService<BulkArticleJobWorker>();
 builder.Services.AddHostedService<NicheAnalysisJobWorker>();
-builder.Services.AddHostedService<UrlResearchJobWorker>();
 builder.Services.AddHostedService<NicheEnrichmentJobWorker>();
-builder.Services.AddHostedService<ContentDraftJobWorker>();
 builder.Services.AddHostedService<SeoMaintenanceWorker>();
 
 var corsOrigins = CorsOriginParser.GetAllowedOrigins();
@@ -78,9 +71,6 @@ builder.Services.AddHttpClient(GeekDataGateway.HttpClientName, client =>
 }).AddHttpMessageHandler<GeekDataGatewayHandler>();
 
 var app = builder.Build();
-
-if (SiteAnalyzer2BackendExtensions.IsEnabled(app.Configuration))
-    await app.MigrateSiteAnalyzer2Async();
 
 app.Lifetime.ApplicationStopping.Register(() =>
 {
@@ -118,11 +108,7 @@ app.UseAuthorization();
 app.UseMiddleware<SeoFeatureGateMiddleware>();
 app.UseMiddleware<SeoUsageGateMiddleware>();
 app.MapControllers();
-
-if (SiteAnalyzer2BackendExtensions.IsEnabled(app.Configuration))
-    app.MapSa2CompetitorCrawlProgressStream();
-
-app.MapHub<SeoContentScoringHub>("/hubs/seo-scoring");
+app.MapHub<SeoRealtimeHub>("/hubs/seo-realtime");
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5051";
 app.Run($"http://0.0.0.0:{port}");

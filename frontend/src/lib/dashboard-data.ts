@@ -1,7 +1,6 @@
 import {
   getDashboardOverview,
   getTopicalMap,
-  type SeoContentDocument,
   type SeoProject,
   type TopicalMapResult,
   type TopicalMapTopic,
@@ -14,13 +13,7 @@ export type ProjectSiteMetrics = {
 };
 
 export type ProjectWithDocuments = SeoProject & {
-  documents: SeoContentDocument[];
   metrics: ProjectSiteMetrics;
-};
-
-export type RecentDocument = SeoContentDocument & {
-  projectName: string;
-  projectUrl: string;
 };
 
 export type CopilotSuggestion = {
@@ -32,7 +25,6 @@ export type CopilotSuggestion = {
 
 export type DashboardData = {
   projects: ProjectWithDocuments[];
-  recentDocuments: RecentDocument[];
   copilotSuggestions: CopilotSuggestion[];
 };
 
@@ -61,56 +53,23 @@ export function buildTopicalMapCopilotSuggestions(
   }));
 }
 
-function buildSiteAnalyzerCopilotSuggestion(project: SeoProject): CopilotSuggestion {
-  return {
-    id: `site-analyzer-${project.id}`,
-    title: `Build research for ${project.name}`,
-    detail: 'Crawl your site and complete a keyword pack before writing content.',
-    href: `/projects/${project.id}/site-analyzer`,
-  };
-}
-
 function buildCopilotSuggestions(
   projects: ProjectWithDocuments[],
-  nicheSuggestion: CopilotSuggestion | null,
   topicalSuggestions: CopilotSuggestion[],
 ): CopilotSuggestion[] {
-  const lowScoreDocs = projects
-    .flatMap((project) =>
-      project.documents.map((doc) => ({
-        ...doc,
-        projectName: project.name,
-      })),
-    )
-    .filter((doc) => doc.seoScore > 0 && doc.seoScore < 70)
-    .slice(0, 3);
+  const welcome =
+    projects.length === 0
+      ? [
+          {
+            id: 'welcome',
+            title: 'Add your first site',
+            detail: 'Create a project to unlock topical maps, audits, and strategy tools.',
+            href: '/projects',
+          },
+        ]
+      : [];
 
-  const docSuggestions =
-    lowScoreDocs.length === 0
-      ? projects.length === 0
-        ? [
-            {
-              id: 'welcome',
-              title: 'Add your first site',
-              detail: 'Create a project to unlock topical maps, audits, and content scoring.',
-              href: '/projects',
-            },
-          ]
-        : []
-      : lowScoreDocs.map((doc) => ({
-          id: doc.id,
-          title: `"${doc.title || 'Untitled'}" scores ${doc.seoScore}%`,
-          detail: `Improve structure and topic coverage for "${doc.targetKeyword || 'your target keyword'}".`,
-          href: `/content-writing?documentId=${doc.id}`,
-        }));
-
-  const merged = [
-    ...(nicheSuggestion ? [nicheSuggestion] : []),
-    ...topicalSuggestions,
-    ...docSuggestions,
-  ];
-
-  return dedupeCopilotSuggestions(merged).slice(0, 4);
+  return dedupeCopilotSuggestions([...topicalSuggestions, ...welcome]).slice(0, 4);
 }
 
 function dedupeCopilotSuggestions(suggestions: CopilotSuggestion[]): CopilotSuggestion[] {
@@ -127,7 +86,6 @@ function mapOverviewToProjects(
 ): ProjectWithDocuments[] {
   return overview.projects.map((entry) => ({
     ...entry.project,
-    documents: entry.documents,
     metrics: {
       seoScore: entry.latestAuditScore,
       siteHealthScore: entry.latestAuditScore,
@@ -136,65 +94,31 @@ function mapOverviewToProjects(
   }));
 }
 
-async function loadPrimaryCopilotInputs(
+async function loadTopicalCopilotSuggestions(
   accessToken: string | null,
   projects: ProjectWithDocuments[],
-): Promise<{ nicheSuggestion: CopilotSuggestion | null; topicalSuggestions: CopilotSuggestion[] }> {
+): Promise<CopilotSuggestion[]> {
   if (!accessToken || projects.length === 0) {
-    return { nicheSuggestion: null, topicalSuggestions: [] };
+    return [];
   }
 
   const project = projects[0];
 
   try {
     const map = await getTopicalMap(project.id, accessToken).catch(() => null);
-    const topicalSuggestions = buildTopicalMapCopilotSuggestions(project, map);
-    const nicheSuggestion = buildSiteAnalyzerCopilotSuggestion(project);
-    return { nicheSuggestion, topicalSuggestions };
+    return buildTopicalMapCopilotSuggestions(project, map);
   } catch {
-    return { nicheSuggestion: null, topicalSuggestions: [] };
+    return [];
   }
 }
 
 export async function loadDashboardData(accessToken: string | null): Promise<DashboardData> {
   const overview = await getDashboardOverview(accessToken);
   const projects = mapOverviewToProjects(overview);
-  const { nicheSuggestion, topicalSuggestions } = await loadPrimaryCopilotInputs(
-    accessToken,
-    projects,
-  );
-
-  const projectById = new Map(projects.map((p) => [p.id, p]));
-  const recentDocuments = overview.recentDocuments.slice(0, 5).map((doc) => {
-    const project = projectById.get(doc.projectId);
-    return {
-      ...doc,
-      projectName: project?.name ?? 'Project',
-      projectUrl: project?.url ?? '',
-    };
-  });
+  const topicalSuggestions = await loadTopicalCopilotSuggestions(accessToken, projects);
 
   return {
     projects,
-    recentDocuments,
-    copilotSuggestions: buildCopilotSuggestions(projects, nicheSuggestion, topicalSuggestions),
+    copilotSuggestions: buildCopilotSuggestions(projects, topicalSuggestions),
   };
-}
-
-export async function loadAllContentDocuments(
-  accessToken: string | null,
-): Promise<{ projects: ProjectWithDocuments[]; allDocuments: RecentDocument[] }> {
-  const overview = await getDashboardOverview(accessToken);
-  const projects = mapOverviewToProjects(overview);
-  const allDocuments = projects
-    .flatMap((project) =>
-      project.documents.map((doc) => ({
-        ...doc,
-        projectName: project.name,
-        projectUrl: project.url,
-      })),
-    )
-    .toSorted((a, b) => (a.title || '').localeCompare(b.title || ''));
-
-  return { projects, allDocuments };
 }

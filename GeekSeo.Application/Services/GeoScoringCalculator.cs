@@ -133,7 +133,7 @@ public static class GeoScoringCalculator
         IReadOnlyList<SerpOrganicResult> organicResults)
     {
         var list = new List<ScoreSuggestion>();
-        if (authority < 14 && !ScoreSuggestionApplicator.HasArticleSchema(contentHtml))
+        if (authority < 14 && !HasArticleSchema(contentHtml))
         {
             list.Add(new ScoreSuggestion
             {
@@ -157,7 +157,7 @@ public static class GeoScoringCalculator
                 ApplyMode = "ai",
             });
         }
-        if (structure < 14 && !ArticleClosingFaqEnricher.HasCompleteClosingFaqSection(contentHtml))
+        if (structure < 14 && !HasCompleteClosingFaqSection(contentHtml))
         {
             list.Add(new ScoreSuggestion
             {
@@ -213,4 +213,12 @@ public static class GeoScoringCalculator
         >= 60 => "D",
         _ => "F",
     };
+
+    private static bool HasArticleSchema(string contentHtml) =>
+        contentHtml.Contains("\"@type\"", StringComparison.OrdinalIgnoreCase)
+        && contentHtml.Contains("Article", StringComparison.OrdinalIgnoreCase);
+
+    private static bool HasCompleteClosingFaqSection(string contentHtml) =>
+        contentHtml.Contains("<h2", StringComparison.OrdinalIgnoreCase)
+        && contentHtml.Contains("faq", StringComparison.OrdinalIgnoreCase);
 }

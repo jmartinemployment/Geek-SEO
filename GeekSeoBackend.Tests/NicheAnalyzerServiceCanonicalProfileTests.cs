@@ -190,7 +190,7 @@ public sealed class NicheAnalyzerServiceCanonicalProfileTests
                 Result<IReadOnlyDictionary<string, string>>.Success(new Dictionary<string, string>()));
     }
 
-    private sealed class NullHubContext : Microsoft.AspNetCore.SignalR.IHubContext<GeekSeoBackend.Hubs.SeoContentScoringHub>
+    private sealed class NullHubContext : Microsoft.AspNetCore.SignalR.IHubContext<GeekSeoBackend.Hubs.SeoRealtimeHub>
     {
         public static NullHubContext Instance { get; } = new();
         public Microsoft.AspNetCore.SignalR.IHubClients Clients => throw new NotSupportedException();

@@ -32,8 +32,6 @@ export const config = {
     '/calendar/:path*',
     '/cannibalization/:path*',
     '/content-guard/:path*',
-    '/content-writing',
-    '/content-writing/:path*',
     '/geo/:path*',
     '/guided/:path*',
     '/keywords/:path*',

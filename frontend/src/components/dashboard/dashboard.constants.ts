@@ -9,28 +9,12 @@ export type FeatureModule = {
 
 export const FEATURE_MODULES: FeatureModule[] = [
   {
-    id: 'content',
-    title: 'Content Optimizer',
-    description: 'Score and improve content against real competitors',
-    href: '/content-writing',
-    iconBg: '#E0F2FE',
-    iconColor: '#0369A1',
-  },
-  {
     id: 'topical-map',
     title: 'Topical Map',
     description: 'Discover topic gaps and plan your content strategy',
     href: '/strategy/topical-map',
     iconBg: '#F0FDF4',
     iconColor: '#16A34A',
-  },
-  {
-    id: 'site-analyzer',
-    title: 'Site Analyzer',
-    description: 'Crawl your site and build keyword research packs',
-    href: '/site-analyzer',
-    iconBg: '#EEF2FF',
-    iconColor: '#4F46E5',
   },
   {
     id: 'keywords',
@@ -63,6 +47,14 @@ export const FEATURE_MODULES: FeatureModule[] = [
     href: '/analytics',
     iconBg: '#F0F9FF',
     iconColor: '#0284C7',
+  },
+  {
+    id: 'niche',
+    title: 'Niche Analyzer',
+    description: 'Map pillars and competitors for your market',
+    href: '/strategy/topical-map',
+    iconBg: '#EEF2FF',
+    iconColor: '#4F46E5',
   },
 ];
 

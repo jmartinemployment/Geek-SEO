@@ -102,22 +102,6 @@ body {
   align-self: flex-start;
 }
 
-.content-writing-sticky-rail {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  height: 100%;
-  max-height: calc(100dvh - var(--app-site-navbar-height) - 5rem);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.content-writing-workspace .content-writing-sticky-rail {
-  position: relative;
-  top: auto;
-  flex: 1 1 auto;
-  max-height: none;
-}
 
 @utility container {
   margin-inline: auto;

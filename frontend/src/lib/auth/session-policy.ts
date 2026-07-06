@@ -27,7 +27,6 @@ export function isProtectedAppRoute(pathname: string): boolean {
     pathname.startsWith('/calendar') ||
     pathname.startsWith('/cannibalization') ||
     pathname.startsWith('/content-guard') ||
-    pathname.startsWith('/content-writing') ||
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/geo') ||
     pathname.startsWith('/guided') ||

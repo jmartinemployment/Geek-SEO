@@ -1,7 +1,6 @@
 import { Suspense } from 'react';
 import { DashboardCopilotPanel } from '@/components/dashboard/dashboard-copilot-panel';
 import { DashboardFeatureCards } from '@/components/dashboard/dashboard-feature-cards';
-import { DashboardRecentDocuments } from '@/components/dashboard/dashboard-recent-documents';
 import { DashboardSitesSection } from '@/components/dashboard/dashboard-sites-section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -38,7 +37,6 @@ function DashboardView({ data }: { data: DashboardData }) {
       <DashboardFeatureCards />
       <DashboardCopilotPanel suggestions={data.copilotSuggestions} />
       <DashboardSitesSection projects={data.projects} />
-      <DashboardRecentDocuments documents={data.recentDocuments} />
     </div>
   );
 }

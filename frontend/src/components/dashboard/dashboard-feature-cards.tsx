@@ -13,13 +13,12 @@ import { FEATURE_MODULES } from '@/components/dashboard/dashboard.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const moduleIcons = {
-  content: PenLine,
   'topical-map': Map,
-  'site-analyzer': Compass,
   keywords: Search,
   rankings: BarChart3,
   audit: ShieldCheck,
   analytics: FileSearch,
+  niche: Compass,
 } as const;
 
 export function DashboardFeatureCards() {

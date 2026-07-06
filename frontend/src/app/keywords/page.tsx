@@ -126,10 +126,11 @@ export default function KeywordResearchPage() {
       )}
 
       <p className="mt-8 text-sm text-[var(--color-text-secondary)]">
-        <Link href="/content-writing" className="underline hover:text-[var(--color-text-primary)]">
-          Use Content Writing
+        Use the{' '}
+        <Link href="/strategy/topical-map" className="underline hover:text-[var(--color-text-primary)]">
+          topical map
         </Link>{' '}
-        to turn a keyword into a scored article.
+        to plan content around your target keywords.
       </p>
     </main>
   );

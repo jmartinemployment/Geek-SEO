@@ -18,7 +18,6 @@ const TopicalMapGraph = dynamic(
 );
 import { LinkingBlueprintTab } from '@/components/strategy/linking-blueprint-tab';
 import {
-  createContent,
   generateTopicalMap,
   getGoogleIntegrationStatus,
   getTopicalMap,
@@ -68,7 +67,6 @@ export function TopicalMapWorkspace({
   const [pillarFilter, setPillarFilter] = useState<string>('all');
   const [sortKey, setSortKey] = useState<SortKey>('priority');
   const [selected, setSelected] = useState<TopicalMapTopic | null>(null);
-  const [creatingId, setCreatingId] = useState<string | null>(null);
   const [mode, setMode] = useState<GenerationMode>(initialMode);
   const [seedKeyword, setSeedKeyword] = useState(initialSeedKeyword.trim());
   const [entityGaps, setEntityGaps] = useState<EntityGapAnalysis[] | null>(null);
@@ -176,22 +174,6 @@ export function TopicalMapWorkspace({
       return (b.searchVolume ?? 0) - (a.searchVolume ?? 0);
     });
   }, [result?.topics, coverageFilter, pillarFilter, sortKey]);
-
-  async function writeTopic(topic: TopicalMapTopic) {
-    const keyword = topic.mainKeyword ?? topic.queries[0] ?? topic.name;
-    setCreatingId(topic.name);
-    setError(null);
-    try {
-      const doc = await createContent(
-        { projectId, title: topic.name, targetKeyword: keyword },
-        accessToken,
-      );
-      window.location.href = `/content-writing?documentId=${doc.id}`;
-    } catch (err) {
-      setError(err);
-      setCreatingId(null);
-    }
-  }
 
   useEffect(() => {
     if (!autoGenerateNiche || mode !== 'niche' || !projectId || initialLoad || nicheAutoGenRef.current) {
@@ -637,15 +619,13 @@ export function TopicalMapWorkspace({
                       </li>
                     ))}
                   </ul>
-                  {selected.coverage !== 'covered' ? (
-                    <button
-                      type="button"
-                      disabled={creatingId === selected.name}
-                      onClick={() => void writeTopic(selected)}
-                      className="mt-4 w-full rounded-lg border px-3 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+                  {selected.coverage !== 'covered' && selected.mainKeyword ? (
+                    <Link
+                      href={`/serp?q=${encodeURIComponent(selected.mainKeyword)}`}
+                      className="mt-4 block w-full rounded-lg border px-3 py-2 text-center text-sm font-medium hover:bg-slate-50"
                     >
-                      {creatingId === selected.name ? 'Creating…' : 'Write this topic'}
-                    </button>
+                      Research SERP
+                    </Link>
                   ) : null}
                   {selected.mainKeyword ? (
                     <Link

@@ -28,27 +28,15 @@ public static class SeoBackendExtensions
         services.AddSingleton<WorkerUserContext>();
         services.AddSingleton<IBackgroundUserContext>(sp => sp.GetRequiredService<WorkerUserContext>());
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();
-        services.AddSingleton<FullArticleJobChannel>();
-        services.AddSingleton<BulkArticleJobChannel>();
         services.AddSingleton<NicheAnalysisJobChannel>();
-        services.AddSingleton<UrlResearchJobChannel>();
-        services.AddSingleton<ContentDraftJobChannel>();
-
-        // Persistence via GeekAPI → GeekRepository (dumb data pipe)
         services.AddScoped<IProjectRepository, HttpProjectRepository>();
-        services.AddScoped<IContentDocumentRepository, HttpContentDocumentRepository>();
-        services.AddScoped<IBackgroundJobRepository, HttpBackgroundJobRepository>();
         services.AddScoped<ISerpCacheRepository, HttpSerpCacheRepository>();
         services.AddScoped<IKeywordVendorSnapshotRepository, HttpKeywordVendorSnapshotRepository>();
-        services.AddScoped<ICompetitorPageRepository, HttpCompetitorPageRepository>();
         services.AddScoped<ISubscriptionRepository, HttpSubscriptionRepository>();
         services.AddScoped<IUsageMeteringRepository, HttpUsageMeteringRepository>();
         services.AddScoped<IKeywordRepository, HttpKeywordRepository>();
-        services.AddScoped<IWordPressConnectionRepository, HttpWordPressConnectionRepository>();
-        services.AddScoped<IWordPressPublishRepository, HttpWordPressPublishRepository>();
         services.AddScoped<IBrandVoiceRepository, HttpBrandVoiceRepository>();
         services.AddScoped<ISiteAuditRepository, HttpSiteAuditRepository>();
-        services.AddScoped<IPlagiarismRepository, HttpPlagiarismRepository>();
         services.AddScoped<IGoogleIntegrationRepository, HttpGoogleIntegrationRepository>();
         services.AddScoped<ITopicalMapRepository, HttpTopicalMapRepository>();
         services.AddScoped<ISerpDeepCacheRepository, HttpSerpDeepCacheRepository>();
@@ -58,24 +46,11 @@ public static class SeoBackendExtensions
         services.AddScoped<IRankTrackingRepository, HttpRankTrackingRepository>();
 
         services.AddScoped<IProjectService, ProjectService>();
-        services.AddScoped<IContentDocumentService, ContentDocumentService>();
-        services.AddScoped<IContentBlogSpokeMigrator, ContentBlogSpokeMigrator>();
-        services.AddScoped<IContentBlogSpokeService, ContentBlogSpokeService>();
-        services.AddScoped<IContentClusterPlanService, ContentClusterPlanService>();
-        services.AddScoped<IContentSpokeService, ContentSpokeService>();
-        services.AddScoped<IContentSocialPostService, ContentSocialPostService>();
-        services.AddScoped<IContentLinkedFaqService, ContentLinkedFaqService>();
-        services.AddScoped<IContentBodyLinkService, ContentBodyLinkService>();
-        services.AddScoped<IContentResearchWritingService, ContentResearchWritingService>();
-        services.AddScoped<IContentDraftJobService, ContentDraftJobService>();
-        services.AddScoped<IContentFeaturedImageService, ContentFeaturedImageService>();
-        services.AddScoped<IBackgroundJobService, BackgroundJobService>();
         services.AddScoped<SubscriptionService>();
         services.AddScoped<ISubscriptionService, FullAccessSubscriptionService>();
         services.AddScoped<IUsageMeteringService, UsageMeteringService>();
 
-        // External providers + scoring (product host only)
-        services.AddScoped<IRichTextProvider, HtmlRichTextProvider>();
+        // External providers (product host only)
         services.AddSeoDataProviders();
         services.AddHttpClient("Anthropic", client =>
         {
@@ -87,45 +62,19 @@ public static class SeoBackendExtensions
             client.BaseAddress = new Uri("https://api.openai.com/");
             client.Timeout = TimeSpan.FromMinutes(10);
         });
-        services.AddHttpClient("WordPress");
         services.AddScoped<IAIProvider, OpenAIProvider>();
-        services.AddScoped<IOpenAIImageGenerator, OpenAIImageGenerator>();
-        services.AddScoped<IWordPressProvider, WordPressRestProvider>();
 
         if (playwrightHolder?.Browser is not null)
             services.AddSingleton<ICrawlerProvider>(_ => new PlaywrightCrawlerProvider(playwrightHolder.Browser));
         else
             services.AddSingleton<ICrawlerProvider, NoOpCrawlerProvider>();
 
-        services.AddScoped<CompetitorCrawlService>();
-        services.AddScoped<IContentScoringService, ContentScoringService>();
-        services.AddScoped<ICompetitorInsightsService, CompetitorInsightsService>();
-        services.AddScoped<IContentBriefService, ContentBriefService>();
-        services.AddScoped<IArticleRenderService, ArticleRenderService>();
-        services.AddScoped<IAIWritingService, AIWritingService>();
         services.AddScoped<IKeywordResearchService, KeywordResearchService>();
-        services.AddScoped<IWordPressPublishService, WordPressPublishService>();
         services.AddScoped<IBrandVoiceService, BrandVoiceService>();
         services.AddScoped<ISerpAnalysisService, SerpAnalysisService>();
-        services.AddScoped<ISerpResearchPackService, SerpResearchPackService>();
         services.AddScoped<IUrlResearchRepository, HttpUrlResearchRepository>();
-        if (!SiteAnalyzer2BackendExtensions.UseInProcessRepos())
-        {
-            services.AddScoped<IAnalysisRunRepository, HttpAnalysisRunRepository>();
-            services.AddScoped<ISiteAnalyzer2SiteProfileRepository, HttpSiteAnalyzer2SiteProfileRepository>();
-        }
-        services.AddScoped<ContentWriterHandoffService>();
-        services.AddScoped<WritingResearchContextLoader>();
-        services.AddScoped<OperatorResearchEnricher>();
-        services.AddScoped<SiteWritingFocusAssembler>();
-        services.AddScoped<ISiteResearchRepository, HttpSiteResearchRepository>();
-        services.AddScoped<SiteAnalyzerStepService>();
         services.AddScoped<IUrlResearchService, UrlResearchService>();
-        services.AddScoped<UrlResearchAnalyzeService>();
-        services.AddScoped<IUrlResearchAnalyzeRunner>(sp => sp.GetRequiredService<UrlResearchAnalyzeService>());
-        services.AddScoped<IInternalLinkService, InternalLinkService>();
         services.AddScoped<ISiteAuditService, SiteAuditService>();
-        services.AddScoped<IPlagiarismService, PlagiarismService>();
         services.AddMemoryCache();
         services.AddHttpClient("GoogleOAuth");
         services.AddHttpClient("GoogleApis");
@@ -171,9 +120,7 @@ public static class SeoBackendExtensions
         services.AddScoped<CompetitorAnalysisService>();
         services.AddScoped<NicheAnalysisProgressNotifier>();
         services.AddSingleton<HubGroupAccessCache>();
-        services.AddScoped<ContentDraftProgressNotifier>();
         services.AddScoped<IUrlResearchProgressNotifier, UrlResearchProgressNotifier>();
-        services.AddScoped<UrlResearchJobProcessor>();
         services.AddScoped<NicheStepRerunService>();
         services.AddSingleton<NicheStepLock>();
         services.AddScoped<NicheAnalysisBackgroundJob>();
@@ -187,15 +134,6 @@ public static class SeoBackendExtensions
             UseSandbox = !string.Equals(ReadEnv("PAYPAL_ENVIRONMENT"), "live", StringComparison.OrdinalIgnoreCase),
         });
         services.AddScoped<IPayPalBillingService, PayPalBillingService>();
-
-        services.AddHttpClient("Copyscape", client => client.Timeout = TimeSpan.FromSeconds(90));
-        services.AddSingleton(_ => new CopyscapeOptions
-        {
-            Username = ReadEnv("COPYSCAPE_USERNAME"),
-            ApiKey = ReadEnv("COPYSCAPE_API_KEY"),
-            SpendLimitUsd = decimal.TryParse(ReadEnv("COPYSCAPE_SPEND_LIMIT_USD"), out var limit) ? limit : 0.50m,
-        });
-        services.AddScoped<IPlagiarismProvider, CopyscapePlagiarismProvider>();
 
         services.AddHttpClient("PublicScanPage", client =>
         {
@@ -216,11 +154,7 @@ public static class SeoBackendExtensions
         services.AddScoped<IGeocodeService, CompositeGeocodeService>();
         services.AddScoped<ILocalSerpContextResolver, LocalSerpContextResolver>();
 
-        services.AddSignalR(options =>
-        {
-            // Default 32 KB is too small for full draft HTML sent via ContentChanged.
-            options.MaximumReceiveMessageSize = 2 * 1024 * 1024;
-        });
+        services.AddSignalR();
         services.AddSingleton<Microsoft.AspNetCore.SignalR.IUserIdProvider, Hubs.SubUserIdProvider>();
         AddAuthentication(services, configuration);
 
@@ -255,7 +189,6 @@ public static class SeoBackendExtensions
                         NameClaimType = "sub",
                         ClockSkew = TimeSpan.FromMinutes(1),
                     };
-                    options.Events = JwtBearerEvents();
                 });
             services.AddAuthorization();
             return;
@@ -286,31 +219,7 @@ public static class SeoBackendExtensions
                     IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
                     ClockSkew = TimeSpan.FromMinutes(1),
                 };
-                options.Events = JwtBearerEvents();
             });
         services.AddAuthorization();
     }
-
-    private static JwtBearerEvents JwtBearerEvents() => new()
-    {
-        OnMessageReceived = context =>
-        {
-            var accessToken = context.Request.Query["access_token"];
-            var path = context.HttpContext.Request.Path;
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/seo-scoring"))
-            {
-                context.Token = accessToken;
-                return Task.CompletedTask;
-            }
-
-            if (!string.IsNullOrEmpty(accessToken)
-                && path.StartsWithSegments("/api/seo/sa2/runs")
-                && path.Value?.EndsWith("/competitor-crawl/progress-stream", StringComparison.OrdinalIgnoreCase) == true)
-            {
-                context.Token = accessToken;
-            }
-
-            return Task.CompletedTask;
-        },
-    };
 }

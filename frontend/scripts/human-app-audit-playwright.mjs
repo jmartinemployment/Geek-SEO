@@ -47,7 +47,6 @@ const slowMo = headed ? 120 : 40;
 const PAGES = [
   { name: 'Dashboard', path: '/app/dashboard', heading: /dashboard/i },
   { name: 'Topical Map', path: '/app/strategy/topical-map', heading: /topical map/i },
-  { name: 'Content Writing', path: '/content-writing', heading: /content writing/i },
   { name: 'Keywords', path: '/app/keywords', heading: /keyword/i },
   { name: 'Cannibalization', path: '/app/cannibalization', heading: /cannibal/i },
   { name: 'Rankings', path: '/app/rankings', heading: /gsc rankings|rankings/i },

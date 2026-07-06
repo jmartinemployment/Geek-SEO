@@ -3,12 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import {
-  generateBrief,
-  type ContentBrief,
   type SiteTopicProfile,
   type PillarRecommendedAction,
 } from '@/lib/seo-api';
-import { ContentBriefInline } from '@/components/niche-analyzer/ContentBriefInline';
 import {
   buildKnowsAboutSyncSnippet,
   orphanLinkSuggestions,
@@ -55,30 +52,13 @@ function ActionRow({
   action,
   fusion,
   projectId,
-  accessToken,
 }: {
   action: PillarRecommendedAction;
   fusion: SiteTopicProfile;
   projectId?: string;
-  accessToken?: string | null;
 }) {
-  const [loading, setLoading] = useState(false);
-  const [brief, setBrief] = useState<ContentBrief | null>(null);
   const [schemaCopied, setSchemaCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  async function handleGenerateBrief() {
-    if (!projectId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      setBrief(await generateBrief({ projectId, keyword: action.topicName }, accessToken));
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Brief generation failed');
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function handleCopySchemaSnippet() {
     const { snippet } = buildKnowsAboutSyncSnippet(fusion, action.topicName);
@@ -118,16 +98,6 @@ function ActionRow({
           {error ? <p className="mt-1 text-xs text-red-600">{error}</p> : null}
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          {action.actionType === 'entity_thin_content' && projectId ? (
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => void handleGenerateBrief()}
-              className="rounded-md bg-[var(--color-accent)] px-2.5 py-1 text-xs font-medium text-white disabled:opacity-50"
-            >
-              {loading ? 'Generating…' : brief ? 'Refresh brief' : 'Generate brief'}
-            </button>
-          ) : null}
           {action.actionType === 'schema_sync' ? (
             <button
               type="button"
@@ -137,7 +107,9 @@ function ActionRow({
               {schemaCopied ? 'Copied!' : 'Copy knowsAbout'}
             </button>
           ) : null}
-          {action.actionType === 'suggest_pillar_page' || action.actionType === 'suggest_local_page' ? (
+          {action.actionType === 'suggest_pillar_page' ||
+          action.actionType === 'suggest_local_page' ||
+          action.actionType === 'entity_thin_content' ? (
             <Link
               href={topicalMapHref(projectId, action.topicName)}
               className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)]"
@@ -168,13 +140,11 @@ function ActionRow({
           Link <strong>{action.topicName}</strong> from: {linkTargets.join(', ')}
         </p>
       ) : null}
-
-      {brief ? <ContentBriefInline brief={brief} /> : null}
     </li>
   );
 }
 
-export function PillarActionPanel({ fusion, projectId, accessToken }: Readonly<Props>) {
+export function PillarActionPanel({ fusion, projectId }: Readonly<Props>) {
   const actions = fusion.recommendedActions ?? [];
   if (actions.length === 0) return null;
 
@@ -195,7 +165,6 @@ export function PillarActionPanel({ fusion, projectId, accessToken }: Readonly<P
             action={action}
             fusion={fusion}
             projectId={projectId}
-            accessToken={accessToken}
           />
         ))}
       </ul>

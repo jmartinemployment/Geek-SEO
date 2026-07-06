@@ -14,7 +14,7 @@ public static class SerpOrganicUrlQuality
             return false;
 
         var host = uri.Host.ToLowerInvariant();
-        if (CitationLaneHostRules.IsNonWikipediaWikiTld(host))
+        if (host.EndsWith(".wiki", StringComparison.Ordinal))
             return false;
 
         return true;

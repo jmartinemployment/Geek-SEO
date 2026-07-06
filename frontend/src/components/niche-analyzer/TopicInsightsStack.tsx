@@ -35,7 +35,7 @@ export function TopicInsightsStack({
       {profileId ? (
         <GscSilentPillarPanel profileId={profileId} fusion={fusion} accessToken={accessToken} />
       ) : null}
-      <PillarActionPanel fusion={fusion} projectId={projectId} accessToken={accessToken} />
+      <PillarActionPanel fusion={fusion} projectId={projectId} />
       <EntityCoveragePanel fusion={fusion} />
       <InternalLinkGraphPanel fusion={fusion} />
       {showMatrix ? <TopicCandidateMatrix fusion={fusion} /> : null}

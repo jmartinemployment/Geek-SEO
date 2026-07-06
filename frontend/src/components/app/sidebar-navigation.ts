@@ -49,8 +49,8 @@ export const sidebarPrimaryNav: SidebarPrimaryNav[] = [
     sections: [
       {
         items: [
-          { href: '/content-writing', label: 'Research' },
-          { href: '/content-writing', label: 'Content' },
+          { href: PLACEHOLDER_HREF, label: 'Research' },
+          { href: PLACEHOLDER_HREF, label: 'Content' },
           { href: PLACEHOLDER_HREF, label: 'Opportunities' },
           { href: PLACEHOLDER_HREF, label: 'Clusters' },
         ],

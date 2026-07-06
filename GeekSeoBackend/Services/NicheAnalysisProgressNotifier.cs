@@ -7,7 +7,7 @@ namespace GeekSeoBackend.Services;
 /// Pushes niche analysis progress over SignalR with retries and dual delivery (user + profile group).
 /// </summary>
 public sealed class NicheAnalysisProgressNotifier(
-    IHubContext<SeoContentScoringHub> hub,
+    IHubContext<SeoRealtimeHub> hub,
     ILogger<NicheAnalysisProgressNotifier> logger)
 {
     private const int MaxAttempts = 3;

@@ -5,42 +5,37 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/app/projects/:projectId',
-        destination: '/content-writing?projectId=:projectId',
+        destination: '/strategy/topical-map?projectId=:projectId',
         permanent: false,
       },
       {
         source: '/app/content-writing',
-        destination: '/content-writing',
+        destination: '/dashboard',
         permanent: true,
       },
       {
         source: '/app/content/:id',
-        destination: '/content-writing?documentId=:id',
+        destination: '/dashboard',
         permanent: true,
       },
       {
         source: '/app/content',
-        destination: '/content-writing',
+        destination: '/dashboard',
         permanent: true,
       },
       {
         source: '/app/strategy/url-analyzer',
-        destination: '/site-analyzer',
+        destination: '/dashboard',
         permanent: true,
       },
       {
         source: '/app/strategy/niche-analyzer',
-        destination: '/site-analyzer',
-        permanent: true,
-      },
-      {
-        source: '/url-analyzer',
-        destination: '/site-analyzer',
+        destination: '/strategy/topical-map',
         permanent: true,
       },
       {
         source: '/projects/:projectId/url-analyzer',
-        destination: '/projects/:projectId/site-analyzer',
+        destination: '/projects/:projectId',
         permanent: true,
       },
     ];

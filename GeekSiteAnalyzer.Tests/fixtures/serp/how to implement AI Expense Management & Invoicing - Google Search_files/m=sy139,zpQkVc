@@ -1,7 +1,0 @@
-loaded_h_0(function(_){var window=this;
-_.Vfc=_.y("zpQkVc",[]);
-_.v("zpQkVc");
-var Wfc=class extends _.Cs{static Ta(){return{}}constructor(a){super(a.Oa)}oa(a){_.Yv(a.rb.el(),{userAction:3})}};Wfc.prototype.$wa$AoHuZb=function(){return this.oa};_.Es(_.Vfc,Wfc);
-_.x();
-});
-// Google Inc.

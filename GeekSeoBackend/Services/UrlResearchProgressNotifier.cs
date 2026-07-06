@@ -5,7 +5,7 @@ namespace GeekSeoBackend.Services;
 
 /// <summary>Pushes page URL research job status over SignalR (no client polling).</summary>
 public sealed class UrlResearchProgressNotifier(
-    IHubContext<SeoContentScoringHub> hub,
+    IHubContext<SeoRealtimeHub> hub,
     ILogger<UrlResearchProgressNotifier> logger) : IUrlResearchProgressNotifier
 {
     private const int MaxAttempts = 3;

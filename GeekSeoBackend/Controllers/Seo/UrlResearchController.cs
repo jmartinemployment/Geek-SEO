@@ -14,13 +14,13 @@ public sealed class UrlResearchController(
     ICurrentUserContext user) : ControllerBase
 {
     [HttpPost("analyze")]
-    [Obsolete("Retired — use Site Analyzer (/api/seo/site-analyzer).")]
+    [Obsolete("Retired — content writing pipeline removed.")]
     public IActionResult Analyze([FromBody] UrlResearchAnalyzeRequest request)
     {
         _ = request;
         return StatusCode(StatusCodes.Status410Gone, new
         {
-            error = $"{ContentWritingBlockMessage.Default} Use Site Analyzer to build a complete research pack.",
+            error = "URL research analyze is retired. A new content writer will replace this flow.",
         });
     }
 
