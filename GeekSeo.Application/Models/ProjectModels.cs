@@ -24,19 +24,18 @@ public sealed record UpdateProjectRequest
 
 public sealed record CreateContentDocumentRequest
 {
-    /// <summary>Server-resolved on SA2 handoff — do not send from Site Analyzer.</summary>
     public Guid ProjectId { get; init; }
     public string Title { get; init; } = "Untitled Document";
     public string TargetKeyword { get; init; } = string.Empty;
     public string TargetLocation { get; init; } = "United States";
     public Guid? AnalysisRunId { get; init; }
-    /// <summary>Site Analyzer 2 <c>sa2.site_profiles.Id</c> for frozen site focus.</summary>
+    /// <summary>Legacy site profile id frozen at document create (optional).</summary>
     public Guid? SiteProfileId { get; init; }
     /// <summary>Set from analysis run export when <see cref="AnalysisRunId"/> is provided.</summary>
     public string SerpKeyword { get; init; } = string.Empty;
     public string? SiteFocusJson { get; init; }
     public DateTimeOffset? SiteFocusCapturedAt { get; init; }
-    /// <summary>Frozen SA2 <c>content-writer-export</c> JSON at create/attach.</summary>
+    /// <summary>Frozen keyword bundle JSON at create/attach.</summary>
     public string? KeywordBundleJson { get; init; }
     public DateTimeOffset? KeywordBundleCapturedAt { get; init; }
     /// <summary>Pillar document when creating a spoke child (Slice 1+).</summary>

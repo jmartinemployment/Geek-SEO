@@ -24,7 +24,6 @@ public static class UsageLimits
         [UsageFeatures.RankSnapshot] = [50, 400, 2_500, int.MaxValue],
         // Max enabled tracked keywords per project (enforced in RankTrackingService)
         [UsageFeatures.TrackedRankKeyword] = [5, 25, 100, 500],
-        [UsageFeatures.UrlResearchAnalyze] = [5, 20, 60, int.MaxValue],
     };
 
     public static int GetLimit(SubscriptionTier tier, string feature)

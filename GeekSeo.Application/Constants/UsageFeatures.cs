@@ -7,5 +7,4 @@ public static class UsageFeatures
     public const string SerpFetch = "serp_fetch";
     public const string RankSnapshot = "rank_snapshot";
     public const string TrackedRankKeyword = "tracked_rank_keyword";
-    public const string UrlResearchAnalyze = "url_research_analyze";
 }

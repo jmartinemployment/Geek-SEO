@@ -28,7 +28,6 @@ public sealed class SeoContentDocument
     public Guid Id { get; set; }
     public Guid ProjectId { get; set; }
     public Guid UserId { get; set; }
-    public Guid? UrlResearchId { get; set; }
     /// <summary>When set, SERP-dependent writing input is loaded from <c>analysis_runs</c> export.</summary>
     public Guid? AnalysisRunId { get; set; }
     /// <summary>Keyword the linked analysis run SERP was fetched for (frozen at attach/create).</summary>
@@ -36,9 +35,9 @@ public sealed class SeoContentDocument
     /// <summary>JSON snapshot of <see cref="GeekSeo.Application.Models.Seo.SiteWritingFocus"/> at attach/create.</summary>
     public string? SiteFocusJson { get; set; }
     public DateTimeOffset? SiteFocusCapturedAt { get; set; }
-    /// <summary>SA2 <c>sa2.site_profiles.Id</c> frozen at handoff.</summary>
+    /// <summary>Legacy site profile id frozen at document create (optional).</summary>
     public Guid? SiteProfileId { get; set; }
-    /// <summary>Frozen SA2 keyword bundle JSON (<c>content-writer-export</c>).</summary>
+    /// <summary>Frozen keyword bundle JSON at create/attach.</summary>
     public string? KeywordBundleJson { get; set; }
     public DateTimeOffset? KeywordBundleCapturedAt { get; set; }
     /// <summary>Generated blog spoke JSON (distinct intent from pillar).</summary>
@@ -74,7 +73,6 @@ public sealed class SeoContentDocument
     public DateTimeOffset UpdatedAt { get; set; }
 
     public SeoProject? Project { get; set; }
-    public SeoUrlResearch? UrlResearch { get; set; }
     public SeoContentDocument? ParentDocument { get; set; }
     public ICollection<SeoContentDocument> ChildDocuments { get; set; } = [];
 }

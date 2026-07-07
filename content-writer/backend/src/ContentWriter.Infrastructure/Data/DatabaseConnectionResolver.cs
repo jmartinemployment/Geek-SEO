@@ -15,8 +15,7 @@ public static class DatabaseConnectionResolver
     public static string Resolve(IConfiguration configuration)
     {
         var fromEnv = Environment.GetEnvironmentVariable("CONTENT_WRITER_DATABASE_URL")
-            ?? Environment.GetEnvironmentVariable("DATABASE_URL")
-            ?? Environment.GetEnvironmentVariable("SITE_ANALYZER2_DATABASE_URL");
+            ?? Environment.GetEnvironmentVariable("DATABASE_URL");
 
         if (!string.IsNullOrWhiteSpace(fromEnv))
             return NormalizePostgresUrl(fromEnv);

@@ -3,6 +3,7 @@ using System;
 using GeekSeo.Persistence.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GeekSeo.Persistence.Migrations
 {
     [DbContext(typeof(SeoDbContext))]
-    partial class SeoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260707172424_RemoveSiteAnalyzer2Tables")]
+    partial class RemoveSiteAnalyzer2Tables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1319,6 +1322,9 @@ namespace GeekSeo.Persistence.Migrations
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("UrlResearchId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
@@ -1332,6 +1338,8 @@ namespace GeekSeo.Persistence.Migrations
                     b.HasIndex("ProjectId");
 
                     b.HasIndex("Status");
+
+                    b.HasIndex("UrlResearchId");
 
                     b.HasIndex("UserId");
 
@@ -2296,6 +2304,392 @@ namespace GeekSeo.Persistence.Migrations
                     b.ToTable("seo_tracked_keywords", "geek_seo");
                 });
 
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("BusinessContext")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DataQuality")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DataQualityNotes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DerivedKeyword")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DirectAnswerInstruction")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DominantContentFormat")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text");
+
+                    b.Property<string>("GbpSource")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("IntentJustification")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("IntentPrimary")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("MedianH2CountTop5")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MedianTitleLengthTop10")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MedianWordCountTop5")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("MustBeatPaf")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PafBeatStrategy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PafFormat")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PafSourceUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PafText")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PafType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ResearchedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SearchLocation")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("SupersedesResearchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("SourceUrl");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ProjectId", "Status");
+
+                    b.ToTable("seo_url_research", "geek_seo");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchClosingFaq", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UrlResearchId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UrlResearchId");
+
+                    b.ToTable("seo_url_research_closing_faq", "geek_seo");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchCompetitor", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<int>("EstimatedWordCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("H1")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UrlResearchId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UrlResearchId");
+
+                    b.ToTable("seo_url_research_competitor", "geek_seo");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchCompetitorHeading", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("CompetitorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompetitorId");
+
+                    b.ToTable("seo_url_research_competitor_heading", "geek_seo");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchOrganic", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Domain")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Snippet")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UrlResearchId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UrlResearchId");
+
+                    b.ToTable("seo_url_research_organic", "geek_seo");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchPaa", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<int>("Depth")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SerpAnswerPreview")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UrlResearchId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UrlResearchId");
+
+                    b.ToTable("seo_url_research_paa", "geek_seo");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchPasf", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SearchText")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UrlResearchId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UrlResearchId");
+
+                    b.ToTable("seo_url_research_pasf", "geek_seo");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchSectionHint", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Movement")
+                        .HasColumnType("integer");
+
+                    b.PrimitiveCollection<string[]>("SubtopicsFromSerp")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<string>("SuggestedH2")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UrlResearchId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UrlResearchId");
+
+                    b.ToTable("seo_url_research_section_hint", "geek_seo");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchSourceHeading", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UrlResearchId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UrlResearchId");
+
+                    b.ToTable("seo_url_research_source_heading", "geek_seo");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchTerm", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Term")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UrlResearchId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UrlResearchId");
+
+                    b.ToTable("seo_url_research_term", "geek_seo");
+                });
+
             modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUsageCounter", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2592,9 +2986,16 @@ namespace GeekSeo.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("GeekSeo.Persistence.Entities.SeoUrlResearch", "UrlResearch")
+                        .WithMany()
+                        .HasForeignKey("UrlResearchId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("ParentDocument");
 
                     b.Navigation("Project");
+
+                    b.Navigation("UrlResearch");
                 });
 
             modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoContentPerformanceSnapshot", b =>
@@ -2647,6 +3048,116 @@ namespace GeekSeo.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("SiteAudit");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearch", b =>
+                {
+                    b.HasOne("GeekSeo.Persistence.Entities.SeoProject", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchClosingFaq", b =>
+                {
+                    b.HasOne("GeekSeo.Persistence.Entities.SeoUrlResearch", "UrlResearch")
+                        .WithMany("ClosingFaqs")
+                        .HasForeignKey("UrlResearchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("UrlResearch");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchCompetitor", b =>
+                {
+                    b.HasOne("GeekSeo.Persistence.Entities.SeoUrlResearch", "UrlResearch")
+                        .WithMany("Competitors")
+                        .HasForeignKey("UrlResearchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("UrlResearch");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchCompetitorHeading", b =>
+                {
+                    b.HasOne("GeekSeo.Persistence.Entities.SeoUrlResearchCompetitor", "Competitor")
+                        .WithMany("Headings")
+                        .HasForeignKey("CompetitorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Competitor");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchOrganic", b =>
+                {
+                    b.HasOne("GeekSeo.Persistence.Entities.SeoUrlResearch", "UrlResearch")
+                        .WithMany("OrganicResults")
+                        .HasForeignKey("UrlResearchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("UrlResearch");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchPaa", b =>
+                {
+                    b.HasOne("GeekSeo.Persistence.Entities.SeoUrlResearch", "UrlResearch")
+                        .WithMany("PeopleAlsoAsk")
+                        .HasForeignKey("UrlResearchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("UrlResearch");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchPasf", b =>
+                {
+                    b.HasOne("GeekSeo.Persistence.Entities.SeoUrlResearch", "UrlResearch")
+                        .WithMany("RelatedSearches")
+                        .HasForeignKey("UrlResearchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("UrlResearch");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchSectionHint", b =>
+                {
+                    b.HasOne("GeekSeo.Persistence.Entities.SeoUrlResearch", "UrlResearch")
+                        .WithMany("SectionHints")
+                        .HasForeignKey("UrlResearchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("UrlResearch");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchSourceHeading", b =>
+                {
+                    b.HasOne("GeekSeo.Persistence.Entities.SeoUrlResearch", "UrlResearch")
+                        .WithMany("SourceHeadings")
+                        .HasForeignKey("UrlResearchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("UrlResearch");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchTerm", b =>
+                {
+                    b.HasOne("GeekSeo.Persistence.Entities.SeoUrlResearch", "UrlResearch")
+                        .WithMany("RecommendedTerms")
+                        .HasForeignKey("UrlResearchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("UrlResearch");
                 });
 
             modelBuilder.Entity("GeekSeo.Persistence.Entities.NichePillar", b =>
@@ -2722,6 +3233,30 @@ namespace GeekSeo.Persistence.Migrations
             modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoSiteAudit", b =>
                 {
                     b.Navigation("Pages");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearch", b =>
+                {
+                    b.Navigation("ClosingFaqs");
+
+                    b.Navigation("Competitors");
+
+                    b.Navigation("OrganicResults");
+
+                    b.Navigation("PeopleAlsoAsk");
+
+                    b.Navigation("RecommendedTerms");
+
+                    b.Navigation("RelatedSearches");
+
+                    b.Navigation("SectionHints");
+
+                    b.Navigation("SourceHeadings");
+                });
+
+            modelBuilder.Entity("GeekSeo.Persistence.Entities.SeoUrlResearchCompetitor", b =>
+                {
+                    b.Navigation("Headings");
                 });
 #pragma warning restore 612, 618
         }
