@@ -7,9 +7,10 @@ public sealed class SeoDbContextDesignTimeFactory : IDesignTimeDbContextFactory<
 {
     public SeoDbContext CreateDbContext(string[] args)
     {
-        var connectionString = Environment.GetEnvironmentVariable("GEEK_SEO_DATABASE_URL")
+        var connectionString = PostgresConnectionStringNormalizer.Normalize(
+            Environment.GetEnvironmentVariable("GEEK_SEO_DATABASE_URL")
             ?? Environment.GetEnvironmentVariable("DATABASE_URL")
-            ?? "Host=localhost;Database=postgres;Username=postgres;Password=postgres";
+            ?? "Host=localhost;Database=postgres;Username=postgres;Password=postgres");
 
         var options = new DbContextOptionsBuilder<SeoDbContext>()
             .UseGeekSeoDatabaseMigrations(connectionString)

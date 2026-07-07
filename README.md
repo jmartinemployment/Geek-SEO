@@ -55,11 +55,23 @@ Do **not** deploy a separate ContentWriter Railway service (`content-writer/rail
 
 ## Database migrations
 
-Apply Geek SEO schema migrations against the GeekAPI/GeekRepository Postgres instance:
+Apply Geek SEO schema migrations against the GeekRepository Postgres instance (`geek_seo` schema):
 
 ```bash
-dotnet ef database update --project GeekSeo.Persistence --startup-project GeekSeo.Persistence
+railway link -p GeekRepository -e production -s GeekRepository
+railway run dotnet ef database update --project GeekSeo.Persistence --startup-project GeekSeo.Persistence
 ```
+
+### Two schemas, one Supabase database
+
+| Schema | Used by | Connection variable | Migrations |
+|--------|---------|---------------------|------------|
+| **`geek_seo`** | GeekRepository / GeekAPI (projects, niche, retired SA2 tables) | GeekRepository `DATABASE_URL` | `GeekSeo.Persistence` — run manually (above) |
+| **`content_writer`** | Content Writer (projects, crawls, generated content) | `CONTENT_WRITER_DATABASE_URL` | `ContentWriter.Infrastructure` — auto on GeekSeoBackend startup |
+
+Both schemas can live on the **same** Supabase Postgres database. EF migrations always target the schema explicitly (`geek_seo.*` vs `content_writer.*`); the connection string only needs to reach the database.
+
+**GeekSeoBackend** (integrated Content Writer) must have `CONTENT_WRITER_DATABASE_URL` set to the same Supabase URI used by the retired ContentWriter service. Copy it from the ContentWriter Railway service, then remove the duplicate ContentWriter service.
 
 Recent removals (July 2026):
 
