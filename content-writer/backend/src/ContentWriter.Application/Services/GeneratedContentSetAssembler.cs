@@ -47,7 +47,8 @@ public static class GeneratedContentSetAssembler
         row.MetaDescription ?? string.Empty,
         row.BodyHtml,
         row.Keywords,
-        row.WordCount);
+        row.WordCount,
+        row.SectionOutline);
 
     private static GeneratedContent? Find(Project project, GeneratedContentType type) =>
         project.GeneratedContents.FirstOrDefault(c => c.ContentType == type);

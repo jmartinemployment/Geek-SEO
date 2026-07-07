@@ -22,6 +22,7 @@ public static class JsonLdSummaryFormatter
         AppendSection(sb, "FAQ (from site schema)", summary.FaqEntries);
         AppendSection(sb, "Published articles (from site schema)", summary.Articles);
         AppendSection(sb, "Key web pages", summary.WebPages);
+        AppendSection(sb, "Software applications (from site schema)", summary.SoftwareApplications);
         return sb.ToString().TrimEnd();
     }
 

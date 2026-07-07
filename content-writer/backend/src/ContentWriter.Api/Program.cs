@@ -75,6 +75,7 @@ builder.Services.AddScoped<IContentProviderFactory, ContentProviderFactory>();
 builder.Services.AddHttpClient<ISiteCrawlerService, SiteCrawlerService>();
 builder.Services.AddScoped<IKeywordHtmlParserService, KeywordHtmlParserService>();
 builder.Services.AddScoped<IContentPromptBuilder, ContentPromptBuilder>();
+builder.Services.AddScoped<ISoftwareApplicationSchemaBuilder, SoftwareApplicationSchemaBuilder>();
 builder.Services.AddScoped<ITechnicalArticleSchemaBuilder, TechnicalArticleSchemaBuilder>();
 builder.Services.AddScoped<IBlogPostingSchemaBuilder, BlogPostingSchemaBuilder>();
 builder.Services.AddScoped<IContentGenerationOrchestrator, ContentGenerationOrchestrator>();

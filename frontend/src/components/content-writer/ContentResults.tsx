@@ -9,6 +9,7 @@ import {
   ApiError,
 } from "@/lib/content-writer/api";
 import type { GeneratedContentSet } from "@/lib/content-writer/types";
+import { CONTENT_LENGTH_TARGETS } from "@/lib/content-writer/types";
 
 type Tab = "article" | "blog" | "facebook" | "linkedin";
 type GeneratingStep = "pillar-plan" | "pillar-body" | "blog" | "social" | "all" | null;
@@ -79,7 +80,7 @@ export default function ContentResults({
         <StepRow
           step={2}
           title="Pillar body"
-          description="Writes one outline section per LLM call (~3–4 min each) plus FAQ. Avoids 15-min timeouts."
+          description={`Writes one outline section per LLM call. Target ${CONTENT_LENGTH_TARGETS.pillar.label} words for the pillar hub.`}
           done={hasPillarBody}
           disabled={!hasPillarPlan || isGenerating}
           isRunning={generatingStep === "pillar-body"}
@@ -91,7 +92,7 @@ export default function ContentResults({
         <StepRow
           step={3}
           title="Blog content"
-          description="Companion blog with a distinct title and fresh H2s, cross-linked to the pillar."
+          description={`How-to/listicle companion blog (${CONTENT_LENGTH_TARGETS.blog.label} words), one section per LLM call, cross-linked to the pillar.`}
           done={hasBlog}
           disabled={!hasPillarBody || isGenerating}
           isRunning={generatingStep === "blog"}
@@ -185,6 +186,8 @@ export default function ContentResults({
                 wordCount={result.article.wordCount}
                 sectionOutline={result.article.sectionOutline}
                 planOnly={!hasPillarBody}
+                targetLabel={`Target: ${CONTENT_LENGTH_TARGETS.pillar.label} words`}
+                minWords={CONTENT_LENGTH_TARGETS.pillar.min}
               />
             )}
             {activeTab === "blog" && result.blog && result.blogUrl && (
@@ -196,6 +199,9 @@ export default function ContentResults({
                 jsonLd={result.blogJsonLd ?? ""}
                 keywords={result.blog.keywords}
                 wordCount={result.blog.wordCount}
+                sectionOutline={result.blog.sectionOutline}
+                targetLabel={`Target: ${CONTENT_LENGTH_TARGETS.blog.label} words`}
+                minWords={CONTENT_LENGTH_TARGETS.blog.min}
               />
             )}
             {activeTab === "facebook" && result.facebookPost && (
@@ -268,6 +274,8 @@ function ArticleView({
   wordCount,
   sectionOutline,
   planOnly = false,
+  targetLabel,
+  minWords,
 }: {
   title: string;
   metaDescription: string;
@@ -278,18 +286,28 @@ function ArticleView({
   wordCount: number;
   sectionOutline?: string[];
   planOnly?: boolean;
+  targetLabel?: string;
+  minWords?: number;
 }) {
   const [showSchema, setShowSchema] = useState(false);
+  const underTarget = minWords != null && wordCount > 0 && wordCount < minWords;
 
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-xl font-bold text-foreground">{title}</h3>
-        {wordCount > 0 && (
-          <span className="rounded-full bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand">
-            {wordCount} words
-          </span>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {wordCount > 0 && (
+            <span
+              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                underTarget ? "bg-amber-100 text-amber-800" : "bg-brand/10 text-brand"
+              }`}
+            >
+              {wordCount} words
+            </span>
+          )}
+          {targetLabel && <span className="text-xs text-muted">{targetLabel}</span>}
+        </div>
         {planOnly && (
           <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">Plan only</span>
         )}

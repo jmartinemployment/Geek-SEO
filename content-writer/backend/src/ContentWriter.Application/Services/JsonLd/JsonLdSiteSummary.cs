@@ -11,6 +11,7 @@ public sealed class JsonLdSiteSummary
     public List<string> FaqEntries { get; } = new();
     public List<string> Articles { get; } = new();
     public List<string> WebPages { get; } = new();
+    public List<string> SoftwareApplications { get; } = new();
 
     public bool HasContent =>
         Organizations.Count > 0
@@ -20,5 +21,6 @@ public sealed class JsonLdSiteSummary
         || ServiceAreas.Count > 0
         || FaqEntries.Count > 0
         || Articles.Count > 0
-        || WebPages.Count > 0;
+        || WebPages.Count > 0
+        || SoftwareApplications.Count > 0;
 }

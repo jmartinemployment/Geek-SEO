@@ -104,6 +104,11 @@ public class JsonLdParserService : IJsonLdParserService
             AddUnique(summary.Services, FormatProduct(node), seen);
         }
 
+        if (types.Any(t => string.Equals(NormalizeType(t), "SoftwareApplication", StringComparison.OrdinalIgnoreCase)))
+        {
+            AddUnique(summary.SoftwareApplications, FormatSoftwareApplication(node), seen);
+        }
+
         if (types.Any(t => string.Equals(NormalizeType(t), "WebSite", StringComparison.OrdinalIgnoreCase)))
         {
             AddUnique(summary.WebPages, FormatWebSite(node), seen);
@@ -256,6 +261,12 @@ public class JsonLdParserService : IJsonLdParserService
 
     private static string FormatProduct(JsonElement node) =>
         JoinNameDescription(GetString(node, "name"), GetString(node, "description"));
+
+    private static string FormatSoftwareApplication(JsonElement node) =>
+        JoinNameDescription(
+            GetString(node, "name"),
+            GetString(node, "description"),
+            GetString(node, "applicationCategory"));
 
     private static string FormatWebSite(JsonElement node) =>
         JoinNameDescription(GetString(node, "name"), GetString(node, "description"), GetString(node, "url"));

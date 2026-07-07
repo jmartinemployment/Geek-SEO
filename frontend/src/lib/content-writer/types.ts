@@ -83,6 +83,13 @@ export interface ArticleDraft {
   sectionOutline: string[];
 }
 
+export const CONTENT_LENGTH_TARGETS = {
+  pillar: { min: 3000, max: 5000, label: "3,000–5,000+" },
+  blog: { min: 1700, max: 2500, label: "1,700–2,500" },
+  standardPost: { min: 1400, max: 1500, label: "1,400–1,500" },
+  news: { min: 400, max: 800, label: "400–800" },
+} as const;
+
 export interface SocialPostDraft {
   platform: string;
   text: string;

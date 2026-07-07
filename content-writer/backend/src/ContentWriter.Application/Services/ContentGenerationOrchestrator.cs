@@ -110,9 +110,10 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         var articleMetadata = new ContentMetadata(
             metadata.Title, metadata.MetaDescription, context.AuthorName, context.PublisherName,
             context.PublisherLogoUrl, articleUrl, context.PublisherLogoUrl, now, now, metadata.Keywords, wordCount);
+        var softwareApplications = ToolsSectionHtmlParser.ExtractApplications(bodyHtml, metadata.SectionOutline);
         articleRow.BodyHtml = bodyHtml;
         articleRow.WordCount = wordCount;
-        articleRow.JsonLdSchema = _articleSchemaBuilder.Build(articleMetadata, placeholderBlogUrl);
+        articleRow.JsonLdSchema = _articleSchemaBuilder.Build(articleMetadata, placeholderBlogUrl, softwareApplications);
         articleRow.RelatedArticleUrl = placeholderBlogUrl;
         articleRow.GeneratedByProvider = provider.ProviderType;
         articleRow.GeneratedByModel = ResolveModelName(project.PreferredProvider);
@@ -154,7 +155,8 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         var articleMetadata = new ContentMetadata(
             article.Title, article.MetaDescription, context.AuthorName, context.PublisherName,
             context.PublisherLogoUrl, articleUrl, context.PublisherLogoUrl, now, now, article.Keywords, article.WordCount);
-        articleRow.JsonLdSchema = _articleSchemaBuilder.Build(articleMetadata, blogUrl);
+        var softwareApplications = ToolsSectionHtmlParser.ExtractApplications(articleRow.BodyHtml, article.SectionOutline);
+        articleRow.JsonLdSchema = _articleSchemaBuilder.Build(articleMetadata, blogUrl, softwareApplications);
         articleRow.RelatedArticleUrl = blogUrl;
 
         await AddContentAsync(project, provider.ProviderType, new GeneratedContent
@@ -166,6 +168,7 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             MetaDescription = blog.MetaDescription,
             Keywords = blog.Keywords,
             WordCount = blog.WordCount,
+            SectionOutline = blog.SectionOutline,
             BodyHtml = blog.BodyHtml,
             JsonLdSchema = blogJsonLd,
             RelatedArticleUrl = articleUrl,
@@ -498,20 +501,85 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         var metadataResult = await provider.CompleteAsync(
             _promptBuilder.BuildBlogMetadataPrompt(context, article),
             cancellationToken);
-        var metadata = ParseJson<BlogMetadataDraft>(metadataResult.Content, "BlogPosting metadata");
+        var metadata = NormalizeBlogMetadata(ParseJson<BlogMetadataDraft>(metadataResult.Content, "BlogPosting metadata"));
 
-        var bodyResult = await provider.CompleteAsync(
-            _promptBuilder.BuildBlogBodyPrompt(context, article, metadata),
-            cancellationToken);
-        var bodyHtml = LlmResponseJsonParser.ParseHtmlBody(bodyResult.Content, "BlogPosting body");
+        var bodyHtml = await GenerateBlogBodyAsync(provider, context, article, metadata, cancellationToken);
+        var wordCount = HtmlWordCounter.Count(bodyHtml);
+
+        if (wordCount < ContentLengthTargets.BlogMinWords)
+        {
+            _logger.LogWarning(
+                "Blog draft for project keyword \"{Keyword}\" is {Count} words (minimum {Minimum}); running expansion pass.",
+                context.TargetKeyword,
+                wordCount,
+                ContentLengthTargets.BlogMinWords);
+
+            var expansionResult = await provider.CompleteAsync(
+                _promptBuilder.BuildBlogBodyPrompt(context, article, metadata),
+                cancellationToken);
+            var expandedHtml = LlmResponseJsonParser.ParseHtmlBody(expansionResult.Content, "BlogPosting expansion body");
+            var expandedCount = HtmlWordCounter.Count(expandedHtml);
+            if (expandedCount > wordCount)
+            {
+                bodyHtml = expandedHtml;
+                wordCount = expandedCount;
+            }
+        }
 
         return new BlogDraft(
             metadata.Title,
             metadata.MetaDescription,
             bodyHtml,
             metadata.Keywords,
-            HtmlWordCounter.Count(bodyHtml));
+            wordCount,
+            metadata.SectionOutline);
     }
+
+    private async Task<string> GenerateBlogBodyAsync(
+        IContentGenerationProvider provider,
+        ProjectGenerationContext context,
+        ArticleDraft article,
+        BlogMetadataDraft metadata,
+        CancellationToken cancellationToken)
+    {
+        var sections = metadata.SectionOutline.Count > 0
+            ? metadata.SectionOutline
+            :
+            [
+                "Why this matters now",
+                "Key takeaways from the pillar",
+                "Practical steps you can take",
+                "What to read next"
+            ];
+
+        var parts = new List<string>();
+
+        for (var i = 0; i < sections.Count; i++)
+        {
+            var heading = sections[i];
+            _logger.LogInformation(
+                "Generating blog section {Index}/{Total}: {Heading}",
+                i + 1,
+                sections.Count,
+                heading);
+
+            var sectionResult = await provider.CompleteAsync(
+                _promptBuilder.BuildBlogSectionPrompt(context, article, metadata, heading, i, sections.Count),
+                cancellationToken);
+
+            parts.Add(LlmResponseJsonParser.ParseHtmlBody(
+                sectionResult.Content,
+                $"BlogPosting section '{heading}'"));
+        }
+
+        return string.Join("\n\n", parts);
+    }
+
+    private static BlogMetadataDraft NormalizeBlogMetadata(BlogMetadataDraft metadata) => metadata with
+    {
+        Keywords = metadata.Keywords ?? new List<string>(),
+        SectionOutline = metadata.SectionOutline ?? new List<string>()
+    };
 
     private async Task<SocialPostDraft> GenerateSocialPostAsync(
         IContentGenerationProvider provider,

@@ -36,7 +36,11 @@ public record ArticleMetadataDraft(
     List<string> Keywords,
     List<string> SectionOutline);
 
-public record BlogMetadataDraft(string Title, string MetaDescription, List<string> Keywords);
+public record BlogMetadataDraft(
+    string Title,
+    string MetaDescription,
+    List<string> Keywords,
+    List<string> SectionOutline);
 
 public record ArticleDraft(
     string Title,
@@ -46,7 +50,13 @@ public record ArticleDraft(
     int WordCount,
     List<string> SectionOutline);
 
-public record BlogDraft(string Title, string MetaDescription, string BodyHtml, List<string> Keywords, int WordCount);
+public record BlogDraft(
+    string Title,
+    string MetaDescription,
+    string BodyHtml,
+    List<string> Keywords,
+    int WordCount,
+    List<string> SectionOutline);
 
 public record SocialPostDraft(string Platform, string Text);
 
