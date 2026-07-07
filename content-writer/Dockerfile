@@ -12,7 +12,6 @@ RUN dotnet publish src/ContentWriter.Api/ContentWriter.Api.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
-ENV ASPNETCORE_URLS=http://0.0.0.0:5199
-ENV PORT=5199
+ENV ASPNETCORE_URLS=http://0.0.0.0:${PORT:-5199}
 EXPOSE 5199
 ENTRYPOINT ["dotnet", "ContentWriter.Api.dll"]
