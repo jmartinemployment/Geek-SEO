@@ -106,8 +106,14 @@ Open **http://localhost:3000/content-writer** (production: **https://seo.geekaty
 
 ## Railway deployment
 
-Deploy as a **separate Railway service** in the GeekSeoBackend project (not a second Railway project).
-Set `dockerfilePath` to `content-writer/Dockerfile` with the **repo root** as build context — do not use the root `Dockerfile` (that is GeekSeoBackend).
+**One Railway project only:** `GeekSeoBackend` with two services:
+
+| Service | Dockerfile | URL |
+|---------|------------|-----|
+| GeekSeoBackend | `Dockerfile.geekseo` (repo root) | geekseobackend-production.up.railway.app |
+| ContentWriter | `content-writer/Dockerfile` (repo root context) | contentwriter-production.up.railway.app |
+
+Do not create a separate ContentWriter Railway project. Set each service's `dockerfilePath` explicitly in Railway — there is no root `Dockerfile` (that caused Content Writer to deploy GeekSeoBackend by mistake).
 
 ```bash
 docker build -f content-writer/Dockerfile -t content-writer-api .
