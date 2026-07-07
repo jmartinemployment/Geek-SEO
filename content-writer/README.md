@@ -106,7 +106,12 @@ Open **http://localhost:3000/content-writer** (production: **https://seo.geekaty
 
 ## Railway deployment
 
-`content-writer/Dockerfile` and `content-writer/railway.toml` deploy the API as a separate service.
+Deploy as a **separate Railway service** in the GeekSeoBackend project (not a second Railway project).
+Set `dockerfilePath` to `content-writer/Dockerfile` with the **repo root** as build context — do not use the root `Dockerfile` (that is GeekSeoBackend).
+
+```bash
+docker build -f content-writer/Dockerfile -t content-writer-api .
+```
 
 Required Railway variables:
 
