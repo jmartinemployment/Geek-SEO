@@ -106,26 +106,35 @@ Open **http://localhost:3000/content-writer** (production: **https://seo.geekaty
 
 ## Railway deployment
 
-**One Railway project only:** `GeekSeoBackend` with two services:
+Content Writer is **hosted inside GeekSeoBackend** — one Railway project, one service.
 
 | Service | Dockerfile | URL |
 |---------|------------|-----|
-| GeekSeoBackend | `Dockerfile.geekseo` (repo root) | geekseobackend-production.up.railway.app |
-| ContentWriter | `content-writer/Dockerfile` (repo root context) | contentwriter-production.up.railway.app |
+| GeekSeoBackend | `Dockerfile.geekseo` (repo root) | `seo-api.geekatyourspot.com` |
 
-Do not create a separate ContentWriter Railway project. Set each service's `dockerfilePath` explicitly in Railway — there is no root `Dockerfile` (that caused Content Writer to deploy GeekSeoBackend by mistake).
+Content Writer API routes (`/api/projects`, `/api/projects/{id}/generate/*`, etc.) are served by the same process on port **5051**. Do **not** deploy a separate ContentWriter Railway service.
 
 ```bash
-docker build -f content-writer/Dockerfile -t content-writer-api .
+docker build -f Dockerfile.geekseo -t geek-seo-backend .
 ```
 
-Required Railway variables:
+Copy these Railway variables from the retired ContentWriter service onto **GeekSeoBackend**:
 
-- `CONTENT_WRITER_DATABASE_URL` — Supabase direct Postgres URI
-- `ASPNETCORE_ENVIRONMENT=Production`
-- LLM provider keys as needed (`LlmProviders__OpenAi__ApiKey`, etc.)
+- `CONTENT_WRITER_DATABASE_URL` — Supabase direct Postgres URI (`content_writer` schema)
+- `LlmProviders__OpenAi__ApiKey`, `LlmProviders__Anthropic__ApiKey`, etc.
 
-Point the Vercel frontend at the deployed API via `NEXT_PUBLIC_CONTENT_WRITER_API_URL`.
+The Vercel frontend uses `NEXT_PUBLIC_SEO_API_URL` (defaults Content Writer client to the same base URL).
+
+### Local-only standalone API (optional)
+
+For isolated backend development without GeekSeoBackend:
+
+```bash
+cd content-writer/backend
+ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/ContentWriter.Api --urls http://localhost:5199
+```
+
+Set `NEXT_PUBLIC_CONTENT_WRITER_API_URL=http://localhost:5199` when using that mode.
 
 ## Workflow
 

@@ -80,7 +80,7 @@ export default function ContentResults({
         <StepRow
           step={2}
           title="Pillar body"
-          description={`Writes one outline section per LLM call. Target ${CONTENT_LENGTH_TARGETS.pillar.label} words for the pillar hub.`}
+          description={`${CONTENT_LENGTH_TARGETS.pillar.definition} Target ${CONTENT_LENGTH_TARGETS.pillar.label} words — one outline section per LLM call.`}
           done={hasPillarBody}
           disabled={!hasPillarPlan || isGenerating}
           isRunning={generatingStep === "pillar-body"}
@@ -92,7 +92,7 @@ export default function ContentResults({
         <StepRow
           step={3}
           title="Blog content"
-          description={`How-to/listicle companion blog (${CONTENT_LENGTH_TARGETS.blog.label} words), one section per LLM call, cross-linked to the pillar.`}
+          description={`${CONTENT_LENGTH_TARGETS.blog.definition} Target ${CONTENT_LENGTH_TARGETS.blog.label} words — one section per LLM call, cross-linked to the pillar.`}
           done={hasBlog}
           disabled={!hasPillarBody || isGenerating}
           isRunning={generatingStep === "blog"}

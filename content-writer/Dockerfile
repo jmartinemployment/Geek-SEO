@@ -1,4 +1,4 @@
-# Content Writer API — Railway / Docker
+# Content Writer API — local Docker only (production uses GeekSeoBackend).
 # Build context: Geek-SEO repo root (docker build -f content-writer/Dockerfile .)
 FROM mcr.microsoft.com/dotnet/sdk:10.0-noble AS build
 WORKDIR /src

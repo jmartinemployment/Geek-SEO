@@ -502,22 +502,30 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             _promptBuilder.BuildBlogMetadataPrompt(context, article),
             cancellationToken);
         var metadata = NormalizeBlogMetadata(ParseJson<BlogMetadataDraft>(metadataResult.Content, "BlogPosting metadata"));
+        metadata = EnsureBlogSectionOutline(metadata);
 
         var bodyHtml = await GenerateBlogBodyAsync(provider, context, article, metadata, cancellationToken);
         var wordCount = HtmlWordCounter.Count(bodyHtml);
 
-        if (wordCount < ContentLengthTargets.BlogMinWords)
+        const int maxExpansionPasses = 3;
+        for (var pass = 0; wordCount < ContentLengthTargets.BlogMinWords && pass < maxExpansionPasses; pass++)
         {
             _logger.LogWarning(
-                "Blog draft for project keyword \"{Keyword}\" is {Count} words (minimum {Minimum}); running expansion pass.",
+                "Blog draft for project keyword \"{Keyword}\" is {Count} words (minimum {Minimum}); running expansion pass {Pass}/{Max}.",
                 context.TargetKeyword,
                 wordCount,
-                ContentLengthTargets.BlogMinWords);
+                ContentLengthTargets.BlogMinWords,
+                pass + 1,
+                maxExpansionPasses);
 
             var expansionResult = await provider.CompleteAsync(
-                _promptBuilder.BuildBlogBodyPrompt(context, article, metadata),
+                pass == 0
+                    ? _promptBuilder.BuildBlogBodyPrompt(context, article, metadata)
+                    : _promptBuilder.BuildBlogDepthExpansionPrompt(context, article, metadata, bodyHtml, wordCount),
                 cancellationToken);
-            var expandedHtml = LlmResponseJsonParser.ParseHtmlBody(expansionResult.Content, "BlogPosting expansion body");
+            var expandedHtml = LlmResponseJsonParser.ParseHtmlBody(
+                expansionResult.Content,
+                pass == 0 ? "BlogPosting expansion body" : "BlogPosting depth expansion");
             var expandedCount = HtmlWordCounter.Count(expandedHtml);
             if (expandedCount > wordCount)
             {
@@ -547,8 +555,10 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             :
             [
                 "Why this matters now",
+                "What the data shows",
                 "Key takeaways from the pillar",
-                "Practical steps you can take",
+                "Practical steps you can take today",
+                "Common mistakes to avoid",
                 "What to read next"
             ];
 
@@ -563,16 +573,65 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
                 sections.Count,
                 heading);
 
-            var sectionResult = await provider.CompleteAsync(
-                _promptBuilder.BuildBlogSectionPrompt(context, article, metadata, heading, i, sections.Count),
-                cancellationToken);
-
-            parts.Add(LlmResponseJsonParser.ParseHtmlBody(
-                sectionResult.Content,
-                $"BlogPosting section '{heading}'"));
+            var sectionHtml = await GenerateBlogSectionWithRetryAsync(
+                provider, context, article, metadata, heading, i, sections.Count, cancellationToken);
+            parts.Add(sectionHtml);
         }
 
         return string.Join("\n\n", parts);
+    }
+
+    private async Task<string> GenerateBlogSectionWithRetryAsync(
+        IContentGenerationProvider provider,
+        ProjectGenerationContext context,
+        ArticleDraft article,
+        BlogMetadataDraft metadata,
+        string heading,
+        int sectionIndex,
+        int totalSections,
+        CancellationToken cancellationToken)
+    {
+        var sectionMin = (int)(ContentLengthTargets.BlogSectionMinWords * 0.85);
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            var sectionResult = await provider.CompleteAsync(
+                _promptBuilder.BuildBlogSectionPrompt(context, article, metadata, heading, sectionIndex, totalSections),
+                cancellationToken);
+
+            var sectionHtml = LlmResponseJsonParser.ParseHtmlBody(
+                sectionResult.Content,
+                $"BlogPosting section '{heading}'");
+
+            if (HtmlWordCounter.Count(sectionHtml) >= sectionMin || attempt == 1)
+                return sectionHtml;
+
+            _logger.LogWarning(
+                "Blog section \"{Heading}\" is under {Minimum} words; retrying with stricter depth instructions.",
+                heading,
+                sectionMin);
+        }
+
+        return string.Empty;
+    }
+
+    private static BlogMetadataDraft EnsureBlogSectionOutline(BlogMetadataDraft metadata)
+    {
+        var outline = metadata.SectionOutline?.Where(s => !string.IsNullOrWhiteSpace(s)).ToList() ?? [];
+
+        while (outline.Count < ContentLengthTargets.BlogSectionCountMin)
+        {
+            outline.Add(outline.Count switch
+            {
+                0 => "Why this matters now",
+                1 => "What the data shows",
+                2 => "Key takeaways you can use",
+                3 => "Practical steps to implement",
+                _ => "What to do next"
+            });
+        }
+
+        return metadata with { SectionOutline = outline };
     }
 
     private static BlogMetadataDraft NormalizeBlogMetadata(BlogMetadataDraft metadata) => metadata with

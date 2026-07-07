@@ -84,10 +84,33 @@ export interface ArticleDraft {
 }
 
 export const CONTENT_LENGTH_TARGETS = {
-  pillar: { min: 3000, max: 5000, label: "3,000–5,000+" },
-  blog: { min: 1700, max: 2500, label: "1,700–2,500" },
-  standardPost: { min: 1400, max: 1500, label: "1,400–1,500" },
-  news: { min: 400, max: 800, label: "400–800" },
+  pillar: {
+    min: 3000,
+    max: 5000,
+    label: "3,000–5,000+",
+    definition:
+      "Exhaustive macro-level entry points for massive topics — multiple subsections that link out to cluster articles.",
+  },
+  blog: {
+    min: 1800,
+    max: 2500,
+    label: "1,800–2,500",
+    definition:
+      "Deep-dive articles aimed at outranking competitors — substantive depth in every section, not surface summaries.",
+  },
+  listicleGuide: {
+    min: 1200,
+    max: 1800,
+    label: "1,200–1,800",
+    definition:
+      "Actionable step-by-step tutorials with substantial context, data, and layout formatting.",
+  },
+  news: {
+    min: 400,
+    max: 800,
+    label: "400–800",
+    definition: "Press releases and short announcements — timely and concise.",
+  },
 } as const;
 
 export interface SocialPostDraft {

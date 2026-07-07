@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\GeekSeo.Application\GeekSeo.Application.csproj" />
+    <ProjectReference Include="..\content-writer\backend\src\ContentWriter.Api\ContentWriter.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>

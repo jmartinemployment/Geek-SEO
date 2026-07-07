@@ -1,3 +1,5 @@
+# DEPRECATED — Content Writer is hosted inside GeekSeoBackend.
+# Kept for local docker builds only: docker build -f content-writer/Dockerfile .
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "content-writer/Dockerfile"

@@ -9,8 +9,10 @@ import type {
   ProjectSummary,
 } from "./types";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_CONTENT_WRITER_API_URL ?? "http://localhost:5199";
+const SEO_API_URL = process.env.NEXT_PUBLIC_SEO_API_URL ?? "http://localhost:5051";
+
+/** Content Writer routes are hosted on GeekSeoBackend (same origin as SEO API). */
+const API_BASE_URL = process.env.NEXT_PUBLIC_CONTENT_WRITER_API_URL ?? SEO_API_URL;
 
 /** True when the UI talks to the hosted Railway API (LM Studio is not available there). */
 export function isProductionContentWriterApi(): boolean {

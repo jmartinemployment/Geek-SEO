@@ -37,6 +37,12 @@ public interface IContentPromptBuilder
         int sectionIndex,
         int totalSections);
     ChatCompletionRequest BuildBlogBodyPrompt(ProjectGenerationContext context, ArticleDraft sourceArticle, BlogMetadataDraft metadata);
+    ChatCompletionRequest BuildBlogDepthExpansionPrompt(
+        ProjectGenerationContext context,
+        ArticleDraft sourceArticle,
+        BlogMetadataDraft metadata,
+        string currentBodyHtml,
+        int currentWordCount);
     ChatCompletionRequest BuildSocialPrompt(ProjectGenerationContext context, ArticleDraft sourceArticle, string platform, string articleUrl);
 }
 
@@ -91,6 +97,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
         var system = new StringBuilder()
             .AppendLine("You are a senior technical content writer for an IT consulting firm that specializes in AI implementation.")
             .AppendLine("Write ONE section of a schema.org TechnicalArticle pillar — third person, expert, implementation-focused.")
+            .AppendLine($"Pillar standard ({ContentLengthTargets.PillarRangeLabel} words): {ContentLengthTargets.PillarEditorialDefinition}")
             .AppendLine("Output ONLY HTML for this section. No Markdown. No JSON. No <html>/<body> tags.")
             .AppendLine(isFirst
                 ? "Start with 2-3 introductory <p> paragraphs (context and thesis). Do NOT start with \"How\" or a question. Then <h2> for this section."
@@ -183,6 +190,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine($"Detected brand tone: {context.DetectedTone}.")
             .AppendLine($"Detected site focus/topics: {context.DetectedFocus}.")
             .AppendLine("Content type: schema.org TechnicalArticle — a deep technical pillar, NOT a BlogPosting or FAQ page.")
+            .AppendLine($"Editorial standard ({ContentLengthTargets.PillarRangeLabel} words): {ContentLengthTargets.PillarEditorialDefinition}")
             .AppendLine("Write an authoritative pillar article. Tone: third person, expert, implementation-focused.")
             .AppendLine("ANTI-PATTERNS (do NOT do these): first/second person blog voice; short 2-sentence sections; question-mark H2s outside the FAQ section; turning the whole article into Q&A.")
             .AppendLine("REQUIRED STRUCTURE:")
@@ -222,7 +230,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
     }
 
     private const string BlogMetadataJsonContract =
-        "{\"title\": string, \"metaDescription\": string (max 160 chars), \"keywords\": string[] (5-10 items), \"sectionOutline\": string[] (4-5 conversational H2 headings — hooks, numbered angles, or how-to framing; do NOT copy pillar H2s verbatim)}";
+        "{\"title\": string, \"metaDescription\": string (max 160 chars), \"keywords\": string[] (5-10 items), \"sectionOutline\": string[] (5-6 conversational H2 headings — hooks, numbered angles, or how-to framing; do NOT copy pillar H2s verbatim)}";
 
     public ChatCompletionRequest BuildBlogMetadataPrompt(ProjectGenerationContext context, ArticleDraft sourceArticle)
     {
@@ -239,7 +247,9 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine($"Pillar article title (do NOT reuse): {sourceArticle.Title}")
             .AppendLine($"Pillar summary: {sourceArticle.MetaDescription}")
             .AppendLine()
-            .AppendLine($"Plan a how-to/listicle companion blog ({ContentLengthTargets.BlogRangeLabel} words) with a distinct title, angle, and 4-5 fresh H2 section headings.")
+            .AppendLine($"Plan a deep-dive companion blog ({ContentLengthTargets.BlogRangeLabel} words) with a distinct title, angle, and {ContentLengthTargets.BlogSectionCountMin}-{ContentLengthTargets.BlogSectionCountTarget} fresh H2 section headings.")
+            .AppendLine($"Editorial standard: {ContentLengthTargets.BlogEditorialDefinition}")
+            .AppendLine("Each section must support substantive depth — data points, examples, and implementation context, not surface summaries.")
             .AppendLine("Return title, metaDescription, keywords, and sectionOutline only (body is written separately).")
             .ToString();
 
@@ -264,13 +274,14 @@ public class ContentPromptBuilder : IContentPromptBuilder
         var system = new StringBuilder()
             .AppendLine("You are a content marketer for an IT consulting firm that specializes in AI implementation.")
             .AppendLine($"Detected brand tone: {context.DetectedTone}.")
-            .AppendLine("Write ONE section of a schema.org BlogPosting companion article — conversational, practical, first/second person allowed.")
+            .AppendLine("Write ONE section of a schema.org BlogPosting deep-dive article — conversational but substantive; first/second person allowed.")
+            .AppendLine($"Editorial standard ({ContentLengthTargets.BlogRangeLabel} words): {ContentLengthTargets.BlogEditorialDefinition}")
             .AppendLine("Output ONLY HTML for this section. No Markdown. No JSON. No <html>/<body> tags.")
             .AppendLine(isFirst
-                ? "Start with 2-3 introductory <p> paragraphs (hook and context). Then <h2> for this section."
+                ? "Start with 2-3 introductory <p> paragraphs (hook, stakes, and who this is for). Then <h2> for this section."
                 : "Start with <h2> for this section only — no intro paragraphs.")
-            .AppendLine("Include 1-2 <h3> subsections where helpful, multiple <p> paragraphs, and at least one <ul> when listing tips or tools.")
-            .AppendLine($"Target {ContentLengthTargets.BlogSectionMinWords}-{ContentLengthTargets.BlogSectionTargetMaxWords} words for this section. Do not write other sections.")
+            .AppendLine("Include 2-3 <h3> subsections where helpful, multiple substantive <p> paragraphs, at least one <ul> with concrete tips, and a specific example or data point.")
+            .AppendLine($"Target {ContentLengthTargets.BlogSectionMinWords}-{ContentLengthTargets.BlogSectionTargetMaxWords} words for this section alone. Shorter sections fail editorial review — add depth, not filler.")
             .AppendLine("Do NOT duplicate the pillar article structure or reuse its H2 headings verbatim.")
             .ToString();
 
@@ -293,7 +304,39 @@ public class ContentPromptBuilder : IContentPromptBuilder
         return new ChatCompletionRequest(
             Messages: new List<ChatMessage> { new(ChatRole.System, system), new(ChatRole.User, user) },
             Temperature: 0.72,
-            MaxOutputTokens: 3072);
+            MaxOutputTokens: 4096);
+    }
+
+    public ChatCompletionRequest BuildBlogDepthExpansionPrompt(
+        ProjectGenerationContext context,
+        ArticleDraft sourceArticle,
+        BlogMetadataDraft metadata,
+        string currentBodyHtml,
+        int currentWordCount)
+    {
+        var wordsNeeded = ContentLengthTargets.BlogMinWords - currentWordCount;
+        var system = new StringBuilder()
+            .AppendLine("You are a senior content editor for an IT consulting firm.")
+            .AppendLine("Expand the blog HTML below to meet the minimum word count without changing the title or removing existing sections.")
+            .AppendLine($"Editorial standard: {ContentLengthTargets.BlogEditorialDefinition}")
+            .AppendLine("Add depth inside each <h2> section: more <p> paragraphs, an extra <h3> subsection, examples, and a bullet list where appropriate.")
+            .AppendLine($"Current length: {currentWordCount:N0} words. Minimum required: {ContentLengthTargets.BlogMinWords:N0}. Add at least {Math.Max(wordsNeeded, 400):N0} words of substantive material.")
+            .AppendLine("Respond with ONLY the full expanded HTML body. No Markdown. No JSON wrapper.")
+            .ToString();
+
+        var user = new StringBuilder()
+            .AppendLine($"Target keyword: {context.TargetKeyword}")
+            .AppendLine($"Blog title: {metadata.Title}")
+            .AppendLine($"Pillar reference: {sourceArticle.Title}")
+            .AppendLine()
+            .AppendLine("Current HTML to expand:")
+            .AppendLine(currentBodyHtml)
+            .ToString();
+
+        return new ChatCompletionRequest(
+            Messages: new List<ChatMessage> { new(ChatRole.System, system), new(ChatRole.User, user) },
+            Temperature: 0.65,
+            MaxOutputTokens: 8192);
     }
 
     public ChatCompletionRequest BuildBlogBodyPrompt(ProjectGenerationContext context, ArticleDraft sourceArticle, BlogMetadataDraft metadata)
@@ -305,8 +348,8 @@ public class ContentPromptBuilder : IContentPromptBuilder
         var system = new StringBuilder()
             .AppendLine("You are a content marketer for an IT consulting firm that specializes in AI implementation.")
             .AppendLine($"Detected brand tone: {context.DetectedTone}.")
-            .AppendLine("Write a conversational blog that teases the pillar — do NOT duplicate the pillar structure or reuse its H2 headings verbatim.")
-            .AppendLine("Use fresh H2 headings (3-5 sections). Shorter paragraphs; first/second person allowed.")
+            .AppendLine("Write a deep-dive blog that teases the pillar — do NOT duplicate the pillar structure or reuse its H2 headings verbatim.")
+            .AppendLine("Use fresh H2 headings (5-6 sections). Substantive paragraphs with examples; first/second person allowed.")
             .AppendLine($"Target at least {ContentLengthTargets.BlogMinWords:N0} words (aim for {ContentLengthTargets.BlogRangeLabel}). Do not stop early.")
             .AppendLine("Respond with ONLY semantic HTML using <h2>/<h3>/<p>/<ul>/<li>. No Markdown. No JSON wrapper.")
             .ToString();

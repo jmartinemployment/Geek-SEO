@@ -12,6 +12,7 @@ WORKDIR /src
 COPY GeekSeo.Persistence/ GeekSeo.Persistence/
 COPY GeekSeo.Application/ GeekSeo.Application/
 COPY GeekSeoBackend/ GeekSeoBackend/
+COPY content-writer/backend/ content-writer/backend/
 WORKDIR /src/GeekSeoBackend
 RUN dotnet publish GeekSeoBackend.csproj \
     -c Release \

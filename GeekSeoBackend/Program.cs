@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using ContentWriter.Api.Controllers;
+using ContentWriter.Api.Hosting;
 using DotNetEnv;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeoBackend.Hubs;
@@ -17,7 +20,9 @@ if (!builder.Environment.IsDevelopment())
     GoogleOAuthEnv.EnsureConfigured();
 }
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()))
+    .AddApplicationPart(typeof(ProjectsController).Assembly);
 
 PlaywrightBrowserHolder? playwrightHolder = null;
 var disablePlaywright = string.Equals(
@@ -39,6 +44,7 @@ if (!disablePlaywright)
 }
 
 builder.Services.AddGeekSeoBackend(builder.Configuration, playwrightHolder);
+builder.Services.AddContentWriter(builder.Configuration);
 builder.Services.AddHostedService<NicheAnalysisJobWorker>();
 builder.Services.AddHostedService<NicheEnrichmentJobWorker>();
 builder.Services.AddHostedService<SeoMaintenanceWorker>();
@@ -109,6 +115,8 @@ app.UseMiddleware<SeoFeatureGateMiddleware>();
 app.UseMiddleware<SeoUsageGateMiddleware>();
 app.MapControllers();
 app.MapHub<SeoRealtimeHub>("/hubs/seo-realtime");
+
+await app.InitializeContentWriterDatabaseAsync();
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5051";
 app.Run($"http://0.0.0.0:{port}");
