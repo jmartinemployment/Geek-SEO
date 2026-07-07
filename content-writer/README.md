@@ -104,7 +104,7 @@ npm run dev
 
 Open **http://localhost:3000/content-writer** (production: **https://seo.geekatyourspot.com/content-writer**)
 
-The Content Writer API client defaults to `NEXT_PUBLIC_SEO_API_URL`. Override with `NEXT_PUBLIC_CONTENT_WRITER_API_URL` only when running the standalone API on a different port.
+The Content Writer API client uses `NEXT_PUBLIC_SEO_API_URL` (Content Writer is integrated into GeekSeoBackend).
 
 ## Railway deployment
 
