@@ -12,6 +12,20 @@ import type {
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_CONTENT_WRITER_API_URL ?? "http://localhost:5199";
 
+/** True when the UI talks to the hosted Railway API (LM Studio is not available there). */
+export function isProductionContentWriterApi(): boolean {
+  try {
+    const url = new URL(API_BASE_URL);
+    return url.hostname !== "localhost" && url.hostname !== "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+
+export function defaultLlmProvider(): LlmProviderType {
+  return isProductionContentWriterApi() ? "OpenAi" : "LmStudio";
+}
+
 export class ApiError extends Error {
   constructor(message: string, public status: number) {
     super(message);
@@ -69,7 +83,7 @@ export function getProject(projectId: string): Promise<ProjectDetail> {
   return request<ProjectDetail>(`/api/projects/${projectId}`);
 }
 
-export function crawlProject(projectId: string, maxPages = 15): Promise<CrawlSummary> {
+export function crawlProject(projectId: string, maxPages = 50): Promise<CrawlSummary> {
   return request<CrawlSummary>(`/api/projects/${projectId}/crawl?maxPages=${maxPages}`, {
     method: "POST",
   });

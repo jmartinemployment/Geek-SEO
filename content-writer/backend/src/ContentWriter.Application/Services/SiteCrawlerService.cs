@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using HtmlAgilityPack;
 using Microsoft.Extensions.Logging;
 
@@ -20,7 +22,7 @@ public class SiteCrawlerService : ISiteCrawlerService
         _logger = logger;
     }
 
-    public async Task<SiteCrawlResult> CrawlAsync(string startUrl, int maxPages = 15, CancellationToken cancellationToken = default)
+    public async Task<SiteCrawlResult> CrawlAsync(string startUrl, int maxPages = 50, CancellationToken cancellationToken = default)
     {
         if (!Uri.TryCreate(startUrl, UriKind.Absolute, out var startUri))
         {
@@ -30,6 +32,7 @@ public class SiteCrawlerService : ISiteCrawlerService
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var toVisit = new Queue<Uri>();
         toVisit.Enqueue(startUri);
+        await EnqueueSitemapUrlsAsync(startUri, toVisit, visited, cancellationToken);
 
         var jsonLdBlocks = new List<string>();
         var headings = new List<string>();
@@ -168,6 +171,106 @@ public class SiteCrawlerService : ISiteCrawlerService
                 paragraphs.Add(text);
             }
         }
+    }
+
+    private async Task EnqueueSitemapUrlsAsync(
+        Uri startUri,
+        Queue<Uri> toVisit,
+        HashSet<string> visited,
+        CancellationToken cancellationToken)
+    {
+        var sitemapUrl = new Uri(startUri, "/sitemap.xml");
+        string xml;
+        try
+        {
+            xml = await _httpClient.GetStringAsync(sitemapUrl, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "No sitemap found at {SitemapUrl}", sitemapUrl);
+            return;
+        }
+
+        var urls = await ParseSitemapUrlsAsync(xml, startUri, cancellationToken);
+        foreach (var url in urls)
+        {
+            var key = url.GetLeftPart(UriPartial.Path).TrimEnd('/');
+            if (visited.Contains(key))
+            {
+                continue;
+            }
+
+            toVisit.Enqueue(url);
+        }
+
+        if (urls.Count > 0)
+        {
+            _logger.LogInformation("Seeded crawl queue with {Count} URL(s) from {SitemapUrl}", urls.Count, sitemapUrl);
+        }
+    }
+
+    private async Task<List<Uri>> ParseSitemapUrlsAsync(string xml, Uri rootUri, CancellationToken cancellationToken)
+    {
+        var urls = new List<Uri>();
+        XDocument doc;
+        try
+        {
+            doc = XDocument.Parse(xml);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to parse sitemap XML for {Host}", rootUri.Host);
+            return urls;
+        }
+
+        XNamespace ns = doc.Root?.Name.Namespace ?? XNamespace.None;
+        var sitemapLocs = doc.Descendants(ns + "sitemap")
+            .Select(node => node.Element(ns + "loc")?.Value.Trim())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToList();
+
+        if (sitemapLocs.Count > 0)
+        {
+            foreach (var childSitemap in sitemapLocs)
+            {
+                try
+                {
+                    var childXml = await _httpClient.GetStringAsync(childSitemap, cancellationToken);
+                    urls.AddRange(ParseUrlLocs(childXml, rootUri));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to fetch child sitemap {ChildSitemap}", childSitemap);
+                }
+            }
+
+            return urls;
+        }
+
+        urls.AddRange(ParseUrlLocs(xml, rootUri));
+        return urls;
+    }
+
+    private static List<Uri> ParseUrlLocs(string xml, Uri rootUri)
+    {
+        var urls = new List<Uri>();
+        foreach (Match match in Regex.Matches(xml, @"<loc>\s*(.*?)\s*</loc>", RegexOptions.IgnoreCase))
+        {
+            var loc = match.Groups[1].Value.Trim();
+            if (!Uri.TryCreate(loc, UriKind.Absolute, out var absolute))
+            {
+                continue;
+            }
+
+            if (!absolute.Host.Equals(rootUri.Host, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            urls.Add(absolute);
+        }
+
+        return urls;
     }
 
     private static void EnqueueInternalLinks(HtmlDocument doc, Uri rootUri, Uri currentUri, Queue<Uri> toVisit, HashSet<string> visited)

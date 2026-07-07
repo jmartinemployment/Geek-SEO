@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { PROVIDER_OPTIONS, type LlmProviderType, type ProjectSummary } from "@/lib/content-writer/types";
-import { createProject, ApiError } from "@/lib/content-writer/api";
+import { createProject, ApiError, defaultLlmProvider, isProductionContentWriterApi } from "@/lib/content-writer/api";
 
 export default function ProjectForm({ onCreated }: { onCreated: (project: ProjectSummary) => void }) {
   const [name, setName] = useState("");
   const [projectUrl, setProjectUrl] = useState("");
   const [targetKeyword, setTargetKeyword] = useState("");
-  const [preferredProvider, setPreferredProvider] = useState<LlmProviderType>("LmStudio");
+  const [preferredProvider, setPreferredProvider] = useState<LlmProviderType>(defaultLlmProvider);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,6 +81,11 @@ export default function ProjectForm({ onCreated }: { onCreated: (project: Projec
               </option>
             ))}
           </select>
+          {isProductionContentWriterApi() && preferredProvider === "LmStudio" && (
+            <span className="text-xs text-amber-700">
+              LM Studio only works when the API runs on your machine. Use OpenAI or Anthropic on production.
+            </span>
+          )}
         </label>
       </div>
 

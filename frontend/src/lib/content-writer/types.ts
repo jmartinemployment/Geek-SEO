@@ -118,7 +118,7 @@ export const KEYWORD_SOURCE_CATEGORIES: { value: KeywordSourceCategory; label: s
 ];
 
 export const PROVIDER_OPTIONS: { value: LlmProviderType; label: string }[] = [
-  { value: "LmStudio", label: "LM Studio (local)" },
+  { value: "LmStudio", label: "LM Studio (local dev only)" },
   { value: "OpenAi", label: "OpenAI" },
   { value: "Anthropic", label: "Anthropic (Claude)" },
 ];

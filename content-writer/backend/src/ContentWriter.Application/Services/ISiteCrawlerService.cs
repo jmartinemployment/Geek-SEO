@@ -15,5 +15,5 @@ public interface ISiteCrawlerService
     /// Crawls the given project URL and up to <paramref name="maxPages"/> same-domain pages linked
     /// from it, extracting JSON+LD, headings, and paragraph text to determine tone and focus.
     /// </summary>
-    Task<SiteCrawlResult> CrawlAsync(string startUrl, int maxPages = 15, CancellationToken cancellationToken = default);
+    Task<SiteCrawlResult> CrawlAsync(string startUrl, int maxPages = 50, CancellationToken cancellationToken = default);
 }

@@ -35,8 +35,8 @@ export default function CrawlPanel({
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-foreground">2. Crawl Project Site</h2>
       <p className="mt-1 text-sm text-muted">
-        Crawls <span className="font-mono text-foreground">{projectUrl}</span> for JSON+LD, headings, and
-        paragraph copy to detect brand tone and topical focus.
+        Crawls <span className="font-mono text-foreground">{projectUrl}</span> (sitemap + internal links, up to
+        50 pages) for JSON+LD, headings, and paragraph copy to detect brand tone and topical focus.
       </p>
 
       <button
