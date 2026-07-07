@@ -20,8 +20,16 @@ public static class DatabaseConnectionResolver
         if (!string.IsNullOrWhiteSpace(fromEnv))
             return NormalizePostgresUrl(fromEnv);
 
-        return configuration.GetConnectionString("ContentWriterDb")
-            ?? throw new InvalidOperationException("Connection string 'ContentWriterDb' is not configured.");
+        var fromConfig = configuration.GetConnectionString("ContentWriterDb");
+        if (!string.IsNullOrWhiteSpace(fromConfig)
+            && !fromConfig.Contains("localhost", StringComparison.OrdinalIgnoreCase)
+            && !fromConfig.Contains("127.0.0.1", StringComparison.Ordinal))
+        {
+            return fromConfig;
+        }
+
+        throw new InvalidOperationException(
+            "Content Writer database is not configured. Set CONTENT_WRITER_DATABASE_URL (or DATABASE_URL) in production.");
     }
 
     public static ContentWriterDatabaseProvider DetectProvider(string connectionString)
