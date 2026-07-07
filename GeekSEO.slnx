@@ -3,4 +3,10 @@
   <Project Path="GeekSeo.Application/GeekSeo.Application.csproj" />
   <Project Path="GeekSeoBackend/GeekSeoBackend.csproj" />
   <Project Path="GeekSeoBackend.Tests/GeekSeoBackend.Tests.csproj" />
+  <Folder Name="/content-writer/">
+    <Project Path="content-writer/backend/src/ContentWriter.Api/ContentWriter.Api.csproj" />
+    <Project Path="content-writer/backend/src/ContentWriter.Application/ContentWriter.Application.csproj" />
+    <Project Path="content-writer/backend/src/ContentWriter.Domain/ContentWriter.Domain.csproj" />
+    <Project Path="content-writer/backend/src/ContentWriter.Infrastructure/ContentWriter.Infrastructure.csproj" />
+  </Folder>
 </Solution>

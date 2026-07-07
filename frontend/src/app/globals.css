@@ -20,6 +20,9 @@
   --color-badge-purple: #7c3aed;
   --color-sidebar-active: #f5f5f7;
   --color-sidebar-rail: #f4f5f9;
+  --color-brand: #2563eb;
+  --color-brand-dark: #1d4ed8;
+  --color-muted: #6b7280;
   --background: var(--color-bg);
   --foreground: var(--color-text-primary);
   --radius-card: 12px;
@@ -50,6 +53,9 @@
   --color-warn: var(--color-warn);
   --color-bad: var(--color-bad);
   --color-badge-purple: var(--color-badge-purple);
+  --color-brand: var(--color-brand);
+  --color-brand-dark: var(--color-brand-dark);
+  --color-muted: var(--color-muted);
   --font-sans: var(--font-inter);
 }
 
@@ -93,6 +99,31 @@ body {
 
 .shadow-text {
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.rendered-content h2 {
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.rendered-content h3 {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.rendered-content p {
+  margin-bottom: 0.85rem;
+  line-height: 1.7;
+}
+
+.rendered-content ul {
+  margin-bottom: 0.85rem;
+  padding-left: 1.5rem;
+  list-style: disc;
 }
 
 .app-sidebar-viewport {
