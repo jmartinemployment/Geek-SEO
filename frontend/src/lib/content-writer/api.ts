@@ -9,15 +9,29 @@ import type {
   ProjectSummary,
 } from "./types";
 
-const SEO_API_URL = process.env.NEXT_PUBLIC_SEO_API_URL ?? "http://localhost:5051";
+const DEFAULT_SEO_API_URL = process.env.NEXT_PUBLIC_SEO_API_URL ?? "http://localhost:5051";
+const PRODUCTION_SEO_API_URL = "https://seo-api.geekatyourspot.com";
 
 /** Content Writer routes are hosted on GeekSeoBackend (same origin as SEO API). */
-const API_BASE_URL = SEO_API_URL;
+function resolveApiBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "seo.geekatyourspot.com" || host === "geek-seo.vercel.app") {
+      return PRODUCTION_SEO_API_URL;
+    }
+  }
+
+  if (DEFAULT_SEO_API_URL.includes("contentwriter-production")) {
+    return PRODUCTION_SEO_API_URL;
+  }
+
+  return DEFAULT_SEO_API_URL;
+}
 
 /** True when the UI talks to the hosted Railway API (LM Studio is not available there). */
 export function isProductionContentWriterApi(): boolean {
   try {
-    const url = new URL(API_BASE_URL);
+    const url = new URL(resolveApiBaseUrl());
     return url.hostname !== "localhost" && url.hostname !== "127.0.0.1";
   } catch {
     return false;
@@ -38,7 +52,7 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetch(`${resolveApiBaseUrl()}${path}`, {
       ...init,
       headers: {
         ...(init?.body && !(init.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
@@ -47,7 +61,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch {
     throw new ApiError(
-      `Could not reach the API at ${API_BASE_URL}. Hard-refresh the page and confirm the API is running.`,
+      `Could not reach the API at ${resolveApiBaseUrl()}. Hard-refresh the page and confirm the API is running.`,
       0
     );
   }

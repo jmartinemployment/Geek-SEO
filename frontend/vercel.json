@@ -3,6 +3,12 @@
   "regions": ["iad1"],
   "headers": [
     {
+      "source": "/content-writer",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, must-revalidate" }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         { "key": "X-Frame-Options", "value": "DENY" },
