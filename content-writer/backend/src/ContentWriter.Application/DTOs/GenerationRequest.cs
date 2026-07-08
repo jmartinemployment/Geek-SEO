@@ -62,6 +62,8 @@ public record SocialPostDraft(string Platform, string Text);
 
 public record ColdOutreachEmailDraft(string Subject, string BodyText, string CtaLabel);
 
+public record ColdOutreachEmailContent(string Subject, string BodyText, string CtaLabel, string CtaUrl);
+
 public record GeneratedContentSet(
     ArticleDraft? Article,
     string? ArticleSlug,
@@ -73,4 +75,4 @@ public record GeneratedContentSet(
     string? BlogJsonLd,
     SocialPostDraft? FacebookPost,
     SocialPostDraft? LinkedInPost,
-    ColdOutreachEmailDraft? ColdOutreachEmail);
+    ColdOutreachEmailContent? ColdOutreachEmail);

@@ -15,6 +15,7 @@ public static class GeneratedContentSetAssembler
         var blogRow = Find(project, GeneratedContentType.BlogPost);
         var facebookRow = Find(project, GeneratedContentType.SocialFacebook);
         var linkedInRow = Find(project, GeneratedContentType.SocialLinkedIn);
+        var coldOutreachRow = Find(project, GeneratedContentType.EmailColdOutreach);
 
         var articleSlug = articleRow?.Slug;
         var articleUrl = articleSlug is null ? null : CombineUrl(articleBaseUrl, articleSlug);
@@ -32,7 +33,13 @@ public static class GeneratedContentSetAssembler
             BlogJsonLd: blogRow?.JsonLdSchema,
             FacebookPost: facebookRow is null ? null : new SocialPostDraft("Facebook", facebookRow.BodyHtml),
             LinkedInPost: linkedInRow is null ? null : new SocialPostDraft("LinkedIn", linkedInRow.BodyHtml),
-            ColdOutreachEmail: null);
+            ColdOutreachEmail: coldOutreachRow is null
+                ? null
+                : new ColdOutreachEmailContent(
+                    coldOutreachRow.Title,
+                    coldOutreachRow.BodyHtml,
+                    coldOutreachRow.MetaDescription ?? string.Empty,
+                    coldOutreachRow.RelatedArticleUrl ?? articleUrl ?? string.Empty));
     }
 
     public static ArticleDraft ToArticleDraft(GeneratedContent row) => new(

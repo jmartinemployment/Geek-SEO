@@ -44,6 +44,7 @@ public interface IContentPromptBuilder
         string currentBodyHtml,
         int currentWordCount);
     ChatCompletionRequest BuildSocialPrompt(ProjectGenerationContext context, ArticleDraft sourceArticle, string platform, string articleUrl);
+    ChatCompletionRequest BuildColdOutreachPrompt(ProjectGenerationContext context, ArticleDraft sourceArticle, string articleUrl);
 }
 
 public class ContentPromptBuilder : IContentPromptBuilder
@@ -53,6 +54,9 @@ public class ContentPromptBuilder : IContentPromptBuilder
 
     private const string SocialJsonContract =
         "{\"text\": string}";
+
+    private const string ColdOutreachJsonContract =
+        "{\"subject\": string, \"bodyText\": string (50-125 words), \"ctaLabel\": string}";
 
     public ChatCompletionRequest BuildArticleMetadataPrompt(ProjectGenerationContext context)
     {
@@ -407,6 +411,35 @@ public class ContentPromptBuilder : IContentPromptBuilder
             Messages: new List<ChatMessage> { new(ChatRole.System, system), new(ChatRole.User, user) },
             Temperature: 0.65,
             MaxOutputTokens: maxTokens);
+    }
+
+    public ChatCompletionRequest BuildColdOutreachPrompt(
+        ProjectGenerationContext context,
+        ArticleDraft sourceArticle,
+        string articleUrl)
+    {
+        var system = new StringBuilder()
+            .AppendLine("You write cold outreach / sales emails for an IT consulting firm that specializes in AI implementation.")
+            .AppendLine(ContentLengthTargets.EmailColdOutreachEditorialDefinition)
+            .AppendLine($"Body must be {ContentLengthTargets.EmailColdOutreachMinWords}-{ContentLengthTargets.EmailColdOutreachMaxWords} words.")
+            .AppendLine("Pitch ONE clear idea. No HTML. No markdown links. Do not invent URLs.")
+            .AppendLine("ctaLabel is short button/link text (e.g. \"Read the full guide\"). The destination URL is injected by the app.")
+            .AppendLine("Respond with ONLY a single valid JSON object — no markdown fences:")
+            .AppendLine(ColdOutreachJsonContract)
+            .ToString();
+
+        var user = new StringBuilder()
+            .AppendLine($"Article title: {sourceArticle.Title}")
+            .AppendLine($"Article summary: {sourceArticle.MetaDescription}")
+            .AppendLine($"Pillar URL (for context only — do not put in JSON): {articleUrl}")
+            .AppendLine($"Target keyword: {context.TargetKeyword}")
+            .AppendLine($"Site tone: {context.DetectedTone}")
+            .ToString();
+
+        return new ChatCompletionRequest(
+            Messages: new List<ChatMessage> { new(ChatRole.System, system), new(ChatRole.User, user) },
+            Temperature: 0.65,
+            MaxOutputTokens: 1024);
     }
 
     private static string BuildToolsSectionGuidance(ProjectGenerationContext context)

@@ -14,5 +14,7 @@ public interface IContentGenerationOrchestrator
 
     Task<GeneratedContentSet> GenerateSocialAsync(Guid projectId, CancellationToken cancellationToken = default);
 
+    Task<GeneratedContentSet> GenerateColdOutreachAsync(Guid projectId, CancellationToken cancellationToken = default);
+
     Task<GeneratedContentSet> GenerateAllAsync(Guid projectId, CancellationToken cancellationToken = default);
 }

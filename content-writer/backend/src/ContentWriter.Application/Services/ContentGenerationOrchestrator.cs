@@ -225,12 +225,70 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         return Assemble(project);
     }
 
+    public async Task<GeneratedContentSet> GenerateColdOutreachAsync(Guid projectId, CancellationToken cancellationToken = default)
+    {
+        var project = await LoadProjectForGenerationAsync(projectId, cancellationToken);
+        var articleRow = RequireCompletePillar(project);
+
+        var context = BuildContext(project);
+        var provider = _providerFactory.Get(project.PreferredProvider);
+        var article = GeneratedContentSetAssembler.ToArticleDraft(articleRow);
+        var articleUrl = CombineUrl(context.ArticleBaseUrl, articleRow.Slug);
+
+        _logger.LogInformation("Generating cold outreach email for project {ProjectId} via {Provider}", projectId, provider.ProviderType);
+
+        RemoveGeneratedContents(project, GeneratedContentType.EmailColdOutreach);
+
+        const int maxAttempts = 2;
+        ColdOutreachEmailDraft? draft = null;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var result = await provider.CompleteAsync(
+                _promptBuilder.BuildColdOutreachPrompt(context, article, articleUrl),
+                cancellationToken);
+            try
+            {
+                draft = LlmResponseJsonParser.ParseColdOutreach(result.Content, "cold outreach email");
+                break;
+            }
+            catch (ContentGenerationException ex) when (attempt < maxAttempts)
+            {
+                _logger.LogWarning(ex, "Retrying cold outreach after invalid JSON (attempt {Attempt})", attempt);
+            }
+        }
+
+        if (draft is null)
+        {
+            throw new ContentGenerationException("Model did not return valid JSON for cold outreach email after 2 attempts.");
+        }
+
+        var wordCount = draft.BodyText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+
+        await AddContentAsync(project, provider.ProviderType, new GeneratedContent
+        {
+            ProjectId = project.Id,
+            ContentType = GeneratedContentType.EmailColdOutreach,
+            Title = draft.Subject,
+            Slug = $"{articleRow.Slug}-cold-outreach",
+            BodyHtml = draft.BodyText,
+            MetaDescription = draft.CtaLabel,
+            RelatedArticleUrl = articleUrl,
+            WordCount = wordCount,
+            GeneratedByProvider = provider.ProviderType,
+            GeneratedByModel = ResolveModelName(project.PreferredProvider)
+        }, cancellationToken);
+
+        await SaveProjectAsync(project, ProjectStatus.Completed, cancellationToken);
+        return Assemble(project);
+    }
+
     public async Task<GeneratedContentSet> GenerateAllAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
         await GeneratePillarPlanAsync(projectId, cancellationToken);
         await GeneratePillarBodyAsync(projectId, cancellationToken);
         await GenerateBlogAsync(projectId, cancellationToken);
-        return await GenerateSocialAsync(projectId, cancellationToken);
+        await GenerateSocialAsync(projectId, cancellationToken);
+        return await GenerateColdOutreachAsync(projectId, cancellationToken);
     }
 
     private async Task<Project> LoadProjectForGenerationAsync(Guid projectId, CancellationToken cancellationToken)
