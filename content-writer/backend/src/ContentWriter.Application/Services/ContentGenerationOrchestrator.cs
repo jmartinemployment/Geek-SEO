@@ -56,7 +56,8 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             GeneratedContentType.TechnicalArticle,
             GeneratedContentType.BlogPost,
             GeneratedContentType.SocialFacebook,
-            GeneratedContentType.SocialLinkedIn);
+            GeneratedContentType.SocialLinkedIn,
+            GeneratedContentType.EmailColdOutreach);
 
         var metadata = await GenerateArticleMetadataAsync(provider, context, cancellationToken);
         var articleSlug = SlugHelper.Slugify(metadata.Title);
@@ -259,7 +260,7 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
 
         if (draft is null)
         {
-            throw new ContentGenerationException("Model did not return valid JSON for cold outreach email after 2 attempts.");
+            throw new ContentGenerationException($"Model did not return valid JSON for cold outreach email after {maxAttempts} attempts.");
         }
 
         var wordCount = draft.BodyText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
