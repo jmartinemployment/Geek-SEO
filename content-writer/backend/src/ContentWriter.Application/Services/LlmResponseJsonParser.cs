@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using ContentWriter.Application.DTOs;
 using ContentWriter.Application.Providers;
 
 namespace ContentWriter.Application.Services;
@@ -110,6 +111,22 @@ public static class LlmResponseJsonParser
             $"Model did not return valid JSON for {label}. First 200 chars: {rawContent[..Math.Min(200, rawContent.Length)]}");
     }
 
+    public static ColdOutreachEmailDraft ParseColdOutreach(string rawContent, string label)
+    {
+        var cleaned = Clean(rawContent);
+
+        foreach (var candidate in CandidateJsonStrings(cleaned))
+        {
+            if (TryDeserializeColdOutreach(candidate, out var draft))
+            {
+                return ValidateColdOutreach(draft, label);
+            }
+        }
+
+        throw new ContentGenerationException(
+            $"Model did not return valid JSON for {label}. First 200 chars: {rawContent[..Math.Min(200, rawContent.Length)]}");
+    }
+
     private static IEnumerable<string> CandidateJsonStrings(string cleaned)
     {
         yield return cleaned;
@@ -120,6 +137,56 @@ public static class LlmResponseJsonParser
             yield return extracted;
             yield return RepairLiteralNewlinesInJsonStrings(extracted);
         }
+    }
+
+    private static bool TryDeserializeColdOutreach(string json, out ColdOutreachEmailDraft draft)
+    {
+        draft = new ColdOutreachEmailDraft("", "", "");
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<ColdOutreachResponse>(json, JsonOptions);
+            if (parsed is null)
+            {
+                return false;
+            }
+
+            draft = new ColdOutreachEmailDraft(
+                (parsed.Subject ?? "").Trim(),
+                (parsed.BodyText ?? "").Trim(),
+                (parsed.CtaLabel ?? "").Trim());
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static ColdOutreachEmailDraft ValidateColdOutreach(ColdOutreachEmailDraft draft, string label)
+    {
+        if (string.IsNullOrWhiteSpace(draft.Subject))
+        {
+            throw new ContentGenerationException($"Model returned empty subject for {label}.");
+        }
+
+        if (string.IsNullOrWhiteSpace(draft.BodyText))
+        {
+            throw new ContentGenerationException($"Model returned empty body for {label}.");
+        }
+
+        if (string.IsNullOrWhiteSpace(draft.CtaLabel))
+        {
+            throw new ContentGenerationException($"Model returned empty ctaLabel for {label}.");
+        }
+
+        var words = draft.BodyText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+        if (words < ContentLengthTargets.EmailColdOutreachMinWords || words > ContentLengthTargets.EmailColdOutreachMaxWords)
+        {
+            throw new ContentGenerationException(
+                $"Cold outreach body must be {ContentLengthTargets.EmailColdOutreachMinWords}–{ContentLengthTargets.EmailColdOutreachMaxWords} words (got {words}).");
+        }
+
+        return draft;
     }
 
     private static bool TryDeserializeSocial(string json, out string text)
@@ -225,4 +292,6 @@ public static class LlmResponseJsonParser
     private sealed record SocialTextResponse(string Text);
 
     private sealed record BodyHtmlResponse(string BodyHtml);
+
+    private sealed record ColdOutreachResponse(string? Subject, string? BodyText, string? CtaLabel);
 }

@@ -31,7 +31,8 @@ public static class GeneratedContentSetAssembler
             BlogUrl: blogUrl,
             BlogJsonLd: blogRow?.JsonLdSchema,
             FacebookPost: facebookRow is null ? null : new SocialPostDraft("Facebook", facebookRow.BodyHtml),
-            LinkedInPost: linkedInRow is null ? null : new SocialPostDraft("LinkedIn", linkedInRow.BodyHtml));
+            LinkedInPost: linkedInRow is null ? null : new SocialPostDraft("LinkedIn", linkedInRow.BodyHtml),
+            ColdOutreachEmail: null);
     }
 
     public static ArticleDraft ToArticleDraft(GeneratedContent row) => new(

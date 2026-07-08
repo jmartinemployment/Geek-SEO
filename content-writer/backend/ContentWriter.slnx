@@ -5,6 +5,9 @@
     <Project Path="src/ContentWriter.Domain/ContentWriter.Domain.csproj" />
     <Project Path="src/ContentWriter.Infrastructure/ContentWriter.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ContentWriter.Application.Tests/ContentWriter.Application.Tests.csproj" />
+  </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/ImportSqlite/ImportSqlite.csproj" />
   </Folder>
