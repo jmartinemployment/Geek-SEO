@@ -16,6 +16,9 @@ public static class GeneratedContentSetAssembler
         var facebookRow = Find(project, GeneratedContentType.SocialFacebook);
         var linkedInRow = Find(project, GeneratedContentType.SocialLinkedIn);
         var coldOutreachRow = Find(project, GeneratedContentType.EmailColdOutreach);
+        var pillarPromptRow = Find(project, GeneratedContentType.ImagePromptPillarFigure);
+        var facebookPromptRow = Find(project, GeneratedContentType.ImagePromptSocialFacebook);
+        var linkedInPromptRow = Find(project, GeneratedContentType.ImagePromptSocialLinkedIn);
 
         var articleSlug = articleRow?.Slug;
         var articleUrl = articleSlug is null ? null : CombineUrl(articleBaseUrl, articleSlug);
@@ -39,7 +42,22 @@ public static class GeneratedContentSetAssembler
                     coldOutreachRow.Title,
                     coldOutreachRow.BodyHtml,
                     coldOutreachRow.MetaDescription ?? string.Empty,
-                    coldOutreachRow.RelatedArticleUrl ?? articleUrl ?? string.Empty));
+                    coldOutreachRow.RelatedArticleUrl ?? articleUrl ?? string.Empty),
+            ImagePrompts: BuildImagePrompts(pillarPromptRow, facebookPromptRow, linkedInPromptRow));
+    }
+
+    private static ImagePromptsContent? BuildImagePrompts(
+        GeneratedContent? pillar,
+        GeneratedContent? facebook,
+        GeneratedContent? linkedIn)
+    {
+        if (pillar is null || facebook is null || linkedIn is null)
+            return null;
+
+        return new ImagePromptsContent(
+            ImagePromptMetadata.ToContent("Pillar figure", pillar.BodyHtml, pillar.MetaDescription),
+            ImagePromptMetadata.ToContent("Facebook card", facebook.BodyHtml, facebook.MetaDescription),
+            ImagePromptMetadata.ToContent("LinkedIn card", linkedIn.BodyHtml, linkedIn.MetaDescription));
     }
 
     public static ArticleDraft ToArticleDraft(GeneratedContent row) => new(

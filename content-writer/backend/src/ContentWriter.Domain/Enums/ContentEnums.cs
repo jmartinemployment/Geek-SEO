@@ -37,5 +37,8 @@ public enum GeneratedContentType
     EmailColdOutreach = 4,
     EmailNewsletter = 5,      // stub
     EmailStoryNurture = 6,     // stub
-    EmailTransactional = 7     // stub
+    EmailTransactional = 7,    // stub
+    ImagePromptPillarFigure = 8,
+    ImagePromptSocialFacebook = 9,
+    ImagePromptSocialLinkedIn = 10
 }

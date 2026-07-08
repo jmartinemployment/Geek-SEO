@@ -4,16 +4,17 @@ import { useState } from "react";
 import {
   generateBlogContent,
   generateColdOutreachContent,
+  generateImagePromptsContent,
   generatePillarBodyContent,
   generatePillarPlanContent,
   generateSocialContent,
   ApiError,
 } from "@/lib/content-writer/api";
-import type { ColdOutreachEmailDraft, GeneratedContentSet } from "@/lib/content-writer/types";
+import type { ColdOutreachEmailDraft, GeneratedContentSet, ImagePromptDraft, ImagePromptsSet } from "@/lib/content-writer/types";
 import { CONTENT_LENGTH_TARGETS } from "@/lib/content-writer/types";
 
-type Tab = "article" | "blog" | "facebook" | "linkedin" | "cold-outreach";
-type GeneratingStep = "pillar-plan" | "pillar-body" | "blog" | "social" | "cold-outreach" | "all" | null;
+type Tab = "article" | "blog" | "facebook" | "linkedin" | "cold-outreach" | "image-prompts";
+type GeneratingStep = "pillar-plan" | "pillar-body" | "blog" | "social" | "cold-outreach" | "image-prompts" | "all" | null;
 
 const PILLAR_BODY_MIN_WORDS = 200;
 
@@ -23,6 +24,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "facebook", label: "Facebook" },
   { id: "linkedin", label: "LinkedIn" },
   { id: "cold-outreach", label: "Cold Outreach" },
+  { id: "image-prompts", label: "Image Prompts" },
 ];
 
 export default function ContentResults({
@@ -55,6 +57,9 @@ export default function ContentResults({
       if ((step === "cold-outreach" || step === "all") && next.coldOutreachEmail) {
         setActiveTab("cold-outreach");
       }
+      if ((step === "image-prompts" || step === "all") && next.imagePrompts) {
+        setActiveTab("image-prompts");
+      }
     } catch (err) {
       const message = err instanceof ApiError ? err.message : "Generation failed. Check the API logs.";
       setError(message);
@@ -67,8 +72,7 @@ export default function ContentResults({
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-foreground">4. Generate Content</h2>
       <p className="mt-1 text-sm text-muted">
-        Run each step separately. Steps 1–2 plan and write the pillar article; steps 3–5 build blog, social, and
-        cold outreach email from it.
+        Run each step separately. Steps 1–2 plan and write the pillar article; steps 3–6 build blog, social, email, and Leonardo image prompts from it.
       </p>
 
       <div className="mt-5 space-y-3">
@@ -130,6 +134,18 @@ export default function ContentResults({
           onClick={() => runStep("cold-outreach", () => generateColdOutreachContent(projectId))}
           lockedMessage={!hasPillarBody ? "Complete Step 2 first." : undefined}
         />
+
+        <StepRow
+          step={6}
+          title="Image prompts (Leonardo)"
+          description="LLM-crafted prompts for a pillar figure plus Facebook and LinkedIn card backgrounds — copy into Leonardo.ai."
+          done={result?.imagePrompts != null}
+          disabled={!hasSocial || isGenerating}
+          isRunning={generatingStep === "image-prompts"}
+          buttonLabel={result?.imagePrompts ? "Regenerate prompts" : "Generate prompts"}
+          onClick={() => runStep("image-prompts", () => generateImagePromptsContent(projectId))}
+          lockedMessage={!hasSocial ? "Complete Step 4 (social) first." : undefined}
+        />
       </div>
 
       <button
@@ -156,13 +172,17 @@ export default function ContentResults({
               state = await generateColdOutreachContent(projectId);
               onGenerated(state);
             }
+            if (!state.imagePrompts) {
+              state = await generateImagePromptsContent(projectId);
+              onGenerated(state);
+            }
             return state!;
           })
         }
         disabled={
           !canGenerate ||
           isGenerating ||
-          (hasPillarBody && hasBlog && hasSocial && result?.coldOutreachEmail != null)
+          (hasPillarBody && hasBlog && hasSocial && result?.coldOutreachEmail != null && result?.imagePrompts != null)
         }
         className="mt-4 text-sm font-medium text-brand hover:underline disabled:opacity-60"
       >
@@ -185,9 +205,12 @@ export default function ContentResults({
               const unavailable =
                 (tab.id === "blog" && !result.blog) ||
                 ((tab.id === "facebook" || tab.id === "linkedin") && !result.facebookPost) ||
-                (tab.id === "cold-outreach" && !result.coldOutreachEmail);
+                (tab.id === "cold-outreach" && !result.coldOutreachEmail) ||
+                (tab.id === "image-prompts" && !result.imagePrompts);
               const hint =
-                tab.id === "cold-outreach" && !result.coldOutreachEmail
+                tab.id === "image-prompts" && !result.imagePrompts
+                  ? "Run Step 6 (Generate prompts) first"
+                  : tab.id === "cold-outreach" && !result.coldOutreachEmail
                   ? "Run Step 5 (Generate email) first"
                   : tab.id === "blog" && !result.blog
                     ? "Run Step 3 (Generate blog) first"
@@ -265,6 +288,12 @@ export default function ContentResults({
                 <ColdOutreachView email={result.coldOutreachEmail} />
               ) : (
                 <EmptyTabHint message="Run Step 5 (Generate email) to create the cold outreach email." />
+              ))}
+            {activeTab === "image-prompts" &&
+              (result.imagePrompts ? (
+                <ImagePromptsView prompts={result.imagePrompts} />
+              ) : (
+                <EmptyTabHint message="Run Step 6 to generate Leonardo image prompts." />
               ))}
           </div>
         </div>
@@ -477,6 +506,95 @@ function ColdOutreachView({ email }: { email: ColdOutreachEmailDraft }) {
           {email.ctaUrl}
         </a>
       </p>
+    </div>
+  );
+}
+
+function formatLeonardoSettings(item: ImagePromptDraft): string {
+  const lines = [
+    `Model: ${item.leonardoModel}`,
+    `Model ID: ${item.leonardoModelId}`,
+    `Dimensions: ${item.width} × ${item.height}`,
+    `Style preset: ${item.stylePreset}`,
+    `Alchemy: ${item.alchemy ? "On" : "Off"}`,
+    `PhotoReal: ${item.photoReal ? "On" : "Off"}`,
+  ];
+  if (item.notes) lines.push(`Notes: ${item.notes}`);
+  return lines.join("\n");
+}
+
+function formatLeonardoCopyBlock(item: ImagePromptDraft): string {
+  return `${formatLeonardoSettings(item)}\n\nPrompt:\n${item.prompt}`;
+}
+
+async function copyText(text: string): Promise<void> {
+  await navigator.clipboard.writeText(text);
+}
+
+function ImagePromptsView({ prompts }: { prompts: ImagePromptsSet }) {
+  const items: ImagePromptDraft[] = [
+    prompts.pillarFigure,
+    prompts.socialFacebook,
+    prompts.socialLinkedIn,
+  ];
+
+  return (
+    <div className="space-y-6">
+      <p className="text-sm text-muted">
+        Copy a prompt and Leonardo settings into{" "}
+        <a
+          href="https://app.leonardo.ai/"
+          className="text-brand hover:underline"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Leonardo.ai
+        </a>
+        . No images are generated here — prompts only.
+      </p>
+      {items.map((item) => (
+        <ImagePromptCard key={item.useCase} item={item} />
+      ))}
+    </div>
+  );
+}
+
+function ImagePromptCard({ item }: { item: ImagePromptDraft }) {
+  const [copied, setCopied] = useState<"prompt" | "all" | null>(null);
+
+  async function handleCopy(mode: "prompt" | "all") {
+    await copyText(mode === "prompt" ? item.prompt : formatLeonardoCopyBlock(item));
+    setCopied(mode);
+    window.setTimeout(() => setCopied(null), 2000);
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-background p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <h3 className="text-base font-semibold text-foreground">{item.useCase}</h3>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => handleCopy("prompt")}
+            className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface"
+          >
+            {copied === "prompt" ? "Copied!" : "Copy prompt"}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleCopy("all")}
+            className="rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+          >
+            {copied === "all" ? "Copied!" : "Copy prompt + settings"}
+          </button>
+        </div>
+      </div>
+      <pre className="mt-3 whitespace-pre-wrap rounded-md border border-border bg-surface p-3 text-xs text-muted">
+        {formatLeonardoSettings(item)}
+      </pre>
+      <div className="mt-3 whitespace-pre-wrap rounded-md border border-border p-3 text-sm text-foreground">
+        {item.prompt}
+      </div>
     </div>
   );
 }

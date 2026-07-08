@@ -57,7 +57,10 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             GeneratedContentType.BlogPost,
             GeneratedContentType.SocialFacebook,
             GeneratedContentType.SocialLinkedIn,
-            GeneratedContentType.EmailColdOutreach);
+            GeneratedContentType.EmailColdOutreach,
+            GeneratedContentType.ImagePromptPillarFigure,
+            GeneratedContentType.ImagePromptSocialFacebook,
+            GeneratedContentType.ImagePromptSocialLinkedIn);
 
         var metadata = await GenerateArticleMetadataAsync(provider, context, cancellationToken);
         var articleSlug = SlugHelper.Slugify(metadata.Title);
@@ -283,13 +286,71 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         return Assemble(project);
     }
 
+    public async Task<GeneratedContentSet> GenerateImagePromptsAsync(Guid projectId, CancellationToken cancellationToken = default)
+    {
+        var project = await LoadProjectForGenerationAsync(projectId, cancellationToken);
+        var articleRow = RequireCompletePillar(project);
+        var facebookRow = RequireGeneratedContent(project, GeneratedContentType.SocialFacebook,
+            "Generate social content before image prompts.");
+        var linkedInRow = RequireGeneratedContent(project, GeneratedContentType.SocialLinkedIn,
+            "Generate social content before image prompts.");
+
+        var context = BuildContext(project);
+        var provider = _providerFactory.Get(project.PreferredProvider);
+        var article = GeneratedContentSetAssembler.ToArticleDraft(articleRow);
+        var articleUrl = CombineUrl(context.ArticleBaseUrl, articleRow.Slug);
+        var facebook = new SocialPostDraft("Facebook", facebookRow.BodyHtml);
+        var linkedIn = new SocialPostDraft("LinkedIn", linkedInRow.BodyHtml);
+
+        _logger.LogInformation("Generating image prompts for project {ProjectId} via {Provider}", projectId, provider.ProviderType);
+
+        RemoveGeneratedContents(project,
+            GeneratedContentType.ImagePromptPillarFigure,
+            GeneratedContentType.ImagePromptSocialFacebook,
+            GeneratedContentType.ImagePromptSocialLinkedIn);
+
+        const int maxAttempts = 2;
+        ImagePromptsDraft? draft = null;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var result = await provider.CompleteAsync(
+                _promptBuilder.BuildImagePromptsPrompt(context, article, facebook, linkedIn, articleUrl),
+                cancellationToken);
+            try
+            {
+                draft = LlmResponseJsonParser.ParseImagePrompts(result.Content, "image prompts");
+                break;
+            }
+            catch (ContentGenerationException ex) when (attempt < maxAttempts)
+            {
+                _logger.LogWarning(ex, "Retrying image prompts after invalid JSON (attempt {Attempt})", attempt);
+            }
+        }
+
+        if (draft is null)
+        {
+            throw new ContentGenerationException($"Model did not return valid JSON for image prompts after {maxAttempts} attempts.");
+        }
+
+        await AddImagePromptRowAsync(project, provider.ProviderType, articleRow.Slug, articleUrl,
+            GeneratedContentType.ImagePromptPillarFigure, "Pillar figure", draft.PillarFigure, cancellationToken);
+        await AddImagePromptRowAsync(project, provider.ProviderType, articleRow.Slug, articleUrl,
+            GeneratedContentType.ImagePromptSocialFacebook, "Facebook card", draft.SocialFacebook, cancellationToken);
+        await AddImagePromptRowAsync(project, provider.ProviderType, articleRow.Slug, articleUrl,
+            GeneratedContentType.ImagePromptSocialLinkedIn, "LinkedIn card", draft.SocialLinkedIn, cancellationToken);
+
+        await SaveProjectAsync(project, ProjectStatus.Completed, cancellationToken);
+        return Assemble(project);
+    }
+
     public async Task<GeneratedContentSet> GenerateAllAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
         await GeneratePillarPlanAsync(projectId, cancellationToken);
         await GeneratePillarBodyAsync(projectId, cancellationToken);
         await GenerateBlogAsync(projectId, cancellationToken);
         await GenerateSocialAsync(projectId, cancellationToken);
-        return await GenerateColdOutreachAsync(projectId, cancellationToken);
+        await GenerateColdOutreachAsync(projectId, cancellationToken);
+        return await GenerateImagePromptsAsync(projectId, cancellationToken);
     }
 
     private async Task<Project> LoadProjectForGenerationAsync(Guid projectId, CancellationToken cancellationToken)
@@ -356,6 +417,41 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
     {
         await _projectRepository.AddContentAsync(row, cancellationToken);
         project.GeneratedContents.Add(row);
+    }
+
+    private async Task AddImagePromptRowAsync(
+        Project project,
+        LlmProviderType providerType,
+        string articleSlug,
+        string articleUrl,
+        GeneratedContentType contentType,
+        string title,
+        ImagePromptItemDraft item,
+        CancellationToken cancellationToken)
+    {
+        var slugSuffix = contentType switch
+        {
+            GeneratedContentType.ImagePromptPillarFigure => "image-prompt-pillar",
+            GeneratedContentType.ImagePromptSocialFacebook => "image-prompt-facebook",
+            GeneratedContentType.ImagePromptSocialLinkedIn => "image-prompt-linkedin",
+            _ => "image-prompt",
+        };
+
+        var wordCount = item.Prompt.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+
+        await AddContentAsync(project, providerType, new GeneratedContent
+        {
+            ProjectId = project.Id,
+            ContentType = contentType,
+            Title = title,
+            Slug = $"{articleSlug}-{slugSuffix}",
+            BodyHtml = item.Prompt,
+            MetaDescription = ImagePromptMetadata.Serialize(item),
+            RelatedArticleUrl = articleUrl,
+            WordCount = wordCount,
+            GeneratedByProvider = providerType,
+            GeneratedByModel = ResolveModelName(project.PreferredProvider),
+        }, cancellationToken);
     }
 
     private async Task SaveProjectAsync(Project project, ProjectStatus status, CancellationToken cancellationToken)

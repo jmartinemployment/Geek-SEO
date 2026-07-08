@@ -42,6 +42,10 @@ public class GenerateController : ControllerBase
     public Task<IActionResult> GenerateColdOutreach(Guid projectId, CancellationToken cancellationToken) =>
         RunStep(projectId, _orchestrator.GenerateColdOutreachAsync(projectId, cancellationToken), "email-cold-outreach");
 
+    [HttpPost("image-prompts")]
+    public Task<IActionResult> GenerateImagePrompts(Guid projectId, CancellationToken cancellationToken) =>
+        RunStep(projectId, _orchestrator.GenerateImagePromptsAsync(projectId, cancellationToken), "image-prompts");
+
     [HttpPost]
     public Task<IActionResult> GenerateAll(Guid projectId, CancellationToken cancellationToken) =>
         RunStep(projectId, _orchestrator.GenerateAllAsync(projectId, cancellationToken), "all");

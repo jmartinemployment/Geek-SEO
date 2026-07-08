@@ -64,6 +64,38 @@ public record ColdOutreachEmailDraft(string Subject, string BodyText, string Cta
 
 public record ColdOutreachEmailContent(string Subject, string BodyText, string CtaLabel, string CtaUrl);
 
+public record ImagePromptItemDraft(
+    string Prompt,
+    int Width,
+    int Height,
+    string LeonardoModel,
+    string StylePreset,
+    bool Alchemy,
+    bool PhotoReal,
+    string? Notes);
+
+public record ImagePromptsDraft(
+    ImagePromptItemDraft PillarFigure,
+    ImagePromptItemDraft SocialFacebook,
+    ImagePromptItemDraft SocialLinkedIn);
+
+public record ImagePromptContent(
+    string UseCase,
+    string Prompt,
+    int Width,
+    int Height,
+    string LeonardoModel,
+    string LeonardoModelId,
+    string StylePreset,
+    bool Alchemy,
+    bool PhotoReal,
+    string? Notes);
+
+public record ImagePromptsContent(
+    ImagePromptContent PillarFigure,
+    ImagePromptContent SocialFacebook,
+    ImagePromptContent SocialLinkedIn);
+
 public record GeneratedContentSet(
     ArticleDraft? Article,
     string? ArticleSlug,
@@ -75,4 +107,5 @@ public record GeneratedContentSet(
     string? BlogJsonLd,
     SocialPostDraft? FacebookPost,
     SocialPostDraft? LinkedInPost,
-    ColdOutreachEmailContent? ColdOutreachEmail);
+    ColdOutreachEmailContent? ColdOutreachEmail,
+    ImagePromptsContent? ImagePrompts);

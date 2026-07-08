@@ -153,6 +153,12 @@ export function generateColdOutreachContent(projectId: string): Promise<Generate
   );
 }
 
+export function generateImagePromptsContent(projectId: string): Promise<GeneratedContentSet> {
+  return request<GeneratedContentSet>(`/api/projects/${projectId}/generate/image-prompts`, {
+    method: "POST",
+  });
+}
+
 export function generateAllContent(projectId: string): Promise<GeneratedContentSet> {
   return request<GeneratedContentSet>(`/api/projects/${projectId}/generate`, { method: "POST" });
 }

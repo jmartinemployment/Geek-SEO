@@ -127,6 +127,107 @@ public static class LlmResponseJsonParser
             $"Model did not return valid JSON for {label}. First 200 chars: {rawContent[..Math.Min(200, rawContent.Length)]}");
     }
 
+    public static ImagePromptsDraft ParseImagePrompts(string rawContent, string label)
+    {
+        var cleaned = Clean(rawContent);
+
+        foreach (var candidate in CandidateJsonStrings(cleaned))
+        {
+            if (TryDeserializeImagePrompts(candidate, out var draft))
+            {
+                return ValidateImagePrompts(draft, label);
+            }
+        }
+
+        throw new ContentGenerationException(
+            $"Model did not return valid JSON for {label}. First 200 chars: {rawContent[..Math.Min(200, rawContent.Length)]}");
+    }
+
+    private static bool TryDeserializeImagePrompts(string json, out ImagePromptsDraft draft)
+    {
+        draft = new ImagePromptsDraft(
+            new ImagePromptItemDraft("", 0, 0, "", "", false, false, null),
+            new ImagePromptItemDraft("", 0, 0, "", "", false, false, null),
+            new ImagePromptItemDraft("", 0, 0, "", "", false, false, null));
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<ImagePromptsResponse>(json, JsonOptions);
+            if (parsed?.PillarFigure is null || parsed.SocialFacebook is null || parsed.SocialLinkedIn is null)
+            {
+                return false;
+            }
+
+            draft = new ImagePromptsDraft(
+                ToItemDraft(parsed.PillarFigure),
+                ToItemDraft(parsed.SocialFacebook),
+                ToItemDraft(parsed.SocialLinkedIn));
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static ImagePromptItemDraft ToItemDraft(ImagePromptItemResponse item) =>
+        new(
+            (item.Prompt ?? "").Trim(),
+            item.Width,
+            item.Height,
+            (item.LeonardoModel ?? "").Trim(),
+            (item.StylePreset ?? "").Trim(),
+            item.Alchemy ?? true,
+            item.PhotoReal ?? false,
+            string.IsNullOrWhiteSpace(item.Notes) ? null : item.Notes.Trim());
+
+    private static ImagePromptsDraft ValidateImagePrompts(ImagePromptsDraft draft, string label)
+    {
+        ValidateImagePromptItem(draft.PillarFigure, "pillarFigure", label, isSocial: false);
+        ValidateImagePromptItem(draft.SocialFacebook, "socialFacebook", label, isSocial: true);
+        ValidateImagePromptItem(draft.SocialLinkedIn, "socialLinkedIn", label, isSocial: true);
+        return draft;
+    }
+
+    private static void ValidateImagePromptItem(
+        ImagePromptItemDraft item,
+        string field,
+        string label,
+        bool isSocial)
+    {
+        if (string.IsNullOrWhiteSpace(item.Prompt))
+        {
+            throw new ContentGenerationException($"Model returned empty prompt for {field} in {label}.");
+        }
+
+        var words = item.Prompt.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+        if (words < ImagePromptDefaults.PromptMinWords || words > ImagePromptDefaults.PromptMaxWords)
+        {
+            throw new ContentGenerationException(
+                $"{field} prompt must be {ImagePromptDefaults.PromptMinWords}–{ImagePromptDefaults.PromptMaxWords} words (got {words}).");
+        }
+
+        if (item.Width < 512 || item.Height < 512 || item.Width > 2048 || item.Height > 2048)
+        {
+            throw new ContentGenerationException($"{field} dimensions out of range (512–2048).");
+        }
+
+        if (string.IsNullOrWhiteSpace(item.LeonardoModel))
+        {
+            throw new ContentGenerationException($"Model returned empty leonardoModel for {field} in {label}.");
+        }
+
+        if (string.IsNullOrWhiteSpace(item.StylePreset))
+        {
+            throw new ContentGenerationException($"Model returned empty stylePreset for {field} in {label}.");
+        }
+
+        if (isSocial && (item.Width < item.Height))
+        {
+            throw new ContentGenerationException($"{field} social card should be landscape (width >= height).");
+        }
+    }
+
     private static IEnumerable<string> CandidateJsonStrings(string cleaned)
     {
         yield return cleaned;
@@ -294,4 +395,19 @@ public static class LlmResponseJsonParser
     private sealed record BodyHtmlResponse(string BodyHtml);
 
     private sealed record ColdOutreachResponse(string? Subject, string? BodyText, string? CtaLabel);
+
+    private sealed record ImagePromptsResponse(
+        ImagePromptItemResponse? PillarFigure,
+        ImagePromptItemResponse? SocialFacebook,
+        ImagePromptItemResponse? SocialLinkedIn);
+
+    private sealed record ImagePromptItemResponse(
+        string? Prompt,
+        int Width,
+        int Height,
+        string? LeonardoModel,
+        string? StylePreset,
+        bool? Alchemy,
+        bool? PhotoReal,
+        string? Notes);
 }

@@ -25,7 +25,10 @@ export type GeneratedContentType =
   | "EmailColdOutreach"
   | "EmailNewsletter"
   | "EmailStoryNurture"
-  | "EmailTransactional";
+  | "EmailTransactional"
+  | "ImagePromptPillarFigure"
+  | "ImagePromptSocialFacebook"
+  | "ImagePromptSocialLinkedIn";
 
 export interface ProjectSummary {
   id: string;
@@ -154,6 +157,25 @@ export interface SocialPostDraft {
   text: string;
 }
 
+export interface ImagePromptDraft {
+  useCase: string;
+  prompt: string;
+  width: number;
+  height: number;
+  leonardoModel: string;
+  leonardoModelId: string;
+  stylePreset: string;
+  alchemy: boolean;
+  photoReal: boolean;
+  notes: string | null;
+}
+
+export interface ImagePromptsSet {
+  pillarFigure: ImagePromptDraft;
+  socialFacebook: ImagePromptDraft;
+  socialLinkedIn: ImagePromptDraft;
+}
+
 export interface GeneratedContentSet {
   article: ArticleDraft | null;
   articleSlug: string | null;
@@ -166,6 +188,7 @@ export interface GeneratedContentSet {
   facebookPost: SocialPostDraft | null;
   linkedInPost: SocialPostDraft | null;
   coldOutreachEmail: ColdOutreachEmailDraft | null;
+  imagePrompts: ImagePromptsSet | null;
 }
 
 export interface LmStudioHealthStatus {

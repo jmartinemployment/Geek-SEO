@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using ContentWriter.Application.DTOs;
 using ContentWriter.Application.Providers;
 using ContentWriter.Application.Services;
@@ -45,6 +46,12 @@ public interface IContentPromptBuilder
         int currentWordCount);
     ChatCompletionRequest BuildSocialPrompt(ProjectGenerationContext context, ArticleDraft sourceArticle, string platform, string articleUrl);
     ChatCompletionRequest BuildColdOutreachPrompt(ProjectGenerationContext context, ArticleDraft sourceArticle, string articleUrl);
+    ChatCompletionRequest BuildImagePromptsPrompt(
+        ProjectGenerationContext context,
+        ArticleDraft sourceArticle,
+        SocialPostDraft facebookPost,
+        SocialPostDraft linkedInPost,
+        string articleUrl);
 }
 
 public class ContentPromptBuilder : IContentPromptBuilder
@@ -57,6 +64,12 @@ public class ContentPromptBuilder : IContentPromptBuilder
 
     private const string ColdOutreachJsonContract =
         "{\"subject\": string, \"bodyText\": string (50-125 words), \"ctaLabel\": string}";
+
+    private const string ImagePromptItemJsonContract =
+        "{\"prompt\": string (40-400 words), \"width\": number, \"height\": number, \"leonardoModel\": string, \"stylePreset\": string, \"alchemy\": boolean, \"photoReal\": boolean, \"notes\": string (optional Leonardo UI tips)}";
+
+    private const string ImagePromptsJsonContract =
+        "{\"pillarFigure\": " + ImagePromptItemJsonContract + ", \"socialFacebook\": " + ImagePromptItemJsonContract + ", \"socialLinkedIn\": " + ImagePromptItemJsonContract + "}";
 
     public ChatCompletionRequest BuildArticleMetadataPrompt(ProjectGenerationContext context)
     {
@@ -440,6 +453,68 @@ public class ContentPromptBuilder : IContentPromptBuilder
             Messages: new List<ChatMessage> { new(ChatRole.System, system), new(ChatRole.User, user) },
             Temperature: 0.65,
             MaxOutputTokens: 1024);
+    }
+
+    public ChatCompletionRequest BuildImagePromptsPrompt(
+        ProjectGenerationContext context,
+        ArticleDraft sourceArticle,
+        SocialPostDraft facebookPost,
+        SocialPostDraft linkedInPost,
+        string articleUrl)
+    {
+        var bodyExcerpt = StripHtmlExcerpt(sourceArticle.BodyHtml, 900);
+
+        var system = new StringBuilder()
+            .AppendLine("You write image-generation prompts for Leonardo.ai for an IT consulting firm's content marketing.")
+            .AppendLine("The user will copy your prompts into Leonardo manually — be specific and production-ready.")
+            .AppendLine()
+            .AppendLine("PILLAR FIGURE (pillarFigure):")
+            .AppendLine("- Purpose: inline educational figure for a technical article — flat vector / infographic / conceptual diagram.")
+            .AppendLine($"- Default size: {ImagePromptDefaults.PillarWidth}x{ImagePromptDefaults.PillarHeight}. Style: {ImagePromptDefaults.PillarStylePreset}.")
+            .AppendLine("- Minimize readable text in the image (AI garbles labels). Use icons and simple shapes.")
+            .AppendLine()
+            .AppendLine("SOCIAL CARDS (socialFacebook, socialLinkedIn):")
+            .AppendLine("- Purpose: eye-candy background for social posts — NO readable text, logos, or watermarks.")
+            .AppendLine($"- Default size: {ImagePromptDefaults.SocialWidth}x{ImagePromptDefaults.SocialHeight} (landscape).")
+            .AppendLine("- Facebook: warmer, approachable. LinkedIn: polished corporate tech aesthetic.")
+            .AppendLine()
+            .AppendLine("LEONARDO SETTINGS (include in JSON for each item):")
+            .AppendLine($"- leonardoModel: recommend \"{ImagePromptDefaults.LeonardoPhoenixModel}\" unless another model fits better.")
+            .AppendLine("- stylePreset: Illustration | Dynamic | Cinematic | etc.")
+            .AppendLine("- alchemy: true for quality (uses tokens). photoReal: false for diagrams/abstract cards.")
+            .AppendLine("- notes: 1 short sentence of Leonardo UI tips (dimensions, negative prompts, etc.).")
+            .AppendLine()
+            .AppendLine("Respond with ONLY a single valid JSON object — no markdown fences:")
+            .AppendLine(ImagePromptsJsonContract)
+            .ToString();
+
+        var user = new StringBuilder()
+            .AppendLine($"Article title: {sourceArticle.Title}")
+            .AppendLine($"Article summary: {sourceArticle.MetaDescription}")
+            .AppendLine($"Section outline: {string.Join("; ", sourceArticle.SectionOutline)}")
+            .AppendLine($"Article excerpt: {bodyExcerpt}")
+            .AppendLine($"Pillar URL: {articleUrl}")
+            .AppendLine($"Target keyword: {context.TargetKeyword}")
+            .AppendLine($"Site tone: {context.DetectedTone}")
+            .AppendLine()
+            .AppendLine($"Facebook post: {facebookPost.Text}")
+            .AppendLine($"LinkedIn post: {linkedInPost.Text}")
+            .ToString();
+
+        return new ChatCompletionRequest(
+            Messages: new List<ChatMessage> { new(ChatRole.System, system), new(ChatRole.User, user) },
+            Temperature: 0.7,
+            MaxOutputTokens: 4096);
+    }
+
+    private static string StripHtmlExcerpt(string html, int maxChars)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+            return string.Empty;
+
+        var text = Regex.Replace(html, "<[^>]+>", " ");
+        text = Regex.Replace(text, @"\s+", " ").Trim();
+        return text.Length <= maxChars ? text : text[..maxChars].TrimEnd() + "…";
     }
 
     private static string BuildToolsSectionGuidance(ProjectGenerationContext context)
