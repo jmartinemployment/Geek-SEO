@@ -2,8 +2,8 @@
 
 AI-assisted content generation for IT consulting projects. Takes a crawled client site plus manually-scraped
 SERP research (keyword results, .edu/.gov/Wikipedia, local pack, competitor crawl, People-Also-Ask) and produces
-a TechnicalArticle (JSON+LD), a companion BlogPost (JSON+LD, cross-linked to the article), and Facebook/LinkedIn
-social posts.
+a TechnicalArticle (JSON+LD), a companion BlogPost (JSON+LD, cross-linked to the article), Facebook/LinkedIn
+social posts, and a cold outreach email.
 
 This module lives inside the **Geek-SEO** monorepo.
 
@@ -144,7 +144,7 @@ Set `NEXT_PUBLIC_CONTENT_WRITER_API_URL=http://localhost:5199` when using that m
 2. Crawl the project URL - extracts JSON+LD, headings, and paragraphs; heuristically detects tone/focus.
 3. Upload the manually-scraped research: 6 keyword SERP results, .edu/.gov/Wikipedia pages, local pack,
    competitor crawl (all HTML), and a People-Also-Ask text file (one question per line).
-4. Generate in steps — pillar plan, pillar body, blog, social — each persisted to the database.
+4. Generate in steps — pillar plan, pillar body, blog, social, cold outreach email — each persisted to the database.
 
 ## Retired integrations
 
