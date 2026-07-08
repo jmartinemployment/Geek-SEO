@@ -146,6 +146,13 @@ export function generateSocialContent(projectId: string): Promise<GeneratedConte
   return request<GeneratedContentSet>(`/api/projects/${projectId}/generate/social`, { method: "POST" });
 }
 
+export function generateColdOutreachContent(projectId: string): Promise<GeneratedContentSet> {
+  return request<GeneratedContentSet>(
+    `/api/projects/${projectId}/generate/email-cold-outreach`,
+    { method: "POST" },
+  );
+}
+
 export function generateAllContent(projectId: string): Promise<GeneratedContentSet> {
   return request<GeneratedContentSet>(`/api/projects/${projectId}/generate`, { method: "POST" });
 }

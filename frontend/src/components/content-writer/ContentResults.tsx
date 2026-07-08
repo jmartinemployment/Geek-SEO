@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   generateBlogContent,
+  generateColdOutreachContent,
   generatePillarBodyContent,
   generatePillarPlanContent,
   generateSocialContent,
@@ -11,8 +12,8 @@ import {
 import type { GeneratedContentSet } from "@/lib/content-writer/types";
 import { CONTENT_LENGTH_TARGETS } from "@/lib/content-writer/types";
 
-type Tab = "article" | "blog" | "facebook" | "linkedin";
-type GeneratingStep = "pillar-plan" | "pillar-body" | "blog" | "social" | "all" | null;
+type Tab = "article" | "blog" | "facebook" | "linkedin" | "cold-outreach";
+type GeneratingStep = "pillar-plan" | "pillar-body" | "blog" | "social" | "cold-outreach" | "all" | null;
 
 const PILLAR_BODY_MIN_WORDS = 200;
 
@@ -21,6 +22,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "blog", label: "Blog Post" },
   { id: "facebook", label: "Facebook" },
   { id: "linkedin", label: "LinkedIn" },
+  { id: "cold-outreach", label: "Cold Outreach" },
 ];
 
 export default function ContentResults({
@@ -61,8 +63,8 @@ export default function ContentResults({
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-foreground">4. Generate Content</h2>
       <p className="mt-1 text-sm text-muted">
-        Run each step separately. Steps 1–2 plan and write the pillar article; steps 3–4 build blog and social
-        from it.
+        Run each step separately. Steps 1–2 plan and write the pillar article; steps 3–5 build blog, social, and
+        cold outreach email from it.
       </p>
 
       <div className="mt-5 space-y-3">
@@ -112,6 +114,18 @@ export default function ContentResults({
           onClick={() => runStep("social", () => generateSocialContent(projectId))}
           lockedMessage={!hasPillarBody ? "Complete Step 2 first." : undefined}
         />
+
+        <StepRow
+          step={5}
+          title="Cold outreach email"
+          description={`${CONTENT_LENGTH_TARGETS.emailColdOutreach.definition} Target ${CONTENT_LENGTH_TARGETS.emailColdOutreach.label} words — subject, body, and one CTA to the pillar.`}
+          done={result?.coldOutreachEmail != null}
+          disabled={!hasPillarBody || isGenerating}
+          isRunning={generatingStep === "cold-outreach"}
+          buttonLabel={result?.coldOutreachEmail ? "Regenerate email" : "Generate email"}
+          onClick={() => runStep("cold-outreach", () => generateColdOutreachContent(projectId))}
+          lockedMessage={!hasPillarBody ? "Complete Step 2 first." : undefined}
+        />
       </div>
 
       <button
@@ -133,10 +147,17 @@ export default function ContentResults({
             if (!state.facebookPost || !state.linkedInPost) {
               state = await generateSocialContent(projectId);
             }
+            if (!state.coldOutreachEmail) {
+              state = await generateColdOutreachContent(projectId);
+            }
             return state!;
           })
         }
-        disabled={!canGenerate || isGenerating || (hasPillarBody && hasBlog && hasSocial)}
+        disabled={
+          !canGenerate ||
+          isGenerating ||
+          (hasPillarBody && hasBlog && hasSocial && result?.coldOutreachEmail != null)
+        }
         className="mt-4 text-sm font-medium text-brand hover:underline disabled:opacity-60"
       >
         {generatingStep === "all" ? "Generating..." : "Generate all remaining steps"}
@@ -161,7 +182,8 @@ export default function ContentResults({
                 disabled={
                   (tab.id === "article" && !result.article) ||
                   (tab.id === "blog" && !result.blog) ||
-                  ((tab.id === "facebook" || tab.id === "linkedin") && !result.facebookPost)
+                  ((tab.id === "facebook" || tab.id === "linkedin") && !result.facebookPost) ||
+                  (tab.id === "cold-outreach" && !result.coldOutreachEmail)
                 }
                 className={`rounded-t-md px-4 py-2 text-sm font-medium transition-colors disabled:opacity-40 ${
                   activeTab === tab.id
@@ -209,6 +231,9 @@ export default function ContentResults({
             )}
             {activeTab === "linkedin" && result.linkedInPost && (
               <SocialView text={result.linkedInPost.text} platform="LinkedIn" />
+            )}
+            {activeTab === "cold-outreach" && result.coldOutreachEmail && (
+              <ColdOutreachView email={result.coldOutreachEmail} />
             )}
           </div>
         </div>
@@ -385,6 +410,42 @@ function SocialView({ text, platform }: { text: string; platform: "Facebook" | "
       <div className="whitespace-pre-wrap rounded-lg border border-border bg-background p-4 text-sm text-foreground">
         {text}
       </div>
+    </div>
+  );
+}
+
+function ColdOutreachView({
+  email,
+}: {
+  email: { subject: string; bodyText: string; ctaLabel: string; ctaUrl: string };
+}) {
+  const words = countWords(email.bodyText);
+  const under =
+    words < CONTENT_LENGTH_TARGETS.emailColdOutreach.min ||
+    words > CONTENT_LENGTH_TARGETS.emailColdOutreach.max;
+
+  return (
+    <div>
+      <div className="mb-2 flex flex-wrap gap-2 text-xs text-muted">
+        <span
+          className={`rounded-full px-2 py-0.5 font-medium ${
+            under ? "bg-amber-100 text-amber-800" : "bg-brand/10 text-brand"
+          }`}
+        >
+          {words} words
+        </span>
+        <span>Target: {CONTENT_LENGTH_TARGETS.emailColdOutreach.label} words</span>
+      </div>
+      <h3 className="text-lg font-semibold text-foreground">{email.subject}</h3>
+      <div className="mt-3 whitespace-pre-wrap rounded-lg border border-border bg-background p-4 text-sm text-foreground">
+        {email.bodyText}
+      </div>
+      <p className="mt-3 text-sm text-foreground">
+        <span className="font-medium">{email.ctaLabel}: </span>
+        <a href={email.ctaUrl} className="text-brand hover:underline" target="_blank" rel="noreferrer">
+          {email.ctaUrl}
+        </a>
+      </p>
     </div>
   );
 }
