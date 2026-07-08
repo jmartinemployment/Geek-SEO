@@ -40,7 +40,8 @@ export default function ContentWriterPage() {
         <h1 className="mt-1 text-3xl font-bold text-foreground">Content Writer</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted">
           Turn a crawled client site and manually-scraped SERP research into a publish-ready TechnicalArticle,
-          companion BlogPost, and Facebook/LinkedIn social posts — each with schema.org JSON+LD.
+          companion BlogPost, Facebook/LinkedIn social posts, and a cold outreach email — each with schema.org
+          JSON+LD where applicable.
         </p>
       </div>
 

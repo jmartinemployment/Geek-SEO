@@ -9,7 +9,7 @@ import {
   generateSocialContent,
   ApiError,
 } from "@/lib/content-writer/api";
-import type { GeneratedContentSet } from "@/lib/content-writer/types";
+import type { ColdOutreachEmailDraft, GeneratedContentSet } from "@/lib/content-writer/types";
 import { CONTENT_LENGTH_TARGETS } from "@/lib/content-writer/types";
 
 type Tab = "article" | "blog" | "facebook" | "linkedin" | "cold-outreach";
@@ -146,9 +146,11 @@ export default function ContentResults({
             }
             if (!state.facebookPost || !state.linkedInPost) {
               state = await generateSocialContent(projectId);
+              onGenerated(state);
             }
             if (!state.coldOutreachEmail) {
               state = await generateColdOutreachContent(projectId);
+              onGenerated(state);
             }
             return state!;
           })
@@ -414,13 +416,9 @@ function SocialView({ text, platform }: { text: string; platform: "Facebook" | "
   );
 }
 
-function ColdOutreachView({
-  email,
-}: {
-  email: { subject: string; bodyText: string; ctaLabel: string; ctaUrl: string };
-}) {
+function ColdOutreachView({ email }: { email: ColdOutreachEmailDraft }) {
   const words = countWords(email.bodyText);
-  const under =
+  const outOfRange =
     words < CONTENT_LENGTH_TARGETS.emailColdOutreach.min ||
     words > CONTENT_LENGTH_TARGETS.emailColdOutreach.max;
 
@@ -429,7 +427,7 @@ function ColdOutreachView({
       <div className="mb-2 flex flex-wrap gap-2 text-xs text-muted">
         <span
           className={`rounded-full px-2 py-0.5 font-medium ${
-            under ? "bg-amber-100 text-amber-800" : "bg-brand/10 text-brand"
+            outOfRange ? "bg-amber-100 text-amber-800" : "bg-brand/10 text-brand"
           }`}
         >
           {words} words
