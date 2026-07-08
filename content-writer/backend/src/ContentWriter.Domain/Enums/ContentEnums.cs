@@ -33,5 +33,9 @@ public enum GeneratedContentType
     TechnicalArticle = 0,
     BlogPost = 1,
     SocialFacebook = 2,
-    SocialLinkedIn = 3
+    SocialLinkedIn = 3,
+    EmailColdOutreach = 4,
+    EmailNewsletter = 5,      // stub
+    EmailStoryNurture = 6,     // stub
+    EmailTransactional = 7     // stub
 }

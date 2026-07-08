@@ -47,5 +47,34 @@ public static class ContentLengthTargets
     public static string PillarRangeLabel => $"{PillarMinWords:N0}–{PillarTargetMaxWords:N0}+";
     public static string BlogRangeLabel => $"{BlogTargetMinWords:N0}–{BlogTargetMaxWords:N0}";
     public static string ListicleGuideRangeLabel => $"{ListicleGuideMinWords:N0}–{ListicleGuideMaxWords:N0}";
+
+    // Email — Cold Outreach / Sales (implemented).
+    public const int EmailColdOutreachMinWords = 50;
+    public const int EmailColdOutreachMaxWords = 125;
+
+    public const string EmailColdOutreachEditorialDefinition =
+        "Cold outreach and sales emails aim for high response rates with a single, clear call-to-action.";
+
+    // Email stubs (constants only — no generation yet).
+    public const int EmailNewsletterMinWords = 200;
+    public const int EmailNewsletterMaxWords = 400;
+
+    public const string EmailNewsletterEditorialDefinition =
+        "Curated newsletters summarize external links and drive traffic back to the website.";
+
+    public const int EmailStoryNurtureMinWords = 500;
+    public const int EmailStoryNurtureMaxWords = 1_000;
+
+    public const string EmailStoryNurtureEditorialDefinition =
+        "Story-based nurture emails build deep trust and treat email like an exclusive blog post.";
+
+    public const int EmailTransactionalMinWords = 1;
+    public const int EmailTransactionalMaxWords = 49;
+
+    public const string EmailTransactionalEditorialDefinition =
+        "Transactional emails deliver critical data; highly functional with zero fluff.";
+
+    public static string EmailColdOutreachRangeLabel =>
+        $"{EmailColdOutreachMinWords}–{EmailColdOutreachMaxWords}";
 }
 

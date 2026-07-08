@@ -21,7 +21,11 @@ export type GeneratedContentType =
   | "TechnicalArticle"
   | "BlogPost"
   | "SocialFacebook"
-  | "SocialLinkedIn";
+  | "SocialLinkedIn"
+  | "EmailColdOutreach"
+  | "EmailNewsletter"
+  | "EmailStoryNurture"
+  | "EmailTransactional";
 
 export interface ProjectSummary {
   id: string;
@@ -111,7 +115,39 @@ export const CONTENT_LENGTH_TARGETS = {
     label: "400–800",
     definition: "Press releases and short announcements — timely and concise.",
   },
+  emailColdOutreach: {
+    min: 50,
+    max: 125,
+    label: "50–125",
+    definition:
+      "High response rates; pitch a single, clear call-to-action.",
+  },
+  emailNewsletter: {
+    min: 200,
+    max: 400,
+    label: "200–400",
+    definition: "Summarize external links; drive traffic back to your website.",
+  },
+  emailStoryNurture: {
+    min: 500,
+    max: 1000,
+    label: "500–1,000",
+    definition: "Build deep trust; treats email like an exclusive blog post.",
+  },
+  emailTransactional: {
+    min: 1,
+    max: 49,
+    label: "Under 50",
+    definition: "Deliver critical data; highly functional with zero fluff.",
+  },
 } as const;
+
+export interface ColdOutreachEmailDraft {
+  subject: string;
+  bodyText: string;
+  ctaLabel: string;
+  ctaUrl: string;
+}
 
 export interface SocialPostDraft {
   platform: string;
@@ -129,6 +165,7 @@ export interface GeneratedContentSet {
   blogJsonLd: string | null;
   facebookPost: SocialPostDraft | null;
   linkedInPost: SocialPostDraft | null;
+  coldOutreachEmail: ColdOutreachEmailDraft | null;
 }
 
 export interface LmStudioHealthStatus {
