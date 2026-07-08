@@ -50,7 +50,11 @@ export default function ContentResults({
     setError(null);
     setGeneratingStep(step);
     try {
-      onGenerated(await action());
+      const next = await action();
+      onGenerated(next);
+      if ((step === "cold-outreach" || step === "all") && next.coldOutreachEmail) {
+        setActiveTab("cold-outreach");
+      }
     } catch (err) {
       const message = err instanceof ApiError ? err.message : "Generation failed. Check the API logs.";
       setError(message);
@@ -177,25 +181,38 @@ export default function ContentResults({
       {result?.article && (
         <div className="mt-6">
           <div className="flex gap-1 border-b border-border">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                disabled={
-                  (tab.id === "article" && !result.article) ||
-                  (tab.id === "blog" && !result.blog) ||
-                  ((tab.id === "facebook" || tab.id === "linkedin") && !result.facebookPost) ||
-                  (tab.id === "cold-outreach" && !result.coldOutreachEmail)
-                }
-                className={`rounded-t-md px-4 py-2 text-sm font-medium transition-colors disabled:opacity-40 ${
-                  activeTab === tab.id
-                    ? "border-b-2 border-brand text-brand"
-                    : "text-muted hover:text-foreground"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+            {TABS.map((tab) => {
+              const unavailable =
+                (tab.id === "blog" && !result.blog) ||
+                ((tab.id === "facebook" || tab.id === "linkedin") && !result.facebookPost) ||
+                (tab.id === "cold-outreach" && !result.coldOutreachEmail);
+              const hint =
+                tab.id === "cold-outreach" && !result.coldOutreachEmail
+                  ? "Run Step 5 (Generate email) first"
+                  : tab.id === "blog" && !result.blog
+                    ? "Run Step 3 (Generate blog) first"
+                    : (tab.id === "facebook" || tab.id === "linkedin") && !result.facebookPost
+                      ? "Run Step 4 (Generate social) first"
+                      : undefined;
+
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  title={hint}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`rounded-t-md px-4 py-2 text-sm font-medium transition-colors ${
+                    activeTab === tab.id
+                      ? "border-b-2 border-brand text-brand"
+                      : unavailable
+                        ? "text-muted/70 hover:text-muted"
+                        : "text-muted hover:text-foreground"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
 
           <div className="pt-5">
@@ -214,34 +231,50 @@ export default function ContentResults({
                 minWords={CONTENT_LENGTH_TARGETS.pillar.min}
               />
             )}
-            {activeTab === "blog" && result.blog && result.blogUrl && (
-              <ArticleView
-                title={result.blog.title}
-                metaDescription={result.blog.metaDescription}
-                bodyHtml={result.blog.bodyHtml}
-                url={result.blogUrl}
-                jsonLd={result.blogJsonLd ?? ""}
-                keywords={result.blog.keywords}
-                wordCount={result.blog.wordCount}
-                sectionOutline={result.blog.sectionOutline}
-                targetLabel={`Target: ${CONTENT_LENGTH_TARGETS.blog.label} words`}
-                minWords={CONTENT_LENGTH_TARGETS.blog.min}
-              />
-            )}
-            {activeTab === "facebook" && result.facebookPost && (
-              <SocialView text={result.facebookPost.text} platform="Facebook" />
-            )}
-            {activeTab === "linkedin" && result.linkedInPost && (
-              <SocialView text={result.linkedInPost.text} platform="LinkedIn" />
-            )}
-            {activeTab === "cold-outreach" && result.coldOutreachEmail && (
-              <ColdOutreachView email={result.coldOutreachEmail} />
-            )}
+            {activeTab === "blog" &&
+              (result.blog && result.blogUrl ? (
+                <ArticleView
+                  title={result.blog.title}
+                  metaDescription={result.blog.metaDescription}
+                  bodyHtml={result.blog.bodyHtml}
+                  url={result.blogUrl}
+                  jsonLd={result.blogJsonLd ?? ""}
+                  keywords={result.blog.keywords}
+                  wordCount={result.blog.wordCount}
+                  sectionOutline={result.blog.sectionOutline}
+                  targetLabel={`Target: ${CONTENT_LENGTH_TARGETS.blog.label} words`}
+                  minWords={CONTENT_LENGTH_TARGETS.blog.min}
+                />
+              ) : (
+                <EmptyTabHint message="Run Step 3 to generate the blog post." />
+              ))}
+            {activeTab === "facebook" &&
+              (result.facebookPost ? (
+                <SocialView text={result.facebookPost.text} platform="Facebook" />
+              ) : (
+                <EmptyTabHint message="Run Step 4 to generate social posts." />
+              ))}
+            {activeTab === "linkedin" &&
+              (result.linkedInPost ? (
+                <SocialView text={result.linkedInPost.text} platform="LinkedIn" />
+              ) : (
+                <EmptyTabHint message="Run Step 4 to generate social posts." />
+              ))}
+            {activeTab === "cold-outreach" &&
+              (result.coldOutreachEmail ? (
+                <ColdOutreachView email={result.coldOutreachEmail} />
+              ) : (
+                <EmptyTabHint message="Run Step 5 (Generate email) to create the cold outreach email." />
+              ))}
           </div>
         </div>
       )}
     </div>
   );
+}
+
+function EmptyTabHint({ message }: { message: string }) {
+  return <p className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted">{message}</p>;
 }
 
 function StepRow({
