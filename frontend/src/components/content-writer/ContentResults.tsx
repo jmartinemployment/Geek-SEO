@@ -11,6 +11,12 @@ import {
   exportMarkdownContent,
   ApiError,
 } from "@/lib/content-writer/api";
+import {
+  canWriteExportToLocalDirectory,
+  pickExportDirectory,
+  resolveExportDirectory,
+  writeExportFilesToDirectory,
+} from "@/lib/content-writer/exportToLocalDirectory";
 import type { ColdOutreachEmailDraft, ExportMarkdownResponse, GeneratedContentSet, ImagePromptDraft, ImagePromptsSet } from "@/lib/content-writer/types";
 import { CONTENT_LENGTH_TARGETS } from "@/lib/content-writer/types";
 
@@ -45,6 +51,7 @@ export default function ContentResults({
   const [exportResult, setExportResult] = useState<ExportMarkdownResponse | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportDepartment, setExportDepartment] = useState("");
+  const [exportFolderName, setExportFolderName] = useState<string | null>(null);
 
   const hasPillarPlan = result?.article != null;
   const hasPillarBody = (result?.article?.wordCount ?? 0) >= PILLAR_BODY_MIN_WORDS;
@@ -56,14 +63,16 @@ export default function ContentResults({
     hasPillarBody || hasBlog || hasSocial || hasColdOutreach || hasImagePrompts;
   const isGenerating = generatingStep !== null;
 
-  function downloadMarkdownFile(file: { relativePath: string; markdown: string }) {
-    const blob = new Blob([file.markdown], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = file.relativePath.split("/").pop() ?? "export.md";
-    anchor.click();
-    URL.revokeObjectURL(url);
+  async function saveExportToLocalFolder(result: ExportMarkdownResponse) {
+    if (!canWriteExportToLocalDirectory()) {
+      throw new Error(
+        "Use Chrome or Edge to save exports into /Users/jeffmartin/Documents/Content-Writer-Output.",
+      );
+    }
+
+    const directory = await resolveExportDirectory();
+    await writeExportFilesToDirectory(directory, result.files);
+    setExportFolderName(directory.name);
   }
 
   async function runStep(step: GeneratingStep, action: () => Promise<GeneratedContentSet>) {
@@ -223,7 +232,10 @@ export default function ContentResults({
             <div>
               <h3 className="text-sm font-semibold text-foreground">Export markdown</h3>
               <p className="mt-1 text-xs text-muted">
-                Downloads pillar, blog, social, email, and image prompt files. Also writes to Content-Writer-Output when the API can reach that folder.
+                Saves files under{" "}
+                <span className="font-mono text-foreground">Content-Writer-Output/{`{department}`}/</span>{" "}
+                (Pillar, Blog, Social, Email, ImagePrompts). The first export asks you to pick that folder on your Mac;
+                after that, exports write there automatically.
               </p>
               <label className="mt-2 flex flex-col gap-1 text-xs text-muted">
                 Department folder (optional)
@@ -234,6 +246,26 @@ export default function ContentResults({
                   className="max-w-xs rounded-md border border-border bg-white px-2 py-1.5 text-sm text-foreground outline-none focus:border-brand"
                 />
               </label>
+              {canWriteExportToLocalDirectory() && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const directory = await pickExportDirectory();
+                      setExportFolderName(directory.name);
+                      setError(null);
+                    } catch (err) {
+                      if (err instanceof DOMException && err.name === "AbortError") return;
+                      setError(err instanceof Error ? err.message : "Could not choose export folder.");
+                    }
+                  }}
+                  className="mt-2 text-xs font-medium text-brand hover:underline"
+                >
+                  {exportFolderName
+                    ? `Export folder: ${exportFolderName} (change)`
+                    : "Choose Content-Writer-Output folder"}
+                </button>
+              )}
             </div>
             <button
               type="button"
@@ -247,8 +279,8 @@ export default function ContentResults({
                     projectId,
                     exportDepartment.trim() || undefined
                   );
+                  await saveExportToLocalFolder(result);
                   setExportResult(result);
-                  result.files.forEach(downloadMarkdownFile);
                 } catch (err) {
                   const message = err instanceof ApiError ? err.message : "Export failed.";
                   setError(message);
@@ -263,21 +295,15 @@ export default function ContentResults({
           </div>
           {exportResult && (
             <div className="mt-3 rounded-md bg-green-50 p-3 text-xs text-green-900">
-              <p className="font-medium">Exported {exportResult.files.length} file(s) under department: {exportResult.department}</p>
+              <p className="font-medium">
+                Saved {exportResult.files.length} file(s) under{" "}
+                {exportFolderName ? `${exportFolderName}/` : ""}
+                {exportResult.department}/
+              </p>
               <ul className="mt-2 space-y-1 font-mono">
                 {exportResult.files.map((file) => (
-                  <li key={file.relativePath} className="flex flex-wrap items-center gap-2">
-                    <span>
-                      {file.contentType}: {file.relativePath}
-                      {file.filePath ? ` (${file.filePath})` : ""}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => downloadMarkdownFile(file)}
-                      className="rounded border border-green-700/30 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-800 hover:bg-green-100"
-                    >
-                      Download
-                    </button>
+                  <li key={file.relativePath}>
+                    {file.contentType}: {file.relativePath}
                   </li>
                 ))}
               </ul>
