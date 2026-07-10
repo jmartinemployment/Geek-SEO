@@ -66,7 +66,7 @@ export default function ContentResults({
   async function saveExportToLocalFolder(result: ExportMarkdownResponse) {
     if (!canWriteExportToLocalDirectory()) {
       throw new Error(
-        "Use Chrome or Edge to save exports into /Users/jeffmartin/Documents/Content-Writer-Output.",
+        "Use Chrome or Edge to save exports into geekatyourspot-r/content-writer-output.",
       );
     }
 
@@ -234,11 +234,11 @@ export default function ContentResults({
               <p className="mt-1 text-xs text-muted">
                 Saves files under{" "}
                 <span className="font-mono text-foreground">
-                  Content-Writer-Output/{`{department}`}/{`{target keyword}`}/
+                  geekatyourspot-r/content-writer-output/{`{department}`}/{`{target keyword}`}/
                 </span>{" "}
-                (Pillar, Blog, Social, Email, ImagePrompts). The first export asks you to pick the{" "}
-                <span className="font-mono text-foreground">Content-Writer-Output</span> folder on your Mac;
-                after that, exports write there automatically.
+                (Pillar, Blog, Social, Email, ImagePrompts). The first export asks you to pick{" "}
+                <span className="font-mono text-foreground">geekatyourspot-r/content-writer-output</span>{" "}
+                in Finder; after that, exports write there automatically.
               </p>
               <label className="mt-2 flex flex-col gap-1 text-xs text-muted">
                 Department folder (optional)
@@ -266,7 +266,7 @@ export default function ContentResults({
                 >
                   {exportFolderName
                     ? `Export folder: ${exportFolderName} (change)`
-                    : "Choose Content-Writer-Output folder"}
+                    : "Choose content-writer-output folder"}
                 </button>
               )}
             </div>
@@ -286,7 +286,7 @@ export default function ContentResults({
                   setExportResult(result);
                 } catch (err) {
                   if (err instanceof DOMException && err.name === "AbortError") {
-                    setError("Export cancelled. Choose Content-Writer-Output folder, then try again.");
+                    setError("Export cancelled. Choose geekatyourspot-r/content-writer-output, then try again.");
                     return;
                   }
                   const message = err instanceof ApiError ? err.message : "Export failed.";
@@ -322,7 +322,7 @@ export default function ContentResults({
                   ) : (
                     "the folder you chose"
                   )}
-                  . If nothing appeared in Finder, click “Choose Content-Writer-Output folder” and export again.
+                  . If nothing appeared in Finder, click “Choose content-writer-output folder” and export again.
                 </p>
               )}
             </div>
