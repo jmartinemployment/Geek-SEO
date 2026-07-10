@@ -176,6 +176,16 @@ export interface ImagePromptsSet {
   socialLinkedIn: ImagePromptDraft;
 }
 
+export interface ExportMarkdownFile {
+  contentType: string;
+  filePath: string;
+}
+
+export interface ExportMarkdownResponse {
+  department: string;
+  files: ExportMarkdownFile[];
+}
+
 export interface GeneratedContentSet {
   article: ArticleDraft | null;
   articleSlug: string | null;

@@ -8,9 +8,10 @@ import {
   generatePillarBodyContent,
   generatePillarPlanContent,
   generateSocialContent,
+  exportMarkdownContent,
   ApiError,
 } from "@/lib/content-writer/api";
-import type { ColdOutreachEmailDraft, GeneratedContentSet, ImagePromptDraft, ImagePromptsSet } from "@/lib/content-writer/types";
+import type { ColdOutreachEmailDraft, ExportMarkdownResponse, GeneratedContentSet, ImagePromptDraft, ImagePromptsSet } from "@/lib/content-writer/types";
 import { CONTENT_LENGTH_TARGETS } from "@/lib/content-writer/types";
 
 type Tab = "article" | "blog" | "facebook" | "linkedin" | "cold-outreach" | "image-prompts";
@@ -41,6 +42,9 @@ export default function ContentResults({
   const [activeTab, setActiveTab] = useState<Tab>("article");
   const [generatingStep, setGeneratingStep] = useState<GeneratingStep>(null);
   const [error, setError] = useState<string | null>(null);
+  const [exportResult, setExportResult] = useState<ExportMarkdownResponse | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportDepartment, setExportDepartment] = useState("");
 
   const hasPillarPlan = result?.article != null;
   const hasPillarBody = (result?.article?.wordCount ?? 0) >= PILLAR_BODY_MIN_WORDS;
@@ -50,6 +54,7 @@ export default function ContentResults({
 
   async function runStep(step: GeneratingStep, action: () => Promise<GeneratedContentSet>) {
     setError(null);
+    setExportResult(null);
     setGeneratingStep(step);
     try {
       const next = await action();
@@ -196,6 +201,64 @@ export default function ContentResults({
         <p className={`mt-4 text-sm ${error.toLowerCase().includes("timed out") ? "text-amber-700" : "text-red-600"}`}>
           {error}
         </p>
+      )}
+
+      {(hasPillarBody || hasBlog) && (
+        <div className="mt-5 rounded-lg border border-border bg-background p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Export markdown</h3>
+              <p className="mt-1 text-xs text-muted">
+                Writes Pillar and Blog files with JSON-LD to Content-Writer-Output on the API machine.
+              </p>
+              <label className="mt-2 flex flex-col gap-1 text-xs text-muted">
+                Department folder (optional)
+                <input
+                  value={exportDepartment}
+                  onChange={(e) => setExportDepartment(e.target.value)}
+                  placeholder="accounting"
+                  className="max-w-xs rounded-md border border-border bg-white px-2 py-1.5 text-sm text-foreground outline-none focus:border-brand"
+                />
+              </label>
+            </div>
+            <button
+              type="button"
+              disabled={isExporting || isGenerating}
+              onClick={async () => {
+                setError(null);
+                setExportResult(null);
+                setIsExporting(true);
+                try {
+                  const result = await exportMarkdownContent(
+                    projectId,
+                    exportDepartment.trim() || undefined
+                  );
+                  setExportResult(result);
+                } catch (err) {
+                  const message = err instanceof ApiError ? err.message : "Export failed.";
+                  setError(message);
+                } finally {
+                  setIsExporting(false);
+                }
+              }}
+              className="shrink-0 rounded-md border border-brand px-3 py-2 text-sm font-semibold text-brand transition-colors hover:bg-brand/5 disabled:opacity-60"
+            >
+              {isExporting ? "Exporting..." : "Export Pillar & Blog (.md)"}
+            </button>
+          </div>
+          {exportResult && (
+            <div className="mt-3 rounded-md bg-green-50 p-3 text-xs text-green-900">
+              <p className="font-medium">Saved under department: {exportResult.department}</p>
+              <ul className="mt-2 space-y-1 font-mono">
+                {exportResult.files.map((file) => (
+                  <li key={file.filePath}>
+                    {file.contentType}: {file.filePath}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       )}
 
       {result?.article && (

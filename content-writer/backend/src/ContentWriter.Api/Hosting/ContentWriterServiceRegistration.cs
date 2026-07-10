@@ -2,7 +2,7 @@ using ContentWriter.Application.Providers;
 using ContentWriter.Application.Services;
 using ContentWriter.Application.Services.JsonLd;
 using ContentWriter.Application.Services.PromptBuilders;
-using ContentWriter.Application.Services.SchemaBuilders;
+using ContentWriter.Application.Services.Export;
 using ContentWriter.Domain.Enums;
 using ContentWriter.Infrastructure.Data;
 using ContentWriter.Infrastructure.Repositories;
@@ -44,6 +44,7 @@ public static class ContentWriterServiceRegistration
 
         services.Configure<LlmProvidersOptions>(configuration.GetSection(LlmProvidersOptions.SectionName));
         services.Configure<CompanyProfileOptions>(configuration.GetSection(CompanyProfileOptions.SectionName));
+        services.Configure<ContentExportOptions>(configuration.GetSection(ContentExportOptions.SectionName));
 
         services.AddHttpClient<LmStudioProvider>();
         services.AddHttpClient<OpenAiProvider>();
@@ -64,6 +65,7 @@ public static class ContentWriterServiceRegistration
         services.AddScoped<ITechnicalArticleSchemaBuilder, TechnicalArticleSchemaBuilder>();
         services.AddScoped<IBlogPostingSchemaBuilder, BlogPostingSchemaBuilder>();
         services.AddScoped<IContentGenerationOrchestrator, ContentGenerationOrchestrator>();
+        services.AddScoped<IContentMarkdownExportService, ContentMarkdownExportService>();
         services.AddSingleton<IJsonLdParserService, JsonLdParserService>();
 
         return services;

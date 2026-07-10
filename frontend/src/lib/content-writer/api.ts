@@ -1,5 +1,6 @@
 import type {
   CrawlSummary,
+  ExportMarkdownResponse,
   GeneratedContentSet,
   KeywordSourceCategory,
   KeywordSourceResponse,
@@ -9,29 +10,15 @@ import type {
   ProjectSummary,
 } from "./types";
 
-const DEFAULT_SEO_API_URL = process.env.NEXT_PUBLIC_SEO_API_URL ?? "http://localhost:5051";
-const PRODUCTION_SEO_API_URL = "https://seo-api.geekatyourspot.com";
+const SEO_API_URL = process.env.NEXT_PUBLIC_SEO_API_URL ?? "http://localhost:5051";
 
 /** Content Writer routes are hosted on GeekSeoBackend (same origin as SEO API). */
-function resolveApiBaseUrl(): string {
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname;
-    if (host === "seo.geekatyourspot.com" || host === "geek-seo.vercel.app") {
-      return PRODUCTION_SEO_API_URL;
-    }
-  }
-
-  if (DEFAULT_SEO_API_URL.includes("contentwriter-production")) {
-    return PRODUCTION_SEO_API_URL;
-  }
-
-  return DEFAULT_SEO_API_URL;
-}
+const API_BASE_URL = SEO_API_URL;
 
 /** True when the UI talks to the hosted Railway API (LM Studio is not available there). */
 export function isProductionContentWriterApi(): boolean {
   try {
-    const url = new URL(resolveApiBaseUrl());
+    const url = new URL(API_BASE_URL);
     return url.hostname !== "localhost" && url.hostname !== "127.0.0.1";
   } catch {
     return false;
@@ -52,7 +39,7 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${resolveApiBaseUrl()}${path}`, {
+    response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
       headers: {
         ...(init?.body && !(init.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
@@ -61,7 +48,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch {
     throw new ApiError(
-      `Could not reach the API at ${resolveApiBaseUrl()}. Hard-refresh the page and confirm the API is running.`,
+      `Could not reach the API at ${API_BASE_URL}. Hard-refresh the page and confirm the API is running.`,
       0
     );
   }
@@ -156,6 +143,16 @@ export function generateColdOutreachContent(projectId: string): Promise<Generate
 export function generateImagePromptsContent(projectId: string): Promise<GeneratedContentSet> {
   return request<GeneratedContentSet>(`/api/projects/${projectId}/generate/image-prompts`, {
     method: "POST",
+  });
+}
+
+export function exportMarkdownContent(
+  projectId: string,
+  department?: string
+): Promise<ExportMarkdownResponse> {
+  return request<ExportMarkdownResponse>(`/api/projects/${projectId}/export/markdown`, {
+    method: "POST",
+    body: JSON.stringify(department ? { department } : {}),
   });
 }
 
