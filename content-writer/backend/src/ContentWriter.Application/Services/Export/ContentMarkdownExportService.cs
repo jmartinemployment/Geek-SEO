@@ -15,7 +15,11 @@ public interface IContentMarkdownExportService
         CancellationToken cancellationToken = default);
 }
 
-public sealed record ExportedMarkdownFile(string ContentType, string FilePath);
+public sealed record ExportedMarkdownFile(
+    string ContentType,
+    string RelativePath,
+    string? FilePath,
+    string Markdown);
 
 public sealed record ExportMarkdownResult(string Department, IReadOnlyList<ExportedMarkdownFile> Files);
 
@@ -60,12 +64,11 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
             project.Name,
             departmentOverride);
 
-        var outputRoot = ResolveOutputRoot();
-        var pillarDir = Path.Combine(outputRoot, department, "Pillar");
-        var blogDir = Path.Combine(outputRoot, department, "Blog");
-        Directory.CreateDirectory(pillarDir);
-        Directory.CreateDirectory(blogDir);
+        var slug = contentSet.ArticleSlug
+            ?? contentSet.BlogSlug
+            ?? DepartmentNameResolver.SanitizeDirectorySegment(project.Name);
 
+        var outputRoot = TryResolveOutputRoot();
         var exportedAt = DateTime.UtcNow;
         var written = new List<ExportedMarkdownFile>();
 
@@ -73,7 +76,7 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
             && contentSet.Article.WordCount >= PillarBodyMinWords
             && !string.IsNullOrWhiteSpace(contentSet.ArticleSlug))
         {
-            var pillarPath = Path.Combine(pillarDir, $"{contentSet.ArticleSlug}.md");
+            var relativePath = Path.Combine(department, "Pillar", $"{contentSet.ArticleSlug}.md");
             var markdown = MarkdownExportDocumentBuilder.Build(new MarkdownExportInput(
                 Title: contentSet.Article.Title,
                 Slug: contentSet.ArticleSlug,
@@ -88,16 +91,14 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
                 JsonLdSchema: contentSet.ArticleJsonLd,
                 ExportedAtUtc: exportedAt));
 
-            await File.WriteAllTextAsync(pillarPath, markdown, Encoding.UTF8, cancellationToken);
-            written.Add(new ExportedMarkdownFile("pillar", pillarPath));
-            _logger.LogInformation("Exported pillar markdown to {Path}", pillarPath);
+            written.Add(await WriteExportAsync(outputRoot, relativePath, "pillar", markdown, cancellationToken));
         }
 
         if (contentSet.Blog is not null
             && contentSet.Blog.WordCount > 0
             && !string.IsNullOrWhiteSpace(contentSet.BlogSlug))
         {
-            var blogPath = Path.Combine(blogDir, $"{contentSet.BlogSlug}.md");
+            var relativePath = Path.Combine(department, "Blog", $"{contentSet.BlogSlug}.md");
             var markdown = MarkdownExportDocumentBuilder.Build(new MarkdownExportInput(
                 Title: contentSet.Blog.Title,
                 Slug: contentSet.BlogSlug,
@@ -112,25 +113,101 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
                 JsonLdSchema: contentSet.BlogJsonLd,
                 ExportedAtUtc: exportedAt));
 
-            await File.WriteAllTextAsync(blogPath, markdown, Encoding.UTF8, cancellationToken);
-            written.Add(new ExportedMarkdownFile("blog", blogPath));
-            _logger.LogInformation("Exported blog markdown to {Path}", blogPath);
+            written.Add(await WriteExportAsync(outputRoot, relativePath, "blog", markdown, cancellationToken));
+        }
+
+        if (contentSet.FacebookPost is not null && !string.IsNullOrWhiteSpace(contentSet.FacebookPost.Text))
+        {
+            var relativePath = Path.Combine(department, "Social", $"facebook-{slug}.md");
+            var markdown = MarkdownExportDocumentBuilder.BuildSocial(
+                contentSet.FacebookPost, department, slug, exportedAt);
+            written.Add(await WriteExportAsync(outputRoot, relativePath, "social-facebook", markdown, cancellationToken));
+        }
+
+        if (contentSet.LinkedInPost is not null && !string.IsNullOrWhiteSpace(contentSet.LinkedInPost.Text))
+        {
+            var relativePath = Path.Combine(department, "Social", $"linkedin-{slug}.md");
+            var markdown = MarkdownExportDocumentBuilder.BuildSocial(
+                contentSet.LinkedInPost, department, slug, exportedAt);
+            written.Add(await WriteExportAsync(outputRoot, relativePath, "social-linkedin", markdown, cancellationToken));
+        }
+
+        if (contentSet.ColdOutreachEmail is not null
+            && !string.IsNullOrWhiteSpace(contentSet.ColdOutreachEmail.BodyText))
+        {
+            var relativePath = Path.Combine(department, "Email", $"cold-outreach-{slug}.md");
+            var markdown = MarkdownExportDocumentBuilder.BuildColdOutreach(
+                contentSet.ColdOutreachEmail, department, slug, exportedAt);
+            written.Add(await WriteExportAsync(outputRoot, relativePath, "email-cold-outreach", markdown, cancellationToken));
+        }
+
+        if (contentSet.ImagePrompts is not null)
+        {
+            var prompts = new (ImagePromptContent Prompt, string FileName, string ContentType)[]
+            {
+                (contentSet.ImagePrompts.PillarFigure, "pillar-figure.md", "image-prompt-pillar"),
+                (contentSet.ImagePrompts.SocialFacebook, "social-facebook.md", "image-prompt-facebook"),
+                (contentSet.ImagePrompts.SocialLinkedIn, "social-linkedin.md", "image-prompt-linkedin"),
+            };
+
+            foreach (var (prompt, fileName, contentType) in prompts)
+            {
+                if (string.IsNullOrWhiteSpace(prompt.Prompt))
+                    continue;
+
+                var relativePath = Path.Combine(department, "ImagePrompts", fileName);
+                var markdown = MarkdownExportDocumentBuilder.BuildImagePrompt(prompt, department, slug, exportedAt);
+                written.Add(await WriteExportAsync(outputRoot, relativePath, contentType, markdown, cancellationToken));
+            }
         }
 
         if (written.Count == 0)
         {
             throw new ContentGenerationException(
-                "Nothing to export. Complete the pillar body (Step 2) and/or blog (Step 3) before exporting.");
+                "Nothing to export. Generate pillar body, blog, social, email, and/or image prompts first.");
         }
 
         return new ExportMarkdownResult(department, written);
     }
 
-    private string ResolveOutputRoot()
+    private async Task<ExportedMarkdownFile> WriteExportAsync(
+        string? outputRoot,
+        string relativePath,
+        string contentType,
+        string markdown,
+        CancellationToken cancellationToken)
+    {
+        string? filePath = null;
+        if (outputRoot is not null)
+        {
+            filePath = Path.Combine(outputRoot, relativePath);
+            try
+            {
+                var directory = Path.GetDirectoryName(filePath);
+                if (!string.IsNullOrEmpty(directory))
+                    Directory.CreateDirectory(directory);
+
+                await File.WriteAllTextAsync(filePath, markdown, Encoding.UTF8, cancellationToken);
+                _logger.LogInformation("Exported {ContentType} markdown to {Path}", contentType, filePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not write export file to {Path}; returning markdown in API response only", filePath);
+                filePath = null;
+            }
+        }
+
+        return new ExportedMarkdownFile(contentType, relativePath.Replace('\\', '/'), filePath, markdown);
+    }
+
+    private string? TryResolveOutputRoot()
     {
         var configured = _exportOptions.OutputRootPath?.Trim();
         if (string.IsNullOrWhiteSpace(configured))
-            throw new ContentGenerationException("ContentExport:OutputRootPath is not configured.");
+        {
+            _logger.LogDebug("ContentExport:OutputRootPath is not configured; skipping disk writes.");
+            return null;
+        }
 
         return Path.GetFullPath(configured);
     }

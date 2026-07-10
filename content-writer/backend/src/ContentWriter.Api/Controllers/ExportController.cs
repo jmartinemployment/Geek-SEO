@@ -1,4 +1,4 @@
-using ContentWriter.Application.Services;
+using ContentWriter.Application.Providers;
 using ContentWriter.Application.Services.Export;
 using Microsoft.AspNetCore.Mvc;
 
@@ -32,7 +32,11 @@ public class ExportController : ControllerBase
 
             return Ok(new ExportMarkdownResponse(
                 result.Department,
-                result.Files.Select(f => new ExportedMarkdownFileResponse(f.ContentType, f.FilePath)).ToList()));
+                result.Files.Select(f => new ExportedMarkdownFileResponse(
+                    f.ContentType,
+                    f.RelativePath,
+                    f.FilePath,
+                    f.Markdown)).ToList()));
         }
         catch (ContentGenerationException ex)
         {
@@ -46,4 +50,8 @@ public sealed record ExportMarkdownRequest(string? Department);
 
 public sealed record ExportMarkdownResponse(string Department, IReadOnlyList<ExportedMarkdownFileResponse> Files);
 
-public sealed record ExportedMarkdownFileResponse(string ContentType, string FilePath);
+public sealed record ExportedMarkdownFileResponse(
+    string ContentType,
+    string RelativePath,
+    string? FilePath,
+    string Markdown);

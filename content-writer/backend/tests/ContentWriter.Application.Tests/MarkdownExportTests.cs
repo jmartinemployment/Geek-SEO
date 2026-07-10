@@ -1,3 +1,4 @@
+using ContentWriter.Application.DTOs;
 using ContentWriter.Application.Services.Export;
 
 namespace ContentWriter.Application.Tests;
@@ -59,5 +60,61 @@ public class MarkdownExportDocumentBuilderTests
         Assert.Contains("<article><h2>Overview</h2><p>Body copy.</p></article>", markdown);
         Assert.Contains("## JSON-LD Schema", markdown);
         Assert.Contains("\"@type\": \"TechArticle\"", markdown);
+    }
+
+    [Fact]
+    public void BuildSocial_includes_platform_and_body()
+    {
+        var markdown = MarkdownExportDocumentBuilder.BuildSocial(
+            new SocialPostDraft("Facebook", "Short social copy."),
+            "accounting",
+            "smart-bank-reconciliation",
+            new DateTime(2026, 7, 10, 12, 0, 0, DateTimeKind.Utc));
+
+        Assert.Contains("platform: Facebook", markdown);
+        Assert.Contains("contentType: social", markdown);
+        Assert.Contains("Short social copy.", markdown);
+    }
+
+    [Fact]
+    public void BuildColdOutreach_includes_subject_and_cta()
+    {
+        var markdown = MarkdownExportDocumentBuilder.BuildColdOutreach(
+            new ColdOutreachEmailContent(
+                "Reconcile faster",
+                "Body text here.",
+                "Read the guide",
+                "https://example.com/pillar"),
+            "accounting",
+            "smart-bank-reconciliation",
+            new DateTime(2026, 7, 10, 12, 0, 0, DateTimeKind.Utc));
+
+        Assert.Contains("subject: Reconcile faster", markdown);
+        Assert.Contains("https://example.com/pillar", markdown);
+        Assert.Contains("Body text here.", markdown);
+    }
+
+    [Fact]
+    public void BuildImagePrompt_includes_leonardo_settings()
+    {
+        var markdown = MarkdownExportDocumentBuilder.BuildImagePrompt(
+            new ImagePromptContent(
+                "Pillar figure",
+                "Flat vector diagram of bank feeds.",
+                1536,
+                1024,
+                "Leonardo Phoenix",
+                "phoenix-id",
+                "Illustration",
+                true,
+                false,
+                null),
+            "accounting",
+            "smart-bank-reconciliation",
+            new DateTime(2026, 7, 10, 12, 0, 0, DateTimeKind.Utc));
+
+        Assert.Contains("useCase: Pillar figure", markdown);
+        Assert.Contains("leonardoModel: Leonardo Phoenix", markdown);
+        Assert.Contains("Flat vector diagram of bank feeds.", markdown);
     }
 }

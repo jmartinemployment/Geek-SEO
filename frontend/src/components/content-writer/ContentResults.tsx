@@ -50,7 +50,21 @@ export default function ContentResults({
   const hasPillarBody = (result?.article?.wordCount ?? 0) >= PILLAR_BODY_MIN_WORDS;
   const hasBlog = result?.blog != null;
   const hasSocial = result?.facebookPost != null && result?.linkedInPost != null;
+  const hasColdOutreach = result?.coldOutreachEmail != null;
+  const hasImagePrompts = result?.imagePrompts != null;
+  const hasExportableContent =
+    hasPillarBody || hasBlog || hasSocial || hasColdOutreach || hasImagePrompts;
   const isGenerating = generatingStep !== null;
+
+  function downloadMarkdownFile(file: { relativePath: string; markdown: string }) {
+    const blob = new Blob([file.markdown], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = file.relativePath.split("/").pop() ?? "export.md";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
 
   async function runStep(step: GeneratingStep, action: () => Promise<GeneratedContentSet>) {
     setError(null);
@@ -203,13 +217,13 @@ export default function ContentResults({
         </p>
       )}
 
-      {(hasPillarBody || hasBlog) && (
+      {hasExportableContent && (
         <div className="mt-5 rounded-lg border border-border bg-background p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-foreground">Export markdown</h3>
               <p className="mt-1 text-xs text-muted">
-                Writes Pillar and Blog files with JSON-LD to Content-Writer-Output on the API machine.
+                Downloads pillar, blog, social, email, and image prompt files. Also writes to Content-Writer-Output when the API can reach that folder.
               </p>
               <label className="mt-2 flex flex-col gap-1 text-xs text-muted">
                 Department folder (optional)
@@ -234,6 +248,7 @@ export default function ContentResults({
                     exportDepartment.trim() || undefined
                   );
                   setExportResult(result);
+                  result.files.forEach(downloadMarkdownFile);
                 } catch (err) {
                   const message = err instanceof ApiError ? err.message : "Export failed.";
                   setError(message);
@@ -243,16 +258,26 @@ export default function ContentResults({
               }}
               className="shrink-0 rounded-md border border-brand px-3 py-2 text-sm font-semibold text-brand transition-colors hover:bg-brand/5 disabled:opacity-60"
             >
-              {isExporting ? "Exporting..." : "Export Pillar & Blog (.md)"}
+              {isExporting ? "Exporting..." : "Export all content (.md)"}
             </button>
           </div>
           {exportResult && (
             <div className="mt-3 rounded-md bg-green-50 p-3 text-xs text-green-900">
-              <p className="font-medium">Saved under department: {exportResult.department}</p>
+              <p className="font-medium">Exported {exportResult.files.length} file(s) under department: {exportResult.department}</p>
               <ul className="mt-2 space-y-1 font-mono">
                 {exportResult.files.map((file) => (
-                  <li key={file.filePath}>
-                    {file.contentType}: {file.filePath}
+                  <li key={file.relativePath} className="flex flex-wrap items-center gap-2">
+                    <span>
+                      {file.contentType}: {file.relativePath}
+                      {file.filePath ? ` (${file.filePath})` : ""}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => downloadMarkdownFile(file)}
+                      className="rounded border border-green-700/30 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-800 hover:bg-green-100"
+                    >
+                      Download
+                    </button>
                   </li>
                 ))}
               </ul>

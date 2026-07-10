@@ -1,4 +1,5 @@
 using System.Text;
+using ContentWriter.Application.DTOs;
 
 namespace ContentWriter.Application.Services.Export;
 
@@ -45,6 +46,71 @@ public static class MarkdownExportDocumentBuilder
 
         return sb.ToString();
     }
+
+    public static string BuildSocial(SocialPostDraft post, string department, string slug, DateTime exportedAtUtc)
+    {
+        var wordCount = CountWords(post.Text);
+        var sb = new StringBuilder();
+        sb.AppendLine("---");
+        sb.AppendLine($"platform: {YamlScalar(post.Platform)}");
+        sb.AppendLine($"contentType: social");
+        sb.AppendLine($"department: {YamlScalar(department)}");
+        sb.AppendLine($"slug: {YamlScalar(slug)}");
+        sb.AppendLine($"wordCount: {wordCount}");
+        sb.AppendLine($"exportedAtUtc: {YamlScalar(exportedAtUtc.ToString("O"))}");
+        sb.AppendLine("---");
+        sb.AppendLine();
+        sb.AppendLine(post.Text.Trim());
+        return sb.ToString();
+    }
+
+    public static string BuildColdOutreach(ColdOutreachEmailContent email, string department, string slug, DateTime exportedAtUtc)
+    {
+        var wordCount = CountWords(email.BodyText);
+        var sb = new StringBuilder();
+        sb.AppendLine("---");
+        sb.AppendLine($"subject: {YamlScalar(email.Subject)}");
+        sb.AppendLine($"contentType: email-cold-outreach");
+        sb.AppendLine($"department: {YamlScalar(department)}");
+        sb.AppendLine($"slug: {YamlScalar(slug)}");
+        sb.AppendLine($"ctaLabel: {YamlScalar(email.CtaLabel)}");
+        sb.AppendLine($"ctaUrl: {YamlScalar(email.CtaUrl)}");
+        sb.AppendLine($"wordCount: {wordCount}");
+        sb.AppendLine($"exportedAtUtc: {YamlScalar(exportedAtUtc.ToString("O"))}");
+        sb.AppendLine("---");
+        sb.AppendLine();
+        sb.AppendLine(email.BodyText.Trim());
+        return sb.ToString();
+    }
+
+    public static string BuildImagePrompt(ImagePromptContent prompt, string department, string slug, DateTime exportedAtUtc)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("---");
+        sb.AppendLine($"useCase: {YamlScalar(prompt.UseCase)}");
+        sb.AppendLine($"contentType: image-prompt");
+        sb.AppendLine($"department: {YamlScalar(department)}");
+        sb.AppendLine($"slug: {YamlScalar(slug)}");
+        sb.AppendLine($"width: {prompt.Width}");
+        sb.AppendLine($"height: {prompt.Height}");
+        sb.AppendLine($"leonardoModel: {YamlScalar(prompt.LeonardoModel)}");
+        sb.AppendLine($"leonardoModelId: {YamlScalar(prompt.LeonardoModelId)}");
+        sb.AppendLine($"stylePreset: {YamlScalar(prompt.StylePreset)}");
+        sb.AppendLine($"alchemy: {prompt.Alchemy.ToString().ToLowerInvariant()}");
+        sb.AppendLine($"photoReal: {prompt.PhotoReal.ToString().ToLowerInvariant()}");
+        if (!string.IsNullOrWhiteSpace(prompt.Notes))
+            sb.AppendLine($"notes: {YamlScalar(prompt.Notes)}");
+        sb.AppendLine($"exportedAtUtc: {YamlScalar(exportedAtUtc.ToString("O"))}");
+        sb.AppendLine("---");
+        sb.AppendLine();
+        sb.AppendLine(prompt.Prompt.Trim());
+        return sb.ToString();
+    }
+
+    private static int CountWords(string text) =>
+        string.IsNullOrWhiteSpace(text)
+            ? 0
+            : text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
 
     private static string YamlScalar(string value)
     {

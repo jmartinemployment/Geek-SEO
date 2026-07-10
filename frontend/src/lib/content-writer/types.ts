@@ -178,7 +178,9 @@ export interface ImagePromptsSet {
 
 export interface ExportMarkdownFile {
   contentType: string;
-  filePath: string;
+  relativePath: string;
+  filePath: string | null;
+  markdown: string;
 }
 
 export interface ExportMarkdownResponse {

@@ -3,6 +3,7 @@ using ContentWriter.Application.Services;
 using ContentWriter.Application.Services.JsonLd;
 using ContentWriter.Application.Services.PromptBuilders;
 using ContentWriter.Application.Services.Export;
+using ContentWriter.Application.Services.SchemaBuilders;
 using ContentWriter.Domain.Enums;
 using ContentWriter.Infrastructure.Data;
 using ContentWriter.Infrastructure.Repositories;
