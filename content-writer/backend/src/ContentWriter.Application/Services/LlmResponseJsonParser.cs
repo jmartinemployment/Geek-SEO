@@ -127,15 +127,18 @@ public static class LlmResponseJsonParser
             $"Model did not return valid JSON for {label}. First 200 chars: {rawContent[..Math.Min(200, rawContent.Length)]}");
     }
 
-    public static ImagePromptsDraft ParseImagePrompts(string rawContent, string label)
+    public static ImagePromptSectionPromptsDraft ParseSectionImagePrompts(
+        string rawContent,
+        IReadOnlyList<ImagePromptSectionTarget> expectedSections,
+        string label)
     {
         var cleaned = Clean(rawContent);
 
         foreach (var candidate in CandidateJsonStrings(cleaned))
         {
-            if (TryDeserializeImagePrompts(candidate, out var draft))
+            if (TryDeserializeSectionImagePrompts(candidate, out var draft))
             {
-                return ValidateImagePrompts(draft, label);
+                return ValidateSectionImagePrompts(draft, expectedSections, label);
             }
         }
 
@@ -143,25 +146,20 @@ public static class LlmResponseJsonParser
             $"Model did not return valid JSON for {label}. First 200 chars: {rawContent[..Math.Min(200, rawContent.Length)]}");
     }
 
-    private static bool TryDeserializeImagePrompts(string json, out ImagePromptsDraft draft)
+    private static bool TryDeserializeSectionImagePrompts(string json, out ImagePromptSectionPromptsDraft draft)
     {
-        draft = new ImagePromptsDraft(
-            new ImagePromptItemDraft("", 0, 0, "", "", false, false, null),
-            new ImagePromptItemDraft("", 0, 0, "", "", false, false, null),
-            new ImagePromptItemDraft("", 0, 0, "", "", false, false, null));
+        draft = new ImagePromptSectionPromptsDraft([]);
 
         try
         {
-            var parsed = JsonSerializer.Deserialize<ImagePromptsResponse>(json, JsonOptions);
-            if (parsed?.PillarFigure is null || parsed.SocialFacebook is null || parsed.SocialLinkedIn is null)
+            var parsed = JsonSerializer.Deserialize<ImagePromptSectionsResponse>(json, JsonOptions);
+            if (parsed?.Sections is null || parsed.Sections.Count == 0)
             {
                 return false;
             }
 
-            draft = new ImagePromptsDraft(
-                ToItemDraft(parsed.PillarFigure),
-                ToItemDraft(parsed.SocialFacebook),
-                ToItemDraft(parsed.SocialLinkedIn));
+            draft = new ImagePromptSectionPromptsDraft(
+                parsed.Sections.Select(ToSectionDraft).ToList());
             return true;
         }
         catch (JsonException)
@@ -170,8 +168,11 @@ public static class LlmResponseJsonParser
         }
     }
 
-    private static ImagePromptItemDraft ToItemDraft(ImagePromptItemResponse item) =>
+    private static ImagePromptSectionDraft ToSectionDraft(ImagePromptSectionResponse item) =>
         new(
+            (item.SourceType ?? "").Trim().ToLowerInvariant(),
+            (item.Heading ?? "").Trim(),
+            item.Order,
             (item.Prompt ?? "").Trim(),
             item.Width,
             item.Height,
@@ -181,50 +182,73 @@ public static class LlmResponseJsonParser
             item.PhotoReal ?? false,
             string.IsNullOrWhiteSpace(item.Notes) ? null : item.Notes.Trim());
 
-    private static ImagePromptsDraft ValidateImagePrompts(ImagePromptsDraft draft, string label)
+    private static ImagePromptSectionPromptsDraft ValidateSectionImagePrompts(
+        ImagePromptSectionPromptsDraft draft,
+        IReadOnlyList<ImagePromptSectionTarget> expectedSections,
+        string label)
     {
-        ValidateImagePromptItem(draft.PillarFigure, "pillarFigure", label, isSocial: false);
-        ValidateImagePromptItem(draft.SocialFacebook, "socialFacebook", label, isSocial: true);
-        ValidateImagePromptItem(draft.SocialLinkedIn, "socialLinkedIn", label, isSocial: true);
+        if (draft.Sections.Count != expectedSections.Count)
+        {
+            throw new ContentGenerationException(
+                $"{label} must include {expectedSections.Count} section prompts (got {draft.Sections.Count}).");
+        }
+
+        for (var i = 0; i < expectedSections.Count; i++)
+        {
+            var expected = expectedSections[i];
+            var item = draft.Sections.FirstOrDefault(s =>
+                string.Equals(s.SourceType, expected.SourceType, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(s.Heading, expected.Heading, StringComparison.OrdinalIgnoreCase)
+                && s.Order == expected.Order);
+
+            if (item is null)
+            {
+                throw new ContentGenerationException(
+                    $"{label} is missing a prompt for {expected.SourceType} section \"{expected.Heading}\" (order {expected.Order}).");
+            }
+
+            ValidateSectionImagePromptItem(item, expected, label);
+        }
+
         return draft;
     }
 
-    private static void ValidateImagePromptItem(
-        ImagePromptItemDraft item,
-        string field,
-        string label,
-        bool isSocial)
+    private static void ValidateSectionImagePromptItem(
+        ImagePromptSectionDraft item,
+        ImagePromptSectionTarget expected,
+        string label)
     {
         if (string.IsNullOrWhiteSpace(item.Prompt))
         {
-            throw new ContentGenerationException($"Model returned empty prompt for {field} in {label}.");
+            throw new ContentGenerationException(
+                $"Model returned empty prompt for {expected.SourceType} section \"{expected.Heading}\" in {label}.");
         }
 
         var words = item.Prompt.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
         if (words < ImagePromptDefaults.PromptMinWords || words > ImagePromptDefaults.PromptMaxWords)
         {
             throw new ContentGenerationException(
-                $"{field} prompt must be {ImagePromptDefaults.PromptMinWords}–{ImagePromptDefaults.PromptMaxWords} words (got {words}).");
+                $"Prompt for \"{expected.Heading}\" must be {ImagePromptDefaults.PromptMinWords}–{ImagePromptDefaults.PromptMaxWords} words (got {words}).");
         }
 
         if (item.Width < 512 || item.Height < 512 || item.Width > 2048 || item.Height > 2048)
         {
-            throw new ContentGenerationException($"{field} dimensions out of range (512–2048).");
+            throw new ContentGenerationException($"Dimensions for \"{expected.Heading}\" are out of range (512–2048).");
+        }
+
+        if (item.Width < item.Height)
+        {
+            throw new ContentGenerationException($"Prompt for \"{expected.Heading}\" should be landscape (width >= height).");
         }
 
         if (string.IsNullOrWhiteSpace(item.LeonardoModel))
         {
-            throw new ContentGenerationException($"Model returned empty leonardoModel for {field} in {label}.");
+            throw new ContentGenerationException($"Model returned empty leonardoModel for \"{expected.Heading}\" in {label}.");
         }
 
         if (string.IsNullOrWhiteSpace(item.StylePreset))
         {
-            throw new ContentGenerationException($"Model returned empty stylePreset for {field} in {label}.");
-        }
-
-        if (isSocial && (item.Width < item.Height))
-        {
-            throw new ContentGenerationException($"{field} social card should be landscape (width >= height).");
+            throw new ContentGenerationException($"Model returned empty stylePreset for \"{expected.Heading}\" in {label}.");
         }
     }
 
@@ -396,12 +420,12 @@ public static class LlmResponseJsonParser
 
     private sealed record ColdOutreachResponse(string? Subject, string? BodyText, string? CtaLabel);
 
-    private sealed record ImagePromptsResponse(
-        ImagePromptItemResponse? PillarFigure,
-        ImagePromptItemResponse? SocialFacebook,
-        ImagePromptItemResponse? SocialLinkedIn);
+    private sealed record ImagePromptSectionsResponse(IReadOnlyList<ImagePromptSectionResponse>? Sections);
 
-    private sealed record ImagePromptItemResponse(
+    private sealed record ImagePromptSectionResponse(
+        string? SourceType,
+        string? Heading,
+        int Order,
         string? Prompt,
         int Width,
         int Height,

@@ -74,13 +74,25 @@ public record ImagePromptItemDraft(
     bool PhotoReal,
     string? Notes);
 
-public record ImagePromptsDraft(
-    ImagePromptItemDraft PillarFigure,
-    ImagePromptItemDraft SocialFacebook,
-    ImagePromptItemDraft SocialLinkedIn);
+public record ImagePromptSectionDraft(
+    string SourceType,
+    string Heading,
+    int Order,
+    string Prompt,
+    int Width,
+    int Height,
+    string LeonardoModel,
+    string StylePreset,
+    bool Alchemy,
+    bool PhotoReal,
+    string? Notes);
 
-public record ImagePromptContent(
-    string UseCase,
+public record ImagePromptSectionPromptsDraft(IReadOnlyList<ImagePromptSectionDraft> Sections);
+
+public record ImagePromptSectionContent(
+    string SourceType,
+    string Heading,
+    int Order,
     string Prompt,
     int Width,
     int Height,
@@ -91,10 +103,7 @@ public record ImagePromptContent(
     bool PhotoReal,
     string? Notes);
 
-public record ImagePromptsContent(
-    ImagePromptContent PillarFigure,
-    ImagePromptContent SocialFacebook,
-    ImagePromptContent SocialLinkedIn);
+public record ImagePromptsContent(IReadOnlyList<ImagePromptSectionContent> Sections);
 
 public record GeneratedContentSet(
     ArticleDraft? Article,

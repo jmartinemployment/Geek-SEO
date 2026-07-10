@@ -1,6 +1,7 @@
 using System.Text;
 using ContentWriter.Application.DTOs;
 using ContentWriter.Application.Providers;
+using ContentWriter.Application.Services;
 using ContentWriter.Infrastructure.Repositories;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -145,20 +146,19 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
 
         if (contentSet.ImagePrompts is not null)
         {
-            var prompts = new (ImagePromptContent Prompt, string FileName, string ContentType)[]
-            {
-                (contentSet.ImagePrompts.PillarFigure, "pillar-figure.md", "image-prompt-pillar"),
-                (contentSet.ImagePrompts.SocialFacebook, "social-facebook.md", "image-prompt-facebook"),
-                (contentSet.ImagePrompts.SocialLinkedIn, "social-linkedin.md", "image-prompt-linkedin"),
-            };
-
-            foreach (var (prompt, fileName, contentType) in prompts)
+            foreach (var prompt in contentSet.ImagePrompts.Sections)
             {
                 if (string.IsNullOrWhiteSpace(prompt.Prompt))
                     continue;
 
-                var relativePath = Path.Combine(department, topicFolder, "ImagePrompts", fileName);
-                var markdown = MarkdownExportDocumentBuilder.BuildImagePrompt(prompt, department, slug, exportedAt);
+                var folder = string.Equals(prompt.SourceType, "blog", StringComparison.OrdinalIgnoreCase)
+                    ? "Blog"
+                    : "Pillar";
+                var fileName = $"{SlugHelper.Slugify(prompt.Heading)}.md";
+                var relativePath = Path.Combine(department, topicFolder, "ImagePrompts", folder, fileName);
+                var markdown = MarkdownExportDocumentBuilder.BuildSectionImagePrompt(
+                    prompt, department, slug, exportedAt);
+                var contentType = $"image-prompt-{prompt.SourceType}";
                 written.Add(await WriteExportAsync(outputRoot, relativePath, contentType, markdown, cancellationToken));
             }
         }

@@ -17,7 +17,7 @@ import {
   resolveExportDirectory,
   writeExportFilesToDirectory,
 } from "@/lib/content-writer/exportToLocalDirectory";
-import type { ColdOutreachEmailDraft, ExportMarkdownResponse, GeneratedContentSet, ImagePromptDraft, ImagePromptsSet } from "@/lib/content-writer/types";
+import type { ColdOutreachEmailDraft, ExportMarkdownResponse, GeneratedContentSet, ImagePromptSection, ImagePromptsSet } from "@/lib/content-writer/types";
 import { CONTENT_LENGTH_TARGETS } from "@/lib/content-writer/types";
 
 type Tab = "article" | "blog" | "facebook" | "linkedin" | "cold-outreach" | "image-prompts";
@@ -58,7 +58,7 @@ export default function ContentResults({
   const hasBlog = result?.blog != null;
   const hasSocial = result?.facebookPost != null && result?.linkedInPost != null;
   const hasColdOutreach = result?.coldOutreachEmail != null;
-  const hasImagePrompts = result?.imagePrompts != null;
+  const hasImagePrompts = (result?.imagePrompts?.sections?.length ?? 0) > 0;
   const hasExportableContent =
     hasPillarBody || hasBlog || hasSocial || hasColdOutreach || hasImagePrompts;
   const isGenerating = generatingStep !== null;
@@ -66,7 +66,7 @@ export default function ContentResults({
   async function saveExportToLocalFolder(result: ExportMarkdownResponse) {
     if (!canWriteExportToLocalDirectory()) {
       throw new Error(
-        "Use Chrome or Edge to save exports into geekatyourspot-r/content-writer-output.",
+        "Use Chrome or Edge to save exports into /Users/jeffmartin/Documents/Content-Writer-Output.",
       );
     }
 
@@ -85,7 +85,7 @@ export default function ContentResults({
       if ((step === "cold-outreach" || step === "all") && next.coldOutreachEmail) {
         setActiveTab("cold-outreach");
       }
-      if ((step === "image-prompts" || step === "all") && next.imagePrompts) {
+      if ((step === "image-prompts" || step === "all") && (next.imagePrompts?.sections?.length ?? 0) > 0) {
         setActiveTab("image-prompts");
       }
     } catch (err) {
@@ -166,13 +166,13 @@ export default function ContentResults({
         <StepRow
           step={6}
           title="Image prompts (Leonardo)"
-          description="LLM-crafted prompts for a pillar figure plus Facebook and LinkedIn card backgrounds — copy into Leonardo.ai."
-          done={result?.imagePrompts != null}
-          disabled={!hasSocial || isGenerating}
+          description="One Leonardo.ai prompt per H2 in the pillar and blog — copy each into Leonardo for section figures."
+          done={hasImagePrompts}
+          disabled={!hasBlog || isGenerating}
           isRunning={generatingStep === "image-prompts"}
-          buttonLabel={result?.imagePrompts ? "Regenerate prompts" : "Generate prompts"}
+          buttonLabel={hasImagePrompts ? "Regenerate prompts" : "Generate prompts"}
           onClick={() => runStep("image-prompts", () => generateImagePromptsContent(projectId))}
-          lockedMessage={!hasSocial ? "Complete Step 4 (social) first." : undefined}
+          lockedMessage={!hasBlog ? "Complete Step 3 (blog) first." : undefined}
         />
       </div>
 
@@ -200,7 +200,7 @@ export default function ContentResults({
               state = await generateColdOutreachContent(projectId);
               onGenerated(state);
             }
-            if (!state.imagePrompts) {
+            if (!state.imagePrompts?.sections?.length) {
               state = await generateImagePromptsContent(projectId);
               onGenerated(state);
             }
@@ -210,7 +210,7 @@ export default function ContentResults({
         disabled={
           !canGenerate ||
           isGenerating ||
-          (hasPillarBody && hasBlog && hasSocial && result?.coldOutreachEmail != null && result?.imagePrompts != null)
+          (hasPillarBody && hasBlog && hasSocial && result?.coldOutreachEmail != null && hasImagePrompts)
         }
         className="mt-4 text-sm font-medium text-brand hover:underline disabled:opacity-60"
       >
@@ -234,11 +234,11 @@ export default function ContentResults({
               <p className="mt-1 text-xs text-muted">
                 Saves files under{" "}
                 <span className="font-mono text-foreground">
-                  geekatyourspot-r/content-writer-output/{`{department}`}/{`{target keyword}`}/
+                  Content-Writer-Output/{`{department}`}/{`{target keyword}`}/
                 </span>{" "}
-                (Pillar, Blog, Social, Email, ImagePrompts). The first export asks you to pick{" "}
-                <span className="font-mono text-foreground">geekatyourspot-r/content-writer-output</span>{" "}
-                in Finder; after that, exports write there automatically.
+                (Pillar, Blog, Social, Email, ImagePrompts). The first export asks you to pick the{" "}
+                <span className="font-mono text-foreground">Content-Writer-Output</span> folder on your Mac;
+                after that, exports write there automatically.
               </p>
               <label className="mt-2 flex flex-col gap-1 text-xs text-muted">
                 Department folder (optional)
@@ -266,7 +266,7 @@ export default function ContentResults({
                 >
                   {exportFolderName
                     ? `Export folder: ${exportFolderName} (change)`
-                    : "Choose content-writer-output folder"}
+                    : "Choose Content-Writer-Output folder"}
                 </button>
               )}
             </div>
@@ -286,7 +286,7 @@ export default function ContentResults({
                   setExportResult(result);
                 } catch (err) {
                   if (err instanceof DOMException && err.name === "AbortError") {
-                    setError("Export cancelled. Choose geekatyourspot-r/content-writer-output, then try again.");
+                    setError("Export cancelled. Choose Content-Writer-Output folder, then try again.");
                     return;
                   }
                   const message = err instanceof ApiError ? err.message : "Export failed.";
@@ -322,7 +322,7 @@ export default function ContentResults({
                   ) : (
                     "the folder you chose"
                   )}
-                  . If nothing appeared in Finder, click “Choose content-writer-output folder” and export again.
+                  . If nothing appeared in Finder, click “Choose Content-Writer-Output folder” and export again.
                 </p>
               )}
             </div>
@@ -338,9 +338,9 @@ export default function ContentResults({
                 (tab.id === "blog" && !result.blog) ||
                 ((tab.id === "facebook" || tab.id === "linkedin") && !result.facebookPost) ||
                 (tab.id === "cold-outreach" && !result.coldOutreachEmail) ||
-                (tab.id === "image-prompts" && !result.imagePrompts);
+                (tab.id === "image-prompts" && (result.imagePrompts?.sections?.length ?? 0) === 0);
               const hint =
-                tab.id === "image-prompts" && !result.imagePrompts
+                tab.id === "image-prompts" && (result.imagePrompts?.sections?.length ?? 0) === 0
                   ? "Run Step 6 (Generate prompts) first"
                   : tab.id === "cold-outreach" && !result.coldOutreachEmail
                   ? "Run Step 5 (Generate email) first"
@@ -642,7 +642,7 @@ function ColdOutreachView({ email }: { email: ColdOutreachEmailDraft }) {
   );
 }
 
-function formatLeonardoSettings(item: ImagePromptDraft): string {
+function formatLeonardoSettings(item: ImagePromptSection): string {
   const lines = [
     `Model: ${item.leonardoModel}`,
     `Model ID: ${item.leonardoModelId}`,
@@ -655,7 +655,7 @@ function formatLeonardoSettings(item: ImagePromptDraft): string {
   return lines.join("\n");
 }
 
-function formatLeonardoCopyBlock(item: ImagePromptDraft): string {
+function formatLeonardoCopyBlock(item: ImagePromptSection): string {
   return `${formatLeonardoSettings(item)}\n\nPrompt:\n${item.prompt}`;
 }
 
@@ -664,14 +664,11 @@ async function copyText(text: string): Promise<void> {
 }
 
 function ImagePromptsView({ prompts }: { prompts: ImagePromptsSet }) {
-  const items: ImagePromptDraft[] = [
-    prompts.pillarFigure,
-    prompts.socialFacebook,
-    prompts.socialLinkedIn,
-  ];
+  const pillarSections = prompts.sections.filter((s) => s.sourceType === "pillar");
+  const blogSections = prompts.sections.filter((s) => s.sourceType === "blog");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <p className="text-sm text-muted">
         Copy a prompt and Leonardo settings into{" "}
         <a
@@ -682,16 +679,36 @@ function ImagePromptsView({ prompts }: { prompts: ImagePromptsSet }) {
         >
           Leonardo.ai
         </a>
-        . No images are generated here — prompts only.
+        . One image per H2 section — prompts only, no images generated here.
       </p>
-      {items.map((item) => (
-        <ImagePromptCard key={item.useCase} item={item} />
+      {pillarSections.length > 0 && (
+        <ImagePromptSectionGroup title="Pillar sections" sections={pillarSections} />
+      )}
+      {blogSections.length > 0 && (
+        <ImagePromptSectionGroup title="Blog sections" sections={blogSections} />
+      )}
+    </div>
+  );
+}
+
+function ImagePromptSectionGroup({
+  title,
+  sections,
+}: {
+  title: string;
+  sections: ImagePromptSection[];
+}) {
+  return (
+    <div className="space-y-4">
+      <h3 className="text-base font-semibold text-foreground">{title}</h3>
+      {sections.map((item) => (
+        <ImagePromptCard key={`${item.sourceType}-${item.order}-${item.heading}`} item={item} />
       ))}
     </div>
   );
 }
 
-function ImagePromptCard({ item }: { item: ImagePromptDraft }) {
+function ImagePromptCard({ item }: { item: ImagePromptSection }) {
   const [copied, setCopied] = useState<"prompt" | "all" | null>(null);
 
   async function handleCopy(mode: "prompt" | "all") {
@@ -703,7 +720,9 @@ function ImagePromptCard({ item }: { item: ImagePromptDraft }) {
   return (
     <div className="rounded-lg border border-border bg-background p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <h3 className="text-base font-semibold text-foreground">{item.useCase}</h3>
+        <h3 className="text-base font-semibold text-foreground">
+          {item.order}. {item.heading}
+        </h3>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"

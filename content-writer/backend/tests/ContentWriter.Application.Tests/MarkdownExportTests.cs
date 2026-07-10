@@ -112,11 +112,13 @@ public class MarkdownExportDocumentBuilderTests
     }
 
     [Fact]
-    public void BuildImagePrompt_includes_leonardo_settings()
+    public void BuildSectionImagePrompt_includes_leonardo_settings()
     {
-        var markdown = MarkdownExportDocumentBuilder.BuildImagePrompt(
-            new ImagePromptContent(
-                "Pillar figure",
+        var markdown = MarkdownExportDocumentBuilder.BuildSectionImagePrompt(
+            new ImagePromptSectionContent(
+                "pillar",
+                "Why reconciliation matters",
+                1,
                 "Flat vector diagram of bank feeds.",
                 1536,
                 1024,
@@ -130,7 +132,8 @@ public class MarkdownExportDocumentBuilderTests
             "smart-bank-reconciliation",
             new DateTime(2026, 7, 10, 12, 0, 0, DateTimeKind.Utc));
 
-        Assert.Contains("useCase: Pillar figure", markdown);
+        Assert.Contains("heading: Why reconciliation matters", markdown);
+        Assert.Contains("sourceType: pillar", markdown);
         Assert.Contains("leonardoModel: Leonardo Phoenix", markdown);
         Assert.Contains("Flat vector diagram of bank feeds.", markdown);
     }

@@ -83,12 +83,18 @@ public static class MarkdownExportDocumentBuilder
         return sb.ToString();
     }
 
-    public static string BuildImagePrompt(ImagePromptContent prompt, string department, string slug, DateTime exportedAtUtc)
+    public static string BuildSectionImagePrompt(
+        ImagePromptSectionContent prompt,
+        string department,
+        string slug,
+        DateTime exportedAtUtc)
     {
         var sb = new StringBuilder();
         sb.AppendLine("---");
-        sb.AppendLine($"useCase: {YamlScalar(prompt.UseCase)}");
-        sb.AppendLine($"contentType: image-prompt");
+        sb.AppendLine($"sourceType: {YamlScalar(prompt.SourceType)}");
+        sb.AppendLine($"heading: {YamlScalar(prompt.Heading)}");
+        sb.AppendLine($"order: {prompt.Order}");
+        sb.AppendLine($"contentType: image-prompt-section");
         sb.AppendLine($"department: {YamlScalar(department)}");
         sb.AppendLine($"slug: {YamlScalar(slug)}");
         sb.AppendLine($"width: {prompt.Width}");

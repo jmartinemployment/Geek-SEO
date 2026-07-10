@@ -60,7 +60,8 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             GeneratedContentType.EmailColdOutreach,
             GeneratedContentType.ImagePromptPillarFigure,
             GeneratedContentType.ImagePromptSocialFacebook,
-            GeneratedContentType.ImagePromptSocialLinkedIn);
+            GeneratedContentType.ImagePromptSocialLinkedIn,
+            GeneratedContentType.ImagePromptSection);
 
         var metadata = await GenerateArticleMetadataAsync(provider, context, cancellationToken);
         var articleSlug = SlugHelper.Slugify(metadata.Title);
@@ -290,35 +291,45 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
     {
         var project = await LoadProjectForGenerationAsync(projectId, cancellationToken);
         var articleRow = RequireCompletePillar(project);
-        var facebookRow = RequireGeneratedContent(project, GeneratedContentType.SocialFacebook,
-            "Generate social content before image prompts.");
-        var linkedInRow = RequireGeneratedContent(project, GeneratedContentType.SocialLinkedIn,
-            "Generate social content before image prompts.");
+        var blogRow = RequireCompleteBlog(project);
 
         var context = BuildContext(project);
         var provider = _providerFactory.Get(project.PreferredProvider);
         var article = GeneratedContentSetAssembler.ToArticleDraft(articleRow);
+        var blog = GeneratedContentSetAssembler.ToBlogDraft(blogRow);
         var articleUrl = CombineUrl(context.ArticleBaseUrl, articleRow.Slug);
-        var facebook = new SocialPostDraft("Facebook", facebookRow.BodyHtml);
-        var linkedIn = new SocialPostDraft("LinkedIn", linkedInRow.BodyHtml);
+        var blogUrl = CombineUrl(context.BlogBaseUrl, blogRow.Slug);
 
-        _logger.LogInformation("Generating image prompts for project {ProjectId} via {Provider}", projectId, provider.ProviderType);
+        var sections = ArticleHtmlSectionExtractor.BuildSectionTargets(articleRow.BodyHtml, blogRow.BodyHtml);
+        if (sections.Count == 0)
+        {
+            throw new ContentGenerationException(
+                "Pillar and blog must each include at least one <h2> section before generating image prompts.");
+        }
+
+        _logger.LogInformation(
+            "Generating {SectionCount} section image prompts for project {ProjectId} via {Provider}",
+            sections.Count,
+            projectId,
+            provider.ProviderType);
 
         RemoveGeneratedContents(project,
             GeneratedContentType.ImagePromptPillarFigure,
             GeneratedContentType.ImagePromptSocialFacebook,
-            GeneratedContentType.ImagePromptSocialLinkedIn);
+            GeneratedContentType.ImagePromptSocialLinkedIn,
+            GeneratedContentType.ImagePromptSection);
 
         const int maxAttempts = 2;
-        ImagePromptsDraft? draft = null;
+        ImagePromptSectionPromptsDraft? draft = null;
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
             var result = await provider.CompleteAsync(
-                _promptBuilder.BuildImagePromptsPrompt(context, article, facebook, linkedIn, articleUrl),
+                _promptBuilder.BuildSectionImagePromptsPrompt(
+                    context, article, blog, articleUrl, blogUrl, sections),
                 cancellationToken);
             try
             {
-                draft = LlmResponseJsonParser.ParseImagePrompts(result.Content, "image prompts");
+                draft = LlmResponseJsonParser.ParseSectionImagePrompts(result.Content, sections, "image prompts");
                 break;
             }
             catch (ContentGenerationException ex) when (attempt < maxAttempts)
@@ -332,12 +343,16 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             throw new ContentGenerationException($"Model did not return valid JSON for image prompts after {maxAttempts} attempts.");
         }
 
-        await AddImagePromptRowAsync(project, provider.ProviderType, articleRow.Slug, articleUrl,
-            GeneratedContentType.ImagePromptPillarFigure, "Pillar figure", draft.PillarFigure, cancellationToken);
-        await AddImagePromptRowAsync(project, provider.ProviderType, articleRow.Slug, articleUrl,
-            GeneratedContentType.ImagePromptSocialFacebook, "Facebook card", draft.SocialFacebook, cancellationToken);
-        await AddImagePromptRowAsync(project, provider.ProviderType, articleRow.Slug, articleUrl,
-            GeneratedContentType.ImagePromptSocialLinkedIn, "LinkedIn card", draft.SocialLinkedIn, cancellationToken);
+        foreach (var section in draft.Sections)
+        {
+            await AddSectionImagePromptRowAsync(
+                project,
+                provider.ProviderType,
+                articleRow.Slug,
+                articleUrl,
+                section,
+                cancellationToken);
+        }
 
         await SaveProjectAsync(project, ProjectStatus.Completed, cancellationToken);
         return Assemble(project);
@@ -419,32 +434,36 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         project.GeneratedContents.Add(row);
     }
 
-    private async Task AddImagePromptRowAsync(
+    private GeneratedContent RequireCompleteBlog(Project project)
+    {
+        var row = RequireGeneratedContent(project, GeneratedContentType.BlogPost,
+            "Generate the blog (Step 3) before image prompts.");
+
+        if (string.IsNullOrWhiteSpace(row.BodyHtml) || row.WordCount < 200)
+        {
+            throw new ContentGenerationException("Generate the blog (Step 3) before image prompts.");
+        }
+
+        return row;
+    }
+
+    private async Task AddSectionImagePromptRowAsync(
         Project project,
         LlmProviderType providerType,
         string articleSlug,
         string articleUrl,
-        GeneratedContentType contentType,
-        string title,
-        ImagePromptItemDraft item,
+        ImagePromptSectionDraft item,
         CancellationToken cancellationToken)
     {
-        var slugSuffix = contentType switch
-        {
-            GeneratedContentType.ImagePromptPillarFigure => "image-prompt-pillar",
-            GeneratedContentType.ImagePromptSocialFacebook => "image-prompt-facebook",
-            GeneratedContentType.ImagePromptSocialLinkedIn => "image-prompt-linkedin",
-            _ => "image-prompt",
-        };
-
+        var headingSlug = SlugHelper.Slugify(item.Heading);
         var wordCount = item.Prompt.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
 
         await AddContentAsync(project, providerType, new GeneratedContent
         {
             ProjectId = project.Id,
-            ContentType = contentType,
-            Title = title,
-            Slug = $"{articleSlug}-{slugSuffix}",
+            ContentType = GeneratedContentType.ImagePromptSection,
+            Title = item.Heading,
+            Slug = $"{articleSlug}-{item.SourceType}-h2-{headingSlug}",
             BodyHtml = item.Prompt,
             MetaDescription = ImagePromptMetadata.Serialize(item),
             RelatedArticleUrl = articleUrl,

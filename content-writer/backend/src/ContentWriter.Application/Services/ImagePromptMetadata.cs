@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ContentWriter.Application.DTOs;
+using ContentWriter.Domain.Entities;
 
 namespace ContentWriter.Application.Services;
 
@@ -12,7 +13,7 @@ public static class ImagePromptMetadata
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    public static string Serialize(ImagePromptItemDraft item) =>
+    public static string Serialize(ImagePromptSectionDraft item) =>
         JsonSerializer.Serialize(new StoredImagePromptSettings(
             item.Width,
             item.Height,
@@ -21,14 +22,19 @@ public static class ImagePromptMetadata
             item.StylePreset,
             item.Alchemy,
             item.PhotoReal,
-            item.Notes), JsonOptions);
+            item.Notes,
+            item.SourceType,
+            item.Heading,
+            item.Order), JsonOptions);
 
-    public static ImagePromptContent ToContent(string useCase, string prompt, string? metaJson)
+    public static ImagePromptSectionContent ToSectionContent(GeneratedContent row)
     {
-        var settings = Deserialize(metaJson);
-        return new ImagePromptContent(
-            useCase,
-            prompt,
+        var settings = Deserialize(row.MetaDescription);
+        return new ImagePromptSectionContent(
+            settings.SourceType ?? InferSourceType(row),
+            settings.Heading ?? row.Title,
+            settings.Order,
+            row.BodyHtml,
             settings.Width,
             settings.Height,
             settings.LeonardoModel,
@@ -38,6 +44,9 @@ public static class ImagePromptMetadata
             settings.PhotoReal,
             settings.Notes);
     }
+
+    private static string InferSourceType(GeneratedContent row) =>
+        row.Slug.Contains("-blog-h2-", StringComparison.OrdinalIgnoreCase) ? "blog" : "pillar";
 
     private static StoredImagePromptSettings Deserialize(string? metaJson)
     {
@@ -51,7 +60,10 @@ public static class ImagePromptMetadata
                 ImagePromptDefaults.PillarStylePreset,
                 Alchemy: true,
                 PhotoReal: false,
-                Notes: null);
+                Notes: null,
+                SourceType: null,
+                Heading: null,
+                Order: 0);
         }
 
         try
@@ -77,7 +89,10 @@ public static class ImagePromptMetadata
                 ImagePromptDefaults.PillarStylePreset,
                 Alchemy: true,
                 PhotoReal: false,
-                Notes: metaJson);
+                Notes: metaJson,
+                SourceType: null,
+                Heading: null,
+                Order: 0);
         }
     }
 
@@ -94,5 +109,8 @@ public static class ImagePromptMetadata
         string StylePreset,
         bool Alchemy,
         bool PhotoReal,
-        string? Notes);
+        string? Notes,
+        string? SourceType,
+        string? Heading,
+        int Order);
 }

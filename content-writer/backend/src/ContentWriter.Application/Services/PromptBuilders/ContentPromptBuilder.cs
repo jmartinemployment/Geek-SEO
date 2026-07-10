@@ -46,12 +46,13 @@ public interface IContentPromptBuilder
         int currentWordCount);
     ChatCompletionRequest BuildSocialPrompt(ProjectGenerationContext context, ArticleDraft sourceArticle, string platform, string articleUrl);
     ChatCompletionRequest BuildColdOutreachPrompt(ProjectGenerationContext context, ArticleDraft sourceArticle, string articleUrl);
-    ChatCompletionRequest BuildImagePromptsPrompt(
+    ChatCompletionRequest BuildSectionImagePromptsPrompt(
         ProjectGenerationContext context,
         ArticleDraft sourceArticle,
-        SocialPostDraft facebookPost,
-        SocialPostDraft linkedInPost,
-        string articleUrl);
+        BlogDraft sourceBlog,
+        string articleUrl,
+        string blogUrl,
+        IReadOnlyList<ImagePromptSectionTarget> sections);
 }
 
 public class ContentPromptBuilder : IContentPromptBuilder
@@ -65,11 +66,11 @@ public class ContentPromptBuilder : IContentPromptBuilder
     private const string ColdOutreachJsonContract =
         "{\"subject\": string, \"bodyText\": string (50-125 words), \"ctaLabel\": string}";
 
-    private const string ImagePromptItemJsonContract =
-        "{\"prompt\": string (40-400 words), \"width\": number, \"height\": number, \"leonardoModel\": string, \"stylePreset\": string, \"alchemy\": boolean, \"photoReal\": boolean, \"notes\": string (optional Leonardo UI tips)}";
+    private const string ImagePromptSectionItemJsonContract =
+        "{\"sourceType\": \"pillar|blog\", \"heading\": string (exact H2 text), \"order\": number, \"prompt\": string (40-400 words), \"width\": number, \"height\": number, \"leonardoModel\": string, \"stylePreset\": string, \"alchemy\": boolean, \"photoReal\": boolean, \"notes\": string|null}";
 
-    private const string ImagePromptsJsonContract =
-        "{\"pillarFigure\": " + ImagePromptItemJsonContract + ", \"socialFacebook\": " + ImagePromptItemJsonContract + ", \"socialLinkedIn\": " + ImagePromptItemJsonContract + "}";
+    private const string ImagePromptSectionsJsonContract =
+        "{\"sections\": [" + ImagePromptSectionItemJsonContract + ", ...]}";
 
     public ChatCompletionRequest BuildArticleMetadataPrompt(ProjectGenerationContext context)
     {
@@ -455,56 +456,57 @@ public class ContentPromptBuilder : IContentPromptBuilder
             MaxOutputTokens: 1024);
     }
 
-    public ChatCompletionRequest BuildImagePromptsPrompt(
+    public ChatCompletionRequest BuildSectionImagePromptsPrompt(
         ProjectGenerationContext context,
         ArticleDraft sourceArticle,
-        SocialPostDraft facebookPost,
-        SocialPostDraft linkedInPost,
-        string articleUrl)
+        BlogDraft sourceBlog,
+        string articleUrl,
+        string blogUrl,
+        IReadOnlyList<ImagePromptSectionTarget> sections)
     {
-        var bodyExcerpt = StripHtmlExcerpt(sourceArticle.BodyHtml, 900);
-
         var system = new StringBuilder()
-            .AppendLine("You write image-generation prompts for Leonardo.ai for an IT consulting firm's content marketing.")
-            .AppendLine("The user will copy your prompts into Leonardo manually — be specific and production-ready.")
+            .AppendLine("You write Leonardo.ai image prompts for inline B2B article figures.")
+            .AppendLine("Return ONE prompt per listed <h2> section — the user copies each into Leonardo manually.")
             .AppendLine()
-            .AppendLine("PILLAR FIGURE (pillarFigure):")
-            .AppendLine("- Purpose: inline educational figure for a technical article — flat vector / infographic / conceptual diagram.")
+            .AppendLine("VISUAL STYLE:")
+            .AppendLine("- Flat vector / infographic, professional fintech or B2B tech aesthetic.")
             .AppendLine($"- Default size: {ImagePromptDefaults.PillarWidth}x{ImagePromptDefaults.PillarHeight}. Style: {ImagePromptDefaults.PillarStylePreset}.")
-            .AppendLine("- Minimize readable text in the image (AI garbles labels). Use icons and simple shapes.")
+            .AppendLine("- NO readable text, logos, or watermarks in the image.")
+            .AppendLine("- Pillar sections: teaching diagram, slightly more technical.")
+            .AppendLine("- Blog sections: warmer step-by-step feel, still no readable text.")
+            .AppendLine("- People Also Ask: abstract Q&A bubbles/shapes without words.")
+            .AppendLine("- Tools sections: generic software tiles/icons — no brand names.")
             .AppendLine()
-            .AppendLine("SOCIAL CARDS (socialFacebook, socialLinkedIn):")
-            .AppendLine("- Purpose: eye-candy background for social posts — NO readable text, logos, or watermarks.")
-            .AppendLine($"- Default size: {ImagePromptDefaults.SocialWidth}x{ImagePromptDefaults.SocialHeight} (landscape).")
-            .AppendLine("- Facebook: warmer, approachable. LinkedIn: polished corporate tech aesthetic.")
-            .AppendLine()
-            .AppendLine("LEONARDO SETTINGS (include in JSON for each item):")
-            .AppendLine($"- leonardoModel: recommend \"{ImagePromptDefaults.LeonardoPhoenixModel}\" unless another model fits better.")
-            .AppendLine("- stylePreset: Illustration | Dynamic | Cinematic | etc.")
-            .AppendLine("- alchemy: true for quality (uses tokens). photoReal: false for diagrams/abstract cards.")
-            .AppendLine("- notes: 1 short sentence of Leonardo UI tips (dimensions, negative prompts, etc.).")
+            .AppendLine("LEONARDO SETTINGS (include in JSON for each section):")
+            .AppendLine($"- leonardoModel: \"{ImagePromptDefaults.LeonardoPhoenixModel}\"")
+            .AppendLine("- stylePreset: Illustration")
+            .AppendLine("- alchemy: true, photoReal: false")
+            .AppendLine("- notes: one short Leonardo tip (negative prompt, no text, etc.)")
             .AppendLine()
             .AppendLine("Respond with ONLY a single valid JSON object — no markdown fences:")
-            .AppendLine(ImagePromptsJsonContract)
+            .AppendLine(ImagePromptSectionsJsonContract)
+            .AppendLine("Include every section listed below with matching sourceType, heading, and order.")
             .ToString();
 
         var user = new StringBuilder()
-            .AppendLine($"Article title: {sourceArticle.Title}")
-            .AppendLine($"Article summary: {sourceArticle.MetaDescription}")
-            .AppendLine($"Section outline: {string.Join("; ", sourceArticle.SectionOutline)}")
-            .AppendLine($"Article excerpt: {bodyExcerpt}")
+            .AppendLine($"Pillar title: {sourceArticle.Title}")
             .AppendLine($"Pillar URL: {articleUrl}")
+            .AppendLine($"Blog title: {sourceBlog.Title}")
+            .AppendLine($"Blog URL: {blogUrl}")
             .AppendLine($"Target keyword: {context.TargetKeyword}")
             .AppendLine($"Site tone: {context.DetectedTone}")
             .AppendLine()
-            .AppendLine($"Facebook post: {facebookPost.Text}")
-            .AppendLine($"LinkedIn post: {linkedInPost.Text}")
-            .ToString();
+            .AppendLine("Sections requiring Leonardo prompts:");
+
+        foreach (var section in sections)
+        {
+            user.AppendLine($"- sourceType: {section.SourceType}, order: {section.Order}, heading: {section.Heading}");
+        }
 
         return new ChatCompletionRequest(
-            Messages: new List<ChatMessage> { new(ChatRole.System, system), new(ChatRole.User, user) },
+            Messages: new List<ChatMessage> { new(ChatRole.System, system), new(ChatRole.User, user.ToString()) },
             Temperature: 0.7,
-            MaxOutputTokens: 4096);
+            MaxOutputTokens: 8192);
     }
 
     private static string StripHtmlExcerpt(string html, int maxChars)

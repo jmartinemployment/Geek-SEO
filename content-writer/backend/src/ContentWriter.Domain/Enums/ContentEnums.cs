@@ -40,5 +40,6 @@ public enum GeneratedContentType
     EmailTransactional = 7,    // stub
     ImagePromptPillarFigure = 8,
     ImagePromptSocialFacebook = 9,
-    ImagePromptSocialLinkedIn = 10
+    ImagePromptSocialLinkedIn = 10,
+    ImagePromptSection = 11
 }

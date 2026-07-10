@@ -16,9 +16,6 @@ public static class GeneratedContentSetAssembler
         var facebookRow = Find(project, GeneratedContentType.SocialFacebook);
         var linkedInRow = Find(project, GeneratedContentType.SocialLinkedIn);
         var coldOutreachRow = Find(project, GeneratedContentType.EmailColdOutreach);
-        var pillarPromptRow = Find(project, GeneratedContentType.ImagePromptPillarFigure);
-        var facebookPromptRow = Find(project, GeneratedContentType.ImagePromptSocialFacebook);
-        var linkedInPromptRow = Find(project, GeneratedContentType.ImagePromptSocialLinkedIn);
 
         var articleSlug = articleRow?.Slug;
         var articleUrl = articleSlug is null ? null : CombineUrl(articleBaseUrl, articleSlug);
@@ -43,21 +40,19 @@ public static class GeneratedContentSetAssembler
                     coldOutreachRow.BodyHtml,
                     coldOutreachRow.MetaDescription ?? string.Empty,
                     coldOutreachRow.RelatedArticleUrl ?? articleUrl ?? string.Empty),
-            ImagePrompts: BuildImagePrompts(pillarPromptRow, facebookPromptRow, linkedInPromptRow));
+            ImagePrompts: BuildImagePrompts(project));
     }
 
-    private static ImagePromptsContent? BuildImagePrompts(
-        GeneratedContent? pillar,
-        GeneratedContent? facebook,
-        GeneratedContent? linkedIn)
+    private static ImagePromptsContent? BuildImagePrompts(Project project)
     {
-        if (pillar is null || facebook is null || linkedIn is null)
-            return null;
+        var sectionRows = project.GeneratedContents
+            .Where(c => c.ContentType == GeneratedContentType.ImagePromptSection)
+            .Select(ImagePromptMetadata.ToSectionContent)
+            .OrderBy(s => s.SourceType == "pillar" ? 0 : 1)
+            .ThenBy(s => s.Order)
+            .ToList();
 
-        return new ImagePromptsContent(
-            ImagePromptMetadata.ToContent("Pillar figure", pillar.BodyHtml, pillar.MetaDescription),
-            ImagePromptMetadata.ToContent("Facebook card", facebook.BodyHtml, facebook.MetaDescription),
-            ImagePromptMetadata.ToContent("LinkedIn card", linkedIn.BodyHtml, linkedIn.MetaDescription));
+        return sectionRows.Count == 0 ? null : new ImagePromptsContent(sectionRows);
     }
 
     public static ArticleDraft ToArticleDraft(GeneratedContent row) => new(

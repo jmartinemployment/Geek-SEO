@@ -28,7 +28,8 @@ export type GeneratedContentType =
   | "EmailTransactional"
   | "ImagePromptPillarFigure"
   | "ImagePromptSocialFacebook"
-  | "ImagePromptSocialLinkedIn";
+  | "ImagePromptSocialLinkedIn"
+  | "ImagePromptSection";
 
 export interface ProjectSummary {
   id: string;
@@ -157,8 +158,10 @@ export interface SocialPostDraft {
   text: string;
 }
 
-export interface ImagePromptDraft {
-  useCase: string;
+export interface ImagePromptSection {
+  sourceType: "pillar" | "blog";
+  heading: string;
+  order: number;
   prompt: string;
   width: number;
   height: number;
@@ -171,9 +174,7 @@ export interface ImagePromptDraft {
 }
 
 export interface ImagePromptsSet {
-  pillarFigure: ImagePromptDraft;
-  socialFacebook: ImagePromptDraft;
-  socialLinkedIn: ImagePromptDraft;
+  sections: ImagePromptSection[];
 }
 
 export interface ExportMarkdownFile {
