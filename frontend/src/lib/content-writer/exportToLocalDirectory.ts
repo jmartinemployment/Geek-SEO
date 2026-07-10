@@ -2,6 +2,38 @@ const DB_NAME = "content-writer-export";
 const STORE_NAME = "handles";
 const HANDLE_KEY = "output-root";
 
+type FilePermissionMode = "read" | "readwrite";
+type FilePermissionState = "granted" | "denied" | "prompt";
+
+/** Chromium File System Access API — not fully typed in all TS lib versions. */
+type WritableDirectoryHandle = FileSystemDirectoryHandle & {
+  queryPermission(descriptor?: { mode?: FilePermissionMode }): Promise<FilePermissionState>;
+  requestPermission(descriptor?: { mode?: FilePermissionMode }): Promise<FilePermissionState>;
+};
+
+type WritableFileHandle = FileSystemFileHandle & {
+  createWritable(): Promise<FileSystemWritableFileStream>;
+};
+
+type DirectoryPickerWindow = Window & {
+  showDirectoryPicker(options?: {
+    mode?: FilePermissionMode;
+    startIn?: "desktop" | "documents" | "downloads" | "music" | "pictures" | "videos";
+  }): Promise<FileSystemDirectoryHandle>;
+};
+
+function directoryPickerWindow(): DirectoryPickerWindow {
+  return window as unknown as DirectoryPickerWindow;
+}
+
+function asWritableDirectoryHandle(handle: FileSystemDirectoryHandle): WritableDirectoryHandle {
+  return handle as WritableDirectoryHandle;
+}
+
+function asWritableFileHandle(handle: FileSystemFileHandle): WritableFileHandle {
+  return handle as WritableFileHandle;
+}
+
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
@@ -36,9 +68,10 @@ async function storeHandle(handle: FileSystemDirectoryHandle): Promise<void> {
 }
 
 async function ensureWritePermission(handle: FileSystemDirectoryHandle): Promise<boolean> {
-  const current = await handle.queryPermission({ mode: "readwrite" });
+  const writable = asWritableDirectoryHandle(handle);
+  const current = await writable.queryPermission({ mode: "readwrite" });
   if (current === "granted") return true;
-  const requested = await handle.requestPermission({ mode: "readwrite" });
+  const requested = await writable.requestPermission({ mode: "readwrite" });
   return requested === "granted";
 }
 
@@ -51,7 +84,7 @@ export async function pickExportDirectory(): Promise<FileSystemDirectoryHandle> 
     throw new Error("This browser cannot write export files to a folder on your Mac.");
   }
 
-  const handle = await window.showDirectoryPicker({
+  const handle = await directoryPickerWindow().showDirectoryPicker({
     mode: "readwrite",
     startIn: "documents",
   });
@@ -86,7 +119,7 @@ export async function writeExportFilesToDirectory(
     }
 
     const fileName = parts[parts.length - 1];
-    const fileHandle = await dir.getFileHandle(fileName, { create: true });
+    const fileHandle = asWritableFileHandle(await dir.getFileHandle(fileName, { create: true }));
     const writable = await fileHandle.createWritable();
     await writable.write(file.markdown);
     await writable.close();
