@@ -68,6 +68,8 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
             ?? contentSet.BlogSlug
             ?? DepartmentNameResolver.SanitizeDirectorySegment(project.Name);
 
+        var topicFolder = DepartmentNameResolver.ResolveTopicFolder(project.TargetKeyword, slug);
+
         var outputRoot = TryResolveOutputRoot();
         var exportedAt = DateTime.UtcNow;
         var written = new List<ExportedMarkdownFile>();
@@ -76,7 +78,7 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
             && contentSet.Article.WordCount >= PillarBodyMinWords
             && !string.IsNullOrWhiteSpace(contentSet.ArticleSlug))
         {
-            var relativePath = Path.Combine(department, "Pillar", $"{contentSet.ArticleSlug}.md");
+            var relativePath = Path.Combine(department, topicFolder, "Pillar", $"{contentSet.ArticleSlug}.md");
             var markdown = MarkdownExportDocumentBuilder.Build(new MarkdownExportInput(
                 Title: contentSet.Article.Title,
                 Slug: contentSet.ArticleSlug,
@@ -98,7 +100,7 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
             && contentSet.Blog.WordCount > 0
             && !string.IsNullOrWhiteSpace(contentSet.BlogSlug))
         {
-            var relativePath = Path.Combine(department, "Blog", $"{contentSet.BlogSlug}.md");
+            var relativePath = Path.Combine(department, topicFolder, "Blog", $"{contentSet.BlogSlug}.md");
             var markdown = MarkdownExportDocumentBuilder.Build(new MarkdownExportInput(
                 Title: contentSet.Blog.Title,
                 Slug: contentSet.BlogSlug,
@@ -118,7 +120,7 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
 
         if (contentSet.FacebookPost is not null && !string.IsNullOrWhiteSpace(contentSet.FacebookPost.Text))
         {
-            var relativePath = Path.Combine(department, "Social", $"facebook-{slug}.md");
+            var relativePath = Path.Combine(department, topicFolder, "Social", $"facebook-{slug}.md");
             var markdown = MarkdownExportDocumentBuilder.BuildSocial(
                 contentSet.FacebookPost, department, slug, exportedAt);
             written.Add(await WriteExportAsync(outputRoot, relativePath, "social-facebook", markdown, cancellationToken));
@@ -126,7 +128,7 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
 
         if (contentSet.LinkedInPost is not null && !string.IsNullOrWhiteSpace(contentSet.LinkedInPost.Text))
         {
-            var relativePath = Path.Combine(department, "Social", $"linkedin-{slug}.md");
+            var relativePath = Path.Combine(department, topicFolder, "Social", $"linkedin-{slug}.md");
             var markdown = MarkdownExportDocumentBuilder.BuildSocial(
                 contentSet.LinkedInPost, department, slug, exportedAt);
             written.Add(await WriteExportAsync(outputRoot, relativePath, "social-linkedin", markdown, cancellationToken));
@@ -135,7 +137,7 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
         if (contentSet.ColdOutreachEmail is not null
             && !string.IsNullOrWhiteSpace(contentSet.ColdOutreachEmail.BodyText))
         {
-            var relativePath = Path.Combine(department, "Email", $"cold-outreach-{slug}.md");
+            var relativePath = Path.Combine(department, topicFolder, "Email", $"cold-outreach-{slug}.md");
             var markdown = MarkdownExportDocumentBuilder.BuildColdOutreach(
                 contentSet.ColdOutreachEmail, department, slug, exportedAt);
             written.Add(await WriteExportAsync(outputRoot, relativePath, "email-cold-outreach", markdown, cancellationToken));
@@ -155,7 +157,7 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
                 if (string.IsNullOrWhiteSpace(prompt.Prompt))
                     continue;
 
-                var relativePath = Path.Combine(department, "ImagePrompts", fileName);
+                var relativePath = Path.Combine(department, topicFolder, "ImagePrompts", fileName);
                 var markdown = MarkdownExportDocumentBuilder.BuildImagePrompt(prompt, department, slug, exportedAt);
                 written.Add(await WriteExportAsync(outputRoot, relativePath, contentType, markdown, cancellationToken));
             }

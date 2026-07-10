@@ -67,6 +67,16 @@ async function storeHandle(handle: FileSystemDirectoryHandle): Promise<void> {
   });
 }
 
+async function clearStoredHandle(): Promise<void> {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const request = tx.objectStore(STORE_NAME).delete(HANDLE_KEY);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve();
+  });
+}
+
 async function ensureWritePermission(handle: FileSystemDirectoryHandle): Promise<boolean> {
   const writable = asWritableDirectoryHandle(handle);
   const current = await writable.queryPermission({ mode: "readwrite" });
@@ -98,8 +108,15 @@ export async function resolveExportDirectory(): Promise<FileSystemDirectoryHandl
   }
 
   const stored = await readStoredHandle();
-  if (stored && (await ensureWritePermission(stored))) {
-    return stored;
+  if (stored) {
+    try {
+      if (await ensureWritePermission(stored)) {
+        return stored;
+      }
+    } catch {
+      await clearStoredHandle();
+    }
+    await clearStoredHandle();
   }
 
   return pickExportDirectory();

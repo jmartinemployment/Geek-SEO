@@ -233,8 +233,11 @@ export default function ContentResults({
               <h3 className="text-sm font-semibold text-foreground">Export markdown</h3>
               <p className="mt-1 text-xs text-muted">
                 Saves files under{" "}
-                <span className="font-mono text-foreground">Content-Writer-Output/{`{department}`}/</span>{" "}
-                (Pillar, Blog, Social, Email, ImagePrompts). The first export asks you to pick that folder on your Mac;
+                <span className="font-mono text-foreground">
+                  Content-Writer-Output/{`{department}`}/{`{target keyword}`}/
+                </span>{" "}
+                (Pillar, Blog, Social, Email, ImagePrompts). The first export asks you to pick the{" "}
+                <span className="font-mono text-foreground">Content-Writer-Output</span> folder on your Mac;
                 after that, exports write there automatically.
               </p>
               <label className="mt-2 flex flex-col gap-1 text-xs text-muted">
@@ -282,6 +285,10 @@ export default function ContentResults({
                   await saveExportToLocalFolder(result);
                   setExportResult(result);
                 } catch (err) {
+                  if (err instanceof DOMException && err.name === "AbortError") {
+                    setError("Export cancelled. Choose Content-Writer-Output folder, then try again.");
+                    return;
+                  }
                   const message = err instanceof ApiError ? err.message : "Export failed.";
                   setError(message);
                 } finally {
@@ -303,10 +310,21 @@ export default function ContentResults({
               <ul className="mt-2 space-y-1 font-mono">
                 {exportResult.files.map((file) => (
                   <li key={file.relativePath}>
-                    {file.contentType}: {file.relativePath}
+                    {file.contentType}: {file.filePath ?? file.relativePath}
                   </li>
                 ))}
               </ul>
+              {exportResult.files.every((file) => !file.filePath) && (
+                <p className="mt-2 text-amber-900">
+                  Hosted API cannot write to your Mac directly. Files were saved through the browser into{" "}
+                  {exportFolderName ? (
+                    <span className="font-mono">{exportFolderName}</span>
+                  ) : (
+                    "the folder you chose"
+                  )}
+                  . If nothing appeared in Finder, click “Choose Content-Writer-Output folder” and export again.
+                </p>
+              )}
             </div>
           )}
         </div>

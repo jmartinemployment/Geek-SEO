@@ -33,6 +33,23 @@ public class DepartmentNameResolverTests
         var result = DepartmentNameResolver.Resolve(null, null, null, "Accounting - Smart Bank Recon", null);
         Assert.Equal("accounting", result);
     }
+
+    [Theory]
+    [InlineData("Predictive Cash Flow Forecasting", "Predictive Cash Flow Forecasting")]
+    [InlineData("  Smart Bank Reconciliation  ", "Smart Bank Reconciliation")]
+    [InlineData("foo/bar:baz", "foobarbaz")]
+    public void ResolveTopicFolder_uses_target_keyword(string keyword, string expected)
+    {
+        var result = DepartmentNameResolver.ResolveTopicFolder(keyword, "fallback-slug");
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void ResolveTopicFolder_falls_back_to_slug_when_keyword_empty()
+    {
+        var result = DepartmentNameResolver.ResolveTopicFolder("   ", "smart-bank-reconciliation");
+        Assert.Equal("smart bank reconciliation", result);
+    }
 }
 
 public class MarkdownExportDocumentBuilderTests
