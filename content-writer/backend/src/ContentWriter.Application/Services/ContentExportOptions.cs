@@ -6,5 +6,5 @@ public class ContentExportOptions
 
     /// <summary>Root directory for markdown exports: {OutputRootPath}/{department}/{targetKeyword}/Pillar|Blog/</summary>
     public string OutputRootPath { get; set; } =
-        "/Users/jeffmartin/Documents/geekatyourspot-r/content-writer-output";
+        "/Users/jeffmartin/Documents/Content-Writer-Output";
 }
