@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using ContentWriter.Application.Services.Publish;
 
 namespace ContentWriter.Application.Services.Export;
 
@@ -13,6 +14,7 @@ public static partial class DepartmentNameResolver
         string? blogUrl,
         string? projectUrl,
         string? projectName,
+        string? targetKeyword,
         string? departmentOverride)
     {
         if (!string.IsNullOrWhiteSpace(departmentOverride))
@@ -29,10 +31,59 @@ public static partial class DepartmentNameResolver
         {
             var segment = projectName.Split(['-', ':', '|'], 2, StringSplitOptions.TrimEntries)[0];
             if (!string.IsNullOrWhiteSpace(segment))
-                return SanitizeDirectorySegment(segment);
+            {
+                var fromName = SanitizeDirectorySegment(segment);
+                if (SiteDepartments.IsKnown(fromName))
+                    return SiteDepartments.Normalize(fromName);
+            }
         }
 
-        return "general";
+        var inferred = InferFromKeyword(targetKeyword);
+        if (inferred is not null)
+            return inferred;
+
+        return "sales";
+    }
+
+    public static string? InferFromKeyword(string? targetKeyword)
+    {
+        if (string.IsNullOrWhiteSpace(targetKeyword))
+            return null;
+
+        var text = targetKeyword.ToLowerInvariant();
+
+        if (text.Contains("account") || text.Contains("finance") || text.Contains("financial")
+            || text.Contains("invoice") || text.Contains("bookkeep") || text.Contains("ledger")
+            || text.Contains("payable"))
+        {
+            return "accounting";
+        }
+
+        if (text.Contains("customer") || text.Contains("support") || text.Contains("service desk")
+            || text.Contains("helpdesk") || text.Contains("ticket"))
+        {
+            return "customer-service";
+        }
+
+        if (text.Contains("human resource") || text.Contains(" hr ") || text.StartsWith("hr ")
+            || text.Contains("employee") || text.Contains("hiring") || text.Contains("recruit"))
+        {
+            return "human-resources";
+        }
+
+        if (text.Contains("marketing") || text.Contains("seo") || text.Contains("content gen")
+            || text.Contains("campaign") || text.Contains("brand"))
+        {
+            return "marketing";
+        }
+
+        if (text.Contains("sales") || text.Contains("prospect") || text.Contains("lead")
+            || text.Contains("pipeline") || text.Contains("crm"))
+        {
+            return "sales";
+        }
+
+        return null;
     }
 
     private static string? TryExtractFromUrl(string? url)
@@ -45,7 +96,11 @@ public static partial class DepartmentNameResolver
             return null;
 
         var candidate = match.Groups[1].Value;
-        return string.IsNullOrWhiteSpace(candidate) ? null : SanitizeDirectorySegment(candidate);
+        if (string.IsNullOrWhiteSpace(candidate))
+            return null;
+
+        var sanitized = SanitizeDirectorySegment(candidate);
+        return SiteDepartments.IsKnown(sanitized) ? SiteDepartments.Normalize(sanitized) : null;
     }
 
     public static string SanitizeDirectorySegment(string value)
@@ -60,7 +115,7 @@ public static partial class DepartmentNameResolver
         }
 
         var result = sb.ToString().Trim('-');
-        return string.IsNullOrEmpty(result) ? "general" : result;
+        return string.IsNullOrEmpty(result) ? "sales" : result;
     }
 
     /// <summary>

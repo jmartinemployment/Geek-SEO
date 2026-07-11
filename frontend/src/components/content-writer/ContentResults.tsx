@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   generateBlogContent,
   generateColdOutreachContent,
@@ -19,8 +19,8 @@ import {
   resolveExportDirectory,
   writeExportFilesToDirectory,
 } from "@/lib/content-writer/exportToLocalDirectory";
-import type { ColdOutreachEmailDraft, ExportMarkdownResponse, GeneratedContentSet, ImagePromptSection, ImagePromptsSet, PublishToSiteResponse } from "@/lib/content-writer/types";
-import { CONTENT_LENGTH_TARGETS } from "@/lib/content-writer/types";
+import type { ColdOutreachEmailDraft, ExportMarkdownResponse, GeneratedContentSet, ImagePromptSection, ImagePromptsSet, PublishToSiteResponse, SiteDepartmentSlug } from "@/lib/content-writer/types";
+import { CONTENT_LENGTH_TARGETS, SITE_DEPARTMENTS } from "@/lib/content-writer/types";
 
 type Tab = "article" | "blog" | "facebook" | "linkedin" | "cold-outreach" | "image-prompts";
 type GeneratingStep = "pillar-plan" | "pillar-body" | "blog" | "social" | "cold-outreach" | "image-prompts" | "all" | null;
@@ -56,7 +56,13 @@ export default function ContentResults({
   const [exportFolderName, setExportFolderName] = useState<string | null>(null);
   const [publishResult, setPublishResult] = useState<PublishToSiteResponse | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [publishDepartment, setPublishDepartment] = useState("");
+  const [publishDepartment, setPublishDepartment] = useState<SiteDepartmentSlug>("accounting");
+
+  useEffect(() => {
+    if (result?.department && SITE_DEPARTMENTS.includes(result.department as SiteDepartmentSlug)) {
+      setPublishDepartment(result.department as SiteDepartmentSlug);
+    }
+  }, [result?.department]);
 
   const hasPillarPlan = result?.article != null;
   const hasPillarBody = (result?.article?.wordCount ?? 0) >= PILLAR_BODY_MIN_WORDS;
@@ -375,13 +381,18 @@ export default function ContentResults({
                 ) and triggers ISR on the public site.
               </p>
               <label className="mt-2 flex flex-col gap-1 text-xs text-muted">
-                Department slug (optional)
-                <input
+                Department (required — must match geekatyourspot.com)
+                <select
                   value={publishDepartment}
-                  onChange={(e) => setPublishDepartment(e.target.value)}
-                  placeholder={result?.department ?? "accounting"}
+                  onChange={(e) => setPublishDepartment(e.target.value as SiteDepartmentSlug)}
                   className="max-w-xs rounded-md border border-border bg-white px-2 py-1.5 text-sm text-foreground outline-none focus:border-brand"
-                />
+                >
+                  {SITE_DEPARTMENTS.map((department) => (
+                    <option key={department} value={department}>
+                      {department}
+                    </option>
+                  ))}
+                </select>
               </label>
             </div>
             <button
@@ -392,10 +403,7 @@ export default function ContentResults({
                 setPublishResult(null);
                 setIsPublishing(true);
                 try {
-                  const response = await publishToSite(
-                    projectId,
-                    publishDepartment.trim() || undefined,
-                  );
+                  const response = await publishToSite(projectId, publishDepartment);
                   setPublishResult(response);
                 } catch (err) {
                   const message = err instanceof ApiError ? err.message : "Publish failed.";

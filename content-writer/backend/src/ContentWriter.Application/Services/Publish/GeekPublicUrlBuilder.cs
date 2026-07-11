@@ -11,6 +11,7 @@ public static class GeekPublicUrlBuilder
             null,
             project.ProjectUrl,
             project.Name,
+            project.TargetKeyword,
             departmentOverride);
 
     public static string ArticleUrl(string articleBaseUrl, string department, string slug) =>

@@ -78,8 +78,16 @@ public class GeekBlogPublishService : IGeekBlogPublishService
             departmentOverride);
 
         var department = contentSet.Department;
+        if (!SiteDepartments.IsKnown(department))
+        {
+            throw new ContentGenerationException(
+                $"Department '{department}' is not valid for geekatyourspot. " +
+                $"Choose one of: {string.Join(", ", SiteDepartments.All)}.");
+        }
+
+        department = SiteDepartments.Normalize(department);
         var published = new List<PublishedGeekPost>();
-        var existingBySlug = await LoadExistingPostsBySlugAsync(cancellationToken);
+        var existingPosts = await LoadExistingPostsAsync(cancellationToken);
 
         if (contentSet.Article is not null
             && contentSet.Article.WordCount >= PillarBodyMinWords
@@ -88,7 +96,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
             var apiSlug = GeekPublicUrlBuilder.ApiSlugForArticle(department, contentSet.ArticleSlug);
             var articleRow = RequireRow(project, GeneratedContentType.TechnicalArticle);
             var post = await UpsertPostAsync(
-                existingBySlug,
+                existingPosts,
                 postType: "TechnicalArticle",
                 apiSlug,
                 articleRow.Title,
@@ -111,7 +119,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
             var apiSlug = GeekPublicUrlBuilder.ApiSlugForBlog(department, contentSet.BlogSlug);
             var blogRow = RequireRow(project, GeneratedContentType.BlogPost);
             var post = await UpsertPostAsync(
-                existingBySlug,
+                existingPosts,
                 postType: "BlogPosting",
                 apiSlug,
                 blogRow.Title,
@@ -155,7 +163,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
         ?? throw new ContentGenerationException($"Missing generated content of type {type}.");
 
     private async Task<PublishedGeekPost> UpsertPostAsync(
-        Dictionary<string, int> existingBySlug,
+        IReadOnlyList<GeekBlogAdminPost> existingPosts,
         string postType,
         string apiSlug,
         string title,
@@ -176,7 +184,8 @@ public class GeekBlogPublishService : IGeekBlogPublishService
             publishedAt = DateTimeOffset.UtcNow,
         };
 
-        var hasExisting = existingBySlug.TryGetValue(SlugKey(apiSlug, "en"), out var postId);
+        var postId = ResolveExistingPostId(existingPosts, postType, apiSlug);
+        var hasExisting = postId is not null;
         using var request = new HttpRequestMessage(
             hasExisting ? HttpMethod.Put : HttpMethod.Post,
             hasExisting ? $"api/blog/{postId}" : "api/blog")
@@ -195,7 +204,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
         }
 
         var created = hasExisting
-            ? postId
+            ? postId!.Value
             : (await response.Content.ReadFromJsonAsync<GeekBlogAdminPost>(JsonOptions, cancellationToken))?.PostId
               ?? throw new ContentGenerationException($"GeekAPI create succeeded but no post id for {apiSlug}");
 
@@ -209,7 +218,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
         return new PublishedGeekPost(postType, apiSlug, created, !hasExisting, string.Empty);
     }
 
-    private async Task<Dictionary<string, int>> LoadExistingPostsBySlugAsync(CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<GeekBlogAdminPost>> LoadExistingPostsAsync(CancellationToken cancellationToken)
     {
         var client = CreateGeekApiClient();
         using var request = new HttpRequestMessage(HttpMethod.Get, "api/blog/all?lang=en");
@@ -222,10 +231,28 @@ public class GeekBlogPublishService : IGeekBlogPublishService
             throw new ContentGenerationException($"GeekAPI list failed: {(int)response.StatusCode} {body}");
         }
 
-        var posts = await response.Content.ReadFromJsonAsync<List<GeekBlogAdminPost>>(JsonOptions, cancellationToken)
+        return await response.Content.ReadFromJsonAsync<List<GeekBlogAdminPost>>(JsonOptions, cancellationToken)
             ?? [];
+    }
 
-        return posts.ToDictionary(p => SlugKey(p.Slug, p.LanguageCode), p => p.PostId);
+    private static int? ResolveExistingPostId(
+        IReadOnlyList<GeekBlogAdminPost> posts,
+        string postType,
+        string apiSlug)
+    {
+        var fullKey = SlugKey(apiSlug, "en");
+        var exact = posts.FirstOrDefault(p => SlugKey(p.Slug, p.LanguageCode) == fullKey);
+        if (exact is not null)
+        {
+            return exact.PostId;
+        }
+
+        var pageSlug = apiSlug.Split('/').Last();
+        var suffix = "/" + pageSlug;
+        var match = posts.FirstOrDefault(p =>
+            p.PostType.Equals(postType, StringComparison.OrdinalIgnoreCase)
+            && p.Slug.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
+        return match?.PostId;
     }
 
     private async Task RevalidatePathAsync(string path, CancellationToken cancellationToken)
@@ -266,5 +293,5 @@ public class GeekBlogPublishService : IGeekBlogPublishService
     private static string SlugKey(string slug, string languageCode) =>
         $"{languageCode}:{slug}".ToLowerInvariant();
 
-    private sealed record GeekBlogAdminPost(int PostId, string Slug, string LanguageCode);
+    private sealed record GeekBlogAdminPost(int PostId, string Slug, string LanguageCode, string PostType);
 }

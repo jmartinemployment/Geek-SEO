@@ -10,7 +10,7 @@ public class DepartmentNameResolverTests
     [InlineData("https://www.geekatyourspot.com/use-cases/marketing", "marketing")]
     public void Resolve_extracts_department_from_use_cases_url(string url, string expected)
     {
-        var result = DepartmentNameResolver.Resolve(url, null, null, null, null);
+        var result = DepartmentNameResolver.Resolve(url, null, null, null, null, null);
         Assert.Equal(expected, result);
     }
 
@@ -22,6 +22,7 @@ public class DepartmentNameResolverTests
             null,
             null,
             "Sales Project",
+            null,
             "human-resources");
 
         Assert.Equal("human-resources", result);
@@ -30,7 +31,7 @@ public class DepartmentNameResolverTests
     [Fact]
     public void Resolve_uses_project_name_prefix_when_no_url_match()
     {
-        var result = DepartmentNameResolver.Resolve(null, null, null, "Accounting - Smart Bank Recon", null);
+        var result = DepartmentNameResolver.Resolve(null, null, null, "Accounting - Smart Bank Recon", null, null);
         Assert.Equal("accounting", result);
     }
 
@@ -49,6 +50,20 @@ public class DepartmentNameResolverTests
     {
         var result = DepartmentNameResolver.ResolveTopicFolder("   ", "smart-bank-reconciliation");
         Assert.Equal("smart bank reconciliation", result);
+    }
+
+    [Fact]
+    public void Resolve_does_not_use_short_project_name_as_department()
+    {
+        var result = DepartmentNameResolver.Resolve(null, null, null, "geek", null, null);
+        Assert.Equal("sales", result);
+    }
+
+    [Fact]
+    public void Resolve_infers_accounting_from_financial_keyword()
+    {
+        var result = DepartmentNameResolver.Resolve(null, null, null, "geek", "AI for financial forecasting", null);
+        Assert.Equal("accounting", result);
     }
 }
 

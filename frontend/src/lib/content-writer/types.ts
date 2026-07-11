@@ -1,3 +1,13 @@
+export const SITE_DEPARTMENTS = [
+  "accounting",
+  "customer-service",
+  "human-resources",
+  "marketing",
+  "sales",
+] as const;
+
+export type SiteDepartmentSlug = (typeof SITE_DEPARTMENTS)[number];
+
 export type LlmProviderType = "LmStudio" | "OpenAi" | "Anthropic";
 
 export type ProjectStatus =
