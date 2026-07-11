@@ -32,19 +32,33 @@ public static class MarkdownExportDocumentBuilder
         sb.AppendLine();
         sb.AppendLine("## JSON-LD Schema");
         sb.AppendLine();
+        AppendJsonLdBlock(sb, input.JsonLdSchema, input.ContentType);
 
-        if (!string.IsNullOrWhiteSpace(input.JsonLdSchema))
+        if (!string.IsNullOrWhiteSpace(input.RelatedJsonLdSchema))
         {
-            sb.AppendLine("```json");
-            sb.AppendLine(input.JsonLdSchema.Trim());
-            sb.AppendLine("```");
-        }
-        else
-        {
-            sb.AppendLine("_No JSON-LD schema was stored for this content._");
+            sb.AppendLine();
+            sb.AppendLine("## Related JSON-LD Schema");
+            sb.AppendLine();
+            var relatedLabel = string.Equals(input.ContentType, "pillar", StringComparison.OrdinalIgnoreCase)
+                ? "blog"
+                : "pillar";
+            AppendJsonLdBlock(sb, input.RelatedJsonLdSchema, relatedLabel);
         }
 
         return sb.ToString();
+    }
+
+    private static void AppendJsonLdBlock(StringBuilder sb, string? jsonLdSchema, string label)
+    {
+        if (!string.IsNullOrWhiteSpace(jsonLdSchema))
+        {
+            sb.AppendLine("```json");
+            sb.AppendLine(jsonLdSchema.Trim());
+            sb.AppendLine("```");
+            return;
+        }
+
+        sb.AppendLine($"_No JSON-LD schema was stored for this {label} content._");
     }
 
     public static string BuildSocial(SocialPostDraft post, string department, string slug, DateTime exportedAtUtc)
@@ -151,4 +165,5 @@ public sealed record MarkdownExportInput(
     string? RelatedUrl,
     string BodyHtml,
     string? JsonLdSchema,
+    string? RelatedJsonLdSchema,
     DateTime ExportedAtUtc);

@@ -1,5 +1,6 @@
 using ContentWriter.Application.Providers;
 using ContentWriter.Application.Services;
+using ContentWriter.Application.Services.Figures;
 using ContentWriter.Application.Services.JsonLd;
 using ContentWriter.Application.Services.PromptBuilders;
 using ContentWriter.Application.Services.Export;
@@ -43,6 +44,8 @@ public static class ContentWriterServiceRegistration
         });
 
         services.AddScoped<IProjectRepository, ProjectRepository>();
+        services.AddScoped<IContentFigureRepository, ContentFigureRepository>();
+        services.AddScoped<ContentFigureSyncService>();
 
         services.Configure<LlmProvidersOptions>(configuration.GetSection(LlmProvidersOptions.SectionName));
         services.Configure<CompanyProfileOptions>(configuration.GetSection(CompanyProfileOptions.SectionName));

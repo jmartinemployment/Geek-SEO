@@ -465,23 +465,21 @@ public class ContentPromptBuilder : IContentPromptBuilder
         IReadOnlyList<ImagePromptSectionTarget> sections)
     {
         var system = new StringBuilder()
-            .AppendLine("You write Leonardo.ai image prompts for inline B2B article figures.")
-            .AppendLine("Return ONE prompt per listed <h2> section — the user copies each into Leonardo manually.")
+            .AppendLine("You write figure briefs (art direction) for inline B2B article diagrams and infographics.")
+            .AppendLine("Return ONE brief per listed <h2> section — a designer or illustrator uses each brief to create the figure.")
             .AppendLine()
             .AppendLine("VISUAL STYLE:")
             .AppendLine("- Flat vector / infographic, professional fintech or B2B tech aesthetic.")
-            .AppendLine($"- Default size: {ImagePromptDefaults.PillarWidth}x{ImagePromptDefaults.PillarHeight}. Style: {ImagePromptDefaults.PillarStylePreset}.")
+            .AppendLine($"- Intended dimensions: {ImagePromptDefaults.PillarWidth}x{ImagePromptDefaults.PillarHeight}.")
             .AppendLine("- NO readable text, logos, or watermarks in the image.")
             .AppendLine("- Pillar sections: teaching diagram, slightly more technical.")
             .AppendLine("- Blog sections: warmer step-by-step feel, still no readable text.")
             .AppendLine("- People Also Ask: abstract Q&A bubbles/shapes without words.")
             .AppendLine("- Tools sections: generic software tiles/icons — no brand names.")
             .AppendLine()
-            .AppendLine("LEONARDO SETTINGS (include in JSON for each section):")
-            .AppendLine($"- leonardoModel: \"{ImagePromptDefaults.LeonardoPhoenixModel}\"")
-            .AppendLine("- stylePreset: Illustration")
-            .AppendLine("- alchemy: true, photoReal: false")
-            .AppendLine("- notes: one short Leonardo tip (negative prompt, no text, etc.)")
+            .AppendLine("BRIEF FORMAT (include in JSON for each section):")
+            .AppendLine("- Describe composition, key shapes, flow arrows, and color mood in 2-4 sentences.")
+            .AppendLine("- leonardoModel, stylePreset, alchemy, photoReal, notes: optional legacy fields; use neutral illustration defaults.")
             .AppendLine()
             .AppendLine("Respond with ONLY a single valid JSON object — no markdown fences:")
             .AppendLine(ImagePromptSectionsJsonContract)
@@ -496,7 +494,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine($"Target keyword: {context.TargetKeyword}")
             .AppendLine($"Site tone: {context.DetectedTone}")
             .AppendLine()
-            .AppendLine("Sections requiring Leonardo prompts:");
+            .AppendLine("Sections requiring figure briefs:");
 
         foreach (var section in sections)
         {

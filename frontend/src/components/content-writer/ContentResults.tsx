@@ -11,6 +11,7 @@ import {
   exportMarkdownContent,
   publishToSite,
   ApiError,
+  FigureArtConflictError,
 } from "@/lib/content-writer/api";
 import {
   canWriteExportToLocalDirectory,
@@ -32,7 +33,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "facebook", label: "Facebook" },
   { id: "linkedin", label: "LinkedIn" },
   { id: "cold-outreach", label: "Cold Outreach" },
-  { id: "image-prompts", label: "Image Prompts" },
+  { id: "image-prompts", label: "Figure briefs" },
 ];
 
 export default function ContentResults({
@@ -77,6 +78,35 @@ export default function ContentResults({
     const directory = await resolveExportDirectory();
     await writeExportFilesToDirectory(directory, result.files);
     setExportFolderName(directory.name);
+  }
+
+  async function runFigureBriefsStep(confirmRegenerateWithArt = false) {
+    setError(null);
+    setExportResult(null);
+    setGeneratingStep("image-prompts");
+    try {
+      const next = await generateImagePromptsContent(projectId, { confirmRegenerateWithArt });
+      onGenerated(next);
+      if ((next.imagePrompts?.sections?.length ?? 0) > 0) {
+        setActiveTab("image-prompts");
+      }
+    } catch (err) {
+      if (err instanceof FigureArtConflictError && !confirmRegenerateWithArt) {
+        const proceed = window.confirm(
+          `${err.message}\n\nRegenerate briefs anyway? Ready figures with art are preserved by heading.`,
+        );
+        if (proceed) {
+          await runFigureBriefsStep(true);
+          return;
+        }
+        setError(err.message);
+        return;
+      }
+      const message = err instanceof ApiError ? err.message : "Generation failed. Check the API logs.";
+      setError(message);
+    } finally {
+      setGeneratingStep(null);
+    }
   }
 
   async function runStep(step: GeneratingStep, action: () => Promise<GeneratedContentSet>) {
@@ -169,13 +199,13 @@ export default function ContentResults({
 
         <StepRow
           step={6}
-          title="Image prompts (Leonardo)"
-          description="One Leonardo.ai prompt per H2 in the pillar and blog — copy each into Leonardo for section figures."
+          title="Figure briefs"
+          description="One art-direction brief per H2 in the pillar and blog — use for Figma or manual illustration."
           done={hasImagePrompts}
           disabled={!hasBlog || isGenerating}
           isRunning={generatingStep === "image-prompts"}
-          buttonLabel={hasImagePrompts ? "Regenerate prompts" : "Generate prompts"}
-          onClick={() => runStep("image-prompts", () => generateImagePromptsContent(projectId))}
+          buttonLabel={hasImagePrompts ? "Regenerate briefs" : "Generate briefs"}
+          onClick={() => runFigureBriefsStep()}
           lockedMessage={!hasBlog ? "Complete Step 3 (blog) first." : undefined}
         />
       </div>
@@ -492,7 +522,7 @@ export default function ContentResults({
               (result.imagePrompts ? (
                 <ImagePromptsView prompts={result.imagePrompts} />
               ) : (
-                <EmptyTabHint message="Run Step 6 to generate Leonardo image prompts." />
+                <EmptyTabHint message="Run Step 6 to generate figure briefs." />
               ))}
           </div>
         </div>
@@ -737,16 +767,8 @@ function ImagePromptsView({ prompts }: { prompts: ImagePromptsSet }) {
   return (
     <div className="space-y-8">
       <p className="text-sm text-muted">
-        Copy a prompt and Leonardo settings into{" "}
-        <a
-          href="https://app.leonardo.ai/"
-          className="text-brand hover:underline"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Leonardo.ai
-        </a>
-        . One image per H2 section — prompts only, no images generated here.
+        Copy a brief for your designer or illustration workflow. One figure per H2 section — briefs only, no images
+        generated here.
       </p>
       {pillarSections.length > 0 && (
         <ImagePromptSectionGroup title="Pillar sections" sections={pillarSections} />

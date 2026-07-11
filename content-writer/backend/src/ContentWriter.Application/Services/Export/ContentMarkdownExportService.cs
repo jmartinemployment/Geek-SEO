@@ -87,6 +87,7 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
                 RelatedUrl: contentSet.BlogUrl,
                 BodyHtml: contentSet.Article.BodyHtml,
                 JsonLdSchema: contentSet.ArticleJsonLd,
+                RelatedJsonLdSchema: contentSet.BlogJsonLd,
                 ExportedAtUtc: exportedAt));
 
             written.Add(await WriteExportAsync(outputRoot, relativePath, "pillar", markdown, cancellationToken));
@@ -109,6 +110,7 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
                 RelatedUrl: contentSet.ArticleUrl,
                 BodyHtml: contentSet.Blog.BodyHtml,
                 JsonLdSchema: contentSet.BlogJsonLd,
+                RelatedJsonLdSchema: contentSet.ArticleJsonLd,
                 ExportedAtUtc: exportedAt));
 
             written.Add(await WriteExportAsync(outputRoot, relativePath, "blog", markdown, cancellationToken));

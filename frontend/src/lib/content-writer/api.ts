@@ -37,6 +37,17 @@ export class ApiError extends Error {
   }
 }
 
+export class FigureArtConflictError extends ApiError {
+  constructor(
+    message: string,
+    public readonly readyCount: number,
+    public readonly publishedCount: number,
+  ) {
+    super(message, 409);
+    this.name = "FigureArtConflictError";
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
@@ -56,6 +67,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const detail = await response.text().catch(() => response.statusText);
+    if (response.status === 409) {
+      const conflict = tryParseFigureConflict(detail);
+      if (conflict) {
+        throw new FigureArtConflictError(conflict.detail, conflict.readyCount, conflict.publishedCount);
+      }
+    }
     const problemDetail = tryParseProblemDetail(detail);
     throw new ApiError(problemDetail || detail || response.statusText, response.status);
   }
@@ -141,8 +158,12 @@ export function generateColdOutreachContent(projectId: string): Promise<Generate
   );
 }
 
-export function generateImagePromptsContent(projectId: string): Promise<GeneratedContentSet> {
-  return request<GeneratedContentSet>(`/api/projects/${projectId}/generate/image-prompts`, {
+export function generateImagePromptsContent(
+  projectId: string,
+  options?: { confirmRegenerateWithArt?: boolean },
+): Promise<GeneratedContentSet> {
+  const query = options?.confirmRegenerateWithArt ? "?confirmRegenerateWithArt=true" : "";
+  return request<GeneratedContentSet>(`/api/projects/${projectId}/generate/image-prompts${query}`, {
     method: "POST",
   });
 }
@@ -173,6 +194,26 @@ export function generateAllContent(projectId: string): Promise<GeneratedContentS
 
 export function getLmStudioStatus(): Promise<LmStudioHealthStatus> {
   return request<LmStudioHealthStatus>("/api/llm/lm-studio/status");
+}
+
+function tryParseFigureConflict(raw: string): { detail: string; readyCount: number; publishedCount: number } | null {
+  try {
+    const parsed = JSON.parse(raw) as {
+      detail?: string;
+      readyCount?: number;
+      publishedCount?: number;
+    };
+    if (typeof parsed.readyCount !== "number" || typeof parsed.publishedCount !== "number") {
+      return null;
+    }
+    return {
+      detail: parsed.detail ?? "Figure art would be affected.",
+      readyCount: parsed.readyCount,
+      publishedCount: parsed.publishedCount,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function tryParseProblemDetail(raw: string): string | null {

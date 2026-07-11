@@ -16,7 +16,13 @@ public interface IContentGenerationOrchestrator
 
     Task<GeneratedContentSet> GenerateColdOutreachAsync(Guid projectId, CancellationToken cancellationToken = default);
 
-    Task<GeneratedContentSet> GenerateImagePromptsAsync(Guid projectId, CancellationToken cancellationToken = default);
+    Task<GeneratedContentSet> GenerateImagePromptsAsync(
+        Guid projectId,
+        bool confirmRegenerateWithArt = false,
+        CancellationToken cancellationToken = default);
 
-    Task<GeneratedContentSet> GenerateAllAsync(Guid projectId, CancellationToken cancellationToken = default);
+    Task<GeneratedContentSet> GenerateAllAsync(
+        Guid projectId,
+        bool confirmRegenerateWithArt = false,
+        CancellationToken cancellationToken = default);
 }

@@ -39,6 +39,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
     };
 
     private readonly IProjectRepository _projectRepository;
+    private readonly IContentFigureRepository _figureRepository;
     private readonly CompanyProfileOptions _companyProfile;
     private readonly GeekBlogPublishOptions _publishOptions;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -46,12 +47,14 @@ public class GeekBlogPublishService : IGeekBlogPublishService
 
     public GeekBlogPublishService(
         IProjectRepository projectRepository,
+        IContentFigureRepository figureRepository,
         IOptions<CompanyProfileOptions> companyProfile,
         IOptions<GeekBlogPublishOptions> publishOptions,
         IHttpClientFactory httpClientFactory,
         ILogger<GeekBlogPublishService> logger)
     {
         _projectRepository = projectRepository;
+        _figureRepository = figureRepository;
         _companyProfile = companyProfile.Value;
         _publishOptions = publishOptions.Value;
         _httpClientFactory = httpClientFactory;
@@ -93,6 +96,12 @@ public class GeekBlogPublishService : IGeekBlogPublishService
                 articleRow.JsonLdSchema ?? "{}",
                 cancellationToken);
             published.Add(post with { PublicPath = GeekPublicUrlBuilder.ArticlePath(department, contentSet.ArticleSlug) });
+            await _figureRepository.StampAfterTextPublishAsync(
+                projectId,
+                FigureSourceType.Pillar,
+                apiSlug,
+                post.PostId,
+                cancellationToken);
         }
 
         if (contentSet.Blog is not null
@@ -110,6 +119,12 @@ public class GeekBlogPublishService : IGeekBlogPublishService
                 blogRow.JsonLdSchema ?? "{}",
                 cancellationToken);
             published.Add(post with { PublicPath = GeekPublicUrlBuilder.BlogPath(department, contentSet.BlogSlug) });
+            await _figureRepository.StampAfterTextPublishAsync(
+                projectId,
+                FigureSourceType.Blog,
+                apiSlug,
+                post.PostId,
+                cancellationToken);
         }
 
         if (published.Count == 0)

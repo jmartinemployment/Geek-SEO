@@ -68,7 +68,8 @@ public class MarkdownExportDocumentBuilderTests
             Keywords: ["bank reconciliation", "ledger coding"],
             RelatedUrl: "https://www.geekatyourspot.com/blog/smart-bank-reconciliation",
             BodyHtml: "<article><h2>Overview</h2><p>Body copy.</p></article>",
-            JsonLdSchema: "{\n  \"@type\": \"TechArticle\"\n}",
+            JsonLdSchema: "{\n  \"@type\": \"TechnicalArticle\"\n}",
+            RelatedJsonLdSchema: "{\n  \"@type\": \"BlogPosting\"\n}",
             ExportedAtUtc: new DateTime(2026, 7, 10, 12, 0, 0, DateTimeKind.Utc)));
 
         Assert.Contains("title: Smart Bank Reconciliation", markdown);
@@ -76,7 +77,30 @@ public class MarkdownExportDocumentBuilderTests
         Assert.Contains("department: accounting", markdown);
         Assert.Contains("<article><h2>Overview</h2><p>Body copy.</p></article>", markdown);
         Assert.Contains("## JSON-LD Schema", markdown);
-        Assert.Contains("\"@type\": \"TechArticle\"", markdown);
+        Assert.Contains("\"@type\": \"TechnicalArticle\"", markdown);
+        Assert.Contains("## Related JSON-LD Schema", markdown);
+        Assert.Contains("\"@type\": \"BlogPosting\"", markdown);
+    }
+
+    [Fact]
+    public void Build_omits_related_section_when_companion_schema_missing()
+    {
+        var markdown = MarkdownExportDocumentBuilder.Build(new MarkdownExportInput(
+            Title: "Smart Bank Reconciliation",
+            Slug: "smart-bank-reconciliation",
+            MetaDescription: "Match feeds to the ledger.",
+            CanonicalUrl: "https://www.geekatyourspot.com/use-cases/accounting/smart-bank-reconciliation",
+            ContentType: "pillar",
+            Department: "accounting",
+            WordCount: 3200,
+            Keywords: ["bank reconciliation"],
+            RelatedUrl: null,
+            BodyHtml: "<p>Body</p>",
+            JsonLdSchema: "{\n  \"@type\": \"TechnicalArticle\"\n}",
+            RelatedJsonLdSchema: null,
+            ExportedAtUtc: new DateTime(2026, 7, 10, 12, 0, 0, DateTimeKind.Utc)));
+
+        Assert.DoesNotContain("## Related JSON-LD Schema", markdown);
     }
 
     [Fact]

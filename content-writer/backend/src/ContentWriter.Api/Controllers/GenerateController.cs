@@ -1,6 +1,7 @@
 using ContentWriter.Application.DTOs;
 using ContentWriter.Application.Providers;
 using ContentWriter.Application.Services;
+using ContentWriter.Application.Services.Figures;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ContentWriter.Api.Controllers;
@@ -43,12 +44,24 @@ public class GenerateController : ControllerBase
         RunStep(projectId, _orchestrator.GenerateColdOutreachAsync(projectId, cancellationToken), "email-cold-outreach");
 
     [HttpPost("image-prompts")]
-    public Task<IActionResult> GenerateImagePrompts(Guid projectId, CancellationToken cancellationToken) =>
-        RunStep(projectId, _orchestrator.GenerateImagePromptsAsync(projectId, cancellationToken), "image-prompts");
+    public Task<IActionResult> GenerateImagePrompts(
+        Guid projectId,
+        [FromQuery] bool confirmRegenerateWithArt = false,
+        CancellationToken cancellationToken = default) =>
+        RunStep(
+            projectId,
+            _orchestrator.GenerateImagePromptsAsync(projectId, confirmRegenerateWithArt, cancellationToken),
+            "image-prompts");
 
     [HttpPost]
-    public Task<IActionResult> GenerateAll(Guid projectId, CancellationToken cancellationToken) =>
-        RunStep(projectId, _orchestrator.GenerateAllAsync(projectId, cancellationToken), "all");
+    public Task<IActionResult> GenerateAll(
+        Guid projectId,
+        [FromQuery] bool confirmRegenerateWithArt = false,
+        CancellationToken cancellationToken = default) =>
+        RunStep(
+            projectId,
+            _orchestrator.GenerateAllAsync(projectId, confirmRegenerateWithArt, cancellationToken),
+            "all");
 
     private async Task<IActionResult> RunStep(Guid projectId, Task<GeneratedContentSet> action, string step)
     {
@@ -56,6 +69,22 @@ public class GenerateController : ControllerBase
         {
             var result = await action;
             return Ok(result);
+        }
+        catch (FigureRegenerationBlockedException ex)
+        {
+            _logger.LogWarning(
+                "Figure brief regeneration blocked for project {ProjectId}: Ready={ReadyCount} Published={PublishedCount}",
+                projectId,
+                ex.ReadyCount,
+                ex.PublishedCount);
+            return Conflict(new
+            {
+                title = "Figure art would be affected",
+                detail = ex.Message,
+                readyCount = ex.ReadyCount,
+                publishedCount = ex.PublishedCount,
+                confirmQueryParam = "confirmRegenerateWithArt",
+            });
         }
         catch (ContentGenerationException ex)
         {

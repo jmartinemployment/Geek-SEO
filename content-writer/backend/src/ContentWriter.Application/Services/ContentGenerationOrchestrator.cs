@@ -1,5 +1,6 @@
 using ContentWriter.Application.DTOs;
 using ContentWriter.Application.Providers;
+using ContentWriter.Application.Services.Figures;
 using ContentWriter.Application.Services.JsonLd;
 using ContentWriter.Application.Services.PromptBuilders;
 using ContentWriter.Application.Services.Publish;
@@ -17,6 +18,8 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
     private const int MaxPeopleAlsoAskQuestions = 12;
 
     private readonly IProjectRepository _projectRepository;
+    private readonly IContentFigureRepository _figureRepository;
+    private readonly ContentFigureSyncService _figureSync;
     private readonly IContentProviderFactory _providerFactory;
     private readonly IContentPromptBuilder _promptBuilder;
     private readonly IJsonLdParserService _jsonLdParser;
@@ -27,6 +30,8 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
 
     public ContentGenerationOrchestrator(
         IProjectRepository projectRepository,
+        IContentFigureRepository figureRepository,
+        ContentFigureSyncService figureSync,
         IContentProviderFactory providerFactory,
         IContentPromptBuilder promptBuilder,
         IJsonLdParserService jsonLdParser,
@@ -36,6 +41,8 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         ILogger<ContentGenerationOrchestrator> logger)
     {
         _projectRepository = projectRepository;
+        _figureRepository = figureRepository;
+        _figureSync = figureSync;
         _providerFactory = providerFactory;
         _promptBuilder = promptBuilder;
         _jsonLdParser = jsonLdParser;
@@ -292,11 +299,20 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         return Assemble(project);
     }
 
-    public async Task<GeneratedContentSet> GenerateImagePromptsAsync(Guid projectId, CancellationToken cancellationToken = default)
+    public async Task<GeneratedContentSet> GenerateImagePromptsAsync(
+        Guid projectId,
+        bool confirmRegenerateWithArt = false,
+        CancellationToken cancellationToken = default)
     {
         var project = await LoadProjectForGenerationAsync(projectId, cancellationToken);
         var articleRow = RequireCompletePillar(project);
         var blogRow = RequireCompleteBlog(project);
+
+        var (readyCount, publishedCount) = await _figureRepository.CountReadyAndPublishedAsync(projectId, cancellationToken);
+        if (!confirmRegenerateWithArt && (readyCount > 0 || publishedCount > 0))
+        {
+            throw new FigureRegenerationBlockedException(readyCount, publishedCount);
+        }
 
         var context = BuildContext(project);
         var provider = _providerFactory.Get(project.PreferredProvider);
@@ -314,7 +330,7 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         }
 
         _logger.LogInformation(
-            "Generating {SectionCount} section image prompts for project {ProjectId} via {Provider}",
+            "Generating {SectionCount} section figure briefs for project {ProjectId} via {Provider}",
             sections.Count,
             projectId,
             provider.ProviderType);
@@ -349,29 +365,41 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             throw new ContentGenerationException($"Model did not return valid JSON for image prompts after {maxAttempts} attempts.");
         }
 
+        var syncInputs = new List<FigureSyncSectionInput>();
         foreach (var section in draft.Sections)
         {
-            await AddSectionImagePromptRowAsync(
+            var promptContentId = await AddSectionImagePromptRowAsync(
                 project,
                 provider.ProviderType,
                 articleRow.Slug,
                 articleUrl,
                 section,
                 cancellationToken);
+            syncInputs.Add(new FigureSyncSectionInput(
+                section.SourceType,
+                section.Heading,
+                section.Order,
+                section.Prompt,
+                promptContentId));
         }
+
+        await _figureSync.SyncAsync(projectId, syncInputs, cancellationToken);
 
         await SaveProjectAsync(project, ProjectStatus.Completed, cancellationToken);
         return Assemble(project);
     }
 
-    public async Task<GeneratedContentSet> GenerateAllAsync(Guid projectId, CancellationToken cancellationToken = default)
+    public async Task<GeneratedContentSet> GenerateAllAsync(
+        Guid projectId,
+        bool confirmRegenerateWithArt = false,
+        CancellationToken cancellationToken = default)
     {
         await GeneratePillarPlanAsync(projectId, cancellationToken);
         await GeneratePillarBodyAsync(projectId, cancellationToken);
         await GenerateBlogAsync(projectId, cancellationToken);
         await GenerateSocialAsync(projectId, cancellationToken);
         await GenerateColdOutreachAsync(projectId, cancellationToken);
-        return await GenerateImagePromptsAsync(projectId, cancellationToken);
+        return await GenerateImagePromptsAsync(projectId, confirmRegenerateWithArt, cancellationToken);
     }
 
     private async Task<Project> LoadProjectForGenerationAsync(Guid projectId, CancellationToken cancellationToken)
@@ -453,7 +481,7 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         return row;
     }
 
-    private async Task AddSectionImagePromptRowAsync(
+    private async Task<Guid> AddSectionImagePromptRowAsync(
         Project project,
         LlmProviderType providerType,
         string articleSlug,
@@ -463,8 +491,7 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
     {
         var headingSlug = SlugHelper.Slugify(item.Heading);
         var wordCount = item.Prompt.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
-
-        await AddContentAsync(project, providerType, new GeneratedContent
+        var row = new GeneratedContent
         {
             ProjectId = project.Id,
             ContentType = GeneratedContentType.ImagePromptSection,
@@ -476,7 +503,10 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             WordCount = wordCount,
             GeneratedByProvider = providerType,
             GeneratedByModel = ResolveModelName(project.PreferredProvider),
-        }, cancellationToken);
+        };
+
+        await AddContentAsync(project, providerType, row, cancellationToken);
+        return row.Id;
     }
 
     private async Task SaveProjectAsync(Project project, ProjectStatus status, CancellationToken cancellationToken)
