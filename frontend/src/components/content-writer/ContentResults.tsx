@@ -5,6 +5,10 @@ import {
   generateBlogContent,
   generateColdOutreachContent,
   generateImagePromptsContent,
+  generateFigureImage,
+  attachFigure,
+  skipFigure,
+  generatePendingFigures,
   generatePillarBodyContent,
   generatePillarPlanContent,
   generateSocialContent,
@@ -439,7 +443,11 @@ export default function ContentResults({
             </div>
           )}
           {(result?.imagePrompts?.sections?.length ?? 0) > 0 && (
-            <FiguresStatusPanel projectId={projectId} refreshKey={figuresRefreshKey} />
+            <FiguresStatusPanel
+              projectId={projectId}
+              refreshKey={figuresRefreshKey}
+              onFiguresChanged={() => setFiguresRefreshKey((k) => k + 1)}
+            />
           )}
         </div>
       )}
@@ -541,6 +549,7 @@ export default function ContentResults({
                   prompts={result.imagePrompts}
                   projectId={projectId}
                   refreshKey={figuresRefreshKey}
+                  onFiguresChanged={() => setFiguresRefreshKey((k) => k + 1)}
                 />
               ) : (
                 <EmptyTabHint message="Run Step 6 to generate figure briefs." />
@@ -785,10 +794,12 @@ function ImagePromptsView({
   prompts,
   projectId,
   refreshKey,
+  onFiguresChanged,
 }: {
   prompts: ImagePromptsSet;
   projectId: string;
   refreshKey: number;
+  onFiguresChanged: () => void;
 }) {
   const [figureRows, setFigureRows] = useState<ContentFigureDto[]>([]);
 
@@ -813,25 +824,43 @@ function ImagePromptsView({
   const pillarSections = prompts.sections.filter((s) => s.sourceType === "pillar");
   const blogSections = prompts.sections.filter((s) => s.sourceType === "blog");
 
-  function statusFor(section: ImagePromptSection) {
+  function figureFor(section: ImagePromptSection) {
     return figureRows.find(
       (f) =>
         f.sourceType === section.sourceType &&
         f.heading.trim().toLowerCase() === section.heading.trim().toLowerCase()
-    )?.status;
+    );
+  }
+
+  function statusFor(section: ImagePromptSection) {
+    return figureFor(section)?.status;
   }
 
   return (
     <div className="space-y-8">
       <p className="text-sm text-muted">
-        Copy a brief for your designer or illustration workflow. One figure per H2 section — briefs only, no images
-        generated here.
+        Each H2 has a figure brief. After text is published to the site, generate art from the brief (OpenAI) or
+        upload a WebP from Figma.
       </p>
       {pillarSections.length > 0 && (
-        <ImagePromptSectionGroup title="Pillar sections" sections={pillarSections} statusFor={statusFor} />
+        <ImagePromptSectionGroup
+          title="Pillar sections"
+          sections={pillarSections}
+          projectId={projectId}
+          figureFor={figureFor}
+          statusFor={statusFor}
+          onFiguresChanged={onFiguresChanged}
+        />
       )}
       {blogSections.length > 0 && (
-        <ImagePromptSectionGroup title="Blog sections" sections={blogSections} statusFor={statusFor} />
+        <ImagePromptSectionGroup
+          title="Blog sections"
+          sections={blogSections}
+          projectId={projectId}
+          figureFor={figureFor}
+          statusFor={statusFor}
+          onFiguresChanged={onFiguresChanged}
+        />
       )}
     </div>
   );
@@ -840,11 +869,17 @@ function ImagePromptsView({
 function ImagePromptSectionGroup({
   title,
   sections,
+  projectId,
+  figureFor,
   statusFor,
+  onFiguresChanged,
 }: {
   title: string;
   sections: ImagePromptSection[];
+  projectId: string;
+  figureFor: (section: ImagePromptSection) => ContentFigureDto | undefined;
   statusFor: (section: ImagePromptSection) => FigureStatus | undefined;
+  onFiguresChanged: () => void;
 }) {
   return (
     <div className="space-y-4">
@@ -853,7 +888,10 @@ function ImagePromptSectionGroup({
         <ImagePromptCard
           key={`${item.sourceType}-${item.order}-${item.heading}`}
           item={item}
+          projectId={projectId}
+          figure={figureFor(item)}
           figureStatus={statusFor(item)}
+          onFiguresChanged={onFiguresChanged}
         />
       ))}
     </div>
@@ -876,17 +914,70 @@ function FigureStatusBadge({ status }: { status: FigureStatus }) {
 
 function ImagePromptCard({
   item,
+  projectId,
+  figure,
   figureStatus,
+  onFiguresChanged,
 }: {
   item: ImagePromptSection;
+  projectId: string;
+  figure?: ContentFigureDto;
   figureStatus?: FigureStatus;
+  onFiguresChanged: () => void;
 }) {
   const [copied, setCopied] = useState<"prompt" | "all" | null>(null);
+  const [busy, setBusy] = useState<"generate" | "upload" | "skip" | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const canAct = Boolean(figure?.geekApiSlug) && figureStatus !== "Skipped";
+  const headingSlug = figure?.headingSlug;
 
   async function handleCopy(mode: "prompt" | "all") {
     await copyText(mode === "prompt" ? item.prompt : formatLeonardoCopyBlock(item));
     setCopied(mode);
     window.setTimeout(() => setCopied(null), 2000);
+  }
+
+  async function handleGenerate() {
+    if (!headingSlug) return;
+    setBusy("generate");
+    setActionError(null);
+    try {
+      await generateFigureImage(projectId, item.sourceType, headingSlug);
+      onFiguresChanged();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Image generation failed.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleUpload(file: File) {
+    if (!headingSlug) return;
+    setBusy("upload");
+    setActionError(null);
+    try {
+      await attachFigure(projectId, item.sourceType, headingSlug, file);
+      onFiguresChanged();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Upload failed.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleSkip() {
+    if (!headingSlug) return;
+    setBusy("skip");
+    setActionError(null);
+    try {
+      await skipFigure(projectId, item.sourceType, headingSlug);
+      onFiguresChanged();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Skip failed.");
+    } finally {
+      setBusy(null);
+    }
   }
 
   return (
@@ -904,17 +995,60 @@ function ImagePromptCard({
             onClick={() => handleCopy("prompt")}
             className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface"
           >
-            {copied === "prompt" ? "Copied!" : "Copy prompt"}
+            {copied === "prompt" ? "Copied!" : "Copy brief"}
           </button>
           <button
             type="button"
-            onClick={() => handleCopy("all")}
-            className="rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+            disabled={!canAct || busy !== null}
+            onClick={() => void handleGenerate()}
+            className="rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
           >
-            {copied === "all" ? "Copied!" : "Copy prompt + settings"}
+            {busy === "generate" ? "Generating…" : "Generate image"}
           </button>
+          <label
+            className={`cursor-pointer rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface ${!canAct || busy !== null ? "pointer-events-none opacity-50" : ""}`}
+          >
+            {busy === "upload" ? "Uploading…" : "Upload WebP"}
+            <input
+              type="file"
+              accept="image/webp"
+              className="sr-only"
+              disabled={!canAct || busy !== null}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) void handleUpload(file);
+              }}
+            />
+          </label>
+          {figureStatus !== "Skipped" && (
+            <button
+              type="button"
+              disabled={!headingSlug || busy !== null}
+              onClick={() => void handleSkip()}
+              className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted hover:bg-surface disabled:opacity-50"
+            >
+              {busy === "skip" ? "Skipping…" : "Skip"}
+            </button>
+          )}
         </div>
       </div>
+      {!figure?.geekApiSlug && (
+        <p className="mt-2 text-xs text-amber-800">Publish text to the site before generating or uploading art.</p>
+      )}
+      {figure?.imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element -- figure preview from blob CDN
+        <img
+          src={figure.imageUrl}
+          alt={figure.imageAlt}
+          className="mt-3 max-h-48 rounded-md border border-border object-contain"
+        />
+      )}
+      {actionError && (
+        <p className="mt-2 text-xs text-red-700" role="alert">
+          {actionError}
+        </p>
+      )}
       <pre className="mt-3 whitespace-pre-wrap rounded-md border border-border bg-surface p-3 text-xs text-muted">
         {formatLeonardoSettings(item)}
       </pre>

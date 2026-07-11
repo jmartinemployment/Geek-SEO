@@ -85,24 +85,14 @@ attachCmd.AddOption(fileOption);
 attachCmd.AddOption(altOption);
 attachCmd.SetHandler(async (projectId, source, headingSlug, file, alt) =>
 {
-    var token = ContentFiguresDb.RequireBlobToken();
-    await using var db = ContentFiguresDb.CreateContext();
-    using var http = new HttpClient();
-    var uploader = new VercelBlobUploader(http);
-    var attach = new FigureAttachService(db, uploader);
-
-    var figure = await attach.AttachAsync(
+    await ContentFigureAttachRunner.AttachFileAsync(
         projectId,
         source,
         headingSlug,
         file.FullName,
-        alt,
-        token);
+        alt);
 
-    Console.WriteLine($"Attached {file.Name}");
-    Console.WriteLine($"  status: {figure.Status}");
-    Console.WriteLine($"  url: {figure.ImageUrl}");
-    Console.WriteLine($"  size: {figure.ImageWidth}x{figure.ImageHeight}");
+    Console.WriteLine($"Attached {file.Name} -> {source}/{headingSlug}");
 }, projectIdOption, sourceOption, headingSlugOption, fileOption, altOption);
 
 var skipCmd = new Command("skip", "Mark a section as intentionally without art");
@@ -111,8 +101,7 @@ skipCmd.AddOption(sourceOption);
 skipCmd.AddOption(headingSlugOption);
 skipCmd.SetHandler(async (projectId, source, headingSlug) =>
 {
-    await using var db = ContentFiguresDb.CreateContext();
-    await FigureSkipService.SkipAsync(db, projectId, source, headingSlug);
+    await FigureSkipService.SkipAsync(projectId, source, headingSlug);
     Console.WriteLine($"Skipped {source}/{headingSlug}");
 }, projectIdOption, sourceOption, headingSlugOption);
 
@@ -156,63 +145,33 @@ syncDirCmd.AddOption(sourceOption);
 syncDirCmd.AddOption(dirOption);
 syncDirCmd.SetHandler(async (projectId, source, dir) =>
 {
-    if (!dir.Exists)
-    {
-        throw new DirectoryNotFoundException($"Directory not found: {dir.FullName}");
-    }
-
-    var token = ContentFiguresDb.RequireBlobToken();
     await using var db = ContentFiguresDb.CreateContext();
-    using var http = new HttpClient();
-    var uploader = new VercelBlobUploader(http);
-    var attach = new FigureAttachService(db, uploader);
-
-    var figures = await db.ContentFigures
-        .Where(f => f.ProjectId == projectId && f.SourceType == source)
-        .ToListAsync();
-
-    if (figures.Count == 0)
-    {
-        throw new InvalidOperationException($"No {source} figures for project {projectId}.");
-    }
-
-    var knownSlugs = figures.Select(f => f.HeadingSlug).ToList();
-    var files = dir.GetFiles("h2-*.webp", SearchOption.TopDirectoryOnly);
-    if (files.Length == 0)
-    {
-        throw new InvalidOperationException($"No h2-*.webp files in {dir.FullName}.");
-    }
-
-    var attached = 0;
-    foreach (var file in files.OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase))
-    {
-        var slug = FigureSyncDirMatcher.ResolveHeadingSlug(file.Name, knownSlugs);
-        if (slug is null)
-        {
-            throw new InvalidOperationException(
-                $"Cannot match file {file.Name} to any heading slug for project {projectId}.");
-        }
-
-        var figure = await attach.AttachAsync(
-            projectId,
-            source,
-            slug,
-            file.FullName,
-            altOverride: null,
-            token);
-
-        Console.WriteLine($"[attached] {file.Name} -> {slug} ({figure.ImageUrl})");
-        attached++;
-    }
-
-    Console.WriteLine($"Attached {attached} file(s).");
+    var attach = new FigureAttachService(db);
+    await attach.SyncDirectoryAsync(projectId, source, dir.FullName);
+    Console.WriteLine($"Synced directory {dir.FullName}");
 }, projectIdOption, sourceOption, dirOption);
+
+var headingSlugOptional = new Option<string?>("--heading-slug")
+{
+    Description = "Stable heading slug; omit to generate all Pending figures for the source",
+};
+
+var generateCmd = new Command("generate", "Generate section art from figure briefs via OpenAI");
+generateCmd.AddOption(projectIdOption);
+generateCmd.AddOption(sourceOption);
+generateCmd.AddOption(headingSlugOptional);
+generateCmd.SetHandler(async (projectId, source, headingSlug) =>
+{
+    var count = await ContentFigureImageGenerationRunner.GenerateAsync(projectId, source, headingSlug);
+    Console.WriteLine($"Generated {count} figure(s) for {source}.");
+}, projectIdOption, sourceOption, headingSlugOptional);
 
 root.AddCommand(listCmd);
 root.AddCommand(attachCmd);
 root.AddCommand(skipCmd);
 root.AddCommand(exportCmd);
 root.AddCommand(syncDirCmd);
+root.AddCommand(generateCmd);
 
 var mergeCmd = new Command("merge", "Merge Ready figures into the live GeekAPI post body");
 mergeCmd.AddOption(projectIdOption);

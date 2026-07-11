@@ -52,6 +52,22 @@ public static class ContentWriterServiceRegistration
         services.Configure<ContentExportOptions>(configuration.GetSection(ContentExportOptions.SectionName));
 
         services.Configure<GeekBlogPublishOptions>(configuration.GetSection(GeekBlogPublishOptions.SectionName));
+        services.Configure<BlobStorageOptions>(options =>
+        {
+            configuration.GetSection(BlobStorageOptions.SectionName).Bind(options);
+            var envToken = Environment.GetEnvironmentVariable("BLOB_READ_WRITE_TOKEN");
+            if (!string.IsNullOrWhiteSpace(envToken))
+            {
+                options.ReadWriteToken = envToken;
+            }
+        });
+        services.Configure<FigureImageGenerationOptions>(
+            configuration.GetSection(FigureImageGenerationOptions.SectionName));
+
+        services.AddHttpClient<VercelBlobUploader>();
+        services.AddHttpClient<OpenAiFigureImageClient>();
+        services.AddScoped<IContentFigureAttachService, ContentFigureAttachService>();
+        services.AddScoped<IContentFigureImageGenerationService, ContentFigureImageGenerationService>();
 
         services.AddHttpClient<LmStudioProvider>();
         services.AddHttpClient<OpenAiProvider>();

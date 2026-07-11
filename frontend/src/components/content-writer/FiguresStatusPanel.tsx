@@ -1,19 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ApiError, listFigures, mergeFigures } from "@/lib/content-writer/api";
+import {
+  ApiError,
+  generatePendingFigures,
+  listFigures,
+  mergeFigures,
+} from "@/lib/content-writer/api";
 import type { ContentFiguresListResponse } from "@/lib/content-writer/types";
 
 export function FiguresStatusPanel({
   projectId,
   refreshKey,
+  onFiguresChanged,
 }: {
   projectId: string;
   refreshKey: number;
+  onFiguresChanged?: () => void;
 }) {
   const [figures, setFigures] = useState<ContentFiguresListResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mergingSource, setMergingSource] = useState<"pillar" | "blog" | null>(null);
+  const [generatingSource, setGeneratingSource] = useState<"pillar" | "blog" | null>(null);
   const [mergeMessage, setMergeMessage] = useState<string | null>(null);
 
   const loadFigures = useCallback(async () => {
@@ -52,6 +60,12 @@ export function FiguresStatusPanel({
   const mergeableBlog = figures.figures.some(
     (f) => f.sourceType === "blog" && (f.status === "Ready" || f.status === "Published") && f.imageUrl
   );
+  const pendingPillar = figures.figures.some(
+    (f) => f.sourceType === "pillar" && f.status === "Pending" && f.geekApiSlug
+  );
+  const pendingBlog = figures.figures.some(
+    (f) => f.sourceType === "blog" && f.status === "Pending" && f.geekApiSlug
+  );
 
   async function runMerge(source: "pillar" | "blog") {
     setError(null);
@@ -61,11 +75,29 @@ export function FiguresStatusPanel({
       const result = await mergeFigures(projectId, source);
       setMergeMessage(`Merged ${result.figuresMerged} figure(s) into ${result.publicPath}`);
       await loadFigures();
+      onFiguresChanged?.();
     } catch (err) {
       const message = err instanceof ApiError ? err.message : "Figure merge failed.";
       setError(message);
     } finally {
       setMergingSource(null);
+    }
+  }
+
+  async function runGenerateAll(source: "pillar" | "blog") {
+    setError(null);
+    setMergeMessage(null);
+    setGeneratingSource(source);
+    try {
+      const result = await generatePendingFigures(projectId, source);
+      setMergeMessage(`Generated ${result.generatedCount} ${source} figure(s) from briefs.`);
+      await loadFigures();
+      onFiguresChanged?.();
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : "Figure generation failed.";
+      setError(message);
+    } finally {
+      setGeneratingSource(null);
     }
   }
 
@@ -87,13 +119,33 @@ export function FiguresStatusPanel({
         )}
       </p>
       <p className="mt-2 text-muted">
-        Attach WebP art locally with the ContentFigures CLI, then merge into the live post.
+        Generate from briefs, upload WebP per section, or use the ContentFigures CLI locally.
       </p>
       <div className="mt-2 flex flex-wrap gap-2">
+        {pendingPillar && (
+          <button
+            type="button"
+            disabled={generatingSource !== null || mergingSource !== null}
+            onClick={() => void runGenerateAll("pillar")}
+            className="rounded-md border border-border bg-white px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-slate-100 disabled:opacity-60"
+          >
+            {generatingSource === "pillar" ? "Generating pillar…" : "Generate all pillar"}
+          </button>
+        )}
+        {pendingBlog && (
+          <button
+            type="button"
+            disabled={generatingSource !== null || mergingSource !== null}
+            onClick={() => void runGenerateAll("blog")}
+            className="rounded-md border border-border bg-white px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-slate-100 disabled:opacity-60"
+          >
+            {generatingSource === "blog" ? "Generating blog…" : "Generate all blog"}
+          </button>
+        )}
         {mergeablePillar && (
           <button
             type="button"
-            disabled={mergingSource !== null}
+            disabled={mergingSource !== null || generatingSource !== null}
             onClick={() => void runMerge("pillar")}
             className="rounded-md border border-border bg-white px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-slate-100 disabled:opacity-60"
           >
@@ -103,7 +155,7 @@ export function FiguresStatusPanel({
         {mergeableBlog && (
           <button
             type="button"
-            disabled={mergingSource !== null}
+            disabled={mergingSource !== null || generatingSource !== null}
             onClick={() => void runMerge("blog")}
             className="rounded-md border border-border bg-white px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-slate-100 disabled:opacity-60"
           >
@@ -115,3 +167,5 @@ export function FiguresStatusPanel({
     </div>
   );
 }
+
+export default FiguresStatusPanel;

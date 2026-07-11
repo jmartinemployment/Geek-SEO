@@ -15,17 +15,23 @@ public class FiguresController : ControllerBase
     private readonly IContentFigureRepository _figures;
     private readonly IProjectRepository _projects;
     private readonly IFigureMergeService _mergeService;
+    private readonly IContentFigureAttachService _attachService;
+    private readonly IContentFigureImageGenerationService _imageGeneration;
     private readonly ILogger<FiguresController> _logger;
 
     public FiguresController(
         IContentFigureRepository figures,
         IProjectRepository projects,
         IFigureMergeService mergeService,
+        IContentFigureAttachService attachService,
+        IContentFigureImageGenerationService imageGeneration,
         ILogger<FiguresController> logger)
     {
         _figures = figures;
         _projects = projects;
         _mergeService = mergeService;
+        _attachService = attachService;
+        _imageGeneration = imageGeneration;
         _logger = logger;
     }
 
@@ -95,6 +101,144 @@ public class FiguresController : ControllerBase
         {
             _logger.LogWarning(ex, "Figure merge failed for project {ProjectId}", projectId);
             return Problem(ex.Message, statusCode: 400, title: "Figure merge failed");
+        }
+    }
+
+    [HttpPost("generate")]
+    public async Task<ActionResult<FigureGenerateResponse>> Generate(
+        Guid projectId,
+        [FromBody] FigureGenerateRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!await ProjectExistsAsync(projectId, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        try
+        {
+            FigureMergeService.ValidateSourceType(request.Source);
+            IReadOnlyList<ContentFigure> figures;
+            if (string.IsNullOrWhiteSpace(request.HeadingSlug))
+            {
+                figures = await _imageGeneration.GeneratePendingAsync(
+                    projectId,
+                    request.Source,
+                    cancellationToken);
+            }
+            else
+            {
+                figures =
+                [
+                    await _imageGeneration.GenerateAsync(
+                        projectId,
+                        request.Source,
+                        request.HeadingSlug,
+                        cancellationToken),
+                ];
+            }
+
+            return Ok(new FigureGenerateResponse(
+                request.Source,
+                figures.Count,
+                figures.Select(ToDto).ToList()));
+        }
+        catch (ContentGenerationException ex)
+        {
+            _logger.LogWarning(ex, "Figure generation failed for project {ProjectId}", projectId);
+            return Problem(ex.Message, statusCode: 400, title: "Figure generation failed");
+        }
+    }
+
+    [HttpPost("{source}/{headingSlug}/attach")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<ActionResult<ContentFigureDto>> Attach(
+        Guid projectId,
+        string source,
+        string headingSlug,
+        IFormFile file,
+        [FromQuery] string? alt,
+        CancellationToken cancellationToken)
+    {
+        if (!await ProjectExistsAsync(projectId, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        if (file is null || file.Length == 0)
+        {
+            return Problem("Image file is required.", statusCode: 400, title: "Attach failed");
+        }
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var figure = await _attachService.AttachWebpAsync(
+                projectId,
+                source,
+                headingSlug,
+                stream,
+                file.FileName,
+                alt,
+                cancellationToken);
+            return Ok(ToDto(figure));
+        }
+        catch (ContentGenerationException ex)
+        {
+            _logger.LogWarning(ex, "Figure attach failed for project {ProjectId}", projectId);
+            return Problem(ex.Message, statusCode: 400, title: "Figure attach failed");
+        }
+    }
+
+    [HttpPost("{source}/{headingSlug}/skip")]
+    public async Task<ActionResult<ContentFigureDto>> Skip(
+        Guid projectId,
+        string source,
+        string headingSlug,
+        CancellationToken cancellationToken)
+    {
+        if (!await ProjectExistsAsync(projectId, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        try
+        {
+            var figure = await _attachService.SkipAsync(projectId, source, headingSlug, cancellationToken);
+            return Ok(ToDto(figure));
+        }
+        catch (ContentGenerationException ex)
+        {
+            _logger.LogWarning(ex, "Figure skip failed for project {ProjectId}", projectId);
+            return Problem(ex.Message, statusCode: 400, title: "Figure skip failed");
+        }
+    }
+
+    [HttpPost("{source}/{headingSlug}/generate")]
+    public async Task<ActionResult<ContentFigureDto>> GenerateOne(
+        Guid projectId,
+        string source,
+        string headingSlug,
+        CancellationToken cancellationToken)
+    {
+        if (!await ProjectExistsAsync(projectId, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        try
+        {
+            var figure = await _imageGeneration.GenerateAsync(
+                projectId,
+                source,
+                headingSlug,
+                cancellationToken);
+            return Ok(ToDto(figure));
+        }
+        catch (ContentGenerationException ex)
+        {
+            _logger.LogWarning(ex, "Figure generation failed for project {ProjectId}", projectId);
+            return Problem(ex.Message, statusCode: 400, title: "Figure generation failed");
         }
     }
 

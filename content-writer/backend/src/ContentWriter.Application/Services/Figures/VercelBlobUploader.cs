@@ -1,7 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
 
-namespace ContentFigures.Infrastructure;
+namespace ContentWriter.Application.Services.Figures;
 
 public sealed class VercelBlobUploader(HttpClient http)
 {
@@ -17,6 +17,11 @@ public sealed class VercelBlobUploader(HttpClient http)
         string token,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new InvalidOperationException("BLOB_READ_WRITE_TOKEN is not configured.");
+        }
+
         var encodedPath = string.Join(
             '/',
             pathname.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

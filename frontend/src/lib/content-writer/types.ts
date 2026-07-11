@@ -251,6 +251,12 @@ export interface FigureMergeResponse {
   publicPath: string;
 }
 
+export interface FigureGenerateResponse {
+  sourceType: string;
+  generatedCount: number;
+  figures: ContentFigureDto[];
+}
+
 export interface GeneratedContentSet {
   department: string;
   article: ArticleDraft | null;

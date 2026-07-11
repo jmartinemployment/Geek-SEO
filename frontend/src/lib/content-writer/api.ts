@@ -1,7 +1,9 @@
 import type {
+  ContentFigureDto,
   ContentFiguresListResponse,
   CrawlSummary,
   ExportMarkdownResponse,
+  FigureGenerateResponse,
   FigureMergeResponse,
   GeneratedContentSet,
   KeywordSourceCategory,
@@ -199,6 +201,54 @@ export function mergeFigures(
   source: "pillar" | "blog"
 ): Promise<FigureMergeResponse> {
   return request<FigureMergeResponse>(`/api/projects/${projectId}/figures/merge`, {
+    method: "POST",
+    body: JSON.stringify({ source }),
+  });
+}
+
+export function attachFigure(
+  projectId: string,
+  source: "pillar" | "blog",
+  headingSlug: string,
+  file: File,
+  alt?: string
+): Promise<ContentFigureDto> {
+  const form = new FormData();
+  form.append("file", file);
+  const query = alt ? `?alt=${encodeURIComponent(alt)}` : "";
+  return request<ContentFigureDto>(
+    `/api/projects/${projectId}/figures/${source}/${encodeURIComponent(headingSlug)}/attach${query}`,
+    { method: "POST", body: form }
+  );
+}
+
+export function skipFigure(
+  projectId: string,
+  source: "pillar" | "blog",
+  headingSlug: string
+): Promise<ContentFigureDto> {
+  return request<ContentFigureDto>(
+    `/api/projects/${projectId}/figures/${source}/${encodeURIComponent(headingSlug)}/skip`,
+    { method: "POST" }
+  );
+}
+
+export function generateFigureImage(
+  projectId: string,
+  source: "pillar" | "blog",
+  headingSlug: string
+): Promise<ContentFigureDto> {
+  return request<ContentFigureDto>(
+    `/api/projects/${projectId}/figures/${source}/${encodeURIComponent(headingSlug)}/generate`,
+    { method: "POST" }
+  );
+}
+
+export function generatePendingFigures(
+  projectId: string,
+  source: "pillar" | "blog"
+): Promise<FigureGenerateResponse> {
+  return request<FigureGenerateResponse>(`/api/projects/${projectId}/figures/generate`, {
     method: "POST",
     body: JSON.stringify({ source }),
   });

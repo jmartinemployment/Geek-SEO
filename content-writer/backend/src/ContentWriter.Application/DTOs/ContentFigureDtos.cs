@@ -56,3 +56,10 @@ public sealed record FigureMergeResponse(
     int GeekPostId,
     int FiguresMerged,
     string PublicPath);
+
+public sealed record FigureGenerateRequest(string Source, string? HeadingSlug);
+
+public sealed record FigureGenerateResponse(
+    string SourceType,
+    int GeneratedCount,
+    IReadOnlyList<ContentFigureDto> Figures);
