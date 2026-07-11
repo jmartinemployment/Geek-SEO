@@ -9,8 +9,13 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       {
+        source: '/content-writing',
+        destination: '/content-writer',
+        permanent: true,
+      },
+      {
         source: '/app/content-writing',
-        destination: '/dashboard',
+        destination: '/content-writer',
         permanent: true,
       },
       {
