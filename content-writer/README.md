@@ -97,7 +97,7 @@ and blog slugs/links.
 From the Geek-SEO `frontend/` directory:
 
 ```bash
-cp .env.example .env.local   # NEXT_PUBLIC_SEO_API_URL=http://localhost:5051
+cp .env.example .env.local   # set NEXT_PUBLIC_CONTENT_WRITER_API_URL=http://localhost:5199
 npm install
 npm run dev
 ```
@@ -145,9 +145,3 @@ Set `NEXT_PUBLIC_CONTENT_WRITER_API_URL=http://localhost:5199` when using that m
 3. Upload the manually-scraped research: 6 keyword SERP results, .edu/.gov/Wikipedia pages, local pack,
    competitor crawl (all HTML), and a People-Also-Ask text file (one question per line).
 4. Generate in steps — pillar plan, pillar body, blog, social, cold outreach email — each persisted to the database.
-
-## Retired integrations
-
-**Site Analyzer 2** and the **URL research** pipeline (`/api/seo/url-research`) were removed from Geek-SEO in July 2026. Content Writer no longer depends on SA2 handoff or `SITE_ANALYZER2_DATABASE_URL`.
-
-Frozen handoff fields on SEO content documents (`SiteProfileId`, `KeywordBundleJson`, etc.) may still exist in Postgres for old rows but are optional for new Content Writer projects.

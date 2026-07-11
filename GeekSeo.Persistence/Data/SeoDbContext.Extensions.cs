@@ -21,6 +21,7 @@ public partial class SeoDbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
             e.HasOne(x => x.Project).WithMany(p => p.ContentDocuments).HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.UrlResearch).WithMany().HasForeignKey(x => x.UrlResearchId).OnDelete(DeleteBehavior.SetNull);
             e.Property(x => x.DocumentKind).HasMaxLength(32).HasDefaultValue("standalone");
             e.Property(x => x.PublishSlug).HasMaxLength(200);
             e.Property(x => x.SpokeSourceType).HasMaxLength(32);
@@ -31,6 +32,7 @@ public partial class SeoDbContext
             e.HasIndex(x => x.ProjectId);
             e.HasIndex(x => x.UserId);
             e.HasIndex(x => x.Status);
+            e.HasIndex(x => x.UrlResearchId);
             e.HasIndex(x => x.ParentDocumentId);
             e.HasIndex(x => new { x.ProjectId, x.DocumentKind });
             e.HasIndex(x => new { x.ProjectId, x.PublishSlug })
@@ -343,6 +345,135 @@ public partial class SeoDbContext
             e.HasOne(x => x.Pillar).WithMany(p => p.Subtopics).HasForeignKey(x => x.PillarId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.PillarId);
             e.HasIndex(x => x.IsQuickWin);
+        });
+
+        modelBuilder.Entity<SeoUrlResearch>(e =>
+        {
+            e.ToTable("seo_url_research");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => x.UserId);
+            e.HasIndex(x => new { x.ProjectId, x.Status });
+            e.HasIndex(x => x.SourceUrl);
+        });
+
+        modelBuilder.Entity<SeoUrlResearchOrganic>(e =>
+        {
+            e.ToTable("seo_url_research_organic");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.UrlResearch).WithMany(r => r.OrganicResults).HasForeignKey(x => x.UrlResearchId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.UrlResearchId);
+        });
+
+        modelBuilder.Entity<SeoUrlResearchPaa>(e =>
+        {
+            e.ToTable("seo_url_research_paa");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.UrlResearch).WithMany(r => r.PeopleAlsoAsk).HasForeignKey(x => x.UrlResearchId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.UrlResearchId);
+        });
+
+        modelBuilder.Entity<SeoUrlResearchPasf>(e =>
+        {
+            e.ToTable("seo_url_research_pasf");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.UrlResearch).WithMany(r => r.RelatedSearches).HasForeignKey(x => x.UrlResearchId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.UrlResearchId);
+        });
+
+        modelBuilder.Entity<SeoUrlResearchCompetitor>(e =>
+        {
+            e.ToTable("seo_url_research_competitor");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.UrlResearch).WithMany(r => r.Competitors).HasForeignKey(x => x.UrlResearchId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.UrlResearchId);
+        });
+
+        modelBuilder.Entity<SeoUrlResearchCompetitorHeading>(e =>
+        {
+            e.ToTable("seo_url_research_competitor_heading");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.Competitor).WithMany(c => c.Headings).HasForeignKey(x => x.CompetitorId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.CompetitorId);
+        });
+
+        modelBuilder.Entity<SeoUrlResearchSourceHeading>(e =>
+        {
+            e.ToTable("seo_url_research_source_heading");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.UrlResearch).WithMany(r => r.SourceHeadings).HasForeignKey(x => x.UrlResearchId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.UrlResearchId);
+        });
+
+        modelBuilder.Entity<SeoUrlResearchTerm>(e =>
+        {
+            e.ToTable("seo_url_research_term");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.UrlResearch).WithMany(r => r.RecommendedTerms).HasForeignKey(x => x.UrlResearchId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.UrlResearchId);
+        });
+
+        modelBuilder.Entity<SeoUrlResearchClosingFaq>(e =>
+        {
+            e.ToTable("seo_url_research_closing_faq");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.UrlResearch).WithMany(r => r.ClosingFaqs).HasForeignKey(x => x.UrlResearchId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.UrlResearchId);
+        });
+
+        modelBuilder.Entity<SeoUrlResearchSectionHint>(e =>
+        {
+            e.ToTable("seo_url_research_section_hint");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.UrlResearch).WithMany(r => r.SectionHints).HasForeignKey(x => x.UrlResearchId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(x => x.SubtopicsFromSerp).HasColumnType("text[]");
+            e.HasIndex(x => x.UrlResearchId);
+        });
+
+        modelBuilder.Entity<SeoSiteResearch>(e =>
+        {
+            e.ToTable("seo_site_research");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(x => x.DiscoveredUrlsJson).HasColumnType("jsonb");
+            e.Property(x => x.InternalLinkMapJson).HasColumnType("jsonb");
+            e.HasIndex(x => x.ProjectId);
+            e.HasIndex(x => x.UserId);
+        });
+
+        modelBuilder.Entity<SeoSiteResearchPage>(e =>
+        {
+            e.ToTable("seo_site_research_page");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.SiteResearch).WithMany(r => r.Pages).HasForeignKey(x => x.SiteResearchId).OnDelete(DeleteBehavior.Cascade);
+            e.Property(x => x.HeadingsJson).HasColumnType("jsonb");
+            e.Property(x => x.JsonLdJson).HasColumnType("jsonb");
+            e.HasIndex(x => x.SiteResearchId);
+            e.HasIndex(x => new { x.SiteResearchId, x.Url }).IsUnique();
+        });
+
+        modelBuilder.Entity<SeoSiteAnalyzerStepRun>(e =>
+        {
+            e.ToTable("seo_site_analyzer_step_run");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.SiteResearch).WithMany(r => r.StepRuns).HasForeignKey(x => x.SiteResearchId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.UrlResearch).WithMany().HasForeignKey(x => x.UrlResearchId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.SiteResearchId, x.StepNumber });
+            e.HasIndex(x => new { x.UrlResearchId, x.StepNumber });
         });
 
         modelBuilder.Entity<NicheCompetitor>(e =>

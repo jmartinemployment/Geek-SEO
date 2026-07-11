@@ -30,6 +30,8 @@ export type SeoHubContextValue = {
   subscribe: (event: string, handler: (...args: unknown[]) => void) => () => void;
   joinDocument: (documentId: string) => () => void;
   joinNicheProfile: (profileId: string) => () => void;
+  joinUrlResearchProject: (projectId: string) => () => void;
+  joinUrlResearch: (urlResearchId: string) => () => void;
 };
 
 export type SeoHubApi = Pick<
@@ -40,6 +42,8 @@ export type SeoHubApi = Pick<
   | 'subscribe'
   | 'joinDocument'
   | 'joinNicheProfile'
+  | 'joinUrlResearchProject'
+  | 'joinUrlResearch'
 >;
 
 const SeoHubContext = createContext<SeoHubContextValue | null>(null);
@@ -248,6 +252,34 @@ export function SeoHubProvider({ children }: { children: ReactNode }) {
     [registerGroup],
   );
 
+  const joinUrlResearchProject = useCallback(
+    (projectId: string) =>
+      registerGroup(
+        groupKey('urlResearchProject', projectId),
+        async () => {
+          await connectionRef.current!.invoke('JoinUrlResearchProject', projectId);
+        },
+        async () => {
+          await connectionRef.current!.invoke('LeaveUrlResearchProject', projectId);
+        },
+      ),
+    [registerGroup],
+  );
+
+  const joinUrlResearch = useCallback(
+    (urlResearchId: string) =>
+      registerGroup(
+        groupKey('urlResearch', urlResearchId),
+        async () => {
+          await connectionRef.current!.invoke('JoinUrlResearch', urlResearchId);
+        },
+        async () => {
+          await connectionRef.current!.invoke('LeaveUrlResearch', urlResearchId);
+        },
+      ),
+    [registerGroup],
+  );
+
   useEffect(() => {
     const canConnect = isAuthenticated || Boolean(DEV_USER_ID);
     if (!canConnect) {
@@ -312,6 +344,8 @@ export function SeoHubProvider({ children }: { children: ReactNode }) {
       subscribe,
       joinDocument,
       joinNicheProfile,
+      joinUrlResearchProject,
+      joinUrlResearch,
     }),
     [
       connection,
@@ -320,6 +354,8 @@ export function SeoHubProvider({ children }: { children: ReactNode }) {
       subscribe,
       joinDocument,
       joinNicheProfile,
+      joinUrlResearchProject,
+      joinUrlResearch,
     ],
   );
 

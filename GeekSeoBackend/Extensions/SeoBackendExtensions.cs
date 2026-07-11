@@ -72,6 +72,8 @@ public static class SeoBackendExtensions
         services.AddScoped<IKeywordResearchService, KeywordResearchService>();
         services.AddScoped<IBrandVoiceService, BrandVoiceService>();
         services.AddScoped<ISerpAnalysisService, SerpAnalysisService>();
+        services.AddScoped<IUrlResearchRepository, HttpUrlResearchRepository>();
+        services.AddScoped<IUrlResearchService, UrlResearchService>();
         services.AddScoped<ISiteAuditService, SiteAuditService>();
         services.AddMemoryCache();
         services.AddHttpClient("GoogleOAuth");
@@ -118,6 +120,7 @@ public static class SeoBackendExtensions
         services.AddScoped<CompetitorAnalysisService>();
         services.AddScoped<NicheAnalysisProgressNotifier>();
         services.AddSingleton<HubGroupAccessCache>();
+        services.AddScoped<IUrlResearchProgressNotifier, UrlResearchProgressNotifier>();
         services.AddScoped<NicheStepRerunService>();
         services.AddSingleton<NicheStepLock>();
         services.AddScoped<NicheAnalysisBackgroundJob>();

@@ -28,10 +28,6 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 
-# Local operator SERP saves (not versioned)
+# Local operator SERP saves (uploaded to Site Analyzer; not versioned)
 research/**/*
 !research/.gitkeep
-
-# Retired Site Analyzer 2 (removed from repo)
-SiteAnalyzer2/
-GeekSiteAnalyzer.Tests/

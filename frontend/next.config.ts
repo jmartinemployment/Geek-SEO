@@ -29,26 +29,6 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
-        source: '/app/site-analyzer',
-        destination: '/content-writer',
-        permanent: true,
-      },
-      {
-        source: '/app/strategy/site-analyzer',
-        destination: '/content-writer',
-        permanent: true,
-      },
-      {
-        source: '/app/projects/:projectId/site-analyzer',
-        destination: '/content-writer',
-        permanent: true,
-      },
-      {
-        source: '/site-analyzer',
-        destination: '/content-writer',
-        permanent: true,
-      },
-      {
         source: '/app/strategy/niche-analyzer',
         destination: '/strategy/topical-map',
         permanent: true,
