@@ -2,6 +2,7 @@ using ContentWriter.Application.DTOs;
 using ContentWriter.Application.Providers;
 using ContentWriter.Application.Services.JsonLd;
 using ContentWriter.Application.Services.PromptBuilders;
+using ContentWriter.Application.Services.Publish;
 using ContentWriter.Application.Services.SchemaBuilders;
 using ContentWriter.Domain.Entities;
 using ContentWriter.Domain.Enums;
@@ -108,8 +109,9 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
 
         var bodyHtml = await GenerateArticleBodyAsync(provider, context, bodyMetadata, faqQuestions, isRegeneration, cancellationToken);
         var wordCount = HtmlWordCounter.Count(bodyHtml);
-        var articleUrl = CombineUrl(context.ArticleBaseUrl, articleRow.Slug);
-        var placeholderBlogUrl = CombineUrl(context.BlogBaseUrl, $"{articleRow.Slug}-blog");
+        var department = GeekPublicUrlBuilder.ResolveDepartment(project);
+        var articleUrl = GeekPublicUrlBuilder.ArticleUrl(context.ArticleBaseUrl, department, articleRow.Slug);
+        var placeholderBlogUrl = GeekPublicUrlBuilder.BlogUrl(context.BlogBaseUrl, department, $"{articleRow.Slug}-blog");
 
         var now = DateTime.UtcNow;
         var articleMetadata = new ContentMetadata(
@@ -141,7 +143,8 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         var context = BuildContext(project);
         var provider = _providerFactory.Get(project.PreferredProvider);
         var article = GeneratedContentSetAssembler.ToArticleDraft(articleRow);
-        var articleUrl = CombineUrl(context.ArticleBaseUrl, articleRow.Slug);
+        var department = GeekPublicUrlBuilder.ResolveDepartment(project);
+        var articleUrl = GeekPublicUrlBuilder.ArticleUrl(context.ArticleBaseUrl, department, articleRow.Slug);
 
         _logger.LogInformation("Generating blog content for project {ProjectId} via {Provider}", projectId, provider.ProviderType);
 
@@ -149,7 +152,7 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
 
         var blog = await GenerateBlogDraftAsync(provider, context, article, cancellationToken);
         var blogSlug = SlugHelper.Slugify(blog.Title);
-        var blogUrl = CombineUrl(context.BlogBaseUrl, blogSlug);
+        var blogUrl = GeekPublicUrlBuilder.BlogUrl(context.BlogBaseUrl, department, blogSlug);
 
         var now = DateTime.UtcNow;
         var blogMetadata = new ContentMetadata(
@@ -193,7 +196,8 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         var context = BuildContext(project);
         var provider = _providerFactory.Get(project.PreferredProvider);
         var article = GeneratedContentSetAssembler.ToArticleDraft(articleRow);
-        var articleUrl = CombineUrl(context.ArticleBaseUrl, articleRow.Slug);
+        var department = GeekPublicUrlBuilder.ResolveDepartment(project);
+        var articleUrl = GeekPublicUrlBuilder.ArticleUrl(context.ArticleBaseUrl, department, articleRow.Slug);
 
         _logger.LogInformation("Generating social content for project {ProjectId} via {Provider}", projectId, provider.ProviderType);
 
@@ -238,7 +242,8 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         var context = BuildContext(project);
         var provider = _providerFactory.Get(project.PreferredProvider);
         var article = GeneratedContentSetAssembler.ToArticleDraft(articleRow);
-        var articleUrl = CombineUrl(context.ArticleBaseUrl, articleRow.Slug);
+        var department = GeekPublicUrlBuilder.ResolveDepartment(project);
+        var articleUrl = GeekPublicUrlBuilder.ArticleUrl(context.ArticleBaseUrl, department, articleRow.Slug);
 
         _logger.LogInformation("Generating cold outreach email for project {ProjectId} via {Provider}", projectId, provider.ProviderType);
 
@@ -297,8 +302,9 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         var provider = _providerFactory.Get(project.PreferredProvider);
         var article = GeneratedContentSetAssembler.ToArticleDraft(articleRow);
         var blog = GeneratedContentSetAssembler.ToBlogDraft(blogRow);
-        var articleUrl = CombineUrl(context.ArticleBaseUrl, articleRow.Slug);
-        var blogUrl = CombineUrl(context.BlogBaseUrl, blogRow.Slug);
+        var department = GeekPublicUrlBuilder.ResolveDepartment(project);
+        var articleUrl = GeekPublicUrlBuilder.ArticleUrl(context.ArticleBaseUrl, department, articleRow.Slug);
+        var blogUrl = GeekPublicUrlBuilder.BlogUrl(context.BlogBaseUrl, department, blogRow.Slug);
 
         var sections = ArticleHtmlSectionExtractor.BuildSectionTargets(articleRow.BodyHtml, blogRow.BodyHtml);
         if (sections.Count == 0)
@@ -548,8 +554,6 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             ImplementerPositioning: _companyProfile.ImplementerPositioning,
             Provider: project.PreferredProvider);
     }
-
-    private static string CombineUrl(string baseUrl, string slug) => $"{baseUrl.TrimEnd('/')}/{slug}";
 
     private static string ResolveModelName(LlmProviderType provider) => provider switch
     {
@@ -865,8 +869,8 @@ public class CompanyProfileOptions
     public string PublisherName { get; set; } = "Geek At Your Spot";
     public string PublisherLogoUrl { get; set; } = "https://seo.geekatyourspot.com/logo.png";
     public string AuthorName { get; set; } = "Geek At Your Spot Editorial Team";
-    public string ArticleBaseUrl { get; set; } = "https://seo.geekatyourspot.com/articles";
-    public string BlogBaseUrl { get; set; } = "https://seo.geekatyourspot.com/blog";
+    public string ArticleBaseUrl { get; set; } = "https://www.geekatyourspot.com/use-cases";
+    public string BlogBaseUrl { get; set; } = "https://www.geekatyourspot.com/blog";
 
     /// <summary>How the publisher positions AI implementation services in pillar Tools sections.</summary>
     public string ImplementerPositioning { get; set; } =

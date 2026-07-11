@@ -56,15 +56,10 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
         var contentSet = GeneratedContentSetAssembler.Assemble(
             project,
             _companyProfile.ArticleBaseUrl,
-            _companyProfile.BlogBaseUrl);
-
-        var department = DepartmentNameResolver.Resolve(
-            contentSet.ArticleUrl,
-            contentSet.BlogUrl,
-            project.ProjectUrl,
-            project.Name,
+            _companyProfile.BlogBaseUrl,
             departmentOverride);
 
+        var department = contentSet.Department;
         var slug = contentSet.ArticleSlug
             ?? contentSet.BlogSlug
             ?? DepartmentNameResolver.SanitizeDirectorySegment(project.Name);

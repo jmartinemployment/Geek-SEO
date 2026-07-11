@@ -9,6 +9,7 @@ import {
   generatePillarPlanContent,
   generateSocialContent,
   exportMarkdownContent,
+  publishToSite,
   ApiError,
 } from "@/lib/content-writer/api";
 import {
@@ -17,7 +18,7 @@ import {
   resolveExportDirectory,
   writeExportFilesToDirectory,
 } from "@/lib/content-writer/exportToLocalDirectory";
-import type { ColdOutreachEmailDraft, ExportMarkdownResponse, GeneratedContentSet, ImagePromptSection, ImagePromptsSet } from "@/lib/content-writer/types";
+import type { ColdOutreachEmailDraft, ExportMarkdownResponse, GeneratedContentSet, ImagePromptSection, ImagePromptsSet, PublishToSiteResponse } from "@/lib/content-writer/types";
 import { CONTENT_LENGTH_TARGETS } from "@/lib/content-writer/types";
 
 type Tab = "article" | "blog" | "facebook" | "linkedin" | "cold-outreach" | "image-prompts";
@@ -52,6 +53,9 @@ export default function ContentResults({
   const [isExporting, setIsExporting] = useState(false);
   const [exportDepartment, setExportDepartment] = useState("");
   const [exportFolderName, setExportFolderName] = useState<string | null>(null);
+  const [publishResult, setPublishResult] = useState<PublishToSiteResponse | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishDepartment, setPublishDepartment] = useState("");
 
   const hasPillarPlan = result?.article != null;
   const hasPillarBody = (result?.article?.wordCount ?? 0) >= PILLAR_BODY_MIN_WORDS;
@@ -325,6 +329,69 @@ export default function ContentResults({
                   . If nothing appeared in Finder, click “Choose Content-Writer-Output folder” and export again.
                 </p>
               )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {hasPillarBody && (
+        <div className="mt-5 rounded-lg border border-border bg-background p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Publish to geekatyourspot</h3>
+              <p className="mt-1 text-xs text-muted">
+                Pushes pillar and blog Markdown + JSON-LD to GeekAPI (
+                <span className="font-mono text-foreground">geek_blog</span>
+                ) and triggers ISR on the public site.
+              </p>
+              <label className="mt-2 flex flex-col gap-1 text-xs text-muted">
+                Department slug (optional)
+                <input
+                  value={publishDepartment}
+                  onChange={(e) => setPublishDepartment(e.target.value)}
+                  placeholder={result?.department ?? "accounting"}
+                  className="max-w-xs rounded-md border border-border bg-white px-2 py-1.5 text-sm text-foreground outline-none focus:border-brand"
+                />
+              </label>
+            </div>
+            <button
+              type="button"
+              disabled={isPublishing || isGenerating}
+              onClick={async () => {
+                setError(null);
+                setPublishResult(null);
+                setIsPublishing(true);
+                try {
+                  const response = await publishToSite(
+                    projectId,
+                    publishDepartment.trim() || undefined,
+                  );
+                  setPublishResult(response);
+                } catch (err) {
+                  const message = err instanceof ApiError ? err.message : "Publish failed.";
+                  setError(message);
+                } finally {
+                  setIsPublishing(false);
+                }
+              }}
+              className="shrink-0 rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
+            >
+              {isPublishing ? "Publishing..." : "Publish to site"}
+            </button>
+          </div>
+          {publishResult && (
+            <div className="mt-3 rounded-md bg-green-50 p-3 text-xs text-green-900">
+              <p className="font-medium">
+                Published {publishResult.posts.length} post(s) under department{" "}
+                <span className="font-mono">{publishResult.department}</span>
+              </p>
+              <ul className="mt-2 space-y-1 font-mono">
+                {publishResult.posts.map((post) => (
+                  <li key={post.slug}>
+                    {post.created ? "Created" : "Updated"} {post.postType}: {post.publicPath}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </div>

@@ -189,7 +189,21 @@ export interface ExportMarkdownResponse {
   files: ExportMarkdownFile[];
 }
 
+export interface PublishedGeekPostResponse {
+  postType: string;
+  slug: string;
+  postId: number;
+  created: boolean;
+  publicPath: string;
+}
+
+export interface PublishToSiteResponse {
+  department: string;
+  posts: PublishedGeekPostResponse[];
+}
+
 export interface GeneratedContentSet {
+  department: string;
   article: ArticleDraft | null;
   articleSlug: string | null;
   articleUrl: string | null;

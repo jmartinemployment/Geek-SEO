@@ -3,6 +3,7 @@ using ContentWriter.Application.Services;
 using ContentWriter.Application.Services.JsonLd;
 using ContentWriter.Application.Services.PromptBuilders;
 using ContentWriter.Application.Services.Export;
+using ContentWriter.Application.Services.Publish;
 using ContentWriter.Application.Services.SchemaBuilders;
 using ContentWriter.Domain.Enums;
 using ContentWriter.Infrastructure.Data;
@@ -47,6 +48,8 @@ public static class ContentWriterServiceRegistration
         services.Configure<CompanyProfileOptions>(configuration.GetSection(CompanyProfileOptions.SectionName));
         services.Configure<ContentExportOptions>(configuration.GetSection(ContentExportOptions.SectionName));
 
+        services.Configure<GeekBlogPublishOptions>(configuration.GetSection(GeekBlogPublishOptions.SectionName));
+
         services.AddHttpClient<LmStudioProvider>();
         services.AddHttpClient<OpenAiProvider>();
         services.AddHttpClient<AnthropicProvider>();
@@ -67,6 +70,8 @@ public static class ContentWriterServiceRegistration
         services.AddScoped<IBlogPostingSchemaBuilder, BlogPostingSchemaBuilder>();
         services.AddScoped<IContentGenerationOrchestrator, ContentGenerationOrchestrator>();
         services.AddScoped<IContentMarkdownExportService, ContentMarkdownExportService>();
+        services.AddHttpClient(nameof(GeekBlogPublishService));
+        services.AddScoped<IGeekBlogPublishService, GeekBlogPublishService>();
         services.AddSingleton<IJsonLdParserService, JsonLdParserService>();
 
         return services;

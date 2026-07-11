@@ -1,4 +1,6 @@
 using ContentWriter.Application.DTOs;
+using ContentWriter.Application.Services.Export;
+using ContentWriter.Application.Services.Publish;
 using ContentWriter.Domain.Entities;
 using ContentWriter.Domain.Enums;
 
@@ -9,7 +11,8 @@ public static class GeneratedContentSetAssembler
     public static GeneratedContentSet Assemble(
         Project project,
         string articleBaseUrl,
-        string blogBaseUrl)
+        string blogBaseUrl,
+        string? departmentOverride = null)
     {
         var articleRow = Find(project, GeneratedContentType.TechnicalArticle);
         var blogRow = Find(project, GeneratedContentType.BlogPost);
@@ -17,12 +20,19 @@ public static class GeneratedContentSetAssembler
         var linkedInRow = Find(project, GeneratedContentType.SocialLinkedIn);
         var coldOutreachRow = Find(project, GeneratedContentType.EmailColdOutreach);
 
+        var department = GeekPublicUrlBuilder.ResolveDepartment(project, departmentOverride);
+
         var articleSlug = articleRow?.Slug;
-        var articleUrl = articleSlug is null ? null : CombineUrl(articleBaseUrl, articleSlug);
+        var articleUrl = articleSlug is null
+            ? null
+            : GeekPublicUrlBuilder.ArticleUrl(articleBaseUrl, department, articleSlug);
         var blogSlug = blogRow?.Slug;
-        var blogUrl = blogSlug is null ? null : CombineUrl(blogBaseUrl, blogSlug);
+        var blogUrl = blogSlug is null
+            ? null
+            : GeekPublicUrlBuilder.BlogUrl(blogBaseUrl, department, blogSlug);
 
         return new GeneratedContentSet(
+            Department: department,
             Article: articleRow is null ? null : ToArticleDraft(articleRow),
             ArticleSlug: articleSlug,
             ArticleUrl: articleUrl,
@@ -73,6 +83,4 @@ public static class GeneratedContentSetAssembler
 
     private static GeneratedContent? Find(Project project, GeneratedContentType type) =>
         project.GeneratedContents.FirstOrDefault(c => c.ContentType == type);
-
-    private static string CombineUrl(string baseUrl, string slug) => $"{baseUrl.TrimEnd('/')}/{slug}";
 }

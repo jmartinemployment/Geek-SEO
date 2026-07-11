@@ -8,6 +8,7 @@ import type {
   LmStudioHealthStatus,
   ProjectDetail,
   ProjectSummary,
+  PublishToSiteResponse,
 } from "./types";
 
 const SEO_API_URL = process.env.NEXT_PUBLIC_SEO_API_URL ?? "http://localhost:5051";
@@ -151,6 +152,16 @@ export function exportMarkdownContent(
   department?: string
 ): Promise<ExportMarkdownResponse> {
   return request<ExportMarkdownResponse>(`/api/projects/${projectId}/export/markdown`, {
+    method: "POST",
+    body: JSON.stringify(department ? { department } : {}),
+  });
+}
+
+export function publishToSite(
+  projectId: string,
+  department?: string
+): Promise<PublishToSiteResponse> {
+  return request<PublishToSiteResponse>(`/api/projects/${projectId}/publish/site`, {
     method: "POST",
     body: JSON.stringify(department ? { department } : {}),
   });

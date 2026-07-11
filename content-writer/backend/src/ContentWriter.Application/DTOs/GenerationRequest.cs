@@ -106,6 +106,7 @@ public record ImagePromptSectionContent(
 public record ImagePromptsContent(IReadOnlyList<ImagePromptSectionContent> Sections);
 
 public record GeneratedContentSet(
+    string Department,
     ArticleDraft? Article,
     string? ArticleSlug,
     string? ArticleUrl,
