@@ -10,6 +10,7 @@ import {
   generateSocialContent,
   exportMarkdownContent,
   publishToSite,
+  listFigures,
   ApiError,
   FigureArtConflictError,
 } from "@/lib/content-writer/api";
@@ -20,7 +21,7 @@ import {
   resolveExportDirectory,
   writeExportFilesToDirectory,
 } from "@/lib/content-writer/exportToLocalDirectory";
-import type { ColdOutreachEmailDraft, ExportMarkdownResponse, GeneratedContentSet, ImagePromptSection, ImagePromptsSet, PublishToSiteResponse, SiteDepartmentSlug } from "@/lib/content-writer/types";
+import type { ColdOutreachEmailDraft, ContentFigureDto, ExportMarkdownResponse, FigureStatus, GeneratedContentSet, ImagePromptSection, ImagePromptsSet, PublishToSiteResponse, SiteDepartmentSlug } from "@/lib/content-writer/types";
 import { CONTENT_LENGTH_TARGETS, SITE_DEPARTMENTS } from "@/lib/content-writer/types";
 
 type Tab = "article" | "blog" | "facebook" | "linkedin" | "cold-outreach" | "image-prompts";
@@ -536,7 +537,11 @@ export default function ContentResults({
               ))}
             {activeTab === "image-prompts" &&
               (result.imagePrompts ? (
-                <ImagePromptsView prompts={result.imagePrompts} />
+                <ImagePromptsView
+                  prompts={result.imagePrompts}
+                  projectId={projectId}
+                  refreshKey={figuresRefreshKey}
+                />
               ) : (
                 <EmptyTabHint message="Run Step 6 to generate figure briefs." />
               ))}
@@ -776,9 +781,45 @@ async function copyText(text: string): Promise<void> {
   await navigator.clipboard.writeText(text);
 }
 
-function ImagePromptsView({ prompts }: { prompts: ImagePromptsSet }) {
+function ImagePromptsView({
+  prompts,
+  projectId,
+  refreshKey,
+}: {
+  prompts: ImagePromptsSet;
+  projectId: string;
+  refreshKey: number;
+}) {
+  const [figureRows, setFigureRows] = useState<ContentFigureDto[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listFigures(projectId)
+      .then((response) => {
+        if (!cancelled) {
+          setFigureRows(response.figures);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFigureRows([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, refreshKey]);
+
   const pillarSections = prompts.sections.filter((s) => s.sourceType === "pillar");
   const blogSections = prompts.sections.filter((s) => s.sourceType === "blog");
+
+  function statusFor(section: ImagePromptSection) {
+    return figureRows.find(
+      (f) =>
+        f.sourceType === section.sourceType &&
+        f.heading.trim().toLowerCase() === section.heading.trim().toLowerCase()
+    )?.status;
+  }
 
   return (
     <div className="space-y-8">
@@ -787,10 +828,10 @@ function ImagePromptsView({ prompts }: { prompts: ImagePromptsSet }) {
         generated here.
       </p>
       {pillarSections.length > 0 && (
-        <ImagePromptSectionGroup title="Pillar sections" sections={pillarSections} />
+        <ImagePromptSectionGroup title="Pillar sections" sections={pillarSections} statusFor={statusFor} />
       )}
       {blogSections.length > 0 && (
-        <ImagePromptSectionGroup title="Blog sections" sections={blogSections} />
+        <ImagePromptSectionGroup title="Blog sections" sections={blogSections} statusFor={statusFor} />
       )}
     </div>
   );
@@ -799,21 +840,47 @@ function ImagePromptsView({ prompts }: { prompts: ImagePromptsSet }) {
 function ImagePromptSectionGroup({
   title,
   sections,
+  statusFor,
 }: {
   title: string;
   sections: ImagePromptSection[];
+  statusFor: (section: ImagePromptSection) => FigureStatus | undefined;
 }) {
   return (
     <div className="space-y-4">
       <h3 className="text-base font-semibold text-foreground">{title}</h3>
       {sections.map((item) => (
-        <ImagePromptCard key={`${item.sourceType}-${item.order}-${item.heading}`} item={item} />
+        <ImagePromptCard
+          key={`${item.sourceType}-${item.order}-${item.heading}`}
+          item={item}
+          figureStatus={statusFor(item)}
+        />
       ))}
     </div>
   );
 }
 
-function ImagePromptCard({ item }: { item: ImagePromptSection }) {
+function FigureStatusBadge({ status }: { status: FigureStatus }) {
+  const styles: Record<FigureStatus, string> = {
+    Pending: "bg-slate-100 text-slate-700",
+    Ready: "bg-blue-100 text-blue-900",
+    Published: "bg-green-100 text-green-800",
+    Skipped: "bg-amber-100 text-amber-900",
+  };
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}>
+      {status}
+    </span>
+  );
+}
+
+function ImagePromptCard({
+  item,
+  figureStatus,
+}: {
+  item: ImagePromptSection;
+  figureStatus?: FigureStatus;
+}) {
   const [copied, setCopied] = useState<"prompt" | "all" | null>(null);
 
   async function handleCopy(mode: "prompt" | "all") {
@@ -825,9 +892,12 @@ function ImagePromptCard({ item }: { item: ImagePromptSection }) {
   return (
     <div className="rounded-lg border border-border bg-background p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <h3 className="text-base font-semibold text-foreground">
-          {item.order}. {item.heading}
-        </h3>
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-base font-semibold text-foreground">
+            {item.order}. {item.heading}
+          </h3>
+          {figureStatus && <FigureStatusBadge status={figureStatus} />}
+        </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
