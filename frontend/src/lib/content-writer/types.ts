@@ -212,6 +212,45 @@ export interface PublishToSiteResponse {
   posts: PublishedGeekPostResponse[];
 }
 
+export type FigureStatus = "Pending" | "Ready" | "Skipped" | "Published";
+
+export interface ContentFigureDto {
+  id: string;
+  sourceType: "pillar" | "blog";
+  sectionOrder: number;
+  headingSlug: string;
+  heading: string;
+  briefText: string;
+  status: FigureStatus;
+  skipReason: string | null;
+  imageUrl: string | null;
+  geekApiSlug: string | null;
+  geekPostId: number | null;
+  needsFigureMerge: boolean;
+}
+
+export interface ContentFiguresSummary {
+  pending: number;
+  ready: number;
+  skipped: number;
+  published: number;
+  missingGeekApiSlug: number;
+}
+
+export interface ContentFiguresListResponse {
+  projectId: string;
+  figures: ContentFigureDto[];
+  summary: ContentFiguresSummary;
+}
+
+export interface FigureMergeResponse {
+  sourceType: string;
+  geekApiSlug: string;
+  geekPostId: number;
+  figuresMerged: number;
+  publicPath: string;
+}
+
 export interface GeneratedContentSet {
   department: string;
   article: ArticleDraft | null;

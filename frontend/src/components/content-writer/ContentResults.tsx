@@ -13,6 +13,7 @@ import {
   ApiError,
   FigureArtConflictError,
 } from "@/lib/content-writer/api";
+import FiguresStatusPanel from "@/components/content-writer/FiguresStatusPanel";
 import {
   canWriteExportToLocalDirectory,
   pickExportDirectory,
@@ -57,6 +58,7 @@ export default function ContentResults({
   const [publishResult, setPublishResult] = useState<PublishToSiteResponse | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishDepartment, setPublishDepartment] = useState<SiteDepartmentSlug>("accounting");
+  const [figuresRefreshKey, setFiguresRefreshKey] = useState(0);
 
   useEffect(() => {
     if (result?.department && SITE_DEPARTMENTS.includes(result.department as SiteDepartmentSlug)) {
@@ -93,6 +95,7 @@ export default function ContentResults({
     try {
       const next = await generateImagePromptsContent(projectId, { confirmRegenerateWithArt });
       onGenerated(next);
+      setFiguresRefreshKey((k) => k + 1);
       if ((next.imagePrompts?.sections?.length ?? 0) > 0) {
         setActiveTab("image-prompts");
       }
@@ -122,6 +125,7 @@ export default function ContentResults({
     try {
       const next = await action();
       onGenerated(next);
+      setFiguresRefreshKey((k) => k + 1);
       if ((step === "cold-outreach" || step === "all") && next.coldOutreachEmail) {
         setActiveTab("cold-outreach");
       }
@@ -405,6 +409,7 @@ export default function ContentResults({
                 try {
                   const response = await publishToSite(projectId, publishDepartment);
                   setPublishResult(response);
+                  setFiguresRefreshKey((k) => k + 1);
                 } catch (err) {
                   const message = err instanceof ApiError ? err.message : "Publish failed.";
                   setError(message);
@@ -431,6 +436,9 @@ export default function ContentResults({
                 ))}
               </ul>
             </div>
+          )}
+          {(result?.imagePrompts?.sections?.length ?? 0) > 0 && (
+            <FiguresStatusPanel projectId={projectId} refreshKey={figuresRefreshKey} />
           )}
         </div>
       )}

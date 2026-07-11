@@ -1,4 +1,6 @@
 using ContentWriter.Application.DTOs;
+using ContentWriter.Application.Providers;
+using ContentWriter.Application.Services.Figures;
 using ContentWriter.Domain.Entities;
 using ContentWriter.Domain.Enums;
 using ContentWriter.Infrastructure.Repositories;
@@ -12,11 +14,19 @@ public class FiguresController : ControllerBase
 {
     private readonly IContentFigureRepository _figures;
     private readonly IProjectRepository _projects;
+    private readonly IFigureMergeService _mergeService;
+    private readonly ILogger<FiguresController> _logger;
 
-    public FiguresController(IContentFigureRepository figures, IProjectRepository projects)
+    public FiguresController(
+        IContentFigureRepository figures,
+        IProjectRepository projects,
+        IFigureMergeService mergeService,
+        ILogger<FiguresController> logger)
     {
         _figures = figures;
         _projects = projects;
+        _mergeService = mergeService;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -57,6 +67,35 @@ public class FiguresController : ControllerBase
                 f.ImageUrl,
                 f.GeekApiSlug,
                 f.NeedsFigureMerge)).ToList()));
+    }
+
+    [HttpPost("merge")]
+    public async Task<ActionResult<FigureMergeResponse>> Merge(
+        Guid projectId,
+        [FromBody] FigureMergeRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!await ProjectExistsAsync(projectId, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        try
+        {
+            FigureMergeService.ValidateSourceType(request.Source);
+            var result = await _mergeService.MergeSourceAsync(projectId, request.Source, cancellationToken);
+            return Ok(new FigureMergeResponse(
+                result.SourceType,
+                result.GeekApiSlug,
+                result.GeekPostId,
+                result.FiguresMerged,
+                result.PublicPath));
+        }
+        catch (ContentGenerationException ex)
+        {
+            _logger.LogWarning(ex, "Figure merge failed for project {ProjectId}", projectId);
+            return Problem(ex.Message, statusCode: 400, title: "Figure merge failed");
+        }
     }
 
     private async Task<bool> ProjectExistsAsync(Guid projectId, CancellationToken cancellationToken)

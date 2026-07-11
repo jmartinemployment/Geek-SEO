@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ContentWriter.Application.Providers;
 using ContentWriter.Application.Services.Export;
+using ContentWriter.Application.Services.Figures;
 using ContentWriter.Domain.Entities;
 using ContentWriter.Domain.Enums;
 using ContentWriter.Infrastructure.Repositories;
@@ -40,6 +41,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
 
     private readonly IProjectRepository _projectRepository;
     private readonly IContentFigureRepository _figureRepository;
+    private readonly IFigureMergeService _figureMergeService;
     private readonly CompanyProfileOptions _companyProfile;
     private readonly GeekBlogPublishOptions _publishOptions;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -48,6 +50,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
     public GeekBlogPublishService(
         IProjectRepository projectRepository,
         IContentFigureRepository figureRepository,
+        IFigureMergeService figureMergeService,
         IOptions<CompanyProfileOptions> companyProfile,
         IOptions<GeekBlogPublishOptions> publishOptions,
         IHttpClientFactory httpClientFactory,
@@ -55,6 +58,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
     {
         _projectRepository = projectRepository;
         _figureRepository = figureRepository;
+        _figureMergeService = figureMergeService;
         _companyProfile = companyProfile.Value;
         _publishOptions = publishOptions.Value;
         _httpClientFactory = httpClientFactory;
@@ -110,6 +114,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
                 apiSlug,
                 post.PostId,
                 cancellationToken);
+            await MergeFiguresIfReadyAsync(projectId, FigureSourceType.Pillar, cancellationToken);
         }
 
         if (contentSet.Blog is not null
@@ -133,6 +138,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
                 apiSlug,
                 post.PostId,
                 cancellationToken);
+            await MergeFiguresIfReadyAsync(projectId, FigureSourceType.Blog, cancellationToken);
         }
 
         if (published.Count == 0)
@@ -147,6 +153,25 @@ public class GeekBlogPublishService : IGeekBlogPublishService
         }
 
         return new GeekBlogPublishResult(department, published);
+    }
+
+    private async Task MergeFiguresIfReadyAsync(
+        Guid projectId,
+        string sourceType,
+        CancellationToken cancellationToken)
+    {
+        var rows = await _figureRepository.ListByProjectAsync(projectId, cancellationToken);
+        var hasMergeableArt = rows.Any(f =>
+            f.SourceType == sourceType
+            && f.Status is FigureStatus.Ready or FigureStatus.Published
+            && !string.IsNullOrWhiteSpace(f.ImageUrl));
+
+        if (!hasMergeableArt)
+        {
+            return;
+        }
+
+        await _figureMergeService.MergeSourceAsync(projectId, sourceType, cancellationToken);
     }
 
     private void EnsureConfigured()

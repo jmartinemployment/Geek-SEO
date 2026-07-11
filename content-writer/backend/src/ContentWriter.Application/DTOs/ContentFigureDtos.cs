@@ -47,3 +47,12 @@ public sealed record ContentFigureManifestEntry(
 public sealed record ContentFigureManifestResponse(
     Guid ProjectId,
     IReadOnlyList<ContentFigureManifestEntry> Figures);
+
+public sealed record FigureMergeRequest(string Source);
+
+public sealed record FigureMergeResponse(
+    string SourceType,
+    string GeekApiSlug,
+    int GeekPostId,
+    int FiguresMerged,
+    string PublicPath);

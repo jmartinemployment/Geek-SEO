@@ -145,3 +145,25 @@ Set `NEXT_PUBLIC_CONTENT_WRITER_API_URL=http://localhost:5199` when using that m
 3. Upload the manually-scraped research: 6 keyword SERP results, .edu/.gov/Wikipedia pages, local pack,
    competitor crawl (all HTML), and a People-Also-Ask text file (one question per line).
 4. Generate in steps — pillar plan, pillar body, blog, social, cold outreach email — each persisted to the database.
+5. Generate figure briefs (Step 6), publish text to geekatyourspot (department required), then attach art with the ContentFigures CLI.
+
+## Content figures (Phase 2 CLI)
+
+After text publish, attach section art from Figma/Cursor exports:
+
+```bash
+cd content-writer/backend
+export CONTENT_WRITER_DATABASE_URL="postgresql://..."
+export BLOB_READ_WRITE_TOKEN="..."
+
+dotnet run --project tools/ContentFigures/ContentFigures.csproj -- list --project-id <guid>
+dotnet run --project tools/ContentFigures/ContentFigures.csproj -- attach \
+  --project-id <guid> --source pillar --heading-slug <slug> --file ./h2-<slug>.webp
+
+dotnet run --project tools/ContentFigures/ContentFigures.csproj -- merge \
+  --project-id <guid> --source pillar
+```
+
+Republishing from Content Writer also runs merge automatically when Ready figures with images exist.
+
+See [`tools/ContentFigures/README.md`](backend/tools/ContentFigures/README.md) for `skip`, `export-manifest`, and `sync-dir`.
