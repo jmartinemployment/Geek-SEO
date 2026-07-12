@@ -24,6 +24,7 @@ public class ContentWriterDbContext : DbContext
     public DbSet<KeywordSource> KeywordSources => Set<KeywordSource>();
     public DbSet<GeneratedContent> GeneratedContents => Set<GeneratedContent>();
     public DbSet<ContentFigure> ContentFigures => Set<ContentFigure>();
+    public DbSet<ProjectPublication> ProjectPublications => Set<ProjectPublication>();
 
     private static string JoinList(List<string> values) => string.Join(ListSeparator[0], values);
 
@@ -54,6 +55,11 @@ public class ContentWriterDbContext : DbContext
             entity.HasMany(p => p.GeneratedContents)
                   .WithOne(g => g.Project)
                   .HasForeignKey(g => g.ProjectId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(p => p.Publications)
+                  .WithOne(pub => pub.Project)
+                  .HasForeignKey(pub => pub.ProjectId)
                   .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasMany<ContentFigure>()
@@ -89,14 +95,26 @@ public class ContentWriterDbContext : DbContext
         {
             entity.HasKey(g => g.Id);
             entity.Property(g => g.Title).HasMaxLength(512);
+            entity.Property(g => g.DisplayTitle).HasMaxLength(512);
             entity.Property(g => g.Slug).HasMaxLength(512);
             entity.Property(g => g.BodyHtml);
+            entity.Property(g => g.ListingExcerpt).HasMaxLength(2000);
             entity.Property(g => g.JsonLdSchema);
             entity.Property(g => g.MetaDescription);
+            entity.Property(g => g.AdvertisingExcerpt).HasMaxLength(2000);
+            entity.Property(g => g.HeroImageUrl).HasMaxLength(2048);
+            entity.Property(g => g.SourceAppName).HasMaxLength(512);
             entity.Property(g => g.Keywords)
                   .HasConversion(v => JoinList(v), v => SplitList(v), StringListComparer);
             entity.Property(g => g.SectionOutline)
                   .HasConversion(v => JoinList(v), v => SplitList(v), StringListComparer);
+        });
+
+        modelBuilder.Entity<ProjectPublication>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.GeekApiSlug).HasMaxLength(512).IsRequired();
+            entity.HasIndex(p => new { p.ProjectId, p.ContentType, p.GeekApiSlug }).IsUnique();
         });
 
         modelBuilder.Entity<ContentFigure>(entity =>
@@ -108,6 +126,8 @@ public class ContentWriterDbContext : DbContext
             entity.Property(f => f.BriefText).IsRequired();
             entity.Property(f => f.SkipReason).HasMaxLength(64);
             entity.Property(f => f.ImageUrl).HasMaxLength(2048);
+            entity.Property(f => f.ImageRelativePath).HasMaxLength(1024);
+            entity.Property(f => f.ImageStorage).HasMaxLength(32).IsRequired();
             entity.Property(f => f.ImageAlt).HasMaxLength(512).IsRequired();
             entity.Property(f => f.GeekApiSlug).HasMaxLength(512);
 

@@ -2,16 +2,11 @@ namespace ContentWriter.Application.Services.Figures;
 
 public static class FigureBlobPathBuilder
 {
-    public static string BuildBlobPathname(string geekApiSlug, string sourceType, string headingSlug)
+    public static string BuildBlobPathname(string geekApiSlug, string headingSlug)
     {
         if (string.IsNullOrWhiteSpace(geekApiSlug))
         {
             throw new ArgumentException("GeekApiSlug is required.", nameof(geekApiSlug));
-        }
-
-        if (string.IsNullOrWhiteSpace(sourceType))
-        {
-            throw new ArgumentException("SourceType is required.", nameof(sourceType));
         }
 
         if (string.IsNullOrWhiteSpace(headingSlug))
@@ -19,7 +14,6 @@ public static class FigureBlobPathBuilder
             throw new ArgumentException("HeadingSlug is required.", nameof(headingSlug));
         }
 
-        var slug = geekApiSlug.Trim().Trim('/');
-        return $"content/{slug}/{sourceType.Trim()}/h2-{headingSlug.Trim()}.webp";
+        return FigurePublicPathBuilder.BuildRelativePath(geekApiSlug, headingSlug);
     }
 }

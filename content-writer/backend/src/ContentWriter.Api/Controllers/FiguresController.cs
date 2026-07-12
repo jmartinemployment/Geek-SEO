@@ -190,6 +190,37 @@ public class FiguresController : ControllerBase
         }
     }
 
+    [HttpPost("{source}/{headingSlug}/set-url")]
+    public async Task<ActionResult<ContentFigureDto>> SetUrl(
+        Guid projectId,
+        string source,
+        string headingSlug,
+        [FromBody] FigureSetUrlRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!await ProjectExistsAsync(projectId, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        try
+        {
+            var figure = await _attachService.AssignImageUrlAsync(
+                projectId,
+                source,
+                headingSlug,
+                request.Url,
+                request.Alt,
+                cancellationToken);
+            return Ok(ToDto(figure));
+        }
+        catch (ContentGenerationException ex)
+        {
+            _logger.LogWarning(ex, "Figure set-url failed for project {ProjectId}", projectId);
+            return Problem(ex.Message, statusCode: 400, title: "Set URL failed");
+        }
+    }
+
     [HttpPost("{source}/{headingSlug}/skip")]
     public async Task<ActionResult<ContentFigureDto>> Skip(
         Guid projectId,

@@ -8,6 +8,8 @@ public interface IContentGenerationOrchestrator
 
     Task<GeneratedContentSet> GeneratePillarBodyAsync(Guid projectId, CancellationToken cancellationToken = default);
 
+    Task<GeneratedContentSet> GenerateToolPagesAsync(Guid projectId, CancellationToken cancellationToken = default);
+
     Task<GeneratedContentSet> GeneratePillarAsync(Guid projectId, CancellationToken cancellationToken = default);
 
     Task<GeneratedContentSet> GenerateBlogAsync(Guid projectId, CancellationToken cancellationToken = default);
@@ -19,6 +21,10 @@ public interface IContentGenerationOrchestrator
     Task<GeneratedContentSet> GenerateImagePromptsAsync(
         Guid projectId,
         bool confirmRegenerateWithArt = false,
+        CancellationToken cancellationToken = default);
+
+    Task<GeneratedContentSet> GenerateImagesAsync(
+        Guid projectId,
         CancellationToken cancellationToken = default);
 
     Task<GeneratedContentSet> GenerateAllAsync(

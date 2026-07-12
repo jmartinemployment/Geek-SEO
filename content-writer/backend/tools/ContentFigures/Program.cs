@@ -77,7 +77,7 @@ listCmd.SetHandler(async projectId =>
     }
 }, projectIdOption);
 
-var attachCmd = new Command("attach", "Upload a .webp to Vercel Blob and mark the figure Ready");
+var attachCmd = new Command("attach", "Copy a .webp into site public/images/{Type}/{dept}/{slug} and mark the figure Ready");
 attachCmd.AddOption(projectIdOption);
 attachCmd.AddOption(sourceOption);
 attachCmd.AddOption(headingSlugOption);
@@ -94,6 +94,24 @@ attachCmd.SetHandler(async (projectId, source, headingSlug, file, alt) =>
 
     Console.WriteLine($"Attached {file.Name} -> {source}/{headingSlug}");
 }, projectIdOption, sourceOption, headingSlugOption, fileOption, altOption);
+
+var urlOption = new Option<string>("--url")
+{
+    IsRequired = true,
+    Description = "Public image URL (manual assign — no file upload)",
+};
+
+var setUrlCmd = new Command("set-url", "Assign a public image URL and mark the figure Ready");
+setUrlCmd.AddOption(projectIdOption);
+setUrlCmd.AddOption(sourceOption);
+setUrlCmd.AddOption(headingSlugOption);
+setUrlCmd.AddOption(urlOption);
+setUrlCmd.AddOption(altOption);
+setUrlCmd.SetHandler(async (projectId, source, headingSlug, url, alt) =>
+{
+    await ContentFigureAttachRunner.AssignUrlAsync(projectId, source, headingSlug, url, alt);
+    Console.WriteLine($"Assigned URL -> {source}/{headingSlug}");
+}, projectIdOption, sourceOption, headingSlugOption, urlOption, altOption);
 
 var skipCmd = new Command("skip", "Mark a section as intentionally without art");
 skipCmd.AddOption(projectIdOption);
@@ -168,6 +186,7 @@ generateCmd.SetHandler(async (projectId, source, headingSlug) =>
 
 root.AddCommand(listCmd);
 root.AddCommand(attachCmd);
+root.AddCommand(setUrlCmd);
 root.AddCommand(skipCmd);
 root.AddCommand(exportCmd);
 root.AddCommand(syncDirCmd);
@@ -185,6 +204,66 @@ mergeCmd.SetHandler(async (projectId, source) =>
 }, projectIdOption, sourceOption);
 
 root.AddCommand(mergeCmd);
+
+var prefixOption = new Option<string?>("--prefix")
+{
+    Description = "Blob pathname prefix to delete (default: content/)",
+};
+
+var purgeBlobsCmd = new Command("purge-blobs", "Delete all blobs from Vercel Storage under a prefix");
+purgeBlobsCmd.AddOption(prefixOption);
+purgeBlobsCmd.SetHandler(async prefix =>
+{
+    var deleted = await ContentImagePurgeRunner.PurgeVercelBlobsAsync(prefix);
+    Console.WriteLine($"Deleted {deleted} blob(s) from Vercel Storage.");
+}, prefixOption);
+
+var purgeLocalCmd = new Command("purge-local", "Delete generated images under public/images/{TechnicalArticle,Blog,Tool,content}");
+purgeLocalCmd.SetHandler(() =>
+{
+    var deleted = ContentImagePurgeRunner.PurgeLocalSiteImages();
+    Console.WriteLine($"Deleted {deleted} local content image(s).");
+});
+
+var projectIdOptional = new Option<Guid?>("--project-id")
+{
+    Description = "Limit DB cleanup to one project; omit for all projects",
+};
+
+var purgeRefsCmd = new Command("purge-refs", "Clear figure image URLs in content_writer (keeps columns)");
+purgeRefsCmd.AddOption(projectIdOptional);
+purgeRefsCmd.SetHandler(async projectId =>
+{
+    var cleared = await ContentImagePurgeRunner.ClearFigureImageRefsAsync(projectId);
+    Console.WriteLine($"Cleared image refs on {cleared} figure row(s).");
+}, projectIdOptional);
+
+var purgeAllCmd = new Command("purge-all", "purge-local + purge-refs + purge-blobs (when token set)");
+purgeAllCmd.AddOption(projectIdOptional);
+purgeAllCmd.AddOption(prefixOption);
+purgeAllCmd.SetHandler(async (projectId, prefix) =>
+{
+    var local = ContentImagePurgeRunner.PurgeLocalSiteImages();
+    Console.WriteLine($"Deleted {local} local content image(s).");
+
+    var cleared = await ContentImagePurgeRunner.ClearFigureImageRefsAsync(projectId);
+    Console.WriteLine($"Cleared image refs on {cleared} figure row(s).");
+
+    var token = Environment.GetEnvironmentVariable("BLOB_READ_WRITE_TOKEN");
+    if (string.IsNullOrWhiteSpace(token))
+    {
+        Console.WriteLine("Skipped Vercel blobs — BLOB_READ_WRITE_TOKEN not set.");
+        return;
+    }
+
+    var deleted = await ContentImagePurgeRunner.PurgeVercelBlobsAsync(prefix);
+    Console.WriteLine($"Deleted {deleted} blob(s) from Vercel Storage.");
+}, projectIdOptional, prefixOption);
+
+root.AddCommand(purgeBlobsCmd);
+root.AddCommand(purgeLocalCmd);
+root.AddCommand(purgeRefsCmd);
+root.AddCommand(purgeAllCmd);
 
 try
 {

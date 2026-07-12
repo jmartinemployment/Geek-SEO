@@ -17,4 +17,5 @@ public class Project
     public CrawledSite? CrawledSite { get; set; }
     public List<KeywordSource> KeywordSources { get; set; } = new();
     public List<GeneratedContent> GeneratedContents { get; set; } = new();
+    public List<ProjectPublication> Publications { get; set; } = new();
 }

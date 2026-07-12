@@ -50,7 +50,8 @@ public static class GeneratedContentSetAssembler
                     coldOutreachRow.BodyHtml,
                     coldOutreachRow.MetaDescription ?? string.Empty,
                     coldOutreachRow.RelatedArticleUrl ?? articleUrl ?? string.Empty),
-            ImagePrompts: BuildImagePrompts(project));
+            ImagePrompts: BuildImagePrompts(project),
+            Tools: BuildTools(project));
     }
 
     private static ImagePromptsContent? BuildImagePrompts(Project project)
@@ -71,7 +72,9 @@ public static class GeneratedContentSetAssembler
         row.BodyHtml,
         row.Keywords,
         row.WordCount,
-        row.SectionOutline);
+        row.SectionOutline,
+        row.ListingExcerpt,
+        row.DisplayTitle ?? row.Title);
 
     public static BlogDraft ToBlogDraft(GeneratedContent row) => new(
         row.Title,
@@ -79,7 +82,29 @@ public static class GeneratedContentSetAssembler
         row.BodyHtml,
         row.Keywords,
         row.WordCount,
-        row.SectionOutline);
+        row.SectionOutline,
+        row.ListingExcerpt,
+        row.DisplayTitle ?? row.Title);
+
+    public static ToolDraft ToToolDraft(GeneratedContent row) => new(
+        row.Title,
+        row.DisplayTitle ?? row.Title,
+        row.ListingExcerpt,
+        row.MetaDescription ?? string.Empty,
+        row.AdvertisingExcerpt,
+        row.BodyHtml,
+        row.Slug,
+        row.SourceAppName ?? row.Title,
+        row.SourceAppOrder ?? 0,
+        row.WordCount,
+        row.JsonLdSchema);
+
+    private static IReadOnlyList<ToolDraft> BuildTools(Project project) =>
+        project.GeneratedContents
+            .Where(c => c.ContentType == GeneratedContentType.ToolPost)
+            .OrderBy(c => c.SourceAppOrder ?? int.MaxValue)
+            .Select(ToToolDraft)
+            .ToList();
 
     private static GeneratedContent? Find(Project project, GeneratedContentType type) =>
         project.GeneratedContents.FirstOrDefault(c => c.ContentType == type);

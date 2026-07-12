@@ -40,8 +40,10 @@ public class GeekBlogPublishService : IGeekBlogPublishService
     };
 
     private readonly IProjectRepository _projectRepository;
+    private readonly IProjectPublicationRepository _publicationRepository;
     private readonly IContentFigureRepository _figureRepository;
-    private readonly IFigureMergeService _figureMergeService;
+    private readonly IContentFigureImageGenerationService _imageGeneration;
+    private readonly IFigureMergeService _figureMerge;
     private readonly CompanyProfileOptions _companyProfile;
     private readonly GeekBlogPublishOptions _publishOptions;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -49,16 +51,20 @@ public class GeekBlogPublishService : IGeekBlogPublishService
 
     public GeekBlogPublishService(
         IProjectRepository projectRepository,
+        IProjectPublicationRepository publicationRepository,
         IContentFigureRepository figureRepository,
-        IFigureMergeService figureMergeService,
+        IContentFigureImageGenerationService imageGeneration,
+        IFigureMergeService figureMerge,
         IOptions<CompanyProfileOptions> companyProfile,
         IOptions<GeekBlogPublishOptions> publishOptions,
         IHttpClientFactory httpClientFactory,
         ILogger<GeekBlogPublishService> logger)
     {
         _projectRepository = projectRepository;
+        _publicationRepository = publicationRepository;
         _figureRepository = figureRepository;
-        _figureMergeService = figureMergeService;
+        _imageGeneration = imageGeneration;
+        _figureMerge = figureMerge;
         _companyProfile = companyProfile.Value;
         _publishOptions = publishOptions.Value;
         _httpClientFactory = httpClientFactory;
@@ -92,53 +98,92 @@ public class GeekBlogPublishService : IGeekBlogPublishService
         department = SiteDepartments.Normalize(department);
         var published = new List<PublishedGeekPost>();
         var existingPosts = await LoadExistingPostsAsync(cancellationToken);
+        var requirePaa = project.KeywordSources.Any(k => k.Category == KeywordSourceCategory.PeopleAlsoAsk);
 
         if (contentSet.Article is not null
             && contentSet.Article.WordCount >= PillarBodyMinWords
             && !string.IsNullOrWhiteSpace(contentSet.ArticleSlug))
         {
-            var apiSlug = GeekPublicUrlBuilder.ApiSlugForArticle(department, contentSet.ArticleSlug);
             var articleRow = RequireRow(project, GeneratedContentType.TechnicalArticle);
+            var apiSlug = GeekPublicUrlBuilder.ApiSlugForArticle(department, contentSet.ArticleSlug);
+            var markdown = HtmlToMarkdownConverter.Convert(articleRow.BodyHtml);
+            PillarMarkdownValidator.Validate(
+                markdown,
+                GeneratedContentPresentation.PublishTitle(articleRow),
+                requirePaa);
+
             var post = await UpsertPostAsync(
                 existingPosts,
+                projectId,
+                contentRole: "pillar",
+                sourcePillarSlug: null,
                 postType: "TechnicalArticle",
                 apiSlug,
-                articleRow.Title,
-                HtmlToMarkdownConverter.Convert(articleRow.BodyHtml),
+                GeneratedContentPresentation.PublishTitle(articleRow),
+                markdown,
                 articleRow.JsonLdSchema ?? "{}",
+                articleRow,
                 cancellationToken);
+
             published.Add(post with { PublicPath = GeekPublicUrlBuilder.ArticlePath(department, contentSet.ArticleSlug) });
-            await _figureRepository.StampAfterTextPublishAsync(
-                projectId,
-                FigureSourceType.Pillar,
-                apiSlug,
-                post.PostId,
-                cancellationToken);
-            await MergeFiguresIfReadyAsync(projectId, FigureSourceType.Pillar, cancellationToken);
+            await StampFiguresAsync(projectId, FigureSourceType.Pillar, apiSlug, post.PostId, cancellationToken);
+            await ProcessFiguresForSourceAsync(projectId, FigureSourceType.Pillar, cancellationToken);
         }
 
         if (contentSet.Blog is not null
             && contentSet.Blog.WordCount > 0
             && !string.IsNullOrWhiteSpace(contentSet.BlogSlug))
         {
-            var apiSlug = GeekPublicUrlBuilder.ApiSlugForBlog(department, contentSet.BlogSlug);
             var blogRow = RequireRow(project, GeneratedContentType.BlogPost);
+            var apiSlug = GeekPublicUrlBuilder.ApiSlugForBlog(department, contentSet.BlogSlug);
             var post = await UpsertPostAsync(
                 existingPosts,
+                projectId,
+                contentRole: "blog",
+                sourcePillarSlug: contentSet.ArticleSlug,
                 postType: "BlogPosting",
                 apiSlug,
-                blogRow.Title,
+                GeneratedContentPresentation.PublishTitle(blogRow),
                 HtmlToMarkdownConverter.Convert(blogRow.BodyHtml),
                 blogRow.JsonLdSchema ?? "{}",
+                blogRow,
                 cancellationToken);
+
             published.Add(post with { PublicPath = GeekPublicUrlBuilder.BlogPath(department, contentSet.BlogSlug) });
-            await _figureRepository.StampAfterTextPublishAsync(
+            await StampFiguresAsync(projectId, FigureSourceType.Blog, apiSlug, post.PostId, cancellationToken);
+            await ProcessFiguresForSourceAsync(projectId, FigureSourceType.Blog, cancellationToken);
+        }
+
+        var toolRows = project.GeneratedContents
+            .Where(c => c.ContentType == GeneratedContentType.ToolPost)
+            .OrderBy(c => c.SourceAppOrder ?? int.MaxValue)
+            .ToList();
+
+        foreach (var toolRow in toolRows)
+        {
+            if (toolRow.WordCount <= 0 || string.IsNullOrWhiteSpace(toolRow.Slug))
+            {
+                continue;
+            }
+
+            var apiSlug = GeekPublicUrlBuilder.ApiSlugForTool(department, toolRow.Slug);
+            var post = await UpsertPostAsync(
+                existingPosts,
                 projectId,
-                FigureSourceType.Blog,
+                contentRole: "tool",
+                sourcePillarSlug: contentSet.ArticleSlug,
+                postType: "TechnicalArticle",
                 apiSlug,
-                post.PostId,
+                GeneratedContentPresentation.PublishTitle(toolRow),
+                HtmlToMarkdownConverter.Convert(toolRow.BodyHtml),
+                toolRow.JsonLdSchema ?? "{}",
+                toolRow,
                 cancellationToken);
-            await MergeFiguresIfReadyAsync(projectId, FigureSourceType.Blog, cancellationToken);
+
+            published.Add(post with { PublicPath = GeekPublicUrlBuilder.ToolPath(department, toolRow.Slug) });
+            var toolSource = FigureSourceType.ForTool(toolRow.Slug);
+            await StampFiguresAsync(projectId, toolSource, apiSlug, post.PostId, cancellationToken);
+            await ProcessFiguresForSourceAsync(projectId, toolSource, cancellationToken);
         }
 
         if (published.Count == 0)
@@ -146,6 +191,8 @@ public class GeekBlogPublishService : IGeekBlogPublishService
             throw new ContentGenerationException(
                 "Nothing to publish. Generate pillar body and/or blog content first.");
         }
+
+        await _projectRepository.SaveChangesAsync(cancellationToken);
 
         foreach (var post in published)
         {
@@ -155,24 +202,62 @@ public class GeekBlogPublishService : IGeekBlogPublishService
         return new GeekBlogPublishResult(department, published);
     }
 
-    private async Task MergeFiguresIfReadyAsync(
+    private async Task ProcessFiguresForSourceAsync(
         Guid projectId,
         string sourceType,
         CancellationToken cancellationToken)
     {
-        var rows = await _figureRepository.ListByProjectAsync(projectId, cancellationToken);
-        var hasMergeableArt = rows.Any(f =>
-            f.SourceType == sourceType
-            && f.Status is FigureStatus.Ready or FigureStatus.Published
-            && !string.IsNullOrWhiteSpace(f.ImageUrl));
+        var figures = await _figureRepository.ListByProjectAsync(projectId, cancellationToken);
+        var relevant = figures
+            .Where(f => string.Equals(f.SourceType, sourceType, StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
-        if (!hasMergeableArt)
+        if (relevant.Count == 0)
         {
             return;
         }
 
-        await _figureMergeService.MergeSourceAsync(projectId, sourceType, cancellationToken);
+        var hasBriefs = relevant.Any(f => !string.IsNullOrWhiteSpace(f.BriefText));
+        if (!hasBriefs)
+        {
+            return;
+        }
+
+        try
+        {
+            await _imageGeneration.GeneratePendingAsync(projectId, sourceType, cancellationToken);
+        }
+        catch (ContentGenerationException ex)
+        {
+            throw new ContentGenerationException(
+                $"Figure image generation failed for source '{sourceType}': {ex.Message}");
+        }
+
+        try
+        {
+            await _figureMerge.MergeSourceAsync(projectId, sourceType, cancellationToken);
+        }
+        catch (ContentGenerationException ex) when (ex.Message.Contains("No Ready", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning(
+                "Skipping figure merge for {SourceType}: {Message}",
+                sourceType,
+                ex.Message);
+        }
     }
+
+    private async Task StampFiguresAsync(
+        Guid projectId,
+        string sourceType,
+        string apiSlug,
+        int postId,
+        CancellationToken cancellationToken) =>
+        await _figureRepository.StampAfterTextPublishAsync(
+            projectId,
+            sourceType,
+            apiSlug,
+            postId,
+            cancellationToken);
 
     private void EnsureConfigured()
     {
@@ -189,13 +274,24 @@ public class GeekBlogPublishService : IGeekBlogPublishService
 
     private async Task<PublishedGeekPost> UpsertPostAsync(
         IReadOnlyList<GeekBlogAdminPost> existingPosts,
+        Guid projectId,
+        string contentRole,
+        string? sourcePillarSlug,
         string postType,
         string apiSlug,
         string title,
         string markdownBody,
         string schemaMetadataJson,
+        GeneratedContent sourceRow,
         CancellationToken cancellationToken)
     {
+        var strippedBody = GeekPublishPresentationHelper.StripMergedFigures(markdownBody);
+        var listingExcerpt = GeneratedContentPresentation.ListingExcerpt(sourceRow);
+        var excerpts = GeekPublishPresentationHelper.ExcerptsForSlug(
+            apiSlug,
+            listingExcerpt,
+            sourceRow.AdvertisingExcerpt);
+
         var payload = new
         {
             postType,
@@ -203,10 +299,18 @@ public class GeekBlogPublishService : IGeekBlogPublishService
             languageCode = "en",
             slug = apiSlug,
             title,
-            body = markdownBody,
+            body = strippedBody,
             schemaMetadataJson,
             tagSlugs = Array.Empty<string>(),
             publishedAt = DateTimeOffset.UtcNow,
+            blogExcerpt = excerpts.BlogExcerpt,
+            technicalArticleExcerpt = excerpts.TechnicalArticleExcerpt,
+            toolExcerpt = excerpts.ToolExcerpt,
+            advertisingExcerpt = excerpts.AdvertisingExcerpt,
+            heroImageUrl = sourceRow.HeroImageUrl,
+            sourceProjectId = projectId,
+            contentRole,
+            sourcePillarSlug,
         };
 
         var postId = ResolveExistingPostId(existingPosts, postType, apiSlug);
@@ -233,6 +337,17 @@ public class GeekBlogPublishService : IGeekBlogPublishService
             : (await response.Content.ReadFromJsonAsync<GeekBlogAdminPost>(JsonOptions, cancellationToken))?.PostId
               ?? throw new ContentGenerationException($"GeekAPI create succeeded but no post id for {apiSlug}");
 
+        await _publicationRepository.UpsertAsync(
+            new ProjectPublication
+            {
+                ProjectId = projectId,
+                ContentType = MapContentType(contentRole),
+                GeekPostId = created,
+                GeekApiSlug = apiSlug,
+                PublishedAtUtc = DateTime.UtcNow,
+            },
+            cancellationToken);
+
         _logger.LogInformation(
             "{Action} GeekAPI post {Slug} ({PostType}) as id {PostId}",
             hasExisting ? "Updated" : "Created",
@@ -242,6 +357,14 @@ public class GeekBlogPublishService : IGeekBlogPublishService
 
         return new PublishedGeekPost(postType, apiSlug, created, !hasExisting, string.Empty);
     }
+
+    private static GeneratedContentType MapContentType(string contentRole) => contentRole switch
+    {
+        "pillar" => GeneratedContentType.TechnicalArticle,
+        "blog" => GeneratedContentType.BlogPost,
+        "tool" => GeneratedContentType.ToolPost,
+        _ => GeneratedContentType.TechnicalArticle,
+    };
 
     private async Task<IReadOnlyList<GeekBlogAdminPost>> LoadExistingPostsAsync(CancellationToken cancellationToken)
     {
@@ -302,10 +425,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
                 path,
                 (int)response.StatusCode,
                 body);
-            return;
         }
-
-        _logger.LogInformation("Revalidated {Path}", path);
     }
 
     private HttpClient CreateGeekApiClient()

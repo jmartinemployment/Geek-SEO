@@ -7,10 +7,13 @@ Operator tool for attaching section art to Content-Writer `content_figures` rows
 | Variable | Required for |
 |----------|----------------|
 | `CONTENT_WRITER_DATABASE_URL` | All commands |
-| `BLOB_READ_WRITE_TOKEN` | `attach`, `sync-dir` |
+| `CONTENT_IMAGE_OUTPUT_DIR` | `attach`, `sync-dir`, `generate` (site-static default) |
+| `BLOB_READ_WRITE_TOKEN` | `attach`/`generate` when `CONTENT_IMAGE_STORAGE=vercel_blob` |
 | `GEEK_BACKEND_API_KEY` | `merge` |
 
 Text must be published to GeekAPI first so each figure row has a `GeekApiSlug`.
+
+Default storage is **site-static** (`geekatyourspot/public/images/content/...`). Set `CONTENT_IMAGE_STORAGE=vercel_blob` to use Vercel Blob again when billing allows.
 
 ## Commands
 
@@ -20,6 +23,9 @@ dotnet run --project tools/ContentFigures/ContentFigures.csproj -- list --projec
 
 dotnet run --project tools/ContentFigures/ContentFigures.csproj -- attach \
   --project-id <guid> --source pillar --heading-slug <slug> --file ./art/h2-<slug>.webp
+
+dotnet run --project tools/ContentFigures/ContentFigures.csproj -- set-url \
+  --project-id <guid> --source pillar --heading-slug <slug> --url https://...
 
 dotnet run --project tools/ContentFigures/ContentFigures.csproj -- skip \
   --project-id <guid> --source pillar --heading-slug <slug>
@@ -32,6 +38,9 @@ dotnet run --project tools/ContentFigures/ContentFigures.csproj -- sync-dir \
 
 dotnet run --project tools/ContentFigures/ContentFigures.csproj -- merge \
   --project-id <guid> --source pillar
+
+# Purge stored images (columns stay in DB)
+dotnet run --project tools/ContentFigures/ContentFigures.csproj -- purge-all
 ```
 
 ## Rules (binary)
@@ -39,12 +48,13 @@ dotnet run --project tools/ContentFigures/ContentFigures.csproj -- merge \
 - `attach` requires `.webp`, a matching figure row, and `GeekApiSlug` on that row.
 - `attach` fails on `Skipped` figures.
 - `sync-dir` fails if any `h2-*.webp` file cannot be matched to a heading slug.
-- Blob path: `content/{geekApiSlug}/{sourceType}/h2-{headingSlug}.webp`
+- Site-static path: `images/content/{geekApiSlug}/{sourceType}/h2-{headingSlug}.webp`
+- Blob path (optional): `content/{geekApiSlug}/{sourceType}/h2-{headingSlug}.webp`
 
 ## Workflow
 
 1. Generate figure briefs (Step 6) in Content-Writer.
 2. Publish text — pick department, publish to site.
 3. Create art in Figma/Cursor; export WebP named `h2-{headingSlug}.webp`.
-4. `attach` or `sync-dir` — figures become `Ready` with `NeedsFigureMerge = true`.
+4. `attach`, `set-url`, or `sync-dir` — figures become `Ready` with `NeedsFigureMerge = true`.
 5. `merge` (or republish from Content Writer) — inserts figures into GeekAPI body and sets `Published`.

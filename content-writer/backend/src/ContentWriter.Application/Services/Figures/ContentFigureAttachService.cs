@@ -26,6 +26,14 @@ public interface IContentFigureAttachService
         string? altOverride = null,
         CancellationToken cancellationToken = default);
 
+    Task<ContentFigure> AssignImageUrlAsync(
+        Guid projectId,
+        string sourceType,
+        string headingSlug,
+        string imageUrl,
+        string? altOverride = null,
+        CancellationToken cancellationToken = default);
+
     Task<ContentFigure> SkipAsync(
         Guid projectId,
         string sourceType,
@@ -36,16 +44,22 @@ public interface IContentFigureAttachService
 public sealed class ContentFigureAttachService : IContentFigureAttachService
 {
     private readonly IContentFigureRepository _figures;
+    private readonly SiteImageStorageOptions _storageOptions;
     private readonly BlobStorageOptions _blobOptions;
+    private readonly SiteStaticImagePublisher _sitePublisher;
     private readonly VercelBlobUploader _blobUploader;
 
     public ContentFigureAttachService(
         IContentFigureRepository figures,
+        IOptions<SiteImageStorageOptions> storageOptions,
         IOptions<BlobStorageOptions> blobOptions,
+        SiteStaticImagePublisher sitePublisher,
         VercelBlobUploader blobUploader)
     {
         _figures = figures;
+        _storageOptions = storageOptions.Value;
         _blobOptions = blobOptions.Value;
+        _sitePublisher = sitePublisher;
         _blobUploader = blobUploader;
     }
 
@@ -64,25 +78,6 @@ public sealed class ContentFigureAttachService : IContentFigureAttachService
         {
             throw new ContentGenerationException(
                 "Only .webp files are accepted. Export WebP from Figma before attach.");
-        }
-
-        var figure = await _figures.GetByHeadingSlugAsync(projectId, sourceType, headingSlug, cancellationToken);
-        if (figure is null)
-        {
-            throw new ContentGenerationException(
-                $"No figure row for source={sourceType}, headingSlug={headingSlug}.");
-        }
-
-        if (string.IsNullOrWhiteSpace(figure.GeekApiSlug))
-        {
-            throw new ContentGenerationException(
-                "Publish text to geekatyourspot first, then attach art.");
-        }
-
-        if (figure.Status == FigureStatus.Skipped)
-        {
-            throw new ContentGenerationException(
-                $"Figure {headingSlug} is Skipped. Attach is not allowed on skipped sections.");
         }
 
         await using var memory = new MemoryStream();
@@ -104,44 +99,84 @@ public sealed class ContentFigureAttachService : IContentFigureAttachService
         string? altOverride = null,
         CancellationToken cancellationToken = default)
     {
-        FigureMergeService.ValidateSourceType(sourceType);
-
-        var figure = await _figures.GetByHeadingSlugAsync(projectId, sourceType, headingSlug, cancellationToken);
-        if (figure is null)
-        {
-            throw new ContentGenerationException(
-                $"No figure row for source={sourceType}, headingSlug={headingSlug}.");
-        }
-
-        if (string.IsNullOrWhiteSpace(figure.GeekApiSlug))
-        {
-            throw new ContentGenerationException(
-                "Publish text to geekatyourspot first, then attach art.");
-        }
-
-        if (figure.Status == FigureStatus.Skipped)
-        {
-            throw new ContentGenerationException(
-                $"Figure {headingSlug} is Skipped. Attach is not allowed on skipped sections.");
-        }
+        var figure = await RequireAttachableFigureAsync(projectId, sourceType, headingSlug, cancellationToken);
 
         using var image = await Image.LoadAsync(new MemoryStream(webpBytes), cancellationToken);
 
-        var pathname = FigureBlobPathBuilder.BuildBlobPathname(
-            figure.GeekApiSlug,
-            sourceType,
-            headingSlug);
+        var storage = _storageOptions.ResolveDefaultStorage(_blobOptions);
+        string imageUrl;
+        string relativePath;
+        string imageStorage;
 
-        var imageUrl = await _blobUploader.UploadPublicAsync(
-            pathname,
-            webpBytes,
-            "image/webp",
-            _blobOptions.ReadWriteToken,
-            cancellationToken);
+        if (string.Equals(storage, FigureImageStorage.VercelBlob, StringComparison.OrdinalIgnoreCase))
+        {
+            relativePath = FigureBlobPathBuilder.BuildBlobPathname(
+                figure.GeekApiSlug!,
+                headingSlug);
+            imageUrl = await _blobUploader.UploadPublicAsync(
+                relativePath,
+                webpBytes,
+                "image/webp",
+                _blobOptions.ReadWriteToken,
+                cancellationToken);
+            imageStorage = FigureImageStorage.VercelBlob;
+        }
+        else
+        {
+            relativePath = FigurePublicPathBuilder.BuildRelativePath(
+                figure.GeekApiSlug!,
+                headingSlug);
+            var published = await _sitePublisher.PublishWebpAsync(relativePath, webpBytes, cancellationToken);
+            imageUrl = published.PublicUrl;
+            imageStorage = FigureImageStorage.SiteStatic;
+        }
 
+        figure.ImageRelativePath = relativePath;
         figure.ImageUrl = imageUrl;
+        figure.ImageStorage = imageStorage;
         figure.ImageWidth = image.Width;
         figure.ImageHeight = image.Height;
+        figure.ImageAlt = string.IsNullOrWhiteSpace(altOverride)
+            ? FigureHeadingSlugResolver.DefaultImageAlt(figure.Heading)
+            : altOverride.Trim();
+        figure.Status = FigureStatus.Ready;
+        figure.NeedsFigureMerge = true;
+        figure.SkipReason = null;
+        figure.UpdatedAtUtc = DateTime.UtcNow;
+
+        await _figures.UpdateAsync(figure, cancellationToken);
+        await _figures.SaveChangesAsync(cancellationToken);
+        return figure;
+    }
+
+    public async Task<ContentFigure> AssignImageUrlAsync(
+        Guid projectId,
+        string sourceType,
+        string headingSlug,
+        string imageUrl,
+        string? altOverride = null,
+        CancellationToken cancellationToken = default)
+    {
+        FigureMergeService.ValidateSourceType(sourceType);
+
+        if (string.IsNullOrWhiteSpace(imageUrl))
+        {
+            throw new ContentGenerationException("Image URL is required.");
+        }
+
+        var figure = await RequireAttachableFigureAsync(projectId, sourceType, headingSlug, cancellationToken);
+        var trimmedUrl = imageUrl.Trim();
+        var publicBase = _storageOptions.PublicBaseUrl.TrimEnd('/');
+
+        figure.ImageUrl = trimmedUrl;
+        figure.ImageRelativePath = trimmedUrl.StartsWith($"{publicBase}/", StringComparison.OrdinalIgnoreCase)
+            ? trimmedUrl[(publicBase.Length + 1)..]
+            : null;
+        figure.ImageStorage = trimmedUrl.Contains("blob.vercel-storage.com", StringComparison.OrdinalIgnoreCase)
+            ? FigureImageStorage.VercelBlob
+            : FigureImageStorage.Manual;
+        figure.ImageWidth = null;
+        figure.ImageHeight = null;
         figure.ImageAlt = string.IsNullOrWhiteSpace(altOverride)
             ? FigureHeadingSlugResolver.DefaultImageAlt(figure.Heading)
             : altOverride.Trim();
@@ -177,6 +212,34 @@ public sealed class ContentFigureAttachService : IContentFigureAttachService
 
         await _figures.UpdateAsync(figure, cancellationToken);
         await _figures.SaveChangesAsync(cancellationToken);
+        return figure;
+    }
+
+    private async Task<ContentFigure> RequireAttachableFigureAsync(
+        Guid projectId,
+        string sourceType,
+        string headingSlug,
+        CancellationToken cancellationToken)
+    {
+        var figure = await _figures.GetByHeadingSlugAsync(projectId, sourceType, headingSlug, cancellationToken);
+        if (figure is null)
+        {
+            throw new ContentGenerationException(
+                $"No figure row for source={sourceType}, headingSlug={headingSlug}.");
+        }
+
+        if (string.IsNullOrWhiteSpace(figure.GeekApiSlug))
+        {
+            throw new ContentGenerationException(
+                "Publish text to geekatyourspot first, then attach art.");
+        }
+
+        if (figure.Status == FigureStatus.Skipped)
+        {
+            throw new ContentGenerationException(
+                $"Figure {headingSlug} is Skipped. Attach is not allowed on skipped sections.");
+        }
+
         return figure;
     }
 }

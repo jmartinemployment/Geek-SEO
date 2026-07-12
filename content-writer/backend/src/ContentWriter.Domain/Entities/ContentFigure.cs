@@ -21,6 +21,8 @@ public class ContentFigure
     public string? SkipReason { get; set; }
 
     public string? ImageUrl { get; set; }
+    public string? ImageRelativePath { get; set; }
+    public string ImageStorage { get; set; } = FigureImageStorage.SiteStatic;
     public int? ImageWidth { get; set; }
     public int? ImageHeight { get; set; }
     public string ImageAlt { get; set; } = string.Empty;

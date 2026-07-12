@@ -23,16 +23,4 @@ public static class ContentFiguresDb
         optionsBuilder.UseContentWriterPostgres(connectionString);
         return new ContentWriterDbContext(optionsBuilder.Options);
     }
-
-    public static string RequireBlobToken()
-    {
-        var token = Environment.GetEnvironmentVariable("BLOB_READ_WRITE_TOKEN");
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            throw new InvalidOperationException(
-                "BLOB_READ_WRITE_TOKEN is required for attach and sync-dir.");
-        }
-
-        return token;
-    }
 }

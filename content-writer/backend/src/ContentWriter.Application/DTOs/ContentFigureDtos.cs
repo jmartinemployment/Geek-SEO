@@ -59,6 +59,8 @@ public sealed record FigureMergeResponse(
 
 public sealed record FigureGenerateRequest(string Source, string? HeadingSlug);
 
+public sealed record FigureSetUrlRequest(string Url, string? Alt);
+
 public sealed record FigureGenerateResponse(
     string SourceType,
     int GeneratedCount,

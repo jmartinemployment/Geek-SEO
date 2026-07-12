@@ -35,6 +35,14 @@ public class GenerateController : ControllerBase
     public Task<IActionResult> GenerateBlog(Guid projectId, CancellationToken cancellationToken) =>
         RunStep(projectId, _orchestrator.GenerateBlogAsync(projectId, cancellationToken), "blog");
 
+    [HttpPost("tools")]
+    public Task<IActionResult> GenerateTools(Guid projectId, CancellationToken cancellationToken) =>
+        RunStep(projectId, _orchestrator.GenerateToolPagesAsync(projectId, cancellationToken), "tools");
+
+    [HttpPost("images")]
+    public Task<IActionResult> GenerateImages(Guid projectId, CancellationToken cancellationToken) =>
+        RunStep(projectId, _orchestrator.GenerateImagesAsync(projectId, cancellationToken), "images");
+
     [HttpPost("social")]
     public Task<IActionResult> GenerateSocial(Guid projectId, CancellationToken cancellationToken) =>
         RunStep(projectId, _orchestrator.GenerateSocialAsync(projectId, cancellationToken), "social");

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using ContentWriter.Domain.Enums;
 
 namespace ContentWriter.Application.Services;
 
@@ -35,6 +36,22 @@ public static class ArticleHtmlSectionExtractor
         foreach (var heading in ExtractH2Headings(blogBodyHtml))
         {
             targets.Add(new ImagePromptSectionTarget("blog", heading, order++));
+        }
+
+        return targets;
+    }
+
+    public static IReadOnlyList<ImagePromptSectionTarget> BuildToolSectionTargets(
+        IReadOnlyList<(string ToolSlug, string BodyHtml)> toolBodies)
+    {
+        var targets = new List<ImagePromptSectionTarget>();
+        foreach (var (toolSlug, bodyHtml) in toolBodies)
+        {
+            var order = 1;
+            foreach (var heading in ExtractH2Headings(bodyHtml))
+            {
+                targets.Add(new ImagePromptSectionTarget(FigureSourceType.ForTool(toolSlug), heading, order++));
+            }
         }
 
         return targets;

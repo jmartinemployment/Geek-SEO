@@ -41,5 +41,6 @@ public enum GeneratedContentType
     ImagePromptPillarFigure = 8,
     ImagePromptSocialFacebook = 9,
     ImagePromptSocialLinkedIn = 10,
-    ImagePromptSection = 11
+    ImagePromptSection = 11,
+    ToolPost = 12
 }

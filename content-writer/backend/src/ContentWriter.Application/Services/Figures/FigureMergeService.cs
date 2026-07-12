@@ -87,25 +87,22 @@ public sealed class FigureMergeService : IFigureMergeService
 
         var post = await GetPostByIdAsync(geekPostId.Value, cancellationToken);
         var blocks = candidates.Select(ToMergeBlock).ToList();
-        var mergedBody = FigureMergeMarkdownComposer.MergeFiguresIntoBody(post.Body, blocks);
-        var heroKey = FigureMergeMarkdownComposer.ResolveHeroFigureKey(blocks);
-        var hero = heroKey is null
-            ? null
-            : blocks.First(b => FigureMergeMarkdownComposer.FigureKey(b.SourceType, b.HeadingSlug)
-                .Equals(heroKey, StringComparison.OrdinalIgnoreCase));
-
-        var schemaJson = hero is null
-            ? post.SchemaMetadataJson
-            : FigureSchemaMetadataHelper.WithHeroImage(post.SchemaMetadataJson, hero.ImageUrl);
+        var cleanBody = FigureMergeMarkdownComposer.StripMergedFigures(post.Body);
+        var hero = blocks.OrderBy(b => b.SectionOrder).First();
 
         await PutPostAsync(
             geekPostId.Value,
             geekApiSlug,
             post.PostType,
             post.Title,
-            mergedBody,
-            schemaJson,
+            cleanBody,
+            post.SchemaMetadataJson,
             post.PublishedAt,
+            post.BlogExcerpt,
+            post.TechnicalArticleExcerpt,
+            post.ToolExcerpt,
+            post.AdvertisingExcerpt,
+            hero.ImageUrl,
             cancellationToken);
 
         var now = DateTime.UtcNow;
@@ -123,7 +120,7 @@ public sealed class FigureMergeService : IFigureMergeService
         await RevalidatePathAsync(publicPath, cancellationToken);
 
         _logger.LogInformation(
-            "Merged {Count} figures into GeekAPI post {PostId} ({Slug})",
+            "Published {Count} figures to GeekAPI post {PostId} ({Slug}); hero_image_url set, body figures stripped",
             candidates.Count,
             geekPostId.Value,
             geekApiSlug);
@@ -138,10 +135,10 @@ public sealed class FigureMergeService : IFigureMergeService
 
     public static void ValidateSourceType(string sourceType)
     {
-        if (sourceType is not (FigureSourceType.Pillar or FigureSourceType.Blog))
+        if (!FigureSourceType.IsKnown(sourceType))
         {
             throw new ArgumentException(
-                $"Source must be '{FigureSourceType.Pillar}' or '{FigureSourceType.Blog}'.",
+                $"Source must be '{FigureSourceType.Pillar}', '{FigureSourceType.Blog}', or '{FigureSourceType.ToolPrefix}{{slug}}'.",
                 nameof(sourceType));
         }
     }
@@ -195,6 +192,11 @@ public sealed class FigureMergeService : IFigureMergeService
         string body,
         string schemaMetadataJson,
         DateTimeOffset? publishedAt,
+        string? blogExcerpt,
+        string? technicalArticleExcerpt,
+        string? toolExcerpt,
+        string? advertisingExcerpt,
+        string? heroImageUrl,
         CancellationToken cancellationToken)
     {
         var payload = new
@@ -208,6 +210,11 @@ public sealed class FigureMergeService : IFigureMergeService
             schemaMetadataJson,
             tagSlugs = Array.Empty<string>(),
             publishedAt = publishedAt?.ToUniversalTime() ?? DateTimeOffset.UtcNow,
+            blogExcerpt,
+            technicalArticleExcerpt,
+            toolExcerpt,
+            advertisingExcerpt,
+            heroImageUrl,
         };
 
         var client = CreateGeekApiClient();
@@ -267,6 +274,11 @@ public sealed class FigureMergeService : IFigureMergeService
             return "/" + geekApiSlug;
         }
 
+        if (geekApiSlug.StartsWith("tools/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "/" + geekApiSlug;
+        }
+
         throw new ContentGenerationException($"Unsupported GeekApiSlug for revalidate: {geekApiSlug}");
     }
 
@@ -276,5 +288,10 @@ public sealed class FigureMergeService : IFigureMergeService
         string Title,
         string Body,
         string SchemaMetadataJson,
-        DateTimeOffset? PublishedAt);
+        DateTimeOffset? PublishedAt,
+        string? BlogExcerpt,
+        string? TechnicalArticleExcerpt,
+        string? ToolExcerpt,
+        string? AdvertisingExcerpt,
+        string? HeroImageUrl);
 }

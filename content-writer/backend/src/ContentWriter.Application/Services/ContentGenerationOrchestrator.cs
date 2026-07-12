@@ -25,6 +25,8 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
     private readonly IJsonLdParserService _jsonLdParser;
     private readonly ITechnicalArticleSchemaBuilder _articleSchemaBuilder;
     private readonly IBlogPostingSchemaBuilder _blogSchemaBuilder;
+    private readonly IToolPageGenerator _toolPageGenerator;
+    private readonly IContentFigureImageGenerationService _imageGeneration;
     private readonly CompanyProfileOptions _companyProfile;
     private readonly ILogger<ContentGenerationOrchestrator> _logger;
 
@@ -37,6 +39,8 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         IJsonLdParserService jsonLdParser,
         ITechnicalArticleSchemaBuilder articleSchemaBuilder,
         IBlogPostingSchemaBuilder blogSchemaBuilder,
+        IToolPageGenerator toolPageGenerator,
+        IContentFigureImageGenerationService imageGeneration,
         IOptions<CompanyProfileOptions> companyProfile,
         ILogger<ContentGenerationOrchestrator> logger)
     {
@@ -48,6 +52,8 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         _jsonLdParser = jsonLdParser;
         _articleSchemaBuilder = articleSchemaBuilder;
         _blogSchemaBuilder = blogSchemaBuilder;
+        _toolPageGenerator = toolPageGenerator;
+        _imageGeneration = imageGeneration;
         _companyProfile = companyProfile.Value;
         _logger = logger;
     }
@@ -63,6 +69,7 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         RemoveGeneratedContents(project,
             GeneratedContentType.TechnicalArticle,
             GeneratedContentType.BlogPost,
+            GeneratedContentType.ToolPost,
             GeneratedContentType.SocialFacebook,
             GeneratedContentType.SocialLinkedIn,
             GeneratedContentType.EmailColdOutreach,
@@ -79,7 +86,9 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             ProjectId = project.Id,
             ContentType = GeneratedContentType.TechnicalArticle,
             Title = metadata.Title,
+            DisplayTitle = string.IsNullOrWhiteSpace(metadata.DisplayTitle) ? metadata.Title : metadata.DisplayTitle,
             Slug = articleSlug,
+            ListingExcerpt = metadata.ListingExcerpt ?? string.Empty,
             MetaDescription = metadata.MetaDescription,
             Keywords = metadata.Keywords,
             SectionOutline = metadata.SectionOutline,
@@ -139,7 +148,41 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
     public async Task<GeneratedContentSet> GeneratePillarAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
         await GeneratePillarPlanAsync(projectId, cancellationToken);
-        return await GeneratePillarBodyAsync(projectId, cancellationToken);
+        await GeneratePillarBodyAsync(projectId, cancellationToken);
+        return await GenerateToolPagesAsync(projectId, cancellationToken);
+    }
+
+    public async Task<GeneratedContentSet> GenerateToolPagesAsync(
+        Guid projectId,
+        CancellationToken cancellationToken = default)
+    {
+        var project = await LoadProjectForGenerationAsync(projectId, cancellationToken);
+        var articleRow = RequireCompletePillar(project);
+        var context = BuildContext(project);
+        var provider = _providerFactory.Get(project.PreferredProvider);
+        var metadata = ToMetadataDraft(articleRow);
+        var department = GeekPublicUrlBuilder.ResolveDepartment(project);
+
+        _logger.LogInformation("Generating tool pages for project {ProjectId} via {Provider}", projectId, provider.ProviderType);
+
+        RemoveGeneratedContents(project, GeneratedContentType.ToolPost);
+
+        var toolRows = await _toolPageGenerator.GenerateToolPagesAsync(
+            project,
+            articleRow,
+            metadata,
+            context,
+            provider,
+            department,
+            cancellationToken);
+
+        foreach (var toolRow in toolRows)
+        {
+            await AddContentAsync(project, provider.ProviderType, toolRow, cancellationToken);
+        }
+
+        await SaveProjectAsync(project, ProjectStatus.ReadyForGeneration, cancellationToken);
+        return Assemble(project);
     }
 
     public async Task<GeneratedContentSet> GenerateBlogAsync(Guid projectId, CancellationToken cancellationToken = default)
@@ -179,7 +222,9 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             ProjectId = project.Id,
             ContentType = GeneratedContentType.BlogPost,
             Title = blog.Title,
+            DisplayTitle = string.IsNullOrWhiteSpace(blog.DisplayTitle) ? blog.Title : blog.DisplayTitle,
             Slug = blogSlug,
+            ListingExcerpt = blog.ListingExcerpt,
             MetaDescription = blog.MetaDescription,
             Keywords = blog.Keywords,
             WordCount = blog.WordCount,
@@ -323,6 +368,13 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         var blogUrl = GeekPublicUrlBuilder.BlogUrl(context.BlogBaseUrl, department, blogRow.Slug);
 
         var sections = ArticleHtmlSectionExtractor.BuildSectionTargets(articleRow.BodyHtml, blogRow.BodyHtml);
+        var toolBodies = project.GeneratedContents
+            .Where(c => c.ContentType == GeneratedContentType.ToolPost)
+            .Select(c => (c.Slug, c.BodyHtml))
+            .ToList();
+        sections = sections
+            .Concat(ArticleHtmlSectionExtractor.BuildToolSectionTargets(toolBodies))
+            .ToList();
         if (sections.Count == 0)
         {
             throw new ContentGenerationException(
@@ -396,10 +448,36 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
     {
         await GeneratePillarPlanAsync(projectId, cancellationToken);
         await GeneratePillarBodyAsync(projectId, cancellationToken);
+        await GenerateToolPagesAsync(projectId, cancellationToken);
         await GenerateBlogAsync(projectId, cancellationToken);
         await GenerateSocialAsync(projectId, cancellationToken);
         await GenerateColdOutreachAsync(projectId, cancellationToken);
         return await GenerateImagePromptsAsync(projectId, confirmRegenerateWithArt, cancellationToken);
+    }
+
+    public async Task<GeneratedContentSet> GenerateImagesAsync(
+        Guid projectId,
+        CancellationToken cancellationToken = default)
+    {
+        var project = await LoadProjectForGenerationAsync(projectId, cancellationToken);
+        var sourceTypes = new List<string> { FigureSourceType.Pillar, FigureSourceType.Blog };
+        sourceTypes.AddRange(project.GeneratedContents
+            .Where(c => c.ContentType == GeneratedContentType.ToolPost)
+            .Select(c => FigureSourceType.ForTool(c.Slug)));
+
+        foreach (var sourceType in sourceTypes.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                await _imageGeneration.GeneratePendingAsync(projectId, sourceType, cancellationToken);
+            }
+            catch (ContentGenerationException ex) when (ex.Message.Contains("No pending", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation("No pending figures for source {SourceType}", sourceType);
+            }
+        }
+
+        return Assemble(project);
     }
 
     private async Task<Project> LoadProjectForGenerationAsync(Guid projectId, CancellationToken cancellationToken)
@@ -441,7 +519,9 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         row.Title,
         row.MetaDescription ?? string.Empty,
         row.Keywords,
-        row.SectionOutline);
+        row.SectionOutline,
+        row.ListingExcerpt,
+        row.DisplayTitle);
 
     private void RemoveGeneratedContents(Project project, params GeneratedContentType[] types)
     {
@@ -748,7 +828,9 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             bodyHtml,
             metadata.Keywords,
             wordCount,
-            metadata.SectionOutline);
+            metadata.SectionOutline,
+            metadata.ListingExcerpt ?? string.Empty,
+            metadata.DisplayTitle ?? metadata.Title);
     }
 
     private async Task<string> GenerateBlogBodyAsync(

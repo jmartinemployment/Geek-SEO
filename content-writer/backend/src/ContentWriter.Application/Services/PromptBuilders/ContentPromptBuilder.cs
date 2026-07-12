@@ -58,7 +58,7 @@ public interface IContentPromptBuilder
 public class ContentPromptBuilder : IContentPromptBuilder
 {
     private const string ArticleMetadataJsonContract =
-        "{\"title\": string, \"metaDescription\": string (max 160 chars), \"keywords\": string[] (5-10 items), \"sectionOutline\": string[] (5-7 declarative H2 headings — exactly ONE tools section with a descriptive name like \"Top AI Tools for {topic}\" (never a bare \"Tools/Platforms\" label), plus final item: \"People Also Ask\")}";
+        "{\"title\": string, \"displayTitle\": string (short H1, no pipe suffixes), \"listingExcerpt\": string (1-2 sentence deck for cards, distinct from metaDescription), \"metaDescription\": string (max 160 chars), \"keywords\": string[] (5-10 items), \"sectionOutline\": string[] (5-7 declarative H2 headings — exactly ONE tools section with a descriptive name like \"Top AI Tools for {topic}\" (never a bare \"Tools/Platforms\" label), plus final item: \"People Also Ask\")}";
 
     private const string SocialJsonContract =
         "{\"text\": string}";
@@ -67,7 +67,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
         "{\"subject\": string, \"bodyText\": string (50-125 words), \"ctaLabel\": string}";
 
     private const string ImagePromptSectionItemJsonContract =
-        "{\"sourceType\": \"pillar|blog\", \"heading\": string (exact H2 text), \"order\": number, \"prompt\": string (40-400 words), \"width\": number, \"height\": number, \"leonardoModel\": string, \"stylePreset\": string, \"alchemy\": boolean, \"photoReal\": boolean, \"notes\": string|null}";
+        "{\"sourceType\": \"pillar|blog|tool\", \"heading\": string (exact H2 text), \"order\": number, \"prompt\": string (40-400 words), \"width\": number, \"height\": number, \"leonardoModel\": string, \"stylePreset\": string, \"alchemy\": boolean, \"photoReal\": boolean, \"notes\": string|null}";
 
     private const string ImagePromptSectionsJsonContract =
         "{\"sections\": [" + ImagePromptSectionItemJsonContract + ", ...]}";
@@ -248,7 +248,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
     }
 
     private const string BlogMetadataJsonContract =
-        "{\"title\": string, \"metaDescription\": string (max 160 chars), \"keywords\": string[] (5-10 items), \"sectionOutline\": string[] (5-6 conversational H2 headings — hooks, numbered angles, or how-to framing; do NOT copy pillar H2s verbatim)}";
+        "{\"title\": string, \"displayTitle\": string (short H1), \"listingExcerpt\": string (1-2 sentence deck for newspaper cards), \"metaDescription\": string (max 160 chars), \"keywords\": string[] (5-10 items), \"sectionOutline\": string[] (5-6 conversational H2 headings — hooks, numbered angles, or how-to framing; do NOT copy pillar H2s verbatim)}";
 
     public ChatCompletionRequest BuildBlogMetadataPrompt(ProjectGenerationContext context, ArticleDraft sourceArticle)
     {

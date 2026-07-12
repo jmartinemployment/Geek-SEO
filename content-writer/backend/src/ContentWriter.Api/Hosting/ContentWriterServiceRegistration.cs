@@ -10,6 +10,7 @@ using ContentWriter.Domain.Enums;
 using ContentWriter.Infrastructure.Data;
 using ContentWriter.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace ContentWriter.Api.Hosting;
 
@@ -44,28 +45,54 @@ public static class ContentWriterServiceRegistration
         });
 
         services.AddScoped<IProjectRepository, ProjectRepository>();
+        services.AddScoped<IProjectPublicationRepository, ProjectPublicationRepository>();
         services.AddScoped<IContentFigureRepository, ContentFigureRepository>();
         services.AddScoped<ContentFigureSyncService>();
+        services.AddScoped<IToolPageGenerator, ToolPageGenerator>();
 
         services.Configure<LlmProvidersOptions>(configuration.GetSection(LlmProvidersOptions.SectionName));
         services.Configure<CompanyProfileOptions>(configuration.GetSection(CompanyProfileOptions.SectionName));
         services.Configure<ContentExportOptions>(configuration.GetSection(ContentExportOptions.SectionName));
 
         services.Configure<GeekBlogPublishOptions>(configuration.GetSection(GeekBlogPublishOptions.SectionName));
+        services.Configure<SiteImageStorageOptions>(options =>
+        {
+            configuration.GetSection(SiteImageStorageOptions.SectionName).Bind(options);
+            var publicBase = Environment.GetEnvironmentVariable("CONTENT_IMAGE_PUBLIC_BASE_URL");
+            if (!string.IsNullOrWhiteSpace(publicBase))
+            {
+                options.PublicBaseUrl = publicBase;
+            }
+
+            var outputRoot = Environment.GetEnvironmentVariable("CONTENT_IMAGE_OUTPUT_DIR");
+            if (!string.IsNullOrWhiteSpace(outputRoot))
+            {
+                options.LocalOutputRoot = outputRoot;
+            }
+
+            var storage = Environment.GetEnvironmentVariable("CONTENT_IMAGE_STORAGE");
+            if (!string.IsNullOrWhiteSpace(storage))
+            {
+                options.DefaultStorage = storage;
+            }
+        });
         services.Configure<BlobStorageOptions>(options =>
         {
             configuration.GetSection(BlobStorageOptions.SectionName).Bind(options);
-            var envToken = Environment.GetEnvironmentVariable("BLOB_READ_WRITE_TOKEN");
-            if (!string.IsNullOrWhiteSpace(envToken))
+            var token = Environment.GetEnvironmentVariable("BLOB_READ_WRITE_TOKEN");
+            if (!string.IsNullOrWhiteSpace(token))
             {
-                options.ReadWriteToken = envToken;
+                options.ReadWriteToken = token;
             }
         });
         services.Configure<FigureImageGenerationOptions>(
             configuration.GetSection(FigureImageGenerationOptions.SectionName));
 
-        services.AddHttpClient<VercelBlobUploader>();
         services.AddHttpClient<OpenAiFigureImageClient>();
+        services.AddHttpClient<VercelBlobUploader>();
+        services.AddSingleton(sp =>
+            new SiteStaticImagePublisher(sp.GetRequiredService<IOptions<SiteImageStorageOptions>>().Value));
+        services.AddSingleton<VercelBlobStore>();
         services.AddScoped<IContentFigureAttachService, ContentFigureAttachService>();
         services.AddScoped<IContentFigureImageGenerationService, ContentFigureImageGenerationService>();
 

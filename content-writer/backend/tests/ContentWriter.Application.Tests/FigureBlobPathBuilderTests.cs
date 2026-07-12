@@ -5,29 +5,24 @@ namespace ContentWriter.Application.Tests;
 public class FigureBlobPathBuilderTests
 {
     [Fact]
-    public void BuildBlobPathname_uses_geek_api_slug_and_heading_slug()
+    public void BuildBlobPathname_uses_type_department_and_page_slug()
     {
         var path = FigureBlobPathBuilder.BuildBlobPathname(
             "use-cases/accounting/smart-bank-reconciliation",
-            "pillar",
             "cost-allocation");
 
         Assert.Equal(
-            "content/use-cases/accounting/smart-bank-reconciliation/pillar/h2-cost-allocation.webp",
+            "images/TechnicalArticle/accounting/smart-bank-reconciliation/h2-cost-allocation.webp",
             path);
     }
 
     [Theory]
-    [InlineData("", "pillar", "intro")]
-    [InlineData("use-cases/sales/foo", "", "intro")]
-    [InlineData("use-cases/sales/foo", "pillar", "")]
-    public void BuildBlobPathname_throws_when_required_part_missing(
-        string geekApiSlug,
-        string sourceType,
-        string headingSlug)
+    [InlineData("", "intro")]
+    [InlineData("use-cases/sales/foo", "")]
+    public void BuildBlobPathname_throws_when_required_part_missing(string geekApiSlug, string headingSlug)
     {
         Assert.ThrowsAny<ArgumentException>(() =>
-            FigureBlobPathBuilder.BuildBlobPathname(geekApiSlug, sourceType, headingSlug));
+            FigureBlobPathBuilder.BuildBlobPathname(geekApiSlug, headingSlug));
     }
 }
 

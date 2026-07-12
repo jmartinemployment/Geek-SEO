@@ -24,7 +24,14 @@ public static class GeekPublicUrlBuilder
 
     public static string ApiSlugForBlog(string department, string slug) => $"blog/{department}/{slug}";
 
+    public static string ApiSlugForTool(string department, string slug) => $"tools/{department}/{slug}";
+
     public static string ArticlePath(string department, string slug) => $"/use-cases/{department}/{slug}";
 
     public static string BlogPath(string department, string slug) => $"/blog/{department}/{slug}";
+
+    public static string ToolPath(string department, string slug) => $"/tools/{department}/{slug}";
+
+    public static string ToolUrl(string siteBaseUrl, string department, string slug) =>
+        $"{siteBaseUrl.TrimEnd('/')}/tools/{department}/{slug}";
 }

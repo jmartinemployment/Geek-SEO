@@ -13,47 +13,29 @@ public static class ContentFigureImageGenerationRunner
         string? headingSlug,
         CancellationToken cancellationToken = default)
     {
-        var openAiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-        if (string.IsNullOrWhiteSpace(openAiKey))
-        {
-            throw new InvalidOperationException("OPENAI_API_KEY is required for generate.");
-        }
-
-        var blobToken = Environment.GetEnvironmentVariable("BLOB_READ_WRITE_TOKEN");
-        if (string.IsNullOrWhiteSpace(blobToken))
-        {
-            throw new InvalidOperationException("BLOB_READ_WRITE_TOKEN is required for generate.");
-        }
-
         await using var db = ContentFiguresDb.CreateContext();
-        var llmOptions = Options.Create(new LlmProvidersOptions
-        {
-            OpenAi = new OpenAiOptions { ApiKey = openAiKey },
-        });
-        var blobOptions = Options.Create(new BlobStorageOptions { ReadWriteToken = blobToken });
-        var imageOptions = Options.Create(new FigureImageGenerationOptions());
-
+        using var http = new HttpClient();
         var generation = new ContentFigureImageGenerationService(
             new ContentFigureRepository(db),
-            new ContentFigureAttachService(
-                new ContentFigureRepository(db),
-                blobOptions,
-                new VercelBlobUploader(new HttpClient())),
-            new OpenAiFigureImageClient(new HttpClient(), llmOptions, imageOptions));
+            ContentFigureAttachServiceFactory.Create(db),
+            new OpenAiFigureImageClient(
+                http,
+                Options.Create(new LlmProvidersOptions()),
+                Options.Create(new FigureImageGenerationOptions())));
 
-        if (string.IsNullOrWhiteSpace(headingSlug))
+        if (!string.IsNullOrWhiteSpace(headingSlug))
         {
-            var figures = await generation.GeneratePendingAsync(projectId, sourceType, cancellationToken);
-            foreach (var figure in figures)
-            {
-                Console.WriteLine($"  [{figure.SectionOrder}] {figure.HeadingSlug} -> {figure.ImageUrl}");
-            }
-
-            return figures.Count;
+            var single = await generation.GenerateAsync(projectId, sourceType, headingSlug, cancellationToken);
+            Console.WriteLine($"  [{single.SectionOrder}] {single.HeadingSlug} -> {single.ImageUrl}");
+            return 1;
         }
 
-        var single = await generation.GenerateAsync(projectId, sourceType, headingSlug, cancellationToken);
-        Console.WriteLine($"  [{single.SectionOrder}] {single.HeadingSlug} -> {single.ImageUrl}");
-        return 1;
+        var figures = await generation.GeneratePendingAsync(projectId, sourceType, cancellationToken);
+        foreach (var figure in figures)
+        {
+            Console.WriteLine($"  [{figure.SectionOrder}] {figure.HeadingSlug} -> {figure.ImageUrl}");
+        }
+
+        return figures.Count;
     }
 }

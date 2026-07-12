@@ -10,10 +10,28 @@ public class GeneratedContent
 
     public GeneratedContentType ContentType { get; set; }
     public string Title { get; set; } = string.Empty;
+
+    /// <summary>Clean H1 for the live page. Falls back to <see cref="Title"/> when unset.</summary>
+    public string? DisplayTitle { get; set; }
+
     public string Slug { get; set; } = string.Empty;
     public string BodyHtml { get; set; } = string.Empty;
 
+    /// <summary>Listing deck / newspaper wire summary. Published to GeekAPI excerpt columns.</summary>
+    public string ListingExcerpt { get; set; } = string.Empty;
+
     public string? MetaDescription { get; set; }
+
+    /// <summary>Tool-page callout copy (tool posts only).</summary>
+    public string? AdvertisingExcerpt { get; set; }
+
+    public string? HeroImageUrl { get; set; }
+
+    /// <summary>Top Tools app name this tool row was generated from (tool posts only).</summary>
+    public string? SourceAppName { get; set; }
+
+    /// <summary>Order within the pillar Top Tools section (tool posts only).</summary>
+    public int? SourceAppOrder { get; set; }
     public List<string> Keywords { get; set; } = new();
     public int WordCount { get; set; }
 

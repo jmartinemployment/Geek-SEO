@@ -3,6 +3,7 @@ using System;
 using ContentWriter.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ContentWriter.Infrastructure.Migrations
 {
     [DbContext(typeof(ContentWriterDbContext))]
-    partial class ContentWriterDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260712151957_AddContentFigureImageStorage")]
+    partial class AddContentFigureImageStorage
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -173,10 +176,6 @@ namespace ContentWriter.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("AdvertisingExcerpt")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
                     b.Property<string>("BodyHtml")
                         .IsRequired()
                         .HasColumnType("text");
@@ -187,10 +186,6 @@ namespace ContentWriter.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("DisplayTitle")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
                     b.Property<string>("GeneratedByModel")
                         .IsRequired()
                         .HasColumnType("text");
@@ -198,21 +193,12 @@ namespace ContentWriter.Infrastructure.Migrations
                     b.Property<int>("GeneratedByProvider")
                         .HasColumnType("integer");
 
-                    b.Property<string>("HeroImageUrl")
-                        .HasMaxLength(2048)
-                        .HasColumnType("character varying(2048)");
-
                     b.Property<string>("JsonLdSchema")
                         .HasColumnType("text");
 
                     b.Property<string>("Keywords")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<string>("ListingExcerpt")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
 
                     b.Property<string>("MetaDescription")
                         .HasColumnType("text");
@@ -231,13 +217,6 @@ namespace ContentWriter.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
-
-                    b.Property<string>("SourceAppName")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<int?>("SourceAppOrder")
-                        .HasColumnType("integer");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -337,37 +316,6 @@ namespace ContentWriter.Infrastructure.Migrations
                     b.ToTable("Projects", "content_writer");
                 });
 
-            modelBuilder.Entity("ContentWriter.Domain.Entities.ProjectPublication", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("ContentType")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("GeekApiSlug")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<int>("GeekPostId")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("PublishedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjectId", "ContentType", "GeekApiSlug")
-                        .IsUnique();
-
-                    b.ToTable("ProjectPublications", "content_writer");
-                });
-
             modelBuilder.Entity("ContentWriter.Domain.Entities.ContentFigure", b =>
                 {
                     b.HasOne("ContentWriter.Domain.Entities.GeneratedContent", "ImagePromptContent")
@@ -419,17 +367,6 @@ namespace ContentWriter.Infrastructure.Migrations
                     b.Navigation("Project");
                 });
 
-            modelBuilder.Entity("ContentWriter.Domain.Entities.ProjectPublication", b =>
-                {
-                    b.HasOne("ContentWriter.Domain.Entities.Project", "Project")
-                        .WithMany("Publications")
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Project");
-                });
-
             modelBuilder.Entity("ContentWriter.Domain.Entities.Project", b =>
                 {
                     b.Navigation("CrawledSite");
@@ -437,8 +374,6 @@ namespace ContentWriter.Infrastructure.Migrations
                     b.Navigation("GeneratedContents");
 
                     b.Navigation("KeywordSources");
-
-                    b.Navigation("Publications");
                 });
 #pragma warning restore 612, 618
         }

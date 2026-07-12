@@ -69,6 +69,44 @@ public static class ToolsSectionHtmlParser
         return applications;
     }
 
+    public static string InjectToolLinks(
+        string bodyHtml,
+        IReadOnlyList<string> sectionOutline,
+        string department,
+        IReadOnlyList<(string AppName, string ToolSlug)> tools)
+    {
+        if (string.IsNullOrWhiteSpace(bodyHtml) || tools.Count == 0)
+        {
+            return bodyHtml;
+        }
+
+        var toolsHeading = sectionOutline.FirstOrDefault(PillarSectionClassifier.IsToolsSection);
+        if (string.IsNullOrWhiteSpace(toolsHeading))
+        {
+            return bodyHtml;
+        }
+
+        var result = bodyHtml;
+        foreach (var (appName, toolSlug) in tools)
+        {
+            if (string.IsNullOrWhiteSpace(appName))
+            {
+                continue;
+            }
+
+            var href = $"/tools/{department}/{toolSlug}";
+            var pattern = $@"(<h3[^>]*>)(\s*{Regex.Escape(appName)}\s*)(</h3>)";
+            result = Regex.Replace(
+                result,
+                pattern,
+                $"$1<a href=\"{href}\">$2</a>$3",
+                RegexOptions.IgnoreCase | RegexOptions.Singleline,
+                TimeSpan.FromSeconds(2));
+        }
+
+        return result;
+    }
+
     private static string? ExtractFollowingParagraph(string html, int startIndex)
     {
         var slice = html[startIndex..];

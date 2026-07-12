@@ -34,13 +34,17 @@ public record ArticleMetadataDraft(
     string Title,
     string MetaDescription,
     List<string> Keywords,
-    List<string> SectionOutline);
+    List<string> SectionOutline,
+    string? ListingExcerpt = null,
+    string? DisplayTitle = null);
 
 public record BlogMetadataDraft(
     string Title,
     string MetaDescription,
     List<string> Keywords,
-    List<string> SectionOutline);
+    List<string> SectionOutline,
+    string? ListingExcerpt = null,
+    string? DisplayTitle = null);
 
 public record ArticleDraft(
     string Title,
@@ -48,7 +52,9 @@ public record ArticleDraft(
     string BodyHtml,
     List<string> Keywords,
     int WordCount,
-    List<string> SectionOutline);
+    List<string> SectionOutline,
+    string ListingExcerpt = "",
+    string DisplayTitle = "");
 
 public record BlogDraft(
     string Title,
@@ -56,7 +62,22 @@ public record BlogDraft(
     string BodyHtml,
     List<string> Keywords,
     int WordCount,
-    List<string> SectionOutline);
+    List<string> SectionOutline,
+    string ListingExcerpt = "",
+    string DisplayTitle = "");
+
+public record ToolDraft(
+    string Title,
+    string DisplayTitle,
+    string ListingExcerpt,
+    string MetaDescription,
+    string? AdvertisingExcerpt,
+    string BodyHtml,
+    string Slug,
+    string SourceAppName,
+    int SourceAppOrder,
+    int WordCount,
+    string? JsonLdSchema);
 
 public record SocialPostDraft(string Platform, string Text);
 
@@ -118,4 +139,5 @@ public record GeneratedContentSet(
     SocialPostDraft? FacebookPost,
     SocialPostDraft? LinkedInPost,
     ColdOutreachEmailContent? ColdOutreachEmail,
-    ImagePromptsContent? ImagePrompts);
+    ImagePromptsContent? ImagePrompts,
+    IReadOnlyList<ToolDraft>? Tools);
