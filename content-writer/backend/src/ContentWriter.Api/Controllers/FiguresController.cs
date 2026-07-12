@@ -15,7 +15,6 @@ public class FiguresController : ControllerBase
 {
     private readonly IContentFigureRepository _figures;
     private readonly IProjectRepository _projects;
-    private readonly IFigureMergeService _mergeService;
     private readonly IContentFigureAttachService _attachService;
     private readonly IContentFigureImageGenerationService _imageGeneration;
     private readonly FigureImageGenerationOptions _figureImageOptions;
@@ -24,7 +23,6 @@ public class FiguresController : ControllerBase
     public FiguresController(
         IContentFigureRepository figures,
         IProjectRepository projects,
-        IFigureMergeService mergeService,
         IContentFigureAttachService attachService,
         IContentFigureImageGenerationService imageGeneration,
         IOptions<FigureImageGenerationOptions> figureImageOptions,
@@ -32,7 +30,6 @@ public class FiguresController : ControllerBase
     {
         _figures = figures;
         _projects = projects;
-        _mergeService = mergeService;
         _attachService = attachService;
         _imageGeneration = imageGeneration;
         _figureImageOptions = figureImageOptions.Value;
@@ -76,37 +73,7 @@ public class FiguresController : ControllerBase
                 f.BriefText,
                 f.Status,
                 f.ImageUrl,
-                f.GeekApiSlug,
-                f.NeedsFigureMerge)).ToList()));
-    }
-
-    [HttpPost("merge")]
-    public async Task<ActionResult<FigureMergeResponse>> Merge(
-        Guid projectId,
-        [FromBody] FigureMergeRequest request,
-        CancellationToken cancellationToken)
-    {
-        if (!await ProjectExistsAsync(projectId, cancellationToken))
-        {
-            return NotFound();
-        }
-
-        try
-        {
-            FigureMergeService.ValidateSourceType(request.Source);
-            var result = await _mergeService.MergeSourceAsync(projectId, request.Source, cancellationToken);
-            return Ok(new FigureMergeResponse(
-                result.SourceType,
-                result.GeekApiSlug,
-                result.GeekPostId,
-                result.FiguresMerged,
-                result.PublicPath));
-        }
-        catch (ContentGenerationException ex)
-        {
-            _logger.LogWarning(ex, "Figure merge failed for project {ProjectId}", projectId);
-            return Problem(ex.Message, statusCode: 400, title: "Figure merge failed");
-        }
+                f.GeekApiSlug)).ToList()));
     }
 
     [HttpPost("generate")]
@@ -122,7 +89,7 @@ public class FiguresController : ControllerBase
 
         try
         {
-            FigureMergeService.ValidateSourceType(request.Source);
+            FigureSourceValidator.ValidateSourceType(request.Source);
             IReadOnlyList<ContentFigure> figures;
             if (string.IsNullOrWhiteSpace(request.HeadingSlug))
             {
@@ -178,7 +145,7 @@ public class FiguresController : ControllerBase
         try
         {
             await using var stream = file.OpenReadStream();
-            var figure = await _attachService.AttachWebpAsync(
+            var figure = await _attachService.AttachAvifAsync(
                 projectId,
                 source,
                 headingSlug,
@@ -300,7 +267,6 @@ public class FiguresController : ControllerBase
             figure.ImageAlt,
             figure.GeekApiSlug,
             figure.GeekPostId,
-            figure.NeedsFigureMerge,
             figure.ImagePromptContentId,
             figure.UpdatedAtUtc);
 

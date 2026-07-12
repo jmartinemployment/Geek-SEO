@@ -17,7 +17,6 @@ public sealed record ContentFigureDto(
     string ImageAlt,
     string? GeekApiSlug,
     int? GeekPostId,
-    bool NeedsFigureMerge,
     Guid? ImagePromptContentId,
     DateTime UpdatedAtUtc);
 
@@ -42,21 +41,11 @@ public sealed record ContentFigureManifestEntry(
     string BriefText,
     FigureStatus Status,
     string? ImageUrl,
-    string? GeekApiSlug,
-    bool NeedsFigureMerge);
+    string? GeekApiSlug);
 
 public sealed record ContentFigureManifestResponse(
     Guid ProjectId,
     IReadOnlyList<ContentFigureManifestEntry> Figures);
-
-public sealed record FigureMergeRequest(string Source);
-
-public sealed record FigureMergeResponse(
-    string SourceType,
-    string GeekApiSlug,
-    int GeekPostId,
-    int FiguresMerged,
-    string PublicPath);
 
 public sealed record FigureGenerateRequest(string Source, string? HeadingSlug);
 

@@ -29,7 +29,7 @@ var headingSlugOption = new Option<string>("--heading-slug")
 var fileOption = new Option<FileInfo>("--file")
 {
     IsRequired = true,
-    Description = "Local .webp image file to upload",
+    Description = "Local .avif image file to upload",
 };
 
 var altOption = new Option<string?>("--alt", "Override image alt text");
@@ -39,7 +39,7 @@ var outOption = new Option<FileInfo?>("--out", "Write manifest JSON to this file
 var dirOption = new Option<DirectoryInfo>("--dir")
 {
     IsRequired = true,
-    Description = "Directory containing h2-*.webp files",
+    Description = "Directory containing h2-*.avif files",
 };
 
 var root = new RootCommand("ContentFigures — attach section art to Content-Writer figures (Phase 2)");
@@ -77,7 +77,7 @@ listCmd.SetHandler(async projectId =>
     }
 }, projectIdOption);
 
-var attachCmd = new Command("attach", "Copy a .webp into site public/images/{Type}/{dept}/{slug} and mark the figure Ready");
+var attachCmd = new Command("attach", "Copy a .avif into site public/images/{Type}/{dept}/{slug} and mark the figure Ready");
 attachCmd.AddOption(projectIdOption);
 attachCmd.AddOption(sourceOption);
 attachCmd.AddOption(headingSlugOption);
@@ -142,8 +142,7 @@ exportCmd.SetHandler(async (projectId, outFile) =>
             f.BriefText,
             f.Status,
             f.ImageUrl,
-            f.GeekApiSlug,
-            f.NeedsFigureMerge)).ToList());
+            f.GeekApiSlug)).ToList());
 
     var json = JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true });
     if (outFile is not null)
@@ -157,7 +156,7 @@ exportCmd.SetHandler(async (projectId, outFile) =>
     }
 }, projectIdOption, outOption);
 
-var syncDirCmd = new Command("sync-dir", "Attach every h2-*.webp in a directory to matching figures");
+var syncDirCmd = new Command("sync-dir", "Attach every h2-*.avif in a directory to matching figures");
 syncDirCmd.AddOption(projectIdOption);
 syncDirCmd.AddOption(sourceOption);
 syncDirCmd.AddOption(dirOption);
@@ -191,19 +190,6 @@ root.AddCommand(skipCmd);
 root.AddCommand(exportCmd);
 root.AddCommand(syncDirCmd);
 root.AddCommand(generateCmd);
-
-var mergeCmd = new Command("merge", "Merge Ready figures into the live GeekAPI post body");
-mergeCmd.AddOption(projectIdOption);
-mergeCmd.AddOption(sourceOption);
-mergeCmd.SetHandler(async (projectId, source) =>
-{
-    var result = await FigureMergeRunner.MergeAsync(projectId, source);
-    Console.WriteLine(
-        $"Merged {result.FiguresMerged} figure(s) into post {result.GeekPostId} ({result.GeekApiSlug})");
-    Console.WriteLine($"  path: {result.PublicPath}");
-}, projectIdOption, sourceOption);
-
-root.AddCommand(mergeCmd);
 
 var prefixOption = new Option<string?>("--prefix")
 {

@@ -4,7 +4,7 @@ namespace ContentWriter.Application.Services.Figures;
 
 public static partial class FigureSyncDirMatcher
 {
-    [GeneratedRegex(@"^h2-.+\.webp$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^h2-.+\.avif$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SyncFileNameRegex();
 
     public static bool IsSyncCandidateFile(string fileName) =>
@@ -29,13 +29,13 @@ public static partial class FigureSyncDirMatcher
 
         foreach (var slug in ordered)
         {
-            if (fileName.Equals($"h2-{slug}.webp", StringComparison.OrdinalIgnoreCase))
+            if (fileName.Equals($"h2-{slug}.avif", StringComparison.OrdinalIgnoreCase))
             {
                 return slug;
             }
 
             if (fileName.StartsWith($"h2-", StringComparison.OrdinalIgnoreCase)
-                && fileName.EndsWith($"-{slug}.webp", StringComparison.OrdinalIgnoreCase))
+                && fileName.EndsWith($"-{slug}.avif", StringComparison.OrdinalIgnoreCase))
             {
                 return slug;
             }

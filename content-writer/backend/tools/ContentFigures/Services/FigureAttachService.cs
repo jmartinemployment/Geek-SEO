@@ -43,10 +43,10 @@ public sealed class FigureAttachService(ContentWriter.Infrastructure.Data.Conten
         }
 
         var knownSlugs = figures.Select(f => f.HeadingSlug).ToList();
-        var files = new DirectoryInfo(directoryPath).GetFiles("h2-*.webp", SearchOption.TopDirectoryOnly);
+        var files = new DirectoryInfo(directoryPath).GetFiles("h2-*.avif", SearchOption.TopDirectoryOnly);
         if (files.Length == 0)
         {
-            throw new InvalidOperationException($"No h2-*.webp files in {directoryPath}.");
+            throw new InvalidOperationException($"No h2-*.avif files in {directoryPath}.");
         }
 
         foreach (var file in files.OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase))

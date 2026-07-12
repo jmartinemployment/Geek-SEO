@@ -18,7 +18,7 @@ public static class ContentFigureAttachRunner
         await using var stream = File.OpenRead(imageFilePath);
         var attach = CreateAttachService(db);
 
-        await attach.AttachWebpAsync(
+        await attach.AttachAvifAsync(
             projectId,
             sourceType,
             headingSlug,

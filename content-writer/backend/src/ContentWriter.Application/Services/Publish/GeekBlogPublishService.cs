@@ -42,11 +42,8 @@ public class GeekBlogPublishService : IGeekBlogPublishService
     private readonly IProjectRepository _projectRepository;
     private readonly IProjectPublicationRepository _publicationRepository;
     private readonly IContentFigureRepository _figureRepository;
-    private readonly IContentFigureImageGenerationService _imageGeneration;
-    private readonly IFigureMergeService _figureMerge;
     private readonly CompanyProfileOptions _companyProfile;
     private readonly GeekBlogPublishOptions _publishOptions;
-    private readonly FigureImageGenerationOptions _figureImageOptions;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<GeekBlogPublishService> _logger;
 
@@ -54,22 +51,16 @@ public class GeekBlogPublishService : IGeekBlogPublishService
         IProjectRepository projectRepository,
         IProjectPublicationRepository publicationRepository,
         IContentFigureRepository figureRepository,
-        IContentFigureImageGenerationService imageGeneration,
-        IFigureMergeService figureMerge,
         IOptions<CompanyProfileOptions> companyProfile,
         IOptions<GeekBlogPublishOptions> publishOptions,
-        IOptions<FigureImageGenerationOptions> figureImageOptions,
         IHttpClientFactory httpClientFactory,
         ILogger<GeekBlogPublishService> logger)
     {
         _projectRepository = projectRepository;
         _publicationRepository = publicationRepository;
         _figureRepository = figureRepository;
-        _imageGeneration = imageGeneration;
-        _figureMerge = figureMerge;
         _companyProfile = companyProfile.Value;
         _publishOptions = publishOptions.Value;
-        _figureImageOptions = figureImageOptions.Value;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
@@ -130,7 +121,6 @@ public class GeekBlogPublishService : IGeekBlogPublishService
 
             published.Add(post with { PublicPath = GeekPublicUrlBuilder.ArticlePath(department, contentSet.ArticleSlug) });
             await StampFiguresAsync(projectId, FigureSourceType.Pillar, apiSlug, post.PostId, cancellationToken);
-            await ProcessFiguresForSourceAsync(projectId, FigureSourceType.Pillar, cancellationToken);
         }
 
         if (contentSet.Blog is not null
@@ -154,7 +144,6 @@ public class GeekBlogPublishService : IGeekBlogPublishService
 
             published.Add(post with { PublicPath = GeekPublicUrlBuilder.BlogPath(department, contentSet.BlogSlug) });
             await StampFiguresAsync(projectId, FigureSourceType.Blog, apiSlug, post.PostId, cancellationToken);
-            await ProcessFiguresForSourceAsync(projectId, FigureSourceType.Blog, cancellationToken);
         }
 
         var toolRows = project.GeneratedContents
@@ -186,7 +175,6 @@ public class GeekBlogPublishService : IGeekBlogPublishService
             published.Add(post with { PublicPath = GeekPublicUrlBuilder.ToolPath(department, toolRow.Slug) });
             var toolSource = FigureSourceType.ForTool(toolRow.Slug);
             await StampFiguresAsync(projectId, toolSource, apiSlug, post.PostId, cancellationToken);
-            await ProcessFiguresForSourceAsync(projectId, toolSource, cancellationToken);
         }
 
         if (published.Count == 0)
@@ -203,53 +191,6 @@ public class GeekBlogPublishService : IGeekBlogPublishService
         }
 
         return new GeekBlogPublishResult(department, published);
-    }
-
-    private async Task ProcessFiguresForSourceAsync(
-        Guid projectId,
-        string sourceType,
-        CancellationToken cancellationToken)
-    {
-        var figures = await _figureRepository.ListByProjectAsync(projectId, cancellationToken);
-        var relevant = figures
-            .Where(f => string.Equals(f.SourceType, sourceType, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        if (relevant.Count == 0)
-        {
-            return;
-        }
-
-        var hasBriefs = relevant.Any(f => !string.IsNullOrWhiteSpace(f.BriefText));
-        if (!hasBriefs)
-        {
-            return;
-        }
-
-        if (_figureImageOptions.InAppGenerationEnabled && _figureImageOptions.AutoGenerateOnPublish)
-        {
-            try
-            {
-                await _imageGeneration.GeneratePendingAsync(projectId, sourceType, cancellationToken);
-            }
-            catch (ContentGenerationException ex)
-            {
-                throw new ContentGenerationException(
-                    $"Figure image generation failed for source '{sourceType}': {ex.Message}");
-            }
-        }
-
-        try
-        {
-            await _figureMerge.MergeSourceAsync(projectId, sourceType, cancellationToken);
-        }
-        catch (ContentGenerationException ex) when (ex.Message.Contains("No Ready", StringComparison.OrdinalIgnoreCase))
-        {
-            _logger.LogInformation(
-                "No Ready figures to merge for {SourceType}: {Message}",
-                sourceType,
-                ex.Message);
-        }
     }
 
     private async Task StampFiguresAsync(

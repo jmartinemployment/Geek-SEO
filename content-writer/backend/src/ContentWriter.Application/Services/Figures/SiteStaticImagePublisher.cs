@@ -9,12 +9,12 @@ public sealed class SiteStaticImagePublisher
         _options = options;
     }
 
-    public async Task<(string RelativePath, string PublicUrl)> PublishWebpAsync(
+    public async Task<(string RelativePath, string PublicUrl)> PublishStaticImageAsync(
         string relativePath,
-        byte[] webpBytes,
+        byte[] imageBytes,
         CancellationToken cancellationToken = default)
     {
-        if (webpBytes.Length == 0)
+        if (imageBytes.Length == 0)
         {
             throw new InvalidOperationException("Cannot publish an empty image.");
         }
@@ -29,7 +29,7 @@ public sealed class SiteStaticImagePublisher
         }
 
         Directory.CreateDirectory(directory);
-        await File.WriteAllBytesAsync(absolutePath, webpBytes, cancellationToken);
+        await File.WriteAllBytesAsync(absolutePath, imageBytes, cancellationToken);
 
         return (normalizedRelative, _options.BuildPublicUrl(normalizedRelative));
     }

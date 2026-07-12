@@ -85,11 +85,6 @@ public sealed class ContentFigureRepository : IContentFigureRepository
         {
             figure.GeekApiSlug = geekApiSlug;
             figure.GeekPostId = geekPostId;
-            if (figure.Status is FigureStatus.Ready or FigureStatus.Published)
-            {
-                figure.NeedsFigureMerge = true;
-            }
-
             figure.UpdatedAtUtc = now;
         }
 

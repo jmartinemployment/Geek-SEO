@@ -12,7 +12,7 @@ public class FigureBlobPathBuilderTests
             "cost-allocation");
 
         Assert.Equal(
-            "images/TechnicalArticle/accounting/smart-bank-reconciliation/h2-cost-allocation.webp",
+            "images/TechnicalArticle/accounting/smart-bank-reconciliation/h2-cost-allocation.avif",
             path);
     }
 
@@ -32,7 +32,7 @@ public class FigureSyncDirMatcherTests
     public void ResolveHeadingSlug_matches_exact_filename()
     {
         var slug = FigureSyncDirMatcher.ResolveHeadingSlug(
-            "h2-cost-allocation.webp",
+            "h2-cost-allocation.avif",
             ["cost-allocation", "intro"]);
 
         Assert.Equal("cost-allocation", slug);
@@ -42,7 +42,7 @@ public class FigureSyncDirMatcherTests
     public void ResolveHeadingSlug_matches_prefixed_filename()
     {
         var slug = FigureSyncDirMatcher.ResolveHeadingSlug(
-            "h2-03-cost-allocation.webp",
+            "h2-03-cost-allocation.avif",
             ["cost-allocation", "intro"]);
 
         Assert.Equal("cost-allocation", slug);
@@ -52,7 +52,7 @@ public class FigureSyncDirMatcherTests
     public void ResolveHeadingSlug_returns_null_when_no_match()
     {
         var slug = FigureSyncDirMatcher.ResolveHeadingSlug(
-            "h2-unknown.webp",
+            "h2-unknown.avif",
             ["cost-allocation"]);
 
         Assert.Null(slug);
@@ -62,7 +62,7 @@ public class FigureSyncDirMatcherTests
     public void ResolveHeadingSlug_prefers_longest_slug()
     {
         var slug = FigureSyncDirMatcher.ResolveHeadingSlug(
-            "h2-smart-bank-reconciliation.webp",
+            "h2-smart-bank-reconciliation.avif",
             ["bank", "smart-bank-reconciliation"]);
 
         Assert.Equal("smart-bank-reconciliation", slug);

@@ -4,7 +4,6 @@ import type {
   CrawlSummary,
   ExportMarkdownResponse,
   FigureGenerateResponse,
-  FigureMergeResponse,
   GeneratedContentSet,
   KeywordSourceCategory,
   KeywordSourceResponse,
@@ -198,16 +197,6 @@ export function publishToSite(
 
 export function listFigures(projectId: string): Promise<ContentFiguresListResponse> {
   return request<ContentFiguresListResponse>(`/api/projects/${projectId}/figures`);
-}
-
-export function mergeFigures(
-  projectId: string,
-  source: "pillar" | "blog"
-): Promise<FigureMergeResponse> {
-  return request<FigureMergeResponse>(`/api/projects/${projectId}/figures/merge`, {
-    method: "POST",
-    body: JSON.stringify({ source }),
-  });
 }
 
 export function attachFigure(

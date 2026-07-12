@@ -1,6 +1,14 @@
-# ContentFigures CLI (Phase 2)
+# ContentFigures CLI
 
-Operator tool for attaching section art to Content-Writer `content_figures` rows. Connects directly to Postgres (`CONTENT_WRITER_DATABASE_URL`) — not through the HTTP API.
+Operator tool for saving section AVIF files and tracking Content-Writer `content_figures` rows. **Not part of the geekatyourspot Next.js app.**
+
+## Architecture
+
+Section images are **layout slots outside post body**. geekatyourspot renders:
+
+`public/images/{TechnicalArticle|Blog|Tool}/{department}/{pageSlug}/h2-{heading-slug}.avif`
+
+via `next/image` in pillar/tool layouts — never inline in markdown. There is no merge-into-body step.
 
 ## Prerequisites
 
@@ -9,11 +17,8 @@ Operator tool for attaching section art to Content-Writer `content_figures` rows
 | `CONTENT_WRITER_DATABASE_URL` | All commands |
 | `CONTENT_IMAGE_OUTPUT_DIR` | `attach`, `sync-dir`, `generate` (site-static default) |
 | `BLOB_READ_WRITE_TOKEN` | `attach`/`generate` when `CONTENT_IMAGE_STORAGE=vercel_blob` |
-| `GEEK_BACKEND_API_KEY` | `merge` |
 
 Text must be published to GeekAPI first so each figure row has a `GeekApiSlug`.
-
-Default storage is **site-static** (`geekatyourspot/public/images/content/...`). Set `CONTENT_IMAGE_STORAGE=vercel_blob` to use Vercel Blob again when billing allows.
 
 ## Commands
 
@@ -22,7 +27,7 @@ cd content-writer/backend
 dotnet run --project tools/ContentFigures/ContentFigures.csproj -- list --project-id <guid>
 
 dotnet run --project tools/ContentFigures/ContentFigures.csproj -- attach \
-  --project-id <guid> --source pillar --heading-slug <slug> --file ./art/h2-<slug>.webp
+  --project-id <guid> --source pillar --heading-slug <slug> --file ./art/h2-<slug>.avif
 
 dotnet run --project tools/ContentFigures/ContentFigures.csproj -- set-url \
   --project-id <guid> --source pillar --heading-slug <slug> --url https://...
@@ -36,25 +41,12 @@ dotnet run --project tools/ContentFigures/ContentFigures.csproj -- export-manife
 dotnet run --project tools/ContentFigures/ContentFigures.csproj -- sync-dir \
   --project-id <guid> --source pillar --dir ./art/pillar
 
-dotnet run --project tools/ContentFigures/ContentFigures.csproj -- merge \
-  --project-id <guid> --source pillar
-
 # Purge stored images (columns stay in DB)
 dotnet run --project tools/ContentFigures/ContentFigures.csproj -- purge-all
 ```
-
-## Rules (binary)
-
-- `attach` requires `.webp`, a matching figure row, and `GeekApiSlug` on that row.
-- `attach` fails on `Skipped` figures.
-- `sync-dir` fails if any `h2-*.webp` file cannot be matched to a heading slug.
-- Site-static path: `images/content/{geekApiSlug}/{sourceType}/h2-{headingSlug}.webp`
-- Blob path (optional): `content/{geekApiSlug}/{sourceType}/h2-{headingSlug}.webp`
 
 ## Workflow
 
 1. Generate figure briefs (Step 6) in Content-Writer.
 2. Publish text — pick department, publish to site.
-3. Create art in Figma/Cursor; export WebP named `h2-{headingSlug}.webp`.
-4. `attach`, `set-url`, or `sync-dir` — figures become `Ready` with `NeedsFigureMerge = true`.
-5. `merge` (or republish from Content Writer) — inserts figures into GeekAPI body and sets `Published`.
+3. For each section: save AVIF to the target path (`attach`, `sync-dir`, upload in UI, or generate & save).

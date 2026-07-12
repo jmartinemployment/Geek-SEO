@@ -4,8 +4,6 @@ using ContentWriter.Domain.Entities;
 using ContentWriter.Domain.Enums;
 using ContentWriter.Infrastructure.Repositories;
 using Microsoft.Extensions.Options;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Webp;
 
 namespace ContentWriter.Application.Services.Figures;
 
@@ -48,7 +46,7 @@ public sealed class ContentFigureImageGenerationService : IContentFigureImageGen
         string headingSlug,
         CancellationToken cancellationToken = default)
     {
-        FigureMergeService.ValidateSourceType(sourceType);
+        FigureSourceValidator.ValidateSourceType(sourceType);
 
         var figure = await _figures.GetByHeadingSlugAsync(projectId, sourceType, headingSlug, cancellationToken);
         if (figure is null)
@@ -65,7 +63,7 @@ public sealed class ContentFigureImageGenerationService : IContentFigureImageGen
         string sourceType,
         CancellationToken cancellationToken = default)
     {
-        FigureMergeService.ValidateSourceType(sourceType);
+        FigureSourceValidator.ValidateSourceType(sourceType);
 
         var rows = await _figures.ListByProjectAsync(projectId, cancellationToken);
         var pending = rows
@@ -98,7 +96,7 @@ public sealed class ContentFigureImageGenerationService : IContentFigureImageGen
         if (!_options.InAppGenerationEnabled)
         {
             throw new ContentGenerationException(
-                "In-app image generation is disabled. Copy the figure brief, create art in your external tool, then upload WebP.");
+                "In-app image generation is disabled. Copy the figure brief, create art in your external tool, then upload AVIF.");
         }
 
         if (figure.Status == FigureStatus.Skipped)
@@ -120,25 +118,14 @@ public sealed class ContentFigureImageGenerationService : IContentFigureImageGen
             ImagePromptDefaults.PillarHeight,
             cancellationToken);
 
-        var webpBytes = await ConvertPngToWebpAsync(pngBytes, cancellationToken);
+        var avifBytes = await FigureAvifEncoder.EncodePngAsync(pngBytes, cancellationToken);
 
-        return await _attach.AttachWebpBytesAsync(
+        return await _attach.AttachAvifBytesAsync(
             figure.ProjectId,
             figure.SourceType,
             figure.HeadingSlug,
-            webpBytes,
+            avifBytes,
             altOverride: null,
             cancellationToken);
-    }
-
-    private static async Task<byte[]> ConvertPngToWebpAsync(
-        byte[] pngBytes,
-        CancellationToken cancellationToken)
-    {
-        await using var input = new MemoryStream(pngBytes);
-        using var image = await Image.LoadAsync(input, cancellationToken);
-        await using var output = new MemoryStream();
-        await image.SaveAsWebpAsync(output, new WebpEncoder { Quality = 85 }, cancellationToken);
-        return output.ToArray();
     }
 }

@@ -248,7 +248,6 @@ export interface ContentFigureDto {
   imageUrl: string | null;
   geekApiSlug: string | null;
   geekPostId: number | null;
-  needsFigureMerge: boolean;
 }
 
 export interface ContentFiguresSummary {
@@ -264,14 +263,6 @@ export interface ContentFiguresListResponse {
   figures: ContentFigureDto[];
   summary: ContentFiguresSummary;
   inAppGenerationEnabled: boolean;
-}
-
-export interface FigureMergeResponse {
-  sourceType: string;
-  geekApiSlug: string;
-  geekPostId: number;
-  figuresMerged: number;
-  publicPath: string;
 }
 
 export interface FigureGenerateResponse {

@@ -9,7 +9,7 @@ namespace ContentWriter.Application.Services.Figures;
 
 public interface IContentFigureAttachService
 {
-    Task<ContentFigure> AttachWebpAsync(
+    Task<ContentFigure> AttachAvifAsync(
         Guid projectId,
         string sourceType,
         string headingSlug,
@@ -18,11 +18,11 @@ public interface IContentFigureAttachService
         string? altOverride = null,
         CancellationToken cancellationToken = default);
 
-    Task<ContentFigure> AttachWebpBytesAsync(
+    Task<ContentFigure> AttachAvifBytesAsync(
         Guid projectId,
         string sourceType,
         string headingSlug,
-        byte[] webpBytes,
+        byte[] avifBytes,
         string? altOverride = null,
         CancellationToken cancellationToken = default);
 
@@ -63,7 +63,7 @@ public sealed class ContentFigureAttachService : IContentFigureAttachService
         _blobUploader = blobUploader;
     }
 
-    public async Task<ContentFigure> AttachWebpAsync(
+    public async Task<ContentFigure> AttachAvifAsync(
         Guid projectId,
         string sourceType,
         string headingSlug,
@@ -72,17 +72,17 @@ public sealed class ContentFigureAttachService : IContentFigureAttachService
         string? altOverride = null,
         CancellationToken cancellationToken = default)
     {
-        FigureMergeService.ValidateSourceType(sourceType);
+        FigureSourceValidator.ValidateSourceType(sourceType);
 
-        if (!fileName.EndsWith(".webp", StringComparison.OrdinalIgnoreCase))
+        if (!fileName.EndsWith(".avif", StringComparison.OrdinalIgnoreCase))
         {
             throw new ContentGenerationException(
-                "Only .webp files are accepted. Export WebP from Figma before attach.");
+                "Only .avif files are accepted. Export AVIF from Figma before attach.");
         }
 
         await using var memory = new MemoryStream();
         await imageStream.CopyToAsync(memory, cancellationToken);
-        return await AttachWebpBytesAsync(
+        return await AttachAvifBytesAsync(
             projectId,
             sourceType,
             headingSlug,
@@ -91,17 +91,17 @@ public sealed class ContentFigureAttachService : IContentFigureAttachService
             cancellationToken);
     }
 
-    public async Task<ContentFigure> AttachWebpBytesAsync(
+    public async Task<ContentFigure> AttachAvifBytesAsync(
         Guid projectId,
         string sourceType,
         string headingSlug,
-        byte[] webpBytes,
+        byte[] avifBytes,
         string? altOverride = null,
         CancellationToken cancellationToken = default)
     {
         var figure = await RequireAttachableFigureAsync(projectId, sourceType, headingSlug, cancellationToken);
 
-        using var image = await Image.LoadAsync(new MemoryStream(webpBytes), cancellationToken);
+        using var image = await Image.LoadAsync(new MemoryStream(avifBytes), cancellationToken);
 
         var storage = _storageOptions.ResolveDefaultStorage(_blobOptions);
         string imageUrl;
@@ -115,8 +115,8 @@ public sealed class ContentFigureAttachService : IContentFigureAttachService
                 headingSlug);
             imageUrl = await _blobUploader.UploadPublicAsync(
                 relativePath,
-                webpBytes,
-                "image/webp",
+                avifBytes,
+                "image/avif",
                 _blobOptions.ReadWriteToken,
                 cancellationToken);
             imageStorage = FigureImageStorage.VercelBlob;
@@ -126,7 +126,7 @@ public sealed class ContentFigureAttachService : IContentFigureAttachService
             relativePath = FigurePublicPathBuilder.BuildRelativePath(
                 figure.GeekApiSlug!,
                 headingSlug);
-            var published = await _sitePublisher.PublishWebpAsync(relativePath, webpBytes, cancellationToken);
+            var published = await _sitePublisher.PublishStaticImageAsync(relativePath, avifBytes, cancellationToken);
             imageUrl = published.PublicUrl;
             imageStorage = FigureImageStorage.SiteStatic;
         }
@@ -140,7 +140,6 @@ public sealed class ContentFigureAttachService : IContentFigureAttachService
             ? FigureHeadingSlugResolver.DefaultImageAlt(figure.Heading)
             : altOverride.Trim();
         figure.Status = FigureStatus.Ready;
-        figure.NeedsFigureMerge = true;
         figure.SkipReason = null;
         figure.UpdatedAtUtc = DateTime.UtcNow;
 
@@ -157,7 +156,7 @@ public sealed class ContentFigureAttachService : IContentFigureAttachService
         string? altOverride = null,
         CancellationToken cancellationToken = default)
     {
-        FigureMergeService.ValidateSourceType(sourceType);
+        FigureSourceValidator.ValidateSourceType(sourceType);
 
         if (string.IsNullOrWhiteSpace(imageUrl))
         {
@@ -181,7 +180,6 @@ public sealed class ContentFigureAttachService : IContentFigureAttachService
             ? FigureHeadingSlugResolver.DefaultImageAlt(figure.Heading)
             : altOverride.Trim();
         figure.Status = FigureStatus.Ready;
-        figure.NeedsFigureMerge = true;
         figure.SkipReason = null;
         figure.UpdatedAtUtc = DateTime.UtcNow;
 
@@ -196,7 +194,7 @@ public sealed class ContentFigureAttachService : IContentFigureAttachService
         string headingSlug,
         CancellationToken cancellationToken = default)
     {
-        FigureMergeService.ValidateSourceType(sourceType);
+        FigureSourceValidator.ValidateSourceType(sourceType);
 
         var figure = await _figures.GetByHeadingSlugAsync(projectId, sourceType, headingSlug, cancellationToken);
         if (figure is null)

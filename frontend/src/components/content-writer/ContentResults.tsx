@@ -20,6 +20,7 @@ import {
   FigureArtConflictError,
 } from "@/lib/content-writer/api";
 import FiguresStatusPanel from "@/components/content-writer/FiguresStatusPanel";
+import { figureSavePathDisplay } from "@/lib/content-writer/figureSavePath";
 import {
   canWriteExportToLocalDirectory,
   pickExportDirectory,
@@ -895,8 +896,8 @@ function ImagePromptsView({
   return (
     <div className="space-y-8">
       <p className="text-sm text-muted">
-        Each H2 has a figure brief. After text is published, copy the brief to your image tool, export WebP, and
-        upload here. Use Merge in the publish panel to inject art into the live post.
+        Each H2 has a figure brief. After text is published, save AVIF to the site path shown per section.
+        Section images render in layout columns outside post body — nothing is injected into markdown.
       </p>
       {pillarSections.length > 0 && (
         <ImagePromptSectionGroup
@@ -1050,6 +1051,10 @@ function ImagePromptCard({
 
   const canAct = Boolean(figure?.geekApiSlug) && figureStatus !== "Skipped";
   const headingSlug = figure?.headingSlug;
+  const savePath =
+    figure?.geekApiSlug && headingSlug
+      ? figureSavePathDisplay(figure.geekApiSlug, headingSlug)
+      : null;
 
   async function handleCopy(mode: "prompt" | "all") {
     await copyText(mode === "prompt" ? item.prompt : formatFigureCopyBlock(item));
@@ -1130,16 +1135,16 @@ function ImagePromptCard({
               onClick={() => void handleGenerate()}
               className="rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
-              {busy === "generate" ? "Generating…" : "Generate image"}
+              {busy === "generate" ? "Generating…" : "Generate & save"}
             </button>
           )}
           <label
             className={`cursor-pointer rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface ${!canAct || busy !== null ? "pointer-events-none opacity-50" : ""}`}
           >
-            {busy === "upload" ? "Uploading…" : "Upload WebP"}
+            {busy === "upload" ? "Uploading…" : "Save AVIF to site path"}
             <input
               type="file"
-              accept="image/webp"
+              accept="image/avif"
               className="sr-only"
               disabled={!canAct || busy !== null}
               onChange={(e) => {
@@ -1162,7 +1167,12 @@ function ImagePromptCard({
         </div>
       </div>
       {!figure?.geekApiSlug && (
-        <p className="mt-2 text-xs text-amber-800">Publish text to the site before uploading art.</p>
+        <p className="mt-2 text-xs text-amber-800">Publish text to the site before saving art.</p>
+      )}
+      {savePath && (
+        <p className="mt-2 font-mono text-xs text-muted">
+          Save to: <span className="text-foreground">{savePath}</span>
+        </p>
       )}
       {figure?.imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element -- figure preview from blob CDN

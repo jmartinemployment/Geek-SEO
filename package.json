@@ -15,7 +15,8 @@
     "scrape:setup": "playwright install chromium",
     "scrape:seranking": "node scripts/scrape/cli.mjs site --url https://seranking.com/ --out ./docs/research/competitors/seranking --network",
     "scrape:seranking:page": "node scripts/scrape/cli.mjs page --url https://seranking.com/ --out ./docs/research/competitors/seranking-homepage --network",
-    "scrape:seranking:rank-tracker": "node scripts/scrape/cli.mjs page --url https://seranking.com/position-tracking.html --out ./docs/research/competitors/seranking/position-tracking --network"
+    "scrape:seranking:rank-tracker": "node scripts/scrape/cli.mjs page --url https://seranking.com/position-tracking.html --out ./docs/research/competitors/seranking/position-tracking --network",
+    "check:protected-paths": "node scripts/check-protected-paths.mjs"
   },
   "repository": {
     "type": "git",

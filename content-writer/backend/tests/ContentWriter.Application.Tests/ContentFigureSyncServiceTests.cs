@@ -130,10 +130,6 @@ public class ContentFigureSyncServiceTests
             {
                 figure.GeekApiSlug = geekApiSlug;
                 figure.GeekPostId = geekPostId;
-                if (figure.Status is FigureStatus.Ready or FigureStatus.Published)
-                {
-                    figure.NeedsFigureMerge = true;
-                }
             }
 
             return Task.CompletedTask;

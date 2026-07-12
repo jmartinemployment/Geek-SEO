@@ -5,8 +5,7 @@ namespace ContentWriter.Application.Services.Publish;
 
 internal static class GeekPublishPresentationHelper
 {
-    public static string StripMergedFigures(string body) =>
-        FigureMergeMarkdownComposer.StripMergedFigures(body);
+    public static string StripMergedFigures(string body) => MergedFigureMarkup.Strip(body);
 
     public static string? ExtractSchemaDescription(string schemaMetadataJson)
     {

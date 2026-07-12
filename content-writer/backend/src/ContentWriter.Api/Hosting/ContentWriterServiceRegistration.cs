@@ -118,8 +118,6 @@ public static class ContentWriterServiceRegistration
         services.AddScoped<IContentGenerationOrchestrator, ContentGenerationOrchestrator>();
         services.AddScoped<IContentMarkdownExportService, ContentMarkdownExportService>();
         services.AddHttpClient(nameof(GeekBlogPublishService));
-        services.AddHttpClient(nameof(FigureMergeService));
-        services.AddScoped<IFigureMergeService, FigureMergeService>();
         services.AddScoped<IGeekBlogPublishService, GeekBlogPublishService>();
         services.AddSingleton<IJsonLdParserService, JsonLdParserService>();
 
