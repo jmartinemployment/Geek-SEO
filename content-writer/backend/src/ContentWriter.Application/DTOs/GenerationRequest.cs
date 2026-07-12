@@ -20,6 +20,7 @@ public record ProjectGenerationContext(
     string AuthorName,
     string ArticleBaseUrl,
     string BlogBaseUrl,
+    string ToolBaseUrl,
     string ImplementerPositioning,
     LlmProviderType Provider);
 
@@ -45,6 +46,11 @@ public record BlogMetadataDraft(
     List<string> SectionOutline,
     string? ListingExcerpt = null,
     string? DisplayTitle = null);
+
+public record ToolMetadataDraft(
+    string ListingExcerpt,
+    string AdvertisingExcerpt,
+    string MetaDescription);
 
 public record ArticleDraft(
     string Title,
@@ -140,4 +146,5 @@ public record GeneratedContentSet(
     SocialPostDraft? LinkedInPost,
     ColdOutreachEmailContent? ColdOutreachEmail,
     ImagePromptsContent? ImagePrompts,
-    IReadOnlyList<ToolDraft>? Tools);
+    IReadOnlyList<ToolDraft>? Tools,
+    string? ToolsGenerationOutcome = null);

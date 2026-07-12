@@ -89,6 +89,91 @@ public sealed class ContentFigureSyncService
         await _figures.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task SyncScopedAsync(
+        Guid projectId,
+        IReadOnlyList<FigureSyncSectionInput> sections,
+        IReadOnlySet<string> scopedSourceTypes,
+        CancellationToken cancellationToken = default)
+    {
+        var existing = await _figures.ListTrackedByProjectAsync(projectId, cancellationToken);
+        var scopedExisting = existing
+            .Where(f => scopedSourceTypes.Contains(f.SourceType))
+            .ToList();
+        var existingByKey = scopedExisting.ToDictionary(
+            f => (f.SourceType, f.HeadingSlug),
+            f => f);
+
+        var incomingSlugs = new HashSet<(string SourceType, string HeadingSlug)>();
+        var usedSlugsBySource = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var section in sections.OrderBy(s => s.SourceType, StringComparer.OrdinalIgnoreCase).ThenBy(s => s.SectionOrder))
+        {
+            if (!scopedSourceTypes.Contains(section.SourceType))
+            {
+                continue;
+            }
+
+            if (!usedSlugsBySource.TryGetValue(section.SourceType, out var used))
+            {
+                used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                usedSlugsBySource[section.SourceType] = used;
+            }
+
+            var slug = FigureHeadingSlugResolver.ResolveUniqueSlug(section.Heading, section.SectionOrder, used);
+            used.Add(slug);
+            incomingSlugs.Add((section.SourceType, slug));
+
+            var key = (section.SourceType, slug);
+            if (existingByKey.TryGetValue(key, out var figure))
+            {
+                ApplyIncomingToExisting(figure, section, slug);
+                figure.UpdatedAtUtc = DateTime.UtcNow;
+                await _figures.UpdateAsync(figure, cancellationToken);
+            }
+            else
+            {
+                var created = new ContentFigure
+                {
+                    ProjectId = projectId,
+                    SourceType = section.SourceType,
+                    SectionOrder = section.SectionOrder,
+                    HeadingSlug = slug,
+                    Heading = section.Heading,
+                    BriefText = section.BriefText,
+                    ImagePromptContentId = section.ImagePromptContentId,
+                    Status = FigureStatus.Pending,
+                    ImageAlt = FigureHeadingSlugResolver.DefaultImageAlt(section.Heading),
+                };
+                await _figures.AddAsync(created, cancellationToken);
+            }
+        }
+
+        foreach (var figure in scopedExisting)
+        {
+            var key = (figure.SourceType, figure.HeadingSlug);
+            if (incomingSlugs.Contains(key))
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(figure.ImageUrl))
+            {
+                figure.Status = FigureStatus.Skipped;
+                figure.SkipReason = FigureSkipReason.SectionRemoved;
+                figure.UpdatedAtUtc = DateTime.UtcNow;
+                await _figures.UpdateAsync(figure, cancellationToken);
+                continue;
+            }
+
+            if (figure.Status == FigureStatus.Pending)
+            {
+                await _figures.DeleteAsync(figure, cancellationToken);
+            }
+        }
+
+        await _figures.SaveChangesAsync(cancellationToken);
+    }
+
     private static void ApplyIncomingToExisting(
         ContentFigure figure,
         FigureSyncSectionInput section,

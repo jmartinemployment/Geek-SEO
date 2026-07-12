@@ -1,5 +1,5 @@
 using System.Text;
-using ContentWriter.Application.DTOs;
+using ContentWriter.Application.Services.Publish;
 using ContentWriter.Application.Providers;
 using ContentWriter.Application.Services;
 using ContentWriter.Infrastructure.Repositories;
@@ -148,15 +148,57 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
                 if (string.IsNullOrWhiteSpace(prompt.Prompt))
                     continue;
 
-                var folder = string.Equals(prompt.SourceType, "blog", StringComparison.OrdinalIgnoreCase)
-                    ? "Blog"
-                    : "Pillar";
-                var fileName = $"{SlugHelper.Slugify(prompt.Heading)}.md";
-                var relativePath = Path.Combine(department, topicFolder, "ImagePrompts", folder, fileName);
+                string folder;
+                string fileName;
+                if (prompt.SourceType.StartsWith("tool/", StringComparison.OrdinalIgnoreCase))
+                {
+                    var toolSlug = prompt.SourceType["tool/".Length..];
+                    folder = Path.Combine("ImagePrompts", "Tools", toolSlug);
+                    fileName = $"{SlugHelper.Slugify(prompt.Heading)}.md";
+                }
+                else
+                {
+                    folder = string.Equals(prompt.SourceType, "blog", StringComparison.OrdinalIgnoreCase)
+                        ? Path.Combine("ImagePrompts", "Blog")
+                        : Path.Combine("ImagePrompts", "Pillar");
+                    fileName = $"{SlugHelper.Slugify(prompt.Heading)}.md";
+                }
+
+                var relativePath = Path.Combine(department, topicFolder, folder, fileName);
                 var markdown = MarkdownExportDocumentBuilder.BuildSectionImagePrompt(
                     prompt, department, slug, exportedAt);
-                var contentType = $"image-prompt-{prompt.SourceType}";
+                var contentType = $"image-prompt-{prompt.SourceType.Replace('/', '-')}";
                 written.Add(await WriteExportAsync(outputRoot, relativePath, contentType, markdown, cancellationToken));
+            }
+        }
+
+        if (contentSet.Tools is not null)
+        {
+            foreach (var tool in contentSet.Tools)
+            {
+                if (tool.WordCount <= 0 || string.IsNullOrWhiteSpace(tool.Slug))
+                    continue;
+
+                var toolUrl = GeekPublicUrlBuilder.ToolUrl(_companyProfile.ToolBaseUrl, department, tool.Slug);
+                var relativePath = Path.Combine(department, topicFolder, "Tools", $"{tool.Slug}.md");
+                var markdown = MarkdownExportDocumentBuilder.Build(new MarkdownExportInput(
+                    Title: tool.DisplayTitle,
+                    Slug: tool.Slug,
+                    MetaDescription: tool.MetaDescription,
+                    CanonicalUrl: toolUrl,
+                    ContentType: "tool",
+                    Department: department,
+                    WordCount: tool.WordCount,
+                    Keywords: [],
+                    RelatedUrl: contentSet.ArticleUrl,
+                    BodyHtml: tool.BodyHtml,
+                    JsonLdSchema: tool.JsonLdSchema,
+                    RelatedJsonLdSchema: null,
+                    ExportedAtUtc: exportedAt,
+                    ListingExcerpt: tool.ListingExcerpt,
+                    AdvertisingExcerpt: tool.AdvertisingExcerpt));
+
+                written.Add(await WriteExportAsync(outputRoot, relativePath, "tool", markdown, cancellationToken));
             }
         }
 

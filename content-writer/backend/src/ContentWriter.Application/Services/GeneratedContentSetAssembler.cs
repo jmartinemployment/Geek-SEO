@@ -12,7 +12,8 @@ public static class GeneratedContentSetAssembler
         Project project,
         string articleBaseUrl,
         string blogBaseUrl,
-        string? departmentOverride = null)
+        string? departmentOverride = null,
+        string? toolsGenerationOutcome = null)
     {
         var articleRow = Find(project, GeneratedContentType.TechnicalArticle);
         var blogRow = Find(project, GeneratedContentType.BlogPost);
@@ -51,16 +52,36 @@ public static class GeneratedContentSetAssembler
                     coldOutreachRow.MetaDescription ?? string.Empty,
                     coldOutreachRow.RelatedArticleUrl ?? articleUrl ?? string.Empty),
             ImagePrompts: BuildImagePrompts(project),
-            Tools: BuildTools(project));
+            Tools: BuildTools(project),
+            ToolsGenerationOutcome: toolsGenerationOutcome);
     }
 
     private static ImagePromptsContent? BuildImagePrompts(Project project)
     {
+        var toolOrderBySlug = project.GeneratedContents
+            .Where(c => c.ContentType == GeneratedContentType.ToolPost)
+            .ToDictionary(c => c.Slug, c => c.SourceAppOrder ?? int.MaxValue, StringComparer.OrdinalIgnoreCase);
+
+        int SortKey(ImagePromptSectionContent section)
+        {
+            if (string.Equals(section.SourceType, "pillar", StringComparison.OrdinalIgnoreCase))
+                return 0;
+            if (string.Equals(section.SourceType, "blog", StringComparison.OrdinalIgnoreCase))
+                return 1_000;
+            if (section.SourceType.StartsWith("tool/", StringComparison.OrdinalIgnoreCase))
+            {
+                var toolSlug = section.SourceType["tool/".Length..];
+                var toolOrder = toolOrderBySlug.TryGetValue(toolSlug, out var order) ? order : int.MaxValue;
+                return 2_000 + (toolOrder * 100) + section.Order;
+            }
+
+            return 5_000 + section.Order;
+        }
+
         var sectionRows = project.GeneratedContents
             .Where(c => c.ContentType == GeneratedContentType.ImagePromptSection)
             .Select(ImagePromptMetadata.ToSectionContent)
-            .OrderBy(s => s.SourceType == "pillar" ? 0 : 1)
-            .ThenBy(s => s.Order)
+            .OrderBy(SortKey)
             .ToList();
 
         return sectionRows.Count == 0 ? null : new ImagePromptsContent(sectionRows);

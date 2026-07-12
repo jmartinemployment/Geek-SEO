@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using ContentWriter.Application.DTOs;
 using ContentWriter.Application.Providers;
 using ContentWriter.Application.Services.PromptBuilders;
@@ -11,68 +10,72 @@ namespace ContentWriter.Application.Services;
 
 public interface IToolPageGenerator
 {
-    Task<IReadOnlyList<GeneratedContent>> GenerateToolPagesAsync(
+    Task<ToolGenerationResult> GenerateToolPagesAsync(
         Project project,
         GeneratedContent articleRow,
         ArticleMetadataDraft metadata,
         ProjectGenerationContext context,
         IContentGenerationProvider provider,
         string department,
+        string pillarArticleUrl,
         CancellationToken cancellationToken = default);
 }
+
+public sealed record ToolGenerationResult(
+    ToolGenerationOutcome Outcome,
+    IReadOnlyList<GeneratedContent> ToolPosts);
 
 public sealed class ToolPageGenerator : IToolPageGenerator
 {
     private const int MaxTools = 5;
-    private readonly ISoftwareApplicationSchemaBuilder _softwareSchemaBuilder;
+    private readonly INewsArticleSchemaBuilder _newsArticleSchemaBuilder;
+    private readonly IContentPromptBuilder _promptBuilder;
 
-    public ToolPageGenerator(ISoftwareApplicationSchemaBuilder softwareSchemaBuilder)
+    public ToolPageGenerator(
+        INewsArticleSchemaBuilder newsArticleSchemaBuilder,
+        IContentPromptBuilder promptBuilder)
     {
-        _softwareSchemaBuilder = softwareSchemaBuilder;
+        _newsArticleSchemaBuilder = newsArticleSchemaBuilder;
+        _promptBuilder = promptBuilder;
     }
 
-    public async Task<IReadOnlyList<GeneratedContent>> GenerateToolPagesAsync(
+    public async Task<ToolGenerationResult> GenerateToolPagesAsync(
         Project project,
         GeneratedContent articleRow,
         ArticleMetadataDraft metadata,
         ProjectGenerationContext context,
         IContentGenerationProvider provider,
         string department,
+        string pillarArticleUrl,
         CancellationToken cancellationToken = default)
     {
-        var applications = ToolsSectionHtmlParser.ExtractApplications(articleRow.BodyHtml, metadata.SectionOutline)
-            .Take(MaxTools)
-            .ToList();
-
-        if (applications.Count == 0)
+        var extraction = ToolsSectionHtmlParser.DiagnoseExtraction(articleRow.BodyHtml, metadata.SectionOutline);
+        if (extraction.Outcome != ToolGenerationOutcome.Success)
         {
-            return [];
+            return new ToolGenerationResult(extraction.Outcome, []);
         }
 
+        var applications = extraction.Applications.Take(MaxTools).ToList();
         var rows = new List<GeneratedContent>();
         var order = 1;
+
         foreach (var app in applications)
         {
             var slug = SlugHelper.Slugify(app.Name);
-            var toolUrl = GeekPublicUrlBuilder.ToolUrl(context.ArticleBaseUrl, department, slug);
+            var toolUrl = GeekPublicUrlBuilder.ToolUrl(context.ToolBaseUrl, department, slug);
 
-            var bodyHtml = await GenerateToolBodyAsync(
-                provider,
-                context,
-                metadata,
-                app,
-                department,
-                slug,
-                cancellationToken);
+            var bodyHtml = await GenerateToolBodyWithValidationAsync(
+                provider, context, metadata, app, department, slug, cancellationToken);
+
+            var toolMetadata = await GenerateToolMetadataAsync(
+                provider, context, metadata, app, bodyHtml, cancellationToken);
 
             var wordCount = HtmlWordCounter.Count(bodyHtml);
-            var listingExcerpt = BuildListingExcerpt(app);
-            var advertisingExcerpt = $"Explore how {app.Name.Trim()} supports {context.TargetKeyword} workflows.";
             var displayTitle = app.Name.Trim();
             var now = DateTime.UtcNow;
             var schemaMeta = new ContentMetadata(
                 displayTitle,
-                listingExcerpt,
+                toolMetadata.MetaDescription,
                 context.AuthorName,
                 context.PublisherName,
                 context.PublisherLogoUrl,
@@ -83,8 +86,7 @@ public sealed class ToolPageGenerator : IToolPageGenerator
                 metadata.Keywords,
                 wordCount);
 
-            var jsonLd = _softwareSchemaBuilder.BuildGraph(
-                [new SoftwareApplicationDescriptor(app.Name, app.Description)]);
+            var jsonLd = _newsArticleSchemaBuilder.Build(schemaMeta, pillarArticleUrl, app);
 
             rows.Add(new GeneratedContent
             {
@@ -93,11 +95,14 @@ public sealed class ToolPageGenerator : IToolPageGenerator
                 Title = displayTitle,
                 DisplayTitle = displayTitle,
                 Slug = slug,
-                ListingExcerpt = listingExcerpt,
-                MetaDescription = listingExcerpt.Length > 160 ? listingExcerpt[..160] : listingExcerpt,
-                AdvertisingExcerpt = advertisingExcerpt,
+                ListingExcerpt = toolMetadata.ListingExcerpt,
+                MetaDescription = toolMetadata.MetaDescription.Length > 160
+                    ? toolMetadata.MetaDescription[..160]
+                    : toolMetadata.MetaDescription,
+                AdvertisingExcerpt = toolMetadata.AdvertisingExcerpt,
                 BodyHtml = bodyHtml,
                 JsonLdSchema = string.IsNullOrWhiteSpace(jsonLd) ? "{}" : jsonLd,
+                RelatedArticleUrl = pillarArticleUrl,
                 SourceAppName = app.Name,
                 SourceAppOrder = order++,
                 WordCount = wordCount,
@@ -112,15 +117,38 @@ public sealed class ToolPageGenerator : IToolPageGenerator
             department,
             rows.Select(r => (r.SourceAppName!, r.Slug)).ToList());
 
-        return rows;
+        return new ToolGenerationResult(ToolGenerationOutcome.Success, rows);
     }
 
-    private static string BuildListingExcerpt(SoftwareApplicationDescriptor app) =>
-        string.IsNullOrWhiteSpace(app.Description)
-            ? $"Overview of {app.Name.Trim()} for enterprise AI teams."
-            : app.Description.Trim();
+    private async Task<ToolMetadataDraft> GenerateToolMetadataAsync(
+        IContentGenerationProvider provider,
+        ProjectGenerationContext context,
+        ArticleMetadataDraft pillarMetadata,
+        SoftwareApplicationDescriptor app,
+        string bodyHtml,
+        CancellationToken cancellationToken)
+    {
+        const int maxAttempts = 2;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var result = await provider.CompleteAsync(
+                _promptBuilder.BuildToolMetadataPrompt(context, pillarMetadata, app, bodyHtml),
+                cancellationToken);
+            try
+            {
+                return LlmResponseJsonParser.Parse<ToolMetadataDraft>(result.Content, "tool metadata");
+            }
+            catch (ContentGenerationException ex) when (attempt < maxAttempts)
+            {
+                _ = ex;
+            }
+        }
 
-    private static async Task<string> GenerateToolBodyAsync(
+        throw new ContentGenerationException(
+            $"Model did not return valid JSON for tool metadata for '{app.Name}' after {maxAttempts} attempts.");
+    }
+
+    private async Task<string> GenerateToolBodyWithValidationAsync(
         IContentGenerationProvider provider,
         ProjectGenerationContext context,
         ArticleMetadataDraft pillarMetadata,
@@ -129,34 +157,46 @@ public sealed class ToolPageGenerator : IToolPageGenerator
         string toolSlug,
         CancellationToken cancellationToken)
     {
-        var system = """
-            You are a senior technical writer for an IT consulting firm.
-            Write a tool overview page as HTML only (no markdown, no JSON wrapper).
-            Use <h2> for main sections and <h3> for subsections with multiple <p> paragraphs.
-            Include: Overview, Key Capabilities, Implementation Considerations, and When to Use sections.
-            """;
-
-        var user = $"""
-            Target keyword context: {context.TargetKeyword}
-            Pillar topic: {pillarMetadata.Title}
-            Tool name: {app.Name}
-            Tool summary: {app.Description ?? "N/A"}
-            Department: {department}
-            Public path: /tools/{department}/{toolSlug}
-            Write 400-700 words of expert third-person prose.
-            """;
-
         var result = await provider.CompleteAsync(
-            new ChatCompletionRequest(
-                Messages:
-                [
-                    new(ChatRole.System, system),
-                    new(ChatRole.User, user),
-                ],
-                Temperature: 0.5,
-                MaxOutputTokens: 4096),
+            _promptBuilder.BuildToolBodyPrompt(context, pillarMetadata, app, department, toolSlug),
             cancellationToken);
+        var bodyHtml = LlmResponseJsonParser.ParseHtmlBody(result.Content, $"tool page '{app.Name}'");
+        var wordCount = HtmlWordCounter.Count(bodyHtml);
 
-        return LlmResponseJsonParser.ParseHtmlBody(result.Content, $"tool page '{app.Name}'");
+        if (wordCount < ContentLengthTargets.ToolMinWords)
+        {
+            var expansion = await provider.CompleteAsync(
+                _promptBuilder.BuildToolWordCountExpansionPrompt(context, app, bodyHtml, wordCount),
+                cancellationToken);
+            var expanded = LlmResponseJsonParser.ParseHtmlBody(expansion.Content, $"tool page expansion '{app.Name}'");
+            var expandedCount = HtmlWordCounter.Count(expanded);
+            if (expandedCount > wordCount)
+            {
+                bodyHtml = expanded;
+                wordCount = expandedCount;
+            }
+        }
+        else if (wordCount > ContentLengthTargets.ToolHardMaxWords)
+        {
+            var trim = await provider.CompleteAsync(
+                _promptBuilder.BuildToolWordCountTrimPrompt(context, app, bodyHtml, wordCount),
+                cancellationToken);
+            var trimmed = LlmResponseJsonParser.ParseHtmlBody(trim.Content, $"tool page trim '{app.Name}'");
+            var trimmedCount = HtmlWordCounter.Count(trimmed);
+            if (trimmedCount < wordCount)
+            {
+                bodyHtml = trimmed;
+                wordCount = trimmedCount;
+            }
+        }
+
+        if (wordCount < ContentLengthTargets.ToolMinWords || wordCount > ContentLengthTargets.ToolHardMaxWords)
+        {
+            throw new ContentGenerationException(
+                $"Tool page for '{app.Name}' is {wordCount:N0} words after retry; required range is " +
+                $"{ContentLengthTargets.ToolMinWords:N0}-{ContentLengthTargets.ToolHardMaxWords:N0}.");
+        }
+
+        return bodyHtml;
     }
 }

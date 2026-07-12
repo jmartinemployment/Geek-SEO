@@ -13,23 +13,33 @@ public static class ToolsSectionHtmlParser
 
     public static IReadOnlyList<SoftwareApplicationDescriptor> ExtractApplications(
         string bodyHtml,
+        IReadOnlyList<string> sectionOutline) =>
+        DiagnoseExtraction(bodyHtml, sectionOutline).Applications;
+
+    public static ToolExtractionResult DiagnoseExtraction(
+        string bodyHtml,
         IReadOnlyList<string> sectionOutline)
     {
-        if (string.IsNullOrWhiteSpace(bodyHtml) || sectionOutline.Count == 0)
+        if (sectionOutline.Count == 0)
         {
-            return Array.Empty<SoftwareApplicationDescriptor>();
+            return new ToolExtractionResult(ToolGenerationOutcome.NoToolsSection, []);
         }
 
         var toolsHeading = sectionOutline.FirstOrDefault(PillarSectionClassifier.IsToolsSection);
         if (string.IsNullOrWhiteSpace(toolsHeading))
         {
-            return Array.Empty<SoftwareApplicationDescriptor>();
+            return new ToolExtractionResult(ToolGenerationOutcome.NoToolsSection, []);
+        }
+
+        if (string.IsNullOrWhiteSpace(bodyHtml))
+        {
+            return new ToolExtractionResult(ToolGenerationOutcome.ToolsSectionNotFoundInBody, []);
         }
 
         var matches = HeadingPattern.Matches(bodyHtml).Cast<Match>().ToList();
         if (matches.Count == 0)
         {
-            return Array.Empty<SoftwareApplicationDescriptor>();
+            return new ToolExtractionResult(ToolGenerationOutcome.ToolsSectionNotFoundInBody, []);
         }
 
         var toolsIndex = matches.FindIndex(match =>
@@ -38,7 +48,7 @@ public static class ToolsSectionHtmlParser
 
         if (toolsIndex < 0)
         {
-            return Array.Empty<SoftwareApplicationDescriptor>();
+            return new ToolExtractionResult(ToolGenerationOutcome.ToolsSectionNotFoundInBody, []);
         }
 
         var applications = new List<SoftwareApplicationDescriptor>();
@@ -66,7 +76,12 @@ public static class ToolsSectionHtmlParser
             applications.Add(new SoftwareApplicationDescriptor(name, description));
         }
 
-        return applications;
+        if (applications.Count == 0)
+        {
+            return new ToolExtractionResult(ToolGenerationOutcome.ToolsSectionEmpty, []);
+        }
+
+        return new ToolExtractionResult(ToolGenerationOutcome.Success, applications);
     }
 
     public static string InjectToolLinks(

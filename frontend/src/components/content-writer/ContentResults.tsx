@@ -11,6 +11,7 @@ import {
   generatePendingFigures,
   generatePillarBodyContent,
   generatePillarPlanContent,
+  generateToolPagesContent,
   generateSocialContent,
   exportMarkdownContent,
   publishToSite,
@@ -25,16 +26,17 @@ import {
   resolveExportDirectory,
   writeExportFilesToDirectory,
 } from "@/lib/content-writer/exportToLocalDirectory";
-import type { ColdOutreachEmailDraft, ContentFigureDto, ExportMarkdownResponse, FigureStatus, GeneratedContentSet, ImagePromptSection, ImagePromptsSet, PublishToSiteResponse, SiteDepartmentSlug } from "@/lib/content-writer/types";
+import type { ColdOutreachEmailDraft, ContentFigureDto, ExportMarkdownResponse, FigureStatus, GeneratedContentSet, ImagePromptSection, ImagePromptsSet, PublishToSiteResponse, SiteDepartmentSlug, ToolDraft } from "@/lib/content-writer/types";
 import { CONTENT_LENGTH_TARGETS, SITE_DEPARTMENTS } from "@/lib/content-writer/types";
 
-type Tab = "article" | "blog" | "facebook" | "linkedin" | "cold-outreach" | "image-prompts";
-type GeneratingStep = "pillar-plan" | "pillar-body" | "blog" | "social" | "cold-outreach" | "image-prompts" | "all" | null;
+type Tab = "article" | "tools" | "blog" | "facebook" | "linkedin" | "cold-outreach" | "image-prompts";
+type GeneratingStep = "pillar-plan" | "pillar-body" | "tools" | "blog" | "social" | "cold-outreach" | "image-prompts" | "all" | null;
 
 const PILLAR_BODY_MIN_WORDS = 200;
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "article", label: "Technical Article" },
+  { id: "tools", label: "Tool pages" },
   { id: "blog", label: "Blog Post" },
   { id: "facebook", label: "Facebook" },
   { id: "linkedin", label: "LinkedIn" },
@@ -73,12 +75,13 @@ export default function ContentResults({
 
   const hasPillarPlan = result?.article != null;
   const hasPillarBody = (result?.article?.wordCount ?? 0) >= PILLAR_BODY_MIN_WORDS;
+  const hasTools = (result?.tools?.length ?? 0) > 0;
   const hasBlog = result?.blog != null;
   const hasSocial = result?.facebookPost != null && result?.linkedInPost != null;
   const hasColdOutreach = result?.coldOutreachEmail != null;
   const hasImagePrompts = (result?.imagePrompts?.sections?.length ?? 0) > 0;
   const hasExportableContent =
-    hasPillarBody || hasBlog || hasSocial || hasColdOutreach || hasImagePrompts;
+    hasPillarBody || hasTools || hasBlog || hasSocial || hasColdOutreach || hasImagePrompts;
   const isGenerating = generatingStep !== null;
 
   async function saveExportToLocalFolder(result: ExportMarkdownResponse) {
@@ -134,6 +137,9 @@ export default function ContentResults({
       if ((step === "cold-outreach" || step === "all") && next.coldOutreachEmail) {
         setActiveTab("cold-outreach");
       }
+      if ((step === "tools" || step === "all") && (next.tools?.length ?? 0) > 0) {
+        setActiveTab("tools");
+      }
       if ((step === "image-prompts" || step === "all") && (next.imagePrompts?.sections?.length ?? 0) > 0) {
         setActiveTab("image-prompts");
       }
@@ -149,7 +155,7 @@ export default function ContentResults({
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-foreground">4. Generate Content</h2>
       <p className="mt-1 text-sm text-muted">
-        Run each step separately. Steps 1–2 plan and write the pillar article; steps 3–6 build blog, social, email, and Leonardo image prompts from it.
+        Run each step separately. Steps 1–2 plan and write the pillar; step 2b generates NewsArticle tool pages from Top AI Tools; steps 3–6 build blog, social, email, and figure briefs.
       </p>
 
       <div className="mt-5 space-y-3">
@@ -178,6 +184,19 @@ export default function ContentResults({
 
         <StepRow
           step={3}
+          title="Tool pages (NewsArticle)"
+          description={`${CONTENT_LENGTH_TARGETS.tool.definition} Target ${CONTENT_LENGTH_TARGETS.tool.label} words per platform — three excerpts plus JSON-LD citing the pillar.`}
+          done={hasTools}
+          disabled={!hasPillarBody || isGenerating}
+          isRunning={generatingStep === "tools"}
+          buttonLabel={hasTools ? "Regenerate tool pages" : "Generate tool pages"}
+          onClick={() => runStep("tools", () => generateToolPagesContent(projectId))}
+          lockedMessage={!hasPillarBody ? "Complete Step 2 first." : undefined}
+          outcomeMessage={toolsOutcomeMessage(result?.toolsGenerationOutcome)}
+        />
+
+        <StepRow
+          step={4}
           title="Blog content"
           description={`${CONTENT_LENGTH_TARGETS.blog.definition} Target ${CONTENT_LENGTH_TARGETS.blog.label} words — one section per LLM call, cross-linked to the pillar.`}
           done={hasBlog}
@@ -189,7 +208,7 @@ export default function ContentResults({
         />
 
         <StepRow
-          step={4}
+          step={5}
           title="Social content"
           description="Facebook (~40 words) and LinkedIn (~200–300 words) posts linking to the pillar."
           done={hasSocial}
@@ -201,7 +220,7 @@ export default function ContentResults({
         />
 
         <StepRow
-          step={5}
+          step={6}
           title="Cold outreach email"
           description={`${CONTENT_LENGTH_TARGETS.emailColdOutreach.definition} Target ${CONTENT_LENGTH_TARGETS.emailColdOutreach.label} words — subject, body, and one CTA to the pillar.`}
           done={result?.coldOutreachEmail != null}
@@ -213,15 +232,15 @@ export default function ContentResults({
         />
 
         <StepRow
-          step={6}
+          step={7}
           title="Figure briefs"
-          description="One art-direction brief per H2 in the pillar and blog — use for Figma or manual illustration."
+          description="One art-direction brief per H2 in the pillar, blog, and each tool page."
           done={hasImagePrompts}
           disabled={!hasBlog || isGenerating}
           isRunning={generatingStep === "image-prompts"}
           buttonLabel={hasImagePrompts ? "Regenerate briefs" : "Generate briefs"}
           onClick={() => runFigureBriefsStep()}
-          lockedMessage={!hasBlog ? "Complete Step 3 (blog) first." : undefined}
+          lockedMessage={!hasBlog ? "Complete Step 4 (blog) first." : undefined}
         />
       </div>
 
@@ -235,6 +254,10 @@ export default function ContentResults({
             }
             if ((state.article?.wordCount ?? 0) < PILLAR_BODY_MIN_WORDS) {
               state = await generatePillarBodyContent(projectId);
+              onGenerated(state);
+            }
+            if (!state.tools?.length) {
+              state = await generateToolPagesContent(projectId);
               onGenerated(state);
             }
             if (!state.blog) {
@@ -457,12 +480,15 @@ export default function ContentResults({
           <div className="flex gap-1 border-b border-border">
             {TABS.map((tab) => {
               const unavailable =
+                (tab.id === "tools" && !(result.tools?.length ?? 0)) ||
                 (tab.id === "blog" && !result.blog) ||
                 ((tab.id === "facebook" || tab.id === "linkedin") && !result.facebookPost) ||
                 (tab.id === "cold-outreach" && !result.coldOutreachEmail) ||
                 (tab.id === "image-prompts" && (result.imagePrompts?.sections?.length ?? 0) === 0);
               const hint =
-                tab.id === "image-prompts" && (result.imagePrompts?.sections?.length ?? 0) === 0
+                tab.id === "tools" && !(result.tools?.length ?? 0)
+                  ? "Run Step 3 (Generate tool pages) first"
+                  : tab.id === "image-prompts" && (result.imagePrompts?.sections?.length ?? 0) === 0
                   ? "Run Step 6 (Generate prompts) first"
                   : tab.id === "cold-outreach" && !result.coldOutreachEmail
                   ? "Run Step 5 (Generate email) first"
@@ -508,6 +534,12 @@ export default function ContentResults({
                 minWords={CONTENT_LENGTH_TARGETS.pillar.min}
               />
             )}
+            {activeTab === "tools" &&
+              (result.tools && result.tools.length > 0 ? (
+                <ToolsView tools={result.tools} department={result.department} />
+              ) : (
+                <EmptyTabHint message={toolsOutcomeMessage(result.toolsGenerationOutcome) ?? "Run Step 3 to generate tool pages from Top AI Tools."} />
+              ))}
             {activeTab === "blog" &&
               (result.blog && result.blogUrl ? (
                 <ArticleView
@@ -561,6 +593,21 @@ export default function ContentResults({
   );
 }
 
+function toolsOutcomeMessage(outcome: string | null | undefined): string | undefined {
+  switch (outcome) {
+    case "NoToolsSection":
+      return "Pillar outline has no Top AI Tools section — tool generation skipped.";
+    case "ToolsSectionNotFoundInBody":
+      return "Top AI Tools heading is missing from the pillar body — regenerate the pillar body.";
+    case "ToolsSectionEmpty":
+      return "Top AI Tools section exists but no platform <h3> entries were found.";
+    case "Success":
+      return undefined;
+    default:
+      return undefined;
+  }
+}
+
 function EmptyTabHint({ message }: { message: string }) {
   return <p className="rounded-lg border border-dashed border-border bg-background p-4 text-sm text-muted">{message}</p>;
 }
@@ -575,6 +622,7 @@ function StepRow({
   buttonLabel,
   onClick,
   lockedMessage,
+  outcomeMessage,
 }: {
   step: number;
   title: string;
@@ -585,6 +633,7 @@ function StepRow({
   buttonLabel: string;
   onClick: () => void;
   lockedMessage?: string;
+  outcomeMessage?: string;
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-background p-4">
@@ -600,6 +649,7 @@ function StepRow({
         </div>
         <p className="mt-1 text-xs text-muted">{description}</p>
         {lockedMessage && <p className="mt-1 text-xs text-muted">{lockedMessage}</p>}
+        {outcomeMessage && <p className="mt-1 text-xs text-amber-800">{outcomeMessage}</p>}
       </div>
       <button
         onClick={onClick}
@@ -823,6 +873,14 @@ function ImagePromptsView({
 
   const pillarSections = prompts.sections.filter((s) => s.sourceType === "pillar");
   const blogSections = prompts.sections.filter((s) => s.sourceType === "blog");
+  const toolSections = prompts.sections.filter((s) => s.sourceType.startsWith("tool/"));
+
+  const toolGroups = toolSections.reduce<Record<string, ImagePromptSection[]>>((groups, section) => {
+    const slug = section.sourceType.replace(/^tool\//i, "");
+    groups[slug] = groups[slug] ?? [];
+    groups[slug].push(section);
+    return groups;
+  }, {});
 
   function figureFor(section: ImagePromptSection) {
     return figureRows.find(
@@ -862,6 +920,61 @@ function ImagePromptsView({
           onFiguresChanged={onFiguresChanged}
         />
       )}
+      {Object.entries(toolGroups).map(([slug, sections]) => (
+        <ImagePromptSectionGroup
+          key={slug}
+          title={`Tool: ${slug}`}
+          sections={sections}
+          projectId={projectId}
+          figureFor={figureFor}
+          statusFor={statusFor}
+          onFiguresChanged={onFiguresChanged}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ToolsView({ tools, department }: { tools: ToolDraft[]; department: string }) {
+  return (
+    <div className="space-y-8">
+      {tools.map((tool) => (
+        <div key={tool.slug} className="rounded-lg border border-border bg-background p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="text-lg font-semibold text-foreground">{tool.displayTitle}</h3>
+            <span className="text-xs text-muted font-mono">/tools/{department}/{tool.slug}</span>
+          </div>
+          <p className="mt-1 text-sm text-muted">
+            {tool.wordCount.toLocaleString()} words · target {CONTENT_LENGTH_TARGETS.tool.label}
+          </p>
+          <dl className="mt-4 grid gap-3 text-sm">
+            <div>
+              <dt className="font-medium text-foreground">Listing excerpt (deck)</dt>
+              <dd className="mt-1 text-muted">{tool.listingExcerpt}</dd>
+            </div>
+            <div>
+              <dt className="font-medium text-foreground">Advertising excerpt</dt>
+              <dd className="mt-1 text-muted">{tool.advertisingExcerpt ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="font-medium text-foreground">Meta description (SEO)</dt>
+              <dd className="mt-1 text-muted">{tool.metaDescription}</dd>
+            </div>
+          </dl>
+          <div
+            className="prose prose-sm mt-4 max-w-none geek-content"
+            dangerouslySetInnerHTML={{ __html: tool.bodyHtml }}
+          />
+          {tool.jsonLdSchema && (
+            <details className="mt-4">
+              <summary className="cursor-pointer text-sm font-medium text-foreground">JSON-LD (NewsArticle)</summary>
+              <pre className="mt-2 overflow-x-auto rounded-md bg-slate-950 p-3 text-xs text-slate-100">
+                {tool.jsonLdSchema}
+              </pre>
+            </details>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

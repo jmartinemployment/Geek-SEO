@@ -32,6 +32,6 @@ public static class GeekPublicUrlBuilder
 
     public static string ToolPath(string department, string slug) => $"/tools/{department}/{slug}";
 
-    public static string ToolUrl(string siteBaseUrl, string department, string slug) =>
-        $"{siteBaseUrl.TrimEnd('/')}/tools/{department}/{slug}";
+    public static string ToolUrl(string toolBaseUrl, string department, string slug) =>
+        $"{toolBaseUrl.TrimEnd('/')}/{department}/{slug}";
 }

@@ -16,6 +16,10 @@ public static class MarkdownExportDocumentBuilder
         sb.AppendLine($"contentType: {YamlScalar(input.ContentType)}");
         sb.AppendLine($"department: {YamlScalar(input.Department)}");
         sb.AppendLine($"wordCount: {input.WordCount}");
+        if (!string.IsNullOrWhiteSpace(input.ListingExcerpt))
+            sb.AppendLine($"listingExcerpt: {YamlScalar(input.ListingExcerpt)}");
+        if (!string.IsNullOrWhiteSpace(input.AdvertisingExcerpt))
+            sb.AppendLine($"advertisingExcerpt: {YamlScalar(input.AdvertisingExcerpt)}");
         sb.AppendLine("keywords:");
         foreach (var keyword in input.Keywords.Where(k => !string.IsNullOrWhiteSpace(k)))
             sb.AppendLine($"  - {YamlScalar(keyword)}");
@@ -166,4 +170,6 @@ public sealed record MarkdownExportInput(
     string BodyHtml,
     string? JsonLdSchema,
     string? RelatedJsonLdSchema,
-    DateTime ExportedAtUtc);
+    DateTime ExportedAtUtc,
+    string? ListingExcerpt = null,
+    string? AdvertisingExcerpt = null);

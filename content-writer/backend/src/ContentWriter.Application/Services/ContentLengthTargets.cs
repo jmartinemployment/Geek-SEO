@@ -44,9 +44,19 @@ public static class ContentLengthTargets
     public const string NewsEditorialDefinition =
         "News and quick updates are best for press releases or short announcements — timely, concise, and direct.";
 
+    // Tool pages — NewsArticle overviews for each platform in the pillar Top AI Tools section.
+    public const int ToolMinWords = 500;
+    public const int ToolTargetMaxWords = 800;
+    public const int ToolHardMaxWords = 1_000;
+
+    public const string ToolEditorialDefinition =
+        "Tool pages are focused NewsArticle-style overviews of a single platform — news tone, implementation context, " +
+        "and when to use it. Not pillar depth; one platform per page.";
+
     public static string PillarRangeLabel => $"{PillarMinWords:N0}–{PillarTargetMaxWords:N0}+";
     public static string BlogRangeLabel => $"{BlogTargetMinWords:N0}–{BlogTargetMaxWords:N0}";
     public static string ListicleGuideRangeLabel => $"{ListicleGuideMinWords:N0}–{ListicleGuideMaxWords:N0}";
+    public static string ToolRangeLabel => $"{ToolMinWords:N0}–{ToolTargetMaxWords:N0}";
 
     // Email — Cold Outreach / Sales (implemented).
     public const int EmailColdOutreachMinWords = 50;

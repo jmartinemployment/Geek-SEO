@@ -151,6 +151,10 @@ export function generateBlogContent(projectId: string): Promise<GeneratedContent
   return request<GeneratedContentSet>(`/api/projects/${projectId}/generate/blog`, { method: "POST" });
 }
 
+export function generateToolPagesContent(projectId: string): Promise<GeneratedContentSet> {
+  return request<GeneratedContentSet>(`/api/projects/${projectId}/generate/tools`, { method: "POST" });
+}
+
 export function generateSocialContent(projectId: string): Promise<GeneratedContentSet> {
   return request<GeneratedContentSet>(`/api/projects/${projectId}/generate/social`, { method: "POST" });
 }
@@ -208,7 +212,7 @@ export function mergeFigures(
 
 export function attachFigure(
   projectId: string,
-  source: "pillar" | "blog",
+  source: string,
   headingSlug: string,
   file: File,
   alt?: string
@@ -216,37 +220,40 @@ export function attachFigure(
   const form = new FormData();
   form.append("file", file);
   const query = alt ? `?alt=${encodeURIComponent(alt)}` : "";
+  const encodedSource = encodeURIComponent(source);
   return request<ContentFigureDto>(
-    `/api/projects/${projectId}/figures/${source}/${encodeURIComponent(headingSlug)}/attach${query}`,
+    `/api/projects/${projectId}/figures/${encodedSource}/${encodeURIComponent(headingSlug)}/attach${query}`,
     { method: "POST", body: form }
   );
 }
 
 export function skipFigure(
   projectId: string,
-  source: "pillar" | "blog",
+  source: string,
   headingSlug: string
 ): Promise<ContentFigureDto> {
+  const encodedSource = encodeURIComponent(source);
   return request<ContentFigureDto>(
-    `/api/projects/${projectId}/figures/${source}/${encodeURIComponent(headingSlug)}/skip`,
+    `/api/projects/${projectId}/figures/${encodedSource}/${encodeURIComponent(headingSlug)}/skip`,
     { method: "POST" }
   );
 }
 
 export function generateFigureImage(
   projectId: string,
-  source: "pillar" | "blog",
+  source: string,
   headingSlug: string
 ): Promise<ContentFigureDto> {
+  const encodedSource = encodeURIComponent(source);
   return request<ContentFigureDto>(
-    `/api/projects/${projectId}/figures/${source}/${encodeURIComponent(headingSlug)}/generate`,
+    `/api/projects/${projectId}/figures/${encodedSource}/${encodeURIComponent(headingSlug)}/generate`,
     { method: "POST" }
   );
 }
 
 export function generatePendingFigures(
   projectId: string,
-  source: "pillar" | "blog"
+  source: string
 ): Promise<FigureGenerateResponse> {
   return request<FigureGenerateResponse>(`/api/projects/${projectId}/figures/generate`, {
     method: "POST",

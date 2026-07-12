@@ -41,6 +41,7 @@ public class ContentWriterDbContext : DbContext
             entity.Property(p => p.Name).HasMaxLength(256).IsRequired();
             entity.Property(p => p.ProjectUrl).HasMaxLength(2048).IsRequired();
             entity.Property(p => p.TargetKeyword).HasMaxLength(256);
+            entity.Property(p => p.ToolsGenerationOutcome).HasMaxLength(64);
 
             entity.HasOne(p => p.CrawledSite)
                   .WithOne(c => c.Project)
@@ -120,7 +121,7 @@ public class ContentWriterDbContext : DbContext
         modelBuilder.Entity<ContentFigure>(entity =>
         {
             entity.HasKey(f => f.Id);
-            entity.Property(f => f.SourceType).HasMaxLength(32).IsRequired();
+            entity.Property(f => f.SourceType).HasMaxLength(576).IsRequired();
             entity.Property(f => f.HeadingSlug).HasMaxLength(512).IsRequired();
             entity.Property(f => f.Heading).HasMaxLength(512).IsRequired();
             entity.Property(f => f.BriefText).IsRequired();

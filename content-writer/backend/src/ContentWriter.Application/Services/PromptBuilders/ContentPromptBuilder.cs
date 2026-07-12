@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using ContentWriter.Application.DTOs;
 using ContentWriter.Application.Providers;
-using ContentWriter.Application.Services;
+using ContentWriter.Application.Services.SchemaBuilders;
 
 namespace ContentWriter.Application.Services.PromptBuilders;
 
@@ -53,6 +53,27 @@ public interface IContentPromptBuilder
         string articleUrl,
         string blogUrl,
         IReadOnlyList<ImagePromptSectionTarget> sections);
+    ChatCompletionRequest BuildToolBodyPrompt(
+        ProjectGenerationContext context,
+        ArticleMetadataDraft pillarMetadata,
+        SoftwareApplicationDescriptor app,
+        string department,
+        string toolSlug);
+    ChatCompletionRequest BuildToolMetadataPrompt(
+        ProjectGenerationContext context,
+        ArticleMetadataDraft pillarMetadata,
+        SoftwareApplicationDescriptor app,
+        string bodyHtml);
+    ChatCompletionRequest BuildToolWordCountExpansionPrompt(
+        ProjectGenerationContext context,
+        SoftwareApplicationDescriptor app,
+        string currentBodyHtml,
+        int currentWordCount);
+    ChatCompletionRequest BuildToolWordCountTrimPrompt(
+        ProjectGenerationContext context,
+        SoftwareApplicationDescriptor app,
+        string currentBodyHtml,
+        int currentWordCount);
 }
 
 public class ContentPromptBuilder : IContentPromptBuilder
@@ -505,6 +526,126 @@ public class ContentPromptBuilder : IContentPromptBuilder
             Messages: new List<ChatMessage> { new(ChatRole.System, system), new(ChatRole.User, user.ToString()) },
             Temperature: 0.7,
             MaxOutputTokens: 8192);
+    }
+
+    private const string ToolMetadataJsonContract =
+        "{\"listingExcerpt\": string (1-2 sentences, deck/card tone for the tool page), \"advertisingExcerpt\": string (1-2 sentences, promotional home-listing angle), \"metaDescription\": string (max 160 chars, SEO-focused, distinct from the other two)}";
+
+    public ChatCompletionRequest BuildToolBodyPrompt(
+        ProjectGenerationContext context,
+        ArticleMetadataDraft pillarMetadata,
+        SoftwareApplicationDescriptor app,
+        string department,
+        string toolSlug)
+    {
+        var system = new StringBuilder()
+            .AppendLine("You are a senior technical writer for an IT consulting firm.")
+            .AppendLine($"Editorial standard: {ContentLengthTargets.ToolEditorialDefinition}")
+            .AppendLine("Write a tool overview page as HTML only (no markdown, no JSON wrapper).")
+            .AppendLine("Use <h2> for main sections and <h3> for subsections with multiple <p> paragraphs.")
+            .AppendLine("Required <h2> sections: Overview, Key Capabilities, Implementation Considerations, When to Use.")
+            .AppendLine($"Target {ContentLengthTargets.ToolMinWords}-{ContentLengthTargets.ToolTargetMaxWords} words (hard maximum {ContentLengthTargets.ToolHardMaxWords:N0}).")
+            .ToString();
+
+        var user = new StringBuilder()
+            .AppendLine($"Target keyword context: {context.TargetKeyword}")
+            .AppendLine($"Pillar topic: {pillarMetadata.Title}")
+            .AppendLine($"Tool name: {app.Name}")
+            .AppendLine($"Tool summary from pillar: {app.Description ?? "N/A"}")
+            .AppendLine($"Department: {department}")
+            .AppendLine($"Public path: /tools/{department}/{toolSlug}")
+            .AppendLine("Write expert third-person news-style prose focused on this single platform.")
+            .ToString();
+
+        return new ChatCompletionRequest(
+            Messages: [new(ChatRole.System, system), new(ChatRole.User, user.ToString())],
+            Temperature: 0.5,
+            MaxOutputTokens: 4096);
+    }
+
+    public ChatCompletionRequest BuildToolMetadataPrompt(
+        ProjectGenerationContext context,
+        ArticleMetadataDraft pillarMetadata,
+        SoftwareApplicationDescriptor app,
+        string bodyHtml)
+    {
+        var system = new StringBuilder()
+            .AppendLine("You write presentation metadata for a B2B tool overview page (schema.org NewsArticle).")
+            .AppendLine("Respond with ONLY a single valid JSON object — no markdown fences:")
+            .AppendLine(ToolMetadataJsonContract)
+            .AppendLine("All three fields must be distinct — do not repeat the same sentence across fields.")
+            .ToString();
+
+        var user = new StringBuilder()
+            .AppendLine($"Target keyword: {context.TargetKeyword}")
+            .AppendLine($"Pillar topic: {pillarMetadata.Title}")
+            .AppendLine($"Tool name: {app.Name}")
+            .AppendLine()
+            .AppendLine("Tool page body (for context):")
+            .AppendLine(StripHtmlExcerpt(bodyHtml, 2000))
+            .ToString();
+
+        return new ChatCompletionRequest(
+            Messages: [new(ChatRole.System, system), new(ChatRole.User, user.ToString())],
+            Temperature: 0.55,
+            MaxOutputTokens: 1024);
+    }
+
+    public ChatCompletionRequest BuildToolWordCountExpansionPrompt(
+        ProjectGenerationContext context,
+        SoftwareApplicationDescriptor app,
+        string currentBodyHtml,
+        int currentWordCount)
+    {
+        var wordsNeeded = ContentLengthTargets.ToolMinWords - currentWordCount;
+        var system = new StringBuilder()
+            .AppendLine("You are a senior technical writer. Expand the tool page HTML to meet the minimum word count.")
+            .AppendLine("Return ONLY the full revised HTML body — no markdown, no JSON.")
+            .AppendLine("Preserve all existing <h2> section headings and structure; add substantive depth under each section.")
+            .AppendLine($"Minimum required: {ContentLengthTargets.ToolMinWords:N0} words. Hard maximum: {ContentLengthTargets.ToolHardMaxWords:N0} words.")
+            .ToString();
+
+        var user = new StringBuilder()
+            .AppendLine($"Tool: {app.Name}")
+            .AppendLine($"Target keyword: {context.TargetKeyword}")
+            .AppendLine($"Current length: {currentWordCount:N0} words. Add at least {Math.Max(wordsNeeded, 150):N0} words of substantive material.")
+            .AppendLine()
+            .AppendLine("Current HTML:")
+            .AppendLine(currentBodyHtml)
+            .ToString();
+
+        return new ChatCompletionRequest(
+            Messages: [new(ChatRole.System, system), new(ChatRole.User, user.ToString())],
+            Temperature: 0.45,
+            MaxOutputTokens: 4096);
+    }
+
+    public ChatCompletionRequest BuildToolWordCountTrimPrompt(
+        ProjectGenerationContext context,
+        SoftwareApplicationDescriptor app,
+        string currentBodyHtml,
+        int currentWordCount)
+    {
+        var system = new StringBuilder()
+            .AppendLine("You are a senior technical writer. Trim the tool page HTML to meet the maximum word count.")
+            .AppendLine("Return ONLY the full revised HTML body — no markdown, no JSON.")
+            .AppendLine("Preserve all existing <h2> section headings; tighten prose without losing key facts.")
+            .AppendLine($"Target range: {ContentLengthTargets.ToolMinWords:N0}-{ContentLengthTargets.ToolTargetMaxWords:N0} words. Hard maximum: {ContentLengthTargets.ToolHardMaxWords:N0} words.")
+            .ToString();
+
+        var user = new StringBuilder()
+            .AppendLine($"Tool: {app.Name}")
+            .AppendLine($"Target keyword: {context.TargetKeyword}")
+            .AppendLine($"Current length: {currentWordCount:N0} words — trim to at most {ContentLengthTargets.ToolHardMaxWords:N0} words.")
+            .AppendLine()
+            .AppendLine("Current HTML:")
+            .AppendLine(currentBodyHtml)
+            .ToString();
+
+        return new ChatCompletionRequest(
+            Messages: [new(ChatRole.System, system), new(ChatRole.User, user.ToString())],
+            Temperature: 0.35,
+            MaxOutputTokens: 4096);
     }
 
     private static string StripHtmlExcerpt(string html, int maxChars)

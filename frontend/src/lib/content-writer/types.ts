@@ -129,6 +129,14 @@ export const CONTENT_LENGTH_TARGETS = {
     label: "400–800",
     definition: "Press releases and short announcements — timely and concise.",
   },
+  tool: {
+    min: 500,
+    max: 800,
+    hardMax: 1000,
+    label: "500–800",
+    definition:
+      "NewsArticle-style tool overviews — focused platform coverage with deck, advertising, and SEO excerpts.",
+  },
   emailColdOutreach: {
     min: 50,
     max: 125,
@@ -156,6 +164,20 @@ export const CONTENT_LENGTH_TARGETS = {
   },
 } as const;
 
+export interface ToolDraft {
+  title: string;
+  displayTitle: string;
+  listingExcerpt: string;
+  metaDescription: string;
+  advertisingExcerpt: string | null;
+  bodyHtml: string;
+  slug: string;
+  sourceAppName: string;
+  sourceAppOrder: number;
+  wordCount: number;
+  jsonLdSchema: string | null;
+}
+
 export interface ColdOutreachEmailDraft {
   subject: string;
   bodyText: string;
@@ -169,7 +191,7 @@ export interface SocialPostDraft {
 }
 
 export interface ImagePromptSection {
-  sourceType: "pillar" | "blog";
+  sourceType: string;
   heading: string;
   order: number;
   prompt: string;
@@ -271,6 +293,8 @@ export interface GeneratedContentSet {
   linkedInPost: SocialPostDraft | null;
   coldOutreachEmail: ColdOutreachEmailDraft | null;
   imagePrompts: ImagePromptsSet | null;
+  tools: ToolDraft[] | null;
+  toolsGenerationOutcome: string | null;
 }
 
 export interface LmStudioHealthStatus {

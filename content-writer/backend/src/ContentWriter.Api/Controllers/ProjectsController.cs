@@ -73,7 +73,11 @@ public class ProjectsController : ControllerBase
 
         var contentSet = project.GeneratedContents.Count == 0
             ? null
-            : GeneratedContentSetAssembler.Assemble(project, _companyProfile.ArticleBaseUrl, _companyProfile.BlogBaseUrl);
+            : GeneratedContentSetAssembler.Assemble(
+                project,
+                _companyProfile.ArticleBaseUrl,
+                _companyProfile.BlogBaseUrl,
+                toolsGenerationOutcome: project.ToolsGenerationOutcome);
 
         return Ok(new ProjectDetailResponse(
             project.Id, project.Name, project.ProjectUrl, project.TargetKeyword, project.Status,

@@ -162,25 +162,33 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         var provider = _providerFactory.Get(project.PreferredProvider);
         var metadata = ToMetadataDraft(articleRow);
         var department = GeekPublicUrlBuilder.ResolveDepartment(project);
+        var articleUrl = GeekPublicUrlBuilder.ArticleUrl(context.ArticleBaseUrl, department, articleRow.Slug);
 
         _logger.LogInformation("Generating tool pages for project {ProjectId} via {Provider}", projectId, provider.ProviderType);
 
         RemoveGeneratedContents(project, GeneratedContentType.ToolPost);
 
-        var toolRows = await _toolPageGenerator.GenerateToolPagesAsync(
+        var generation = await _toolPageGenerator.GenerateToolPagesAsync(
             project,
             articleRow,
             metadata,
             context,
             provider,
             department,
+            articleUrl,
             cancellationToken);
 
-        foreach (var toolRow in toolRows)
+        foreach (var toolRow in generation.ToolPosts)
         {
             await AddContentAsync(project, provider.ProviderType, toolRow, cancellationToken);
         }
 
+        if (generation.Outcome == ToolGenerationOutcome.Success && generation.ToolPosts.Count > 0)
+        {
+            await TrySyncToolFigureBriefsAsync(project, articleRow, context, provider, cancellationToken);
+        }
+
+        project.ToolsGenerationOutcome = generation.Outcome.ToString();
         await SaveProjectAsync(project, ProjectStatus.ReadyForGeneration, cancellationToken);
         return Assemble(project);
     }
@@ -352,6 +360,8 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         var project = await LoadProjectForGenerationAsync(projectId, cancellationToken);
         var articleRow = RequireCompletePillar(project);
         var blogRow = RequireCompleteBlog(project);
+
+        EnsureToolPostsExistWhenRequired(articleRow, project);
 
         var (readyCount, publishedCount) = await _figureRepository.CountReadyAndPublishedAsync(projectId, cancellationToken);
         if (!confirmRegenerateWithArt && (readyCount > 0 || publishedCount > 0))
@@ -598,7 +608,11 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
     }
 
     private GeneratedContentSet Assemble(Project project) =>
-        GeneratedContentSetAssembler.Assemble(project, _companyProfile.ArticleBaseUrl, _companyProfile.BlogBaseUrl);
+        GeneratedContentSetAssembler.Assemble(
+            project,
+            _companyProfile.ArticleBaseUrl,
+            _companyProfile.BlogBaseUrl,
+            toolsGenerationOutcome: project.ToolsGenerationOutcome);
 
     private ProjectGenerationContext BuildContext(Project project)
     {
@@ -661,6 +675,7 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             AuthorName: _companyProfile.AuthorName,
             ArticleBaseUrl: _companyProfile.ArticleBaseUrl,
             BlogBaseUrl: _companyProfile.BlogBaseUrl,
+            ToolBaseUrl: _companyProfile.ToolBaseUrl,
             ImplementerPositioning: _companyProfile.ImplementerPositioning,
             Provider: project.PreferredProvider);
     }
@@ -960,6 +975,132 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         throw new ContentGenerationException($"Model did not return valid JSON for {platform} post after {maxAttempts} attempts.");
     }
 
+    private void EnsureToolPostsExistWhenRequired(GeneratedContent articleRow, Project project)
+    {
+        var metadata = ToMetadataDraft(articleRow);
+        var extraction = ToolsSectionHtmlParser.DiagnoseExtraction(articleRow.BodyHtml, metadata.SectionOutline);
+        if (extraction.Outcome is ToolGenerationOutcome.NoToolsSection)
+        {
+            return;
+        }
+
+        if (extraction.Outcome is ToolGenerationOutcome.Success)
+        {
+            var hasToolPosts = project.GeneratedContents.Any(c => c.ContentType == GeneratedContentType.ToolPost);
+            if (!hasToolPosts)
+            {
+                throw new ContentGenerationException(
+                    "Pillar includes a Top AI Tools section with platforms, but tool pages have not been generated. " +
+                    "Run generate/tools before figure briefs.");
+            }
+        }
+    }
+
+    private async Task TrySyncToolFigureBriefsAsync(
+        Project project,
+        GeneratedContent articleRow,
+        ProjectGenerationContext context,
+        IContentGenerationProvider provider,
+        CancellationToken cancellationToken)
+    {
+        var blogRow = project.GeneratedContents
+            .FirstOrDefault(c => c.ContentType == GeneratedContentType.BlogPost);
+        if (blogRow is null || string.IsNullOrWhiteSpace(blogRow.BodyHtml) || blogRow.WordCount < 200)
+        {
+            return;
+        }
+
+        var toolBodies = project.GeneratedContents
+            .Where(c => c.ContentType == GeneratedContentType.ToolPost)
+            .OrderBy(c => c.SourceAppOrder ?? int.MaxValue)
+            .Select(c => (c.Slug, c.BodyHtml))
+            .ToList();
+        var toolSections = ArticleHtmlSectionExtractor.BuildToolSectionTargets(toolBodies);
+        if (toolSections.Count == 0)
+        {
+            return;
+        }
+
+        var article = GeneratedContentSetAssembler.ToArticleDraft(articleRow);
+        var blog = GeneratedContentSetAssembler.ToBlogDraft(blogRow);
+        var department = GeekPublicUrlBuilder.ResolveDepartment(project);
+        var articleUrl = GeekPublicUrlBuilder.ArticleUrl(context.ArticleBaseUrl, department, articleRow.Slug);
+        var blogUrl = GeekPublicUrlBuilder.BlogUrl(context.BlogBaseUrl, department, blogRow.Slug);
+
+        const int maxAttempts = 2;
+        ImagePromptSectionPromptsDraft? draft = null;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var result = await provider.CompleteAsync(
+                _promptBuilder.BuildSectionImagePromptsPrompt(
+                    context, article, blog, articleUrl, blogUrl, toolSections),
+                cancellationToken);
+            try
+            {
+                draft = LlmResponseJsonParser.ParseSectionImagePrompts(result.Content, toolSections, "tool image prompts");
+                break;
+            }
+            catch (ContentGenerationException ex) when (attempt < maxAttempts)
+            {
+                _logger.LogWarning(ex, "Retrying tool image prompts after invalid JSON (attempt {Attempt})", attempt);
+            }
+        }
+
+        if (draft is null)
+        {
+            throw new ContentGenerationException(
+                $"Model did not return valid JSON for tool image prompts after {maxAttempts} attempts.");
+        }
+
+        RemoveToolImagePromptContents(project);
+
+        var syncInputs = new List<FigureSyncSectionInput>();
+        foreach (var section in draft.Sections)
+        {
+            var promptContentId = await AddSectionImagePromptRowAsync(
+                project,
+                provider.ProviderType,
+                articleRow.Slug,
+                articleUrl,
+                section,
+                cancellationToken);
+            syncInputs.Add(new FigureSyncSectionInput(
+                section.SourceType,
+                section.Heading,
+                section.Order,
+                section.Prompt,
+                promptContentId));
+        }
+
+        var scopedSourceTypes = toolSections
+            .Select(s => s.SourceType)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        await _figureSync.SyncScopedAsync(project.Id, syncInputs, scopedSourceTypes, cancellationToken);
+    }
+
+    private void RemoveToolImagePromptContents(Project project)
+    {
+        var toRemove = project.GeneratedContents
+            .Where(c => c.ContentType == GeneratedContentType.ImagePromptSection)
+            .Where(c =>
+            {
+                var section = ImagePromptMetadata.ToSectionContent(c);
+                return section.SourceType.StartsWith("tool/", StringComparison.OrdinalIgnoreCase);
+            })
+            .ToList();
+
+        if (toRemove.Count == 0)
+        {
+            return;
+        }
+
+        _projectRepository.RemoveGeneratedContents(toRemove);
+        foreach (var row in toRemove)
+        {
+            project.GeneratedContents.Remove(row);
+        }
+    }
+
     private T ParseJson<T>(string rawContent, string label)
     {
         try
@@ -983,6 +1124,7 @@ public class CompanyProfileOptions
     public string AuthorName { get; set; } = "Geek At Your Spot Editorial Team";
     public string ArticleBaseUrl { get; set; } = "https://www.geekatyourspot.com/use-cases";
     public string BlogBaseUrl { get; set; } = "https://www.geekatyourspot.com/blog";
+    public string ToolBaseUrl { get; set; } = "https://www.geekatyourspot.com/tools";
 
     /// <summary>How the publisher positions AI implementation services in pillar Tools sections.</summary>
     public string ImplementerPositioning { get; set; } =
