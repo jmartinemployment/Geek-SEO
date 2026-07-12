@@ -147,6 +147,37 @@ Set `NEXT_PUBLIC_CONTENT_WRITER_API_URL=http://localhost:5199` when using that m
 4. Generate in steps — pillar plan, pillar body, blog, social, cold outreach email — each persisted to the database.
 5. Generate figure briefs (Step 6), publish text to geekatyourspot (department required), then explicitly save section AVIF to each target path (upload, generate & save, or CLI).
 
+## Pillar body contract (GeekAPI)
+
+geekatyourspot renders post bodies **unfiltered** from GeekAPI. Content Writer is responsible for correct markdown in the database — the site does not strip, reclassify, or fix legacy content.
+
+Published pillar bodies must follow this shape:
+
+```markdown
+Introductory prose (before the first ##)
+
+## Declarative section title
+Body paragraphs…
+
+## People Also Ask
+
+### First question?
+Answer paragraph(s).
+
+### Second question?
+Answer paragraph(s).
+```
+
+| Rule | Detail |
+|------|--------|
+| PAA heading | Final section must be `## People Also Ask` (saved in GeekAPI on publish) |
+| PAA questions | Each question is `###` + answer paragraphs — not separate `##` sections |
+| No FAQ | `## Frequently Asked Questions` is rejected by `PillarMarkdownValidator` on publish |
+| No body figures | Section art is layout slots on geekatyourspot, not `<figure>` or `Section image:` in markdown |
+| Legacy rows | Import-era GeekAPI posts with FAQ blocks or missing PAA headings need **republish**, not frontend patches |
+
+When PAA research files are uploaded, publish fails if `## People Also Ask` is missing from the converted markdown body.
+
 ## Content figures (operator workflow)
 
 ### Layout-driven images (outside post body)
@@ -156,9 +187,12 @@ Section art lives in **layout columns**, not in markdown. geekatyourspot renders
 - **Allowed:** explicit save to the conventional path — upload, generate & save, or CLI `attach` / `sync-dir`.
 - **Vetoed:** auto-placement on publish, injecting figures into post body.
 
-Target path (shown in Content Writer UI after text publish):
+Target paths (shown in Content Writer UI after text publish):
 
-`geekatyourspot/public/images/{TechnicalArticle|Blog|Tool}/{department}/{pageSlug}/h2-{heading-slug}.avif`
+- Section: `geekatyourspot/public/images/{TechnicalArticle|Blog|Tool}/{department}/{pageSlug}/h2-{heading-slug}.avif`
+- Hero (blog/tool): `geekatyourspot/public/images/{TechnicalArticle|Blog|Tool}/{department}/{pageSlug}/hero.avif`
+
+Image URLs are **not** stored on or read from GeekAPI posts — save AVIF files to these paths only.
 
 ```bash
 cd content-writer/backend

@@ -25,6 +25,7 @@ public class GeneratedContent
     /// <summary>Tool-page callout copy (tool posts only).</summary>
     public string? AdvertisingExcerpt { get; set; }
 
+    [Obsolete("Hero art uses convention path hero.avif on disk, not a stored URL.")]
     public string? HeroImageUrl { get; set; }
 
     /// <summary>Top Tools app name this tool row was generated from (tool posts only).</summary>

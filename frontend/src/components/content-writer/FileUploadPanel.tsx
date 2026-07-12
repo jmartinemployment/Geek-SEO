@@ -49,7 +49,7 @@ export default function FileUploadPanel({
       <h2 className="text-lg font-semibold text-foreground">3. Upload Research Inputs</h2>
       <p className="mt-1 text-sm text-muted">
         Upload manually-scraped research by category. Keyword SERP files are kept tight (intent/headings);
-        Wikipedia, .edu, and .gov files are used as quotable sources in the article body. PAA: one question per line (top 12 used in the FAQ section).
+        Wikipedia, .edu, and .gov files are used as quotable sources in the article body. PAA: one question per line (top 12 used under ## People Also Ask).
       </p>
 
       <div className="mt-5 flex flex-wrap items-end gap-3">

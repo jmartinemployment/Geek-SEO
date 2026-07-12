@@ -15,4 +15,12 @@ public class FigurePublicPathBuilderTests
     {
         Assert.Equal(expected, FigurePublicPathBuilder.BuildRelativePath(geekApiSlug, headingSlug));
     }
+
+    [Theory]
+    [InlineData("blog/sales/quarterly-update", "images/Blog/sales/quarterly-update/hero.avif")]
+    [InlineData("tools/marketing/hubspot-ai", "images/Tool/marketing/hubspot-ai/hero.avif")]
+    public void BuildHeroRelativePath_maps_prefix_to_content_folder(string geekApiSlug, string expected)
+    {
+        Assert.Equal(expected, FigurePublicPathBuilder.BuildHeroRelativePath(geekApiSlug));
+    }
 }

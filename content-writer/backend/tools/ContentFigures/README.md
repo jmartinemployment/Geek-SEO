@@ -10,6 +10,8 @@ Section images are **layout slots outside post body**. geekatyourspot renders:
 
 via `next/image` in pillar/tool layouts — never inline in markdown. There is no merge-into-body step.
 
+**Text** (headings, PAA `###` questions, prose) is stored in GeekAPI and rendered unfiltered by geekatyourspot. Wrong or missing `## People Also Ask` in live posts is fixed by republishing from Content Writer, not by the site or this CLI. See the parent [`README.md`](../../README.md) pillar body contract.
+
 ## Prerequisites
 
 | Variable | Required for |

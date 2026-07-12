@@ -1,7 +1,7 @@
 namespace ContentWriter.Application.Services.Figures;
 
 /// <summary>
-/// Builds public image paths: images/{TechnicalArticle|Blog|Tool}/{department}/{pageSlug}/h2-{headingSlug}.avif
+/// Builds public image paths under images/{TechnicalArticle|Blog|Tool}/{department}/{pageSlug}/.
 /// </summary>
 public static class FigurePublicPathBuilder
 {
@@ -19,6 +19,17 @@ public static class FigurePublicPathBuilder
 
         var (contentFolder, department, pageSlug) = ParseGeekApiSlug(geekApiSlug);
         return $"images/{contentFolder}/{department}/{pageSlug}/h2-{headingSlug.Trim()}.avif";
+    }
+
+    public static string BuildHeroRelativePath(string geekApiSlug)
+    {
+        if (string.IsNullOrWhiteSpace(geekApiSlug))
+        {
+            throw new ArgumentException("GeekApiSlug is required.", nameof(geekApiSlug));
+        }
+
+        var (contentFolder, department, pageSlug) = ParseGeekApiSlug(geekApiSlug);
+        return $"images/{contentFolder}/{department}/{pageSlug}/hero.avif";
     }
 
     public static (string ContentFolder, string Department, string PageSlug) ParseGeekApiSlug(string geekApiSlug)

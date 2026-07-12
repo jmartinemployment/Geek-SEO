@@ -163,7 +163,7 @@ export default function ContentResults({
         <StepRow
           step={1}
           title="Pillar plan (Technical Article)"
-          description="Title, meta, keywords, and declarative H2 outline (PAA goes in a final FAQ section only)."
+          description="Title, meta, keywords, and declarative H2 outline (PAA questions go under a final ## People Also Ask section only)."
           done={hasPillarPlan}
           disabled={!canGenerate || isGenerating}
           isRunning={generatingStep === "pillar-plan"}

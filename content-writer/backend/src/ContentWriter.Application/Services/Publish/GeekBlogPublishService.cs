@@ -254,7 +254,6 @@ public class GeekBlogPublishService : IGeekBlogPublishService
             technicalArticleExcerpt = excerpts.TechnicalArticleExcerpt,
             toolExcerpt = excerpts.ToolExcerpt,
             advertisingExcerpt = excerpts.AdvertisingExcerpt,
-            heroImageUrl = sourceRow.HeroImageUrl,
             sourceProjectId = projectId,
             contentRole,
             sourcePillarSlug,
