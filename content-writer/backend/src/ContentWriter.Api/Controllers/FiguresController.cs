@@ -5,6 +5,7 @@ using ContentWriter.Domain.Entities;
 using ContentWriter.Domain.Enums;
 using ContentWriter.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace ContentWriter.Api.Controllers;
 
@@ -17,6 +18,7 @@ public class FiguresController : ControllerBase
     private readonly IFigureMergeService _mergeService;
     private readonly IContentFigureAttachService _attachService;
     private readonly IContentFigureImageGenerationService _imageGeneration;
+    private readonly FigureImageGenerationOptions _figureImageOptions;
     private readonly ILogger<FiguresController> _logger;
 
     public FiguresController(
@@ -25,6 +27,7 @@ public class FiguresController : ControllerBase
         IFigureMergeService mergeService,
         IContentFigureAttachService attachService,
         IContentFigureImageGenerationService imageGeneration,
+        IOptions<FigureImageGenerationOptions> figureImageOptions,
         ILogger<FiguresController> logger)
     {
         _figures = figures;
@@ -32,6 +35,7 @@ public class FiguresController : ControllerBase
         _mergeService = mergeService;
         _attachService = attachService;
         _imageGeneration = imageGeneration;
+        _figureImageOptions = figureImageOptions.Value;
         _logger = logger;
     }
 
@@ -47,7 +51,8 @@ public class FiguresController : ControllerBase
         return Ok(new ContentFiguresListResponse(
             projectId,
             rows.Select(ToDto).ToList(),
-            BuildSummary(rows)));
+            BuildSummary(rows),
+            _figureImageOptions.InAppGenerationEnabled));
     }
 
     [HttpGet("export")]

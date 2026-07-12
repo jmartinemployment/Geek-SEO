@@ -819,21 +819,17 @@ function ColdOutreachView({ email }: { email: ColdOutreachEmailDraft }) {
   );
 }
 
-function formatLeonardoSettings(item: ImagePromptSection): string {
+function formatFigureSettings(item: ImagePromptSection): string {
   const lines = [
-    `Model: ${item.leonardoModel}`,
-    `Model ID: ${item.leonardoModelId}`,
-    `Dimensions: ${item.width} × ${item.height}`,
+    `Suggested dimensions: ${item.width} × ${item.height}`,
     `Style preset: ${item.stylePreset}`,
-    `Alchemy: ${item.alchemy ? "On" : "Off"}`,
-    `PhotoReal: ${item.photoReal ? "On" : "Off"}`,
   ];
   if (item.notes) lines.push(`Notes: ${item.notes}`);
   return lines.join("\n");
 }
 
-function formatLeonardoCopyBlock(item: ImagePromptSection): string {
-  return `${formatLeonardoSettings(item)}\n\nPrompt:\n${item.prompt}`;
+function formatFigureCopyBlock(item: ImagePromptSection): string {
+  return `${formatFigureSettings(item)}\n\nBrief:\n${item.prompt}`;
 }
 
 async function copyText(text: string): Promise<void> {
@@ -852,6 +848,7 @@ function ImagePromptsView({
   onFiguresChanged: () => void;
 }) {
   const [figureRows, setFigureRows] = useState<ContentFigureDto[]>([]);
+  const [inAppGenerationEnabled, setInAppGenerationEnabled] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -859,6 +856,7 @@ function ImagePromptsView({
       .then((response) => {
         if (!cancelled) {
           setFigureRows(response.figures);
+          setInAppGenerationEnabled(response.inAppGenerationEnabled);
         }
       })
       .catch(() => {
@@ -897,8 +895,8 @@ function ImagePromptsView({
   return (
     <div className="space-y-8">
       <p className="text-sm text-muted">
-        Each H2 has a figure brief. After text is published to the site, generate art from the brief (OpenAI) or
-        upload a WebP from Figma.
+        Each H2 has a figure brief. After text is published, copy the brief to your image tool, export WebP, and
+        upload here. Use Merge in the publish panel to inject art into the live post.
       </p>
       {pillarSections.length > 0 && (
         <ImagePromptSectionGroup
@@ -908,6 +906,7 @@ function ImagePromptsView({
           figureFor={figureFor}
           statusFor={statusFor}
           onFiguresChanged={onFiguresChanged}
+          inAppGenerationEnabled={inAppGenerationEnabled}
         />
       )}
       {blogSections.length > 0 && (
@@ -918,6 +917,7 @@ function ImagePromptsView({
           figureFor={figureFor}
           statusFor={statusFor}
           onFiguresChanged={onFiguresChanged}
+          inAppGenerationEnabled={inAppGenerationEnabled}
         />
       )}
       {Object.entries(toolGroups).map(([slug, sections]) => (
@@ -929,6 +929,7 @@ function ImagePromptsView({
           figureFor={figureFor}
           statusFor={statusFor}
           onFiguresChanged={onFiguresChanged}
+          inAppGenerationEnabled={inAppGenerationEnabled}
         />
       ))}
     </div>
@@ -986,6 +987,7 @@ function ImagePromptSectionGroup({
   figureFor,
   statusFor,
   onFiguresChanged,
+  inAppGenerationEnabled,
 }: {
   title: string;
   sections: ImagePromptSection[];
@@ -993,6 +995,7 @@ function ImagePromptSectionGroup({
   figureFor: (section: ImagePromptSection) => ContentFigureDto | undefined;
   statusFor: (section: ImagePromptSection) => FigureStatus | undefined;
   onFiguresChanged: () => void;
+  inAppGenerationEnabled: boolean;
 }) {
   return (
     <div className="space-y-4">
@@ -1005,6 +1008,7 @@ function ImagePromptSectionGroup({
           figure={figureFor(item)}
           figureStatus={statusFor(item)}
           onFiguresChanged={onFiguresChanged}
+          inAppGenerationEnabled={inAppGenerationEnabled}
         />
       ))}
     </div>
@@ -1031,12 +1035,14 @@ function ImagePromptCard({
   figure,
   figureStatus,
   onFiguresChanged,
+  inAppGenerationEnabled,
 }: {
   item: ImagePromptSection;
   projectId: string;
   figure?: ContentFigureDto;
   figureStatus?: FigureStatus;
   onFiguresChanged: () => void;
+  inAppGenerationEnabled: boolean;
 }) {
   const [copied, setCopied] = useState<"prompt" | "all" | null>(null);
   const [busy, setBusy] = useState<"generate" | "upload" | "skip" | null>(null);
@@ -1046,7 +1052,7 @@ function ImagePromptCard({
   const headingSlug = figure?.headingSlug;
 
   async function handleCopy(mode: "prompt" | "all") {
-    await copyText(mode === "prompt" ? item.prompt : formatLeonardoCopyBlock(item));
+    await copyText(mode === "prompt" ? item.prompt : formatFigureCopyBlock(item));
     setCopied(mode);
     window.setTimeout(() => setCopied(null), 2000);
   }
@@ -1112,12 +1118,21 @@ function ImagePromptCard({
           </button>
           <button
             type="button"
-            disabled={!canAct || busy !== null}
-            onClick={() => void handleGenerate()}
-            className="rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+            onClick={() => handleCopy("all")}
+            className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface"
           >
-            {busy === "generate" ? "Generating…" : "Generate image"}
+            {copied === "all" ? "Copied!" : "Copy for image tool"}
           </button>
+          {inAppGenerationEnabled && (
+            <button
+              type="button"
+              disabled={!canAct || busy !== null}
+              onClick={() => void handleGenerate()}
+              className="rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+            >
+              {busy === "generate" ? "Generating…" : "Generate image"}
+            </button>
+          )}
           <label
             className={`cursor-pointer rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface ${!canAct || busy !== null ? "pointer-events-none opacity-50" : ""}`}
           >
@@ -1147,7 +1162,7 @@ function ImagePromptCard({
         </div>
       </div>
       {!figure?.geekApiSlug && (
-        <p className="mt-2 text-xs text-amber-800">Publish text to the site before generating or uploading art.</p>
+        <p className="mt-2 text-xs text-amber-800">Publish text to the site before uploading art.</p>
       )}
       {figure?.imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element -- figure preview from blob CDN
@@ -1163,7 +1178,7 @@ function ImagePromptCard({
         </p>
       )}
       <pre className="mt-3 whitespace-pre-wrap rounded-md border border-border bg-surface p-3 text-xs text-muted">
-        {formatLeonardoSettings(item)}
+        {formatFigureSettings(item)}
       </pre>
       <div className="mt-3 whitespace-pre-wrap rounded-md border border-border p-3 text-sm text-foreground">
         {item.prompt}

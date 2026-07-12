@@ -27,14 +27,11 @@ public sealed class OpenAiFigureImageClient(
         }
 
         var size = MapSize(width, height);
-        var payload = new
-        {
-            model = _imageOptions.OpenAiModel,
-            prompt,
-            n = 1,
-            size,
-            response_format = "b64_json",
-        };
+        var model = _imageOptions.OpenAiModel;
+        var useLegacyResponseFormat = UsesLegacyResponseFormat(model);
+        var payload = useLegacyResponseFormat
+            ? (object)new { model, prompt, n = 1, size, response_format = "b64_json" }
+            : new { model, prompt, n = 1, size };
 
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
@@ -63,6 +60,9 @@ public sealed class OpenAiFigureImageClient(
 
         return Convert.FromBase64String(b64);
     }
+
+    private static bool UsesLegacyResponseFormat(string model) =>
+        model.StartsWith("dall-e", StringComparison.OrdinalIgnoreCase);
 
     private static string MapSize(int width, int height) => (width, height) switch
     {

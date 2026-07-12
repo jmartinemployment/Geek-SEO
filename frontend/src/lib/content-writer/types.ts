@@ -263,6 +263,7 @@ export interface ContentFiguresListResponse {
   projectId: string;
   figures: ContentFigureDto[];
   summary: ContentFiguresSummary;
+  inAppGenerationEnabled: boolean;
 }
 
 export interface FigureMergeResponse {

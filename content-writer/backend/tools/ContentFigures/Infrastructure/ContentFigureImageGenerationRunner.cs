@@ -15,13 +15,15 @@ public static class ContentFigureImageGenerationRunner
     {
         await using var db = ContentFiguresDb.CreateContext();
         using var http = new HttpClient();
+        var imageOptions = Options.Create(new FigureImageGenerationOptions { InAppGenerationEnabled = true });
         var generation = new ContentFigureImageGenerationService(
             new ContentFigureRepository(db),
             ContentFigureAttachServiceFactory.Create(db),
             new OpenAiFigureImageClient(
                 http,
                 Options.Create(new LlmProvidersOptions()),
-                Options.Create(new FigureImageGenerationOptions())));
+                imageOptions),
+            imageOptions);
 
         if (!string.IsNullOrWhiteSpace(headingSlug))
         {

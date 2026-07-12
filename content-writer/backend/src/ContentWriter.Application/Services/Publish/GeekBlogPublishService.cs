@@ -46,6 +46,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
     private readonly IFigureMergeService _figureMerge;
     private readonly CompanyProfileOptions _companyProfile;
     private readonly GeekBlogPublishOptions _publishOptions;
+    private readonly FigureImageGenerationOptions _figureImageOptions;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<GeekBlogPublishService> _logger;
 
@@ -57,6 +58,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
         IFigureMergeService figureMerge,
         IOptions<CompanyProfileOptions> companyProfile,
         IOptions<GeekBlogPublishOptions> publishOptions,
+        IOptions<FigureImageGenerationOptions> figureImageOptions,
         IHttpClientFactory httpClientFactory,
         ILogger<GeekBlogPublishService> logger)
     {
@@ -67,6 +69,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
         _figureMerge = figureMerge;
         _companyProfile = companyProfile.Value;
         _publishOptions = publishOptions.Value;
+        _figureImageOptions = figureImageOptions.Value;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
@@ -172,7 +175,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
                 projectId,
                 contentRole: "tool",
                 sourcePillarSlug: contentSet.ArticleSlug,
-                postType: "TechnicalArticle",
+                postType: "NewsArticle",
                 apiSlug,
                 GeneratedContentPresentation.PublishTitle(toolRow),
                 HtmlToMarkdownConverter.Convert(toolRow.BodyHtml),
@@ -223,14 +226,17 @@ public class GeekBlogPublishService : IGeekBlogPublishService
             return;
         }
 
-        try
+        if (_figureImageOptions.InAppGenerationEnabled && _figureImageOptions.AutoGenerateOnPublish)
         {
-            await _imageGeneration.GeneratePendingAsync(projectId, sourceType, cancellationToken);
-        }
-        catch (ContentGenerationException ex)
-        {
-            throw new ContentGenerationException(
-                $"Figure image generation failed for source '{sourceType}': {ex.Message}");
+            try
+            {
+                await _imageGeneration.GeneratePendingAsync(projectId, sourceType, cancellationToken);
+            }
+            catch (ContentGenerationException ex)
+            {
+                throw new ContentGenerationException(
+                    $"Figure image generation failed for source '{sourceType}': {ex.Message}");
+            }
         }
 
         try
@@ -239,8 +245,8 @@ public class GeekBlogPublishService : IGeekBlogPublishService
         }
         catch (ContentGenerationException ex) when (ex.Message.Contains("No Ready", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogWarning(
-                "Skipping figure merge for {SourceType}: {Message}",
+            _logger.LogInformation(
+                "No Ready figures to merge for {SourceType}: {Message}",
                 sourceType,
                 ex.Message);
         }

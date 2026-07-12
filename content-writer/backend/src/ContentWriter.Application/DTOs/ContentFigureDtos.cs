@@ -24,7 +24,8 @@ public sealed record ContentFigureDto(
 public sealed record ContentFiguresListResponse(
     Guid ProjectId,
     IReadOnlyList<ContentFigureDto> Figures,
-    ContentFiguresSummary Summary);
+    ContentFiguresSummary Summary,
+    bool InAppGenerationEnabled);
 
 public sealed record ContentFiguresSummary(
     int Pending,

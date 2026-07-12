@@ -3,6 +3,7 @@ using ContentWriter.Application.Services;
 using ContentWriter.Domain.Entities;
 using ContentWriter.Domain.Enums;
 using ContentWriter.Infrastructure.Repositories;
+using Microsoft.Extensions.Options;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Webp;
 
@@ -27,15 +28,18 @@ public sealed class ContentFigureImageGenerationService : IContentFigureImageGen
     private readonly IContentFigureRepository _figures;
     private readonly IContentFigureAttachService _attach;
     private readonly OpenAiFigureImageClient _imageClient;
+    private readonly FigureImageGenerationOptions _options;
 
     public ContentFigureImageGenerationService(
         IContentFigureRepository figures,
         IContentFigureAttachService attach,
-        OpenAiFigureImageClient imageClient)
+        OpenAiFigureImageClient imageClient,
+        IOptions<FigureImageGenerationOptions> options)
     {
         _figures = figures;
         _attach = attach;
         _imageClient = imageClient;
+        _options = options.Value;
     }
 
     public async Task<ContentFigure> GenerateAsync(
@@ -91,6 +95,12 @@ public sealed class ContentFigureImageGenerationService : IContentFigureImageGen
         ContentFigure figure,
         CancellationToken cancellationToken)
     {
+        if (!_options.InAppGenerationEnabled)
+        {
+            throw new ContentGenerationException(
+                "In-app image generation is disabled. Copy the figure brief, create art in your external tool, then upload WebP.");
+        }
+
         if (figure.Status == FigureStatus.Skipped)
         {
             throw new ContentGenerationException(
