@@ -1,42 +1,28 @@
-# SectionFigures CLI
+# SectionFigures
 
-Standalone operator tool for section art: **HTTP read** from Content Writer, **OpenAI** image generation, **AVIF on disk** only. No Postgres, no EF, no `ContentWriter.Application` reference, no DB write-back.
+Helper for **agent-driven** section art: Content Writer briefs → OpenAI draft → Figma polish → AVIF on disk. No Postgres, no in-app Content Writer generation, no DB write-back.
 
-geekatyourspot renders images from layout slots checking `public/images/{TechnicalArticle|Blog|Tool}/...` — not from post body HTML or GeekAPI image URL fields.
+geekatyourspot renders layout slots from `public/images/{TechnicalArticle|Blog|Tool}/...` only.
 
-## Prerequisites
+## Intended workflow
+
+1. **Cursor agent:** `export-jobs` → `plan` (checklist of paths + what exists on disk).
+2. **One section at a time:** `generate-one --heading-slug <slug>` → review PNG/AVIF.
+3. **You in Figma:** refine acceptable drafts; export AVIF to the path from `plan`.
+4. **Agent:** re-run `plan` until gaps are closed; commit `public/images/...` in geekatyourspot.
+
+Batch `generate` exists but is optional — not the default operator path.
+
+## Env vars
 
 | Variable | Required for |
 |----------|----------------|
-| `CONTENT_WRITER_API_URL` | `export-jobs`, `plan`/`generate` with `--project-id` |
-| `CONTENT_WRITER_API_KEY` | Optional Bearer token if API requires auth |
-| `CONTENT_IMAGE_OUTPUT_DIR` | `plan`, `generate` — path to `geekatyourspot/public` |
-| `OPENAI_API_KEY` | `generate` |
+| `CONTENT_WRITER_API_URL` | `export-jobs`, `plan` / `generate*` with `--project-id` |
+| `CONTENT_WRITER_API_KEY` | Optional Bearer token |
+| `CONTENT_IMAGE_OUTPUT_DIR` | `plan`, `generate*` — path to `geekatyourspot/public` |
+| `OPENAI_API_KEY` | `generate-one`, `generate` |
 
-Optional overrides: `SECTION_FIGURES_OPENAI_MODEL` (default `dall-e-3`), `SECTION_FIGURES_OPENAI_SIZE` (default `1792x1024`).
-
-## Open the app (primary)
-
-Set env vars (`.env` in repo root or shell):
-
-```bash
-export CONTENT_WRITER_API_URL=https://seo-api.geekatyourspot.com
-export CONTENT_IMAGE_OUTPUT_DIR=/path/to/geekatyourspot/public
-export OPENAI_API_KEY=sk-...
-```
-
-Then:
-
-```bash
-cd content-writer/backend
-dotnet run --project tools/SectionFigures/SectionFigures.csproj
-```
-
-Opens **http://127.0.0.1:5299** in your browser. Export → plan → generate batch there.
-
-Content Writer is **briefs only** — it never shipped working section AVIFs to disk. SectionFigures uses the same flowchart/infographic compose prompt that worked when agents generated images manually.
-
-## CLI (optional)
+## Commands
 
 ```bash
 cd content-writer/backend
@@ -46,37 +32,20 @@ dotnet run --project tools/SectionFigures/SectionFigures.csproj -- export-jobs \
 
 dotnet run --project tools/SectionFigures/SectionFigures.csproj -- plan --jobs jobs.json
 
+dotnet run --project tools/SectionFigures/SectionFigures.csproj -- generate-one \
+  --jobs jobs.json --heading-slug overview
+
 dotnet run --project tools/SectionFigures/SectionFigures.csproj -- generate \
-  --jobs jobs.json --yes --concurrency 4
+  --jobs jobs.json --yes   # batch only if you want it
 ```
 
-### Idempotency
+Compose prompt: flat vector infographic flowcharts (same style that worked when agents generated images manually).
 
-`generate` skips jobs whose target AVIF already exists under `CONTENT_IMAGE_OUTPUT_DIR`. Use `--force` to overwrite.
+## Vetoed
 
-### Partial failures
+- Batch web UI
+- In-app “Generate & save” in Content Writer
+- Auto figure insertion / merge into post bodies
+- DB `Ready`/`Pending` as live-site image truth
 
-On OpenAI errors, the batch **continues** (unless `--fail-fast`), leaves no partial file for failed jobs, exits **non-zero** with a summary count.
-
-### Cost guard
-
-`plan` prints image count × estimated per-image price. `generate` requires `--yes` when more than 5 images would be generated.
-
-## Operator workflow
-
-1. Publish text in Content Writer (figures API must return `geekApiSlug`).
-2. `export-jobs` → `plan` → review cost and paths.
-3. `generate --yes` → spot-check 3–5 AVIFs locally.
-4. Commit `public/images/{TechnicalArticle,Blog,Tool}/**` in geekatyourspot; deploy Vercel.
-5. Verify live site layout slots show images (filesystem is source of truth — not Content Writer DB status).
-
-Multi-project runs: accumulate all AVIFs, then **one git commit** at the end.
-
-## Vetoed (do not build)
-
-- Auto figure insertion into GeekAPI post bodies
-- Figure merge on publish
-- In-app “Generate & save” in Content Writer as the canonical pipeline
-- DB `Ready`/`Pending` as image completion signal for the live site
-
-See also [`../ContentFigures/README.md`](../ContentFigures/README.md) for optional legacy DB attach.
+See [`../ContentFigures/README.md`](../ContentFigures/README.md) for optional legacy DB attach.

@@ -2,7 +2,6 @@ using System.CommandLine;
 using System.Text.Json;
 using DotNetEnv;
 using SectionFigures.Models;
-using SectionFigures.Web;
 
 namespace SectionFigures;
 
@@ -14,14 +13,6 @@ public static class Program
     {
         Env.TraversePath().Load();
 
-        if (args.Length == 0)
-        {
-            args = ["serve"];
-        }
-
-        var portOption = new Option<int>("--port", () => 5299, "Local HTTP port");
-        var noBrowserOption = new Option<bool>("--no-browser", "Do not open a browser tab automatically");
-
         var projectIdOption = new Option<Guid>("--project-id")
         {
             Description = "Content Writer project GUID",
@@ -31,34 +22,17 @@ public static class Program
 
         var jobsOption = new Option<FileInfo?>("--jobs", "Path to jobs.json from export-jobs");
 
+        var headingSlugOption = new Option<string?>("--heading-slug", "Generate one section by heading slug");
+
         var yesOption = new Option<bool>("--yes", "Confirm OpenAI spend without interactive prompt");
 
         var forceOption = new Option<bool>("--force", "Regenerate even when AVIF already exists on disk");
 
-        var concurrencyOption = new Option<int>("--concurrency", () => 4, "Parallel OpenAI workers");
+        var concurrencyOption = new Option<int>("--concurrency", () => 4, "Parallel OpenAI workers (batch generate only)");
 
         var failFastOption = new Option<bool>("--fail-fast", "Stop batch on first OpenAI failure");
 
-        var root = new RootCommand("SectionFigures — section art pipeline (local web UI or CLI)");
-
-        var serveCmd = new Command("serve", "Open the local web UI (default)");
-        serveCmd.AddOption(portOption);
-        serveCmd.AddOption(noBrowserOption);
-        serveCmd.SetHandler(async (port, noBrowser) =>
-        {
-            try
-            {
-                EnvironmentConfig.RequireOutputRoot();
-            }
-            catch (InvalidOperationException ex)
-            {
-                Console.Error.WriteLine(ex.Message);
-                Environment.ExitCode = 1;
-                return;
-            }
-
-            await WebHostRunner.RunAsync(port, openBrowser: !noBrowser);
-        }, portOption, noBrowserOption);
+        var root = new RootCommand("SectionFigures — section art helpers for agent-driven workflow (HTTP read, disk write)");
 
         var exportCmd = new Command("export-jobs", "Fetch figure briefs from Content Writer HTTP API and write jobs.json");
         exportCmd.AddOption(projectIdOption);
@@ -81,7 +55,7 @@ public static class Program
             }
         }, projectIdOption, outOption);
 
-        var planCmd = new Command("plan", "Dry-run: paths, disk status, cost estimate");
+        var planCmd = new Command("plan", "Checklist: paths and what is already on disk");
         planCmd.AddOption(jobsOption);
         planCmd.AddOption(projectIdOption);
         planCmd.SetHandler(async (jobsFile, projectId) =>
@@ -92,7 +66,41 @@ public static class Program
             JobPlanner.PrintPlan(summary, jobFile.Jobs, outputRoot);
         }, jobsOption, projectIdOption);
 
-        var generateCmd = new Command("generate", "Generate AVIF files from jobs.json (OpenAI → disk only, no DB write-back)");
+        var generateOneCmd = new Command("generate-one", "OpenAI → AVIF for a single section (review-first workflow)");
+        generateOneCmd.AddOption(jobsOption);
+        generateOneCmd.AddOption(projectIdOption);
+        generateOneCmd.AddOption(headingSlugOption);
+        generateOneCmd.AddOption(forceOption);
+        headingSlugOption.IsRequired = true;
+        generateOneCmd.SetHandler(async (jobsFile, projectId, headingSlug, force) =>
+        {
+            var outputRoot = EnvironmentConfig.RequireOutputRoot();
+            var jobFile = await LoadJobsAsync(jobsFile, projectId);
+            var slug = headingSlug!.Trim();
+            var job = jobFile.Jobs.FirstOrDefault(j =>
+                string.Equals(j.HeadingSlug, slug, StringComparison.OrdinalIgnoreCase))
+                ?? throw new InvalidOperationException($"No job with heading slug \"{slug}\".");
+
+            var openAi = OpenAiImageClient.FromEnvironment();
+            var result = await JobGenerator.RunAsync(
+                [job],
+                outputRoot,
+                openAi,
+                FigureAvifEncoder.Default,
+                force,
+                concurrency: 1,
+                failFast: true);
+
+            Console.WriteLine(
+                $"Done: succeeded={result.Succeeded} skippedExists={result.SkippedExists} failed={result.Failed}");
+            Console.WriteLine(JobPlanner.AbsolutePath(outputRoot, job.RelativePath));
+            if (result.Failed > 0)
+            {
+                Environment.ExitCode = 1;
+            }
+        }, jobsOption, projectIdOption, headingSlugOption, forceOption);
+
+        var generateCmd = new Command("generate", "Batch generate (optional — most operators use generate-one + Figma)");
         generateCmd.AddOption(jobsOption);
         generateCmd.AddOption(projectIdOption);
         generateCmd.AddOption(yesOption);
@@ -132,9 +140,9 @@ public static class Program
             }
         }, jobsOption, projectIdOption, yesOption, forceOption, concurrencyOption, failFastOption);
 
-        root.AddCommand(serveCmd);
         root.AddCommand(exportCmd);
         root.AddCommand(planCmd);
+        root.AddCommand(generateOneCmd);
         root.AddCommand(generateCmd);
 
         try
