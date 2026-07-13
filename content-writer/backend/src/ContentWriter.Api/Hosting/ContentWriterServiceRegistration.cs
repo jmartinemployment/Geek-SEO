@@ -95,6 +95,7 @@ public static class ContentWriterServiceRegistration
         services.AddSingleton<VercelBlobStore>();
         services.AddScoped<IContentFigureAttachService, ContentFigureAttachService>();
         services.AddScoped<IContentFigureImageGenerationService, ContentFigureImageGenerationService>();
+        services.AddScoped<IFigureDraftGenerationService, FigureDraftGenerationService>();
 
         services.AddHttpClient<LmStudioProvider>();
         services.AddHttpClient<OpenAiProvider>();

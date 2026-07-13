@@ -1,6 +1,6 @@
 # SectionFigures
 
-**One section at a time:** Content Writer briefs → OpenAI draft → Figma polish → AVIF on disk. Agent-driven in Cursor; no batch, no web UI, no in-app Content Writer generation.
+CLI helpers for the same workflow as **[Image Generator](https://seo.geekatyourspot.com/image-generator)** (one section at a time). Prefer the web app; use CLI when an agent runs commands locally.
 
 ## Workflow
 

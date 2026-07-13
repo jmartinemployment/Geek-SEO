@@ -3,6 +3,12 @@
   "regions": ["iad1"],
   "headers": [
     {
+      "source": "/image-generator",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, must-revalidate" }
+      ]
+    },
+    {
       "source": "/content-writer",
       "headers": [
         { "key": "Cache-Control", "value": "no-store, must-revalidate" }

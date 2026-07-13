@@ -13,6 +13,7 @@ export function usesAppShell(pathname: string): boolean {
     pathname.startsWith('/calendar') ||
     pathname.startsWith('/cannibalization') ||
     pathname.startsWith('/content-guard') ||
+    pathname.startsWith('/image-generator') ||
     pathname.startsWith('/content-writer') ||
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/geo') ||
