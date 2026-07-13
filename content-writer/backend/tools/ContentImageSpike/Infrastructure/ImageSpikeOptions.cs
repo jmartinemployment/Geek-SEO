@@ -8,7 +8,7 @@ public sealed class ImageSpikeOptions
 
     public string OpenAiApiKey { get; set; } = string.Empty;
 
-    public string OpenAiModel { get; set; } = "dall-e-3";
+    public string OpenAiModel { get; set; } = "gpt-image-1";
 
     public string LeonardoApiKey { get; set; } = string.Empty;
 

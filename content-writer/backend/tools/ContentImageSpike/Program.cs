@@ -41,7 +41,7 @@ var options = new ImageSpikeOptions
         ?? configuration[$"{ImageSpikeOptions.SectionName}:OpenAiApiKey"]
         ?? configuration["LlmProviders:OpenAi:ApiKey"]
         ?? string.Empty,
-    OpenAiModel = configuration[$"{ImageSpikeOptions.SectionName}:OpenAiModel"] ?? "dall-e-3",
+    OpenAiModel = configuration[$"{ImageSpikeOptions.SectionName}:OpenAiModel"] ?? "gpt-image-1",
     LeonardoApiKey = Environment.GetEnvironmentVariable("LEONARDO_API_KEY")
         ?? configuration[$"{ImageSpikeOptions.SectionName}:LeonardoApiKey"]
         ?? string.Empty,

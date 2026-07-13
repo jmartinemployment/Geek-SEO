@@ -4,7 +4,7 @@ public class FigureImageGenerationOptions
 {
     public const string SectionName = "FigureImageGeneration";
 
-    public string OpenAiModel { get; set; } = "dall-e-3";
+    public string OpenAiModel { get; set; } = "gpt-image-1";
 
     /// <summary>When false, in-app OpenAI generation is disabled; operators copy briefs and upload AVIF manually.</summary>
     public bool InAppGenerationEnabled { get; set; }

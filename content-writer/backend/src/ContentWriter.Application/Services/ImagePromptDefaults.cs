@@ -2,8 +2,8 @@ namespace ContentWriter.Application.Services;
 
 public static class ImagePromptDefaults
 {
-    /// <summary>OpenAI image model for in-app figure generation (FigureImageGeneration:OpenAiModel).</summary>
-    public const string OpenAiImageModel = "dall-e-3";
+    /// <summary>OpenAI image model for figure generation (FigureImageGeneration:OpenAiModel).</summary>
+    public const string OpenAiImageModel = "gpt-image-1";
 
     public const int PillarWidth = 1536;
     public const int PillarHeight = 1024;

@@ -74,10 +74,19 @@ public sealed class OpenAiFigureImageClient(
         throw new ContentGenerationException("OpenAI image response missing image data.");
     }
 
-    private static string MapSize(int width, int height) => (width, height) switch
+    private static string MapSize(int width, int height)
     {
-        (>= 1792, >= 1024) => "1792x1024",
-        (>= 1024, >= 1792) => "1024x1792",
-        _ => "1024x1024",
-    };
+        // gpt-image-1 sizes: 1024x1024, 1536x1024, 1024x1536 (not dall-e 1792x1024).
+        if (width >= height * 1.2)
+        {
+            return "1536x1024";
+        }
+
+        if (height >= width * 1.2)
+        {
+            return "1024x1536";
+        }
+
+        return "1024x1024";
+    }
 }

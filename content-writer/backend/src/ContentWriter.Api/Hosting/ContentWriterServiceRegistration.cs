@@ -85,8 +85,16 @@ public static class ContentWriterServiceRegistration
                 options.ReadWriteToken = token;
             }
         });
-        services.Configure<FigureImageGenerationOptions>(
-            configuration.GetSection(FigureImageGenerationOptions.SectionName));
+        services.Configure<FigureImageGenerationOptions>(options =>
+        {
+            configuration.GetSection(FigureImageGenerationOptions.SectionName).Bind(options);
+            var model = Environment.GetEnvironmentVariable("FigureImageGeneration__OpenAiModel")
+                ?? Environment.GetEnvironmentVariable("OPENAI_IMAGE_MODEL");
+            if (!string.IsNullOrWhiteSpace(model))
+            {
+                options.OpenAiModel = model.Trim();
+            }
+        });
 
         services.AddHttpClient<OpenAiFigureImageClient>();
         services.AddHttpClient<VercelBlobUploader>();

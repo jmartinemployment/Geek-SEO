@@ -118,7 +118,7 @@ function ImageGeneratorContent() {
       await loadSections(selectedProjectId);
       setStatusMessage(`Saved draft for ${section.heading}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed.");
+      setError(err instanceof Error ? err.message : "Save to site path failed.");
     } finally {
       setGeneratingSlug(null);
     }
