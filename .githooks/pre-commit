@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+
+if git diff --cached --name-only --diff-filter=D | grep -q '^research/'; then
+  echo "ERROR: Deleting files under research/ is blocked."
+  echo "This folder is protected project data. See research/DO_NOT_DELETE."
+  exit 1
+fi
+
+if [ ! -d research ] || [ ! -f research/.gitkeep ]; then
+  echo "ERROR: research/ must exist and contain .gitkeep."
+  exit 1
+fi
+
+node scripts/check-protected-paths.mjs

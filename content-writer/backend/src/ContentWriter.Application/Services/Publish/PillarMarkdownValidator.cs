@@ -6,13 +6,10 @@ namespace ContentWriter.Application.Services.Publish;
 /// <summary>Validates pillar markdown contract before GeekAPI publish. No mutation.</summary>
 internal static class PillarMarkdownValidator
 {
-    private static readonly string[] LegacyJunkPatterns =
+    private static readonly string[] LegacyInlineArtifacts =
     [
         "Section image:",
         "Accounting Use Case",
-        "## Related",
-        "## Call to Action",
-        "## Frequently Asked Questions",
     ];
 
     public static void Validate(string markdown, string title, bool requirePeopleAlsoAsk)
@@ -22,7 +19,7 @@ internal static class PillarMarkdownValidator
             throw new ContentGenerationException("Pillar body is empty.");
         }
 
-        foreach (var pattern in LegacyJunkPatterns)
+        foreach (var pattern in LegacyInlineArtifacts)
         {
             if (markdown.Contains(pattern, StringComparison.OrdinalIgnoreCase))
             {
@@ -31,16 +28,13 @@ internal static class PillarMarkdownValidator
             }
         }
 
+        BodyPreambleFilter.ValidateMarkdownStartsWithSection(markdown);
+        JunkBodySectionFilter.ValidateMarkdownHasNoJunkSections(markdown);
+
         if (markdown.Contains($"# {title}", StringComparison.Ordinal))
         {
             throw new ContentGenerationException(
                 "Pillar body contains a duplicate title heading. Regenerate content in Content-Writer.");
-        }
-
-        if (!HasIntroProse(markdown))
-        {
-            throw new ContentGenerationException(
-                "Pillar body must include introductory prose before the first ## section.");
         }
 
         if (requirePeopleAlsoAsk && !ContainsPeopleAlsoAskSection(markdown))
@@ -48,24 +42,6 @@ internal static class PillarMarkdownValidator
             throw new ContentGenerationException(
                 "Pillar body is missing required '## People Also Ask' section.");
         }
-    }
-
-    private static bool HasIntroProse(string markdown)
-    {
-        foreach (var line in markdown.Replace("\r\n", "\n").Split('\n'))
-        {
-            if (line.StartsWith("## ", StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            if (!string.IsNullOrWhiteSpace(line))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static bool ContainsPeopleAlsoAskSection(string markdown) =>

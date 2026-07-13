@@ -3,6 +3,7 @@ using System;
 using ContentWriter.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ContentWriter.Infrastructure.Migrations
 {
     [DbContext(typeof(ContentWriterDbContext))]
-    partial class ContentWriterDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260713120429_ReplaceListingExcerptWithPresentationFields")]
+    partial class ReplaceListingExcerptWithPresentationFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -208,11 +211,6 @@ namespace ContentWriter.Infrastructure.Migrations
                         .HasColumnType("character varying(2048)");
 
                     b.Property<string>("HomeUseCaseExcerpt")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<string>("DepartmentListExcerpt")
                         .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");

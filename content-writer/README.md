@@ -7,6 +7,8 @@ social posts, and a cold outreach email.
 
 This module lives inside the **Geek-SEO** monorepo.
 
+**Agent rules:** `../AGENTS.md` and `../.cursor/rules/correctness-over-expediency.mdc` — **correctness over expediency, always, no exceptions.**
+
 ## Architecture
 
 - `content-writer/backend/` - .NET 10 Web API (`ContentWriter.Api`), EF Core repository (`ContentWriter.Infrastructure`),
@@ -154,8 +156,6 @@ geekatyourspot renders post bodies **unfiltered** from GeekAPI. Content Writer i
 Published pillar bodies must follow this shape:
 
 ```markdown
-Introductory prose (before the first ##)
-
 ## Declarative section title
 Body paragraphs…
 
@@ -170,11 +170,27 @@ Answer paragraph(s).
 
 | Rule | Detail |
 |------|--------|
+| No preamble | Body starts at the first `##`. On-page summary copy lives in `heroExcerpt` (and other presentation fields), not intro paragraphs in the body. `PillarMarkdownValidator` rejects preamble on publish. |
 | PAA heading | Final section must be `## People Also Ask` (saved in GeekAPI on publish) |
 | PAA questions | Each question is `###` + answer paragraphs — not separate `##` sections |
 | No FAQ | `## Frequently Asked Questions` is rejected by `PillarMarkdownValidator` on publish |
+| No related sections | `## Related Items`, `## Related`, `Further reading`, and similar cross-link H2s are stripped on generation and rejected on pillar publish |
 | No body figures | Section art is layout slots on geekatyourspot, not `<figure>` or `Section image:` in markdown |
-| Legacy rows | Import-era GeekAPI posts with FAQ blocks or missing PAA headings need **republish**, not frontend patches |
+| Legacy rows | Import-era GeekAPI posts with preamble, FAQ blocks, or missing PAA headings need **republish**, not frontend patches |
+
+## Visible excerpts (purpose-named fields)
+
+One UI surface → one stored field. Generate distinct copy; publish 1:1 to GeekAPI:
+
+| Field | Surface |
+|-------|---------|
+| `home_use_case_excerpt` | Home grid, department use-case lists |
+| `hero_excerpt` | Blurb under the page title |
+| `newspaper_excerpt` | Newspaper blog wire |
+| `pillar_page_use_case_excerpt` | Newspaper front-page pillar content column |
+| `advertisement` | Tool promotional callout, NewsArticle ad copy |
+
+**Vetoed:** `ListingExcerpt` routed into type-named GeekAPI columns; reusing the same string on card and hero; intro prose before the first `##`.
 
 When PAA research files are uploaded, publish fails if `## People Also Ask` is missing from the converted markdown body.
 

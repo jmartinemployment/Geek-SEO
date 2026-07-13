@@ -1,3 +1,5 @@
+using ContentWriter.Application.Services.Publish;
+
 namespace ContentWriter.Application.Services.PromptBuilders;
 
 /// <summary>
@@ -25,7 +27,7 @@ public static class PillarOutlineNormalizer
                 continue;
             }
 
-            if (IsFaqSectionTitle(item))
+            if (IsFaqSectionTitle(item) || JunkBodySectionFilter.IsJunkSectionHeading(item))
             {
                 continue;
             }

@@ -94,7 +94,11 @@ public static class GeneratedContentSetAssembler
         row.Keywords,
         row.WordCount,
         row.SectionOutline,
-        row.ListingExcerpt,
+        row.HomeUseCaseExcerpt,
+        row.DepartmentListExcerpt,
+        row.HeroExcerpt,
+        row.NewspaperExcerpt,
+        row.PillarPageUseCaseExcerpt,
         row.DisplayTitle ?? row.Title);
 
     public static BlogDraft ToBlogDraft(GeneratedContent row) => new(
@@ -104,15 +108,20 @@ public static class GeneratedContentSetAssembler
         row.Keywords,
         row.WordCount,
         row.SectionOutline,
-        row.ListingExcerpt,
+        row.DepartmentListExcerpt,
+        row.HeroExcerpt,
+        row.NewspaperExcerpt,
+        row.Advertisement,
         row.DisplayTitle ?? row.Title);
 
     public static ToolDraft ToToolDraft(GeneratedContent row) => new(
         row.Title,
         row.DisplayTitle ?? row.Title,
-        row.ListingExcerpt,
+        row.DepartmentListExcerpt,
+        row.HeroExcerpt,
+        row.NewspaperExcerpt,
         row.MetaDescription ?? string.Empty,
-        row.AdvertisingExcerpt,
+        row.Advertisement,
         row.BodyHtml,
         row.Slug,
         row.SourceAppName ?? row.Title,

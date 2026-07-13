@@ -17,13 +17,25 @@ public class GeneratedContent
     public string Slug { get; set; } = string.Empty;
     public string BodyHtml { get; set; } = string.Empty;
 
-    /// <summary>Listing deck / newspaper wire summary. Published to GeekAPI excerpt columns.</summary>
-    public string ListingExcerpt { get; set; } = string.Empty;
+    /// <summary>Home page use-case grid listing copy (pillar rows).</summary>
+    public string HomeUseCaseExcerpt { get; set; } = string.Empty;
+
+    /// <summary>Department hub listing copy (/use-cases/{dept}, /tools/{dept}, /blog/{dept}).</summary>
+    public string DepartmentListExcerpt { get; set; } = string.Empty;
+
+    /// <summary>Blurb under the page H1 (pillar, tool, blog).</summary>
+    public string HeroExcerpt { get; set; } = string.Empty;
+
+    /// <summary>Newspaper blog wire column copy (pillar, tool, blog).</summary>
+    public string NewspaperExcerpt { get; set; } = string.Empty;
+
+    /// <summary>Pillar page content slot (TechnicalArticle rows only).</summary>
+    public string PillarPageUseCaseExcerpt { get; set; } = string.Empty;
+
+    /// <summary>NewsArticle / sponsored ad copy — not an excerpt (tool, blog).</summary>
+    public string? Advertisement { get; set; }
 
     public string? MetaDescription { get; set; }
-
-    /// <summary>Tool-page callout copy (tool posts only).</summary>
-    public string? AdvertisingExcerpt { get; set; }
 
     [Obsolete("Hero art uses convention path hero.avif on disk, not a stored URL.")]
     public string? HeroImageUrl { get; set; }

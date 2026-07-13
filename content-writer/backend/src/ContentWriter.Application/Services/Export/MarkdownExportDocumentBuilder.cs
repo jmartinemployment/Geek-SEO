@@ -16,10 +16,7 @@ public static class MarkdownExportDocumentBuilder
         sb.AppendLine($"contentType: {YamlScalar(input.ContentType)}");
         sb.AppendLine($"department: {YamlScalar(input.Department)}");
         sb.AppendLine($"wordCount: {input.WordCount}");
-        if (!string.IsNullOrWhiteSpace(input.ListingExcerpt))
-            sb.AppendLine($"listingExcerpt: {YamlScalar(input.ListingExcerpt)}");
-        if (!string.IsNullOrWhiteSpace(input.AdvertisingExcerpt))
-            sb.AppendLine($"advertisingExcerpt: {YamlScalar(input.AdvertisingExcerpt)}");
+        AppendPresentationFrontmatter(sb, input);
         sb.AppendLine("keywords:");
         foreach (var keyword in input.Keywords.Where(k => !string.IsNullOrWhiteSpace(k)))
             sb.AppendLine($"  - {YamlScalar(keyword)}");
@@ -155,6 +152,20 @@ public static class MarkdownExportDocumentBuilder
 
         return $"\"{value.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
     }
+
+    private static void AppendPresentationFrontmatter(StringBuilder sb, MarkdownExportInput input)
+    {
+        if (!string.IsNullOrWhiteSpace(input.HomeUseCaseExcerpt))
+            sb.AppendLine($"homeUseCaseExcerpt: {YamlScalar(input.HomeUseCaseExcerpt)}");
+        if (!string.IsNullOrWhiteSpace(input.HeroExcerpt))
+            sb.AppendLine($"heroExcerpt: {YamlScalar(input.HeroExcerpt)}");
+        if (!string.IsNullOrWhiteSpace(input.NewspaperExcerpt))
+            sb.AppendLine($"newspaperExcerpt: {YamlScalar(input.NewspaperExcerpt)}");
+        if (!string.IsNullOrWhiteSpace(input.PillarPageUseCaseExcerpt))
+            sb.AppendLine($"pillarPageUseCaseExcerpt: {YamlScalar(input.PillarPageUseCaseExcerpt)}");
+        if (!string.IsNullOrWhiteSpace(input.Advertisement))
+            sb.AppendLine($"advertisement: {YamlScalar(input.Advertisement)}");
+    }
 }
 
 public sealed record MarkdownExportInput(
@@ -171,5 +182,8 @@ public sealed record MarkdownExportInput(
     string? JsonLdSchema,
     string? RelatedJsonLdSchema,
     DateTime ExportedAtUtc,
-    string? ListingExcerpt = null,
-    string? AdvertisingExcerpt = null);
+    string? HomeUseCaseExcerpt = null,
+    string? HeroExcerpt = null,
+    string? NewspaperExcerpt = null,
+    string? PillarPageUseCaseExcerpt = null,
+    string? Advertisement = null);

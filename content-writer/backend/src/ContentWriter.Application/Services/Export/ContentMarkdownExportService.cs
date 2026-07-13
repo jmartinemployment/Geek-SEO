@@ -88,7 +88,11 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
                 BodyHtml: contentSet.Article.BodyHtml,
                 JsonLdSchema: contentSet.ArticleJsonLd,
                 RelatedJsonLdSchema: contentSet.BlogJsonLd,
-                ExportedAtUtc: exportedAt));
+                ExportedAtUtc: exportedAt,
+                HomeUseCaseExcerpt: contentSet.Article.HomeUseCaseExcerpt,
+                HeroExcerpt: contentSet.Article.HeroExcerpt,
+                NewspaperExcerpt: contentSet.Article.NewspaperExcerpt,
+                PillarPageUseCaseExcerpt: contentSet.Article.PillarPageUseCaseExcerpt));
 
             written.Add(await WriteExportAsync(outputRoot, relativePath, "pillar", markdown, cancellationToken));
         }
@@ -111,7 +115,10 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
                 BodyHtml: contentSet.Blog.BodyHtml,
                 JsonLdSchema: contentSet.BlogJsonLd,
                 RelatedJsonLdSchema: contentSet.ArticleJsonLd,
-                ExportedAtUtc: exportedAt));
+                ExportedAtUtc: exportedAt,
+                HeroExcerpt: contentSet.Blog.HeroExcerpt,
+                NewspaperExcerpt: contentSet.Blog.NewspaperExcerpt,
+                Advertisement: contentSet.Blog.Advertisement));
 
             written.Add(await WriteExportAsync(outputRoot, relativePath, "blog", markdown, cancellationToken));
         }
@@ -195,8 +202,9 @@ public class ContentMarkdownExportService : IContentMarkdownExportService
                     JsonLdSchema: tool.JsonLdSchema,
                     RelatedJsonLdSchema: null,
                     ExportedAtUtc: exportedAt,
-                    ListingExcerpt: tool.ListingExcerpt,
-                    AdvertisingExcerpt: tool.AdvertisingExcerpt));
+                    HeroExcerpt: tool.HeroExcerpt,
+                    NewspaperExcerpt: tool.NewspaperExcerpt,
+                    Advertisement: tool.Advertisement));
 
                 written.Add(await WriteExportAsync(outputRoot, relativePath, "tool", markdown, cancellationToken));
             }

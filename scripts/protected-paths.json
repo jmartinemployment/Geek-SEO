@@ -1,0 +1,20 @@
+{
+  "paths": [
+    "research",
+    "research/.gitkeep",
+    "research/DO_NOT_DELETE",
+    "research/customer-journey",
+    "research/customer-journey/edu",
+    "research/customer-journey/gov",
+    "research/customer-journey/keyword",
+    "research/customer-journey/wiki"
+  ],
+  "requiredFiles": [
+    "research/.gitkeep",
+    "research/DO_NOT_DELETE",
+    "research/customer-journey/edu/(site_edu) ai customer journey - Google Search.html",
+    "research/customer-journey/gov/(site_nist.gov OR site_ftc.gov OR site_usa.gov OR site_cdc.gov OR site_nih.gov) ai customer journey - Google Search.html",
+    "research/customer-journey/keyword/_AI customer journey_ - Google Search.html",
+    "research/customer-journey/wiki/wikipedia ai customer journey - Google Search.html"
+  ]
+}

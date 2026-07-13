@@ -1,0 +1,31 @@
+name: Protected paths
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  research-folder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify protected research folder
+        run: node scripts/check-protected-paths.mjs
+
+      - name: Block staged deletion of research (PR diff)
+        if: github.event_name == 'pull_request'
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+          deleted="$(git diff --name-only --diff-filter=D "$base" "$head" -- research/ || true)"
+          if [ -n "$deleted" ]; then
+            echo "ERROR: This PR deletes protected files under research/:"
+            echo "$deleted"
+            exit 1
+          fi

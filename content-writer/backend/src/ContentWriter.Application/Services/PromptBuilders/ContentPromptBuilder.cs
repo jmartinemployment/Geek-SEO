@@ -79,7 +79,7 @@ public interface IContentPromptBuilder
 public class ContentPromptBuilder : IContentPromptBuilder
 {
     private const string ArticleMetadataJsonContract =
-        "{\"title\": string, \"displayTitle\": string (short H1, no pipe suffixes), \"listingExcerpt\": string (1-2 sentence deck for cards, distinct from metaDescription), \"metaDescription\": string (max 160 chars), \"keywords\": string[] (5-10 items), \"sectionOutline\": string[] (5-7 declarative H2 headings — exactly ONE tools section with a descriptive name like \"Top AI Tools for {topic}\" (never a bare \"Tools/Platforms\" label), plus final item: \"People Also Ask\")}";
+        "{\"title\": string, \"displayTitle\": string (short H1, no pipe suffixes), \"homeUseCaseExcerpt\": string (1-2 sentences for home page use-case grid only), \"departmentListExcerpt\": string (1-2 sentences for /use-cases/{department} hub cards — distinct from homeUseCaseExcerpt), \"heroExcerpt\": string (1-2 sentences, blurb under pillar page H1), \"newspaperExcerpt\": string (1-2 sentences for newspaper blog middle wire), \"pillarPageUseCaseExcerpt\": string (1-2 sentences for newspaper pillar content column), \"metaDescription\": string (max 160 chars, SEO only — distinct from all presentation fields), \"keywords\": string[] (5-10 items), \"sectionOutline\": string[] (5-7 declarative H2 headings — exactly ONE tools section with a descriptive name like \"Top AI Tools for {topic}\" (never a bare \"Tools/Platforms\" label), plus final item: \"People Also Ask\")}";
 
     private const string SocialJsonContract =
         "{\"text\": string}";
@@ -93,6 +93,12 @@ public class ContentPromptBuilder : IContentPromptBuilder
     private const string ImagePromptSectionsJsonContract =
         "{\"sections\": [" + ImagePromptSectionItemJsonContract + ", ...]}";
 
+    private const string NoRelatedItemsSectionRule =
+        "Do NOT add Related Items, Related, Further reading, or other cross-link H2 sections — companion article URLs belong in JSON-LD citation only, not in the body.";
+
+    private const string NoPreambleRule =
+        "Do NOT write introductory <p> paragraphs before the first <h2> — hero and deck copy are stored separately, not in the body.";
+
     public ChatCompletionRequest BuildArticleMetadataPrompt(ProjectGenerationContext context)
     {
         var system = new StringBuilder()
@@ -101,8 +107,10 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine($"Detected site focus/topics: {context.DetectedFocus}.")
             .AppendLine("Respond with ONLY a single valid JSON object — no markdown fences, no commentary.")
             .AppendLine(ArticleMetadataJsonContract)
+            .AppendLine("All six presentation strings (homeUseCaseExcerpt, departmentListExcerpt, heroExcerpt, newspaperExcerpt, pillarPageUseCaseExcerpt, metaDescription) must be distinct — no repeated sentences.")
             .AppendLine("GOOD sectionOutline example: [\"Overview of Enterprise AI\", \"Implementation Framework\", \"Top AI Platforms and Tools\", \"Measuring ROI\", \"People Also Ask\"]")
             .AppendLine("BAD sectionOutline example: [\"What is AI?\", \"How does it work?\"] — never use questions as main H2s.")
+            .AppendLine("BAD sectionOutline example: [\"Related Items\", \"Further reading\"] — never add cross-link or related-content sections.")
             .ToString();
 
         var user = ResearchBriefBuilder.Build(context, ResearchBriefPhase.ArticleMetadata,
@@ -112,6 +120,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
             "Title must NOT be a question and must NOT start with \"How\" — use a definitive statement (e.g. \"AI Prospecting and Lead Intelligence: Implementation Guide\"). " +
             "Meta description: concise factual summary for B2B readers. " +
             "End sectionOutline with exactly one FAQ section titled \"People Also Ask\" — PAA questions are answered there in the body step, not as main H2s. " +
+            NoRelatedItemsSectionRule + " " +
             "Return title, metaDescription, keywords, and sectionOutline only (body is written separately).");
 
         return new ChatCompletionRequest(
@@ -130,7 +139,6 @@ public class ContentPromptBuilder : IContentPromptBuilder
         bool isRegeneration)
     {
         var outlineContext = string.Join("\n", fullOutline.Select((h, i) => $"{i + 1}. {h}"));
-        var isFirst = sectionIndex == 0;
         var isTools = PillarSectionClassifier.IsToolsSection(sectionHeading);
 
         var system = new StringBuilder()
@@ -138,11 +146,11 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine("Write ONE section of a schema.org TechnicalArticle pillar — third person, expert, implementation-focused.")
             .AppendLine($"Pillar standard ({ContentLengthTargets.PillarRangeLabel} words): {ContentLengthTargets.PillarEditorialDefinition}")
             .AppendLine("Output ONLY HTML for this section. No Markdown. No JSON. No <html>/<body> tags.")
-            .AppendLine(isFirst
-                ? "Start with 2-3 introductory <p> paragraphs (context and thesis). Do NOT start with \"How\" or a question. Then <h2> for this section."
-                : "Start with <h2> for this section only — no intro paragraphs.")
+            .AppendLine("Start with <h2> for this section only — no introductory paragraphs before it.")
+            .AppendLine(NoPreambleRule)
             .AppendLine("Include 2-3 <h3> subsections with multiple <p> paragraphs and at least one <ul> where appropriate.")
             .AppendLine($"Target {ContentLengthTargets.PillarSectionMinWords}-{ContentLengthTargets.PillarSectionTargetMaxWords} words for this section. Do not write other sections.")
+            .AppendLine(NoRelatedItemsSectionRule)
             .ToString();
 
         if (isTools)
@@ -186,6 +194,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine("Write ONLY the \"People Also Ask\" FAQ section of a TechnicalArticle pillar.")
             .AppendLine("Start with <h2>People Also Ask</h2>. Each question is an <h3> followed by a 2-4 sentence answer <p>.")
             .AppendLine("Direct, factual answers. Third person. No Markdown. No JSON.")
+            .AppendLine(NoRelatedItemsSectionRule)
             .ToString();
 
         if (isRegeneration)
@@ -231,11 +240,11 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine("Content type: schema.org TechnicalArticle — a deep technical pillar, NOT a BlogPosting or FAQ page.")
             .AppendLine($"Editorial standard ({ContentLengthTargets.PillarRangeLabel} words): {ContentLengthTargets.PillarEditorialDefinition}")
             .AppendLine("Write an authoritative pillar article. Tone: third person, expert, implementation-focused.")
-            .AppendLine("ANTI-PATTERNS (do NOT do these): first/second person blog voice; short 2-sentence sections; question-mark H2s outside the FAQ section; turning the whole article into Q&A.")
+            .AppendLine("ANTI-PATTERNS (do NOT do these): first/second person blog voice; short 2-sentence sections; question-mark H2s outside the FAQ section; turning the whole article into Q&A; Related Items or Further reading sections.")
             .AppendLine("REQUIRED STRUCTURE:")
-            .AppendLine("  1. Opening: 2-3 <p> paragraphs before the first H2 (context, problem, thesis).")
-            .AppendLine("  2. Main H2 sections (from outline, excluding FAQ): each with multiple <h3> subsections, 3+ paragraphs, and at least one <ul> where appropriate.")
-            .AppendLine("  3. Final H2 \"People Also Ask\" only: each FAQ as <h3> + 2-4 sentence answer <p>. FAQ must NOT appear earlier in the article.")
+            .AppendLine("  1. Main H2 sections (from outline, excluding FAQ): each with multiple <h3> subsections, 3+ paragraphs, and at least one <ul> where appropriate.")
+            .AppendLine("  2. Final H2 \"People Also Ask\" only: each FAQ as <h3> + 2-4 sentence answer <p>. FAQ must NOT appear earlier in the article.")
+            .AppendLine(NoPreambleRule)
             .AppendLine("Ground factual claims in AUTHORITATIVE SOURCES — paraphrase and attribute where appropriate.")
             .AppendLine($"Target at least {ContentLengthTargets.PillarMinWords:N0} words (aim for {ContentLengthTargets.PillarTargetMinWords:N0}-{ContentLengthTargets.PillarTargetMaxWords:N0}). Do not stop early.")
             .AppendLine("Respond with ONLY semantic HTML using <h2>/<h3>/<p>/<ul>/<li> tags. No Markdown. No JSON wrapper.")
@@ -269,7 +278,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
     }
 
     private const string BlogMetadataJsonContract =
-        "{\"title\": string, \"displayTitle\": string (short H1), \"listingExcerpt\": string (1-2 sentence deck for newspaper cards), \"metaDescription\": string (max 160 chars), \"keywords\": string[] (5-10 items), \"sectionOutline\": string[] (5-6 conversational H2 headings — hooks, numbered angles, or how-to framing; do NOT copy pillar H2s verbatim)}";
+        "{\"title\": string, \"displayTitle\": string (short H1), \"departmentListExcerpt\": string (1-2 sentences for future /blog/{department} hub cards), \"heroExcerpt\": string (1-2 sentences, blurb under blog article H1), \"newspaperExcerpt\": string (1-2 sentences for newspaper blog lead/wire), \"advertisement\": string (2-4 sentences, longer NewsArticle promotional tone — not an excerpt), \"metaDescription\": string (max 160 chars, SEO only), \"keywords\": string[] (5-10 items), \"sectionOutline\": string[] (5-6 conversational H2 headings — hooks, numbered angles, or how-to framing; do NOT copy pillar H2s verbatim)}";
 
     public ChatCompletionRequest BuildBlogMetadataPrompt(ProjectGenerationContext context, ArticleDraft sourceArticle)
     {
@@ -278,6 +287,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine($"Detected brand tone: {context.DetectedTone}.")
             .AppendLine("Respond with ONLY a single valid JSON object — no markdown fences, no commentary.")
             .AppendLine(BlogMetadataJsonContract)
+            .AppendLine("departmentListExcerpt, heroExcerpt, newspaperExcerpt, advertisement, and metaDescription must each use different wording.")
             .AppendLine("The blog title MUST be different from the pillar title — use a conversational hook, question, or numbered angle (e.g. \"3 Ways...\", \"Why...\"). Never copy the pillar title verbatim.")
             .ToString();
 
@@ -289,6 +299,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine($"Plan a deep-dive companion blog ({ContentLengthTargets.BlogRangeLabel} words) with a distinct title, angle, and {ContentLengthTargets.BlogSectionCountMin}-{ContentLengthTargets.BlogSectionCountTarget} fresh H2 section headings.")
             .AppendLine($"Editorial standard: {ContentLengthTargets.BlogEditorialDefinition}")
             .AppendLine("Each section must support substantive depth — data points, examples, and implementation context, not surface summaries.")
+            .AppendLine(NoRelatedItemsSectionRule)
             .AppendLine("Return title, metaDescription, keywords, and sectionOutline only (body is written separately).")
             .ToString();
 
@@ -307,7 +318,6 @@ public class ContentPromptBuilder : IContentPromptBuilder
         int totalSections)
     {
         var outlineContext = string.Join("\n", metadata.SectionOutline.Select((h, i) => $"{i + 1}. {h}"));
-        var isFirst = sectionIndex == 0;
         var isLast = sectionIndex == totalSections - 1;
 
         var system = new StringBuilder()
@@ -316,12 +326,12 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine("Write ONE section of a schema.org BlogPosting deep-dive article — conversational but substantive; first/second person allowed.")
             .AppendLine($"Editorial standard ({ContentLengthTargets.BlogRangeLabel} words): {ContentLengthTargets.BlogEditorialDefinition}")
             .AppendLine("Output ONLY HTML for this section. No Markdown. No JSON. No <html>/<body> tags.")
-            .AppendLine(isFirst
-                ? "Start with 2-3 introductory <p> paragraphs (hook, stakes, and who this is for). Then <h2> for this section."
-                : "Start with <h2> for this section only — no intro paragraphs.")
+            .AppendLine("Start with <h2> for this section only — no introductory paragraphs before it.")
+            .AppendLine(NoPreambleRule)
             .AppendLine("Include 2-3 <h3> subsections where helpful, multiple substantive <p> paragraphs, at least one <ul> with concrete tips, and a specific example or data point.")
             .AppendLine($"Target {ContentLengthTargets.BlogSectionMinWords}-{ContentLengthTargets.BlogSectionTargetMaxWords} words for this section alone. Shorter sections fail editorial review — add depth, not filler.")
             .AppendLine("Do NOT duplicate the pillar article structure or reuse its H2 headings verbatim.")
+            .AppendLine(NoRelatedItemsSectionRule)
             .ToString();
 
         if (isLast)
@@ -391,6 +401,8 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine("Use fresh H2 headings (5-6 sections). Substantive paragraphs with examples; first/second person allowed.")
             .AppendLine($"Target at least {ContentLengthTargets.BlogMinWords:N0} words (aim for {ContentLengthTargets.BlogRangeLabel}). Do not stop early.")
             .AppendLine("Respond with ONLY semantic HTML using <h2>/<h3>/<p>/<ul>/<li>. No Markdown. No JSON wrapper.")
+            .AppendLine(NoPreambleRule)
+            .AppendLine(NoRelatedItemsSectionRule)
             .ToString();
 
         var user = new StringBuilder()
@@ -529,7 +541,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
     }
 
     private const string ToolMetadataJsonContract =
-        "{\"listingExcerpt\": string (1-2 sentences, deck/card tone for the tool page), \"advertisingExcerpt\": string (1-2 sentences, promotional home-listing angle), \"metaDescription\": string (max 160 chars, SEO-focused, distinct from the other two)}";
+        "{\"departmentListExcerpt\": string (1-2 sentences for /tools/{department} hub cards), \"heroExcerpt\": string (1-2 sentences, blurb under tool page H1), \"newspaperExcerpt\": string (1-2 sentences for newspaper sponsored wire), \"advertisement\": string (2-4 sentences, longer NewsArticle promotional copy — not an excerpt), \"metaDescription\": string (max 160 chars, SEO only, distinct from the other four)}";
 
     public ChatCompletionRequest BuildToolBodyPrompt(
         ProjectGenerationContext context,
@@ -543,6 +555,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine($"Editorial standard: {ContentLengthTargets.ToolEditorialDefinition}")
             .AppendLine("Write a tool overview page as HTML only (no markdown, no JSON wrapper).")
             .AppendLine("Use <h2> for main sections and <h3> for subsections with multiple <p> paragraphs.")
+            .AppendLine("Start at the first <h2> — no introductory paragraphs before it.")
             .AppendLine("Required <h2> sections: Overview, Key Capabilities, Implementation Considerations, When to Use.")
             .AppendLine($"Target {ContentLengthTargets.ToolMinWords}-{ContentLengthTargets.ToolTargetMaxWords} words (hard maximum {ContentLengthTargets.ToolHardMaxWords:N0}).")
             .ToString();
@@ -573,7 +586,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine("You write presentation metadata for a B2B tool overview page (schema.org NewsArticle).")
             .AppendLine("Respond with ONLY a single valid JSON object — no markdown fences:")
             .AppendLine(ToolMetadataJsonContract)
-            .AppendLine("All three fields must be distinct — do not repeat the same sentence across fields.")
+            .AppendLine("departmentListExcerpt, heroExcerpt, newspaperExcerpt, advertisement, and metaDescription must each use different wording.")
             .ToString();
 
         var user = new StringBuilder()

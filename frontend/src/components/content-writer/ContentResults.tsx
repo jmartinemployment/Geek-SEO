@@ -533,6 +533,10 @@ export default function ContentResults({
                 planOnly={!hasPillarBody}
                 targetLabel={`Target: ${CONTENT_LENGTH_TARGETS.pillar.label} words`}
                 minWords={CONTENT_LENGTH_TARGETS.pillar.min}
+                homeUseCaseExcerpt={result.article.homeUseCaseExcerpt}
+                heroExcerpt={result.article.heroExcerpt}
+                newspaperExcerpt={result.article.newspaperExcerpt}
+                pillarPageUseCaseExcerpt={result.article.pillarPageUseCaseExcerpt}
               />
             )}
             {activeTab === "tools" &&
@@ -554,6 +558,9 @@ export default function ContentResults({
                   sectionOutline={result.blog.sectionOutline}
                   targetLabel={`Target: ${CONTENT_LENGTH_TARGETS.blog.label} words`}
                   minWords={CONTENT_LENGTH_TARGETS.blog.min}
+                  heroExcerpt={result.blog.heroExcerpt}
+                  newspaperExcerpt={result.blog.newspaperExcerpt}
+                  advertisement={result.blog.advertisement}
                 />
               ) : (
                 <EmptyTabHint message="Run Step 3 to generate the blog post." />
@@ -675,6 +682,11 @@ function ArticleView({
   planOnly = false,
   targetLabel,
   minWords,
+  homeUseCaseExcerpt,
+  heroExcerpt,
+  newspaperExcerpt,
+  pillarPageUseCaseExcerpt,
+  advertisement,
 }: {
   title: string;
   metaDescription: string;
@@ -687,6 +699,11 @@ function ArticleView({
   planOnly?: boolean;
   targetLabel?: string;
   minWords?: number;
+  homeUseCaseExcerpt?: string;
+  heroExcerpt?: string;
+  newspaperExcerpt?: string;
+  pillarPageUseCaseExcerpt?: string;
+  advertisement?: string | null;
 }) {
   const [showSchema, setShowSchema] = useState(false);
   const underTarget = minWords != null && wordCount > 0 && wordCount < minWords;
@@ -712,6 +729,44 @@ function ArticleView({
         )}
       </div>
       <p className="mt-1 text-sm text-muted">{metaDescription}</p>
+      {(homeUseCaseExcerpt ||
+        heroExcerpt ||
+        newspaperExcerpt ||
+        pillarPageUseCaseExcerpt ||
+        advertisement) && (
+        <dl className="mt-4 grid gap-3 text-sm">
+          {homeUseCaseExcerpt ? (
+            <div>
+              <dt className="font-medium text-foreground">Home use case excerpt</dt>
+              <dd className="mt-1 text-muted">{homeUseCaseExcerpt}</dd>
+            </div>
+          ) : null}
+          {heroExcerpt ? (
+            <div>
+              <dt className="font-medium text-foreground">Hero excerpt</dt>
+              <dd className="mt-1 text-muted">{heroExcerpt}</dd>
+            </div>
+          ) : null}
+          {newspaperExcerpt ? (
+            <div>
+              <dt className="font-medium text-foreground">Newspaper excerpt</dt>
+              <dd className="mt-1 text-muted">{newspaperExcerpt}</dd>
+            </div>
+          ) : null}
+          {pillarPageUseCaseExcerpt ? (
+            <div>
+              <dt className="font-medium text-foreground">Pillar page use case excerpt</dt>
+              <dd className="mt-1 text-muted">{pillarPageUseCaseExcerpt}</dd>
+            </div>
+          ) : null}
+          {advertisement ? (
+            <div>
+              <dt className="font-medium text-foreground">Advertisement</dt>
+              <dd className="mt-1 text-muted">{advertisement}</dd>
+            </div>
+          ) : null}
+        </dl>
+      )}
       {url && (
         <a href={url} className="mt-1 inline-block text-sm text-brand hover:underline" target="_blank">
           {url}
@@ -951,12 +1006,16 @@ function ToolsView({ tools, department }: { tools: ToolDraft[]; department: stri
           </p>
           <dl className="mt-4 grid gap-3 text-sm">
             <div>
-              <dt className="font-medium text-foreground">Listing excerpt (deck)</dt>
-              <dd className="mt-1 text-muted">{tool.listingExcerpt}</dd>
+              <dt className="font-medium text-foreground">Hero excerpt</dt>
+              <dd className="mt-1 text-muted">{tool.heroExcerpt}</dd>
             </div>
             <div>
-              <dt className="font-medium text-foreground">Advertising excerpt</dt>
-              <dd className="mt-1 text-muted">{tool.advertisingExcerpt ?? "—"}</dd>
+              <dt className="font-medium text-foreground">Newspaper excerpt</dt>
+              <dd className="mt-1 text-muted">{tool.newspaperExcerpt}</dd>
+            </div>
+            <div>
+              <dt className="font-medium text-foreground">Advertisement</dt>
+              <dd className="mt-1 text-muted">{tool.advertisement ?? "—"}</dd>
             </div>
             <div>
               <dt className="font-medium text-foreground">Meta description (SEO)</dt>

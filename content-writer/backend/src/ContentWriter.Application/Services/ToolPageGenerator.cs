@@ -95,11 +95,13 @@ public sealed class ToolPageGenerator : IToolPageGenerator
                 Title = displayTitle,
                 DisplayTitle = displayTitle,
                 Slug = slug,
-                ListingExcerpt = toolMetadata.ListingExcerpt,
+                HeroExcerpt = toolMetadata.HeroExcerpt,
+                NewspaperExcerpt = toolMetadata.NewspaperExcerpt,
+                DepartmentListExcerpt = toolMetadata.DepartmentListExcerpt,
+                Advertisement = toolMetadata.Advertisement,
                 MetaDescription = toolMetadata.MetaDescription.Length > 160
                     ? toolMetadata.MetaDescription[..160]
                     : toolMetadata.MetaDescription,
-                AdvertisingExcerpt = toolMetadata.AdvertisingExcerpt,
                 BodyHtml = bodyHtml,
                 JsonLdSchema = string.IsNullOrWhiteSpace(jsonLd) ? "{}" : jsonLd,
                 RelatedArticleUrl = pillarArticleUrl,
@@ -197,6 +199,6 @@ public sealed class ToolPageGenerator : IToolPageGenerator
                 $"{ContentLengthTargets.ToolMinWords:N0}-{ContentLengthTargets.ToolHardMaxWords:N0}.");
         }
 
-        return bodyHtml;
+        return GeneratedBodyHtmlNormalizer.Normalize(bodyHtml);
     }
 }

@@ -99,6 +99,11 @@ export interface ArticleDraft {
   keywords: string[];
   wordCount: number;
   sectionOutline: string[];
+  homeUseCaseExcerpt?: string;
+  heroExcerpt?: string;
+  newspaperExcerpt?: string;
+  pillarPageUseCaseExcerpt?: string;
+  advertisement?: string | null;
 }
 
 export const CONTENT_LENGTH_TARGETS = {
@@ -135,7 +140,7 @@ export const CONTENT_LENGTH_TARGETS = {
     hardMax: 1000,
     label: "500–800",
     definition:
-      "NewsArticle-style tool overviews — focused platform coverage with deck, advertising, and SEO excerpts.",
+      "NewsArticle-style tool overviews — hero, newspaper wire, advertisement, and SEO meta description.",
   },
   emailColdOutreach: {
     min: 50,
@@ -167,9 +172,10 @@ export const CONTENT_LENGTH_TARGETS = {
 export interface ToolDraft {
   title: string;
   displayTitle: string;
-  listingExcerpt: string;
+  heroExcerpt: string;
+  newspaperExcerpt: string;
   metaDescription: string;
-  advertisingExcerpt: string | null;
+  advertisement: string | null;
   bodyHtml: string;
   slug: string;
   sourceAppName: string;

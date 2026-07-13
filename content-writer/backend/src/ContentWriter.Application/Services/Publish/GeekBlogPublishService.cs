@@ -109,6 +109,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
             var post = await UpsertPostAsync(
                 existingPosts,
                 projectId,
+                department,
                 contentRole: "pillar",
                 sourcePillarSlug: null,
                 postType: "TechnicalArticle",
@@ -132,6 +133,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
             var post = await UpsertPostAsync(
                 existingPosts,
                 projectId,
+                department,
                 contentRole: "blog",
                 sourcePillarSlug: contentSet.ArticleSlug,
                 postType: "BlogPosting",
@@ -162,6 +164,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
             var post = await UpsertPostAsync(
                 existingPosts,
                 projectId,
+                department,
                 contentRole: "tool",
                 sourcePillarSlug: contentSet.ArticleSlug,
                 postType: "NewsArticle",
@@ -222,6 +225,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
     private async Task<PublishedGeekPost> UpsertPostAsync(
         IReadOnlyList<GeekBlogAdminPost> existingPosts,
         Guid projectId,
+        string departmentSlug,
         string contentRole,
         string? sourcePillarSlug,
         string postType,
@@ -233,11 +237,6 @@ public class GeekBlogPublishService : IGeekBlogPublishService
         CancellationToken cancellationToken)
     {
         var strippedBody = GeekPublishPresentationHelper.StripMergedFigures(markdownBody);
-        var listingExcerpt = GeneratedContentPresentation.ListingExcerpt(sourceRow);
-        var excerpts = GeekPublishPresentationHelper.ExcerptsForSlug(
-            apiSlug,
-            listingExcerpt,
-            sourceRow.AdvertisingExcerpt);
 
         var payload = new
         {
@@ -250,10 +249,8 @@ public class GeekBlogPublishService : IGeekBlogPublishService
             schemaMetadataJson,
             tagSlugs = Array.Empty<string>(),
             publishedAt = DateTimeOffset.UtcNow,
-            blogExcerpt = excerpts.BlogExcerpt,
-            technicalArticleExcerpt = excerpts.TechnicalArticleExcerpt,
-            toolExcerpt = excerpts.ToolExcerpt,
-            advertisingExcerpt = excerpts.AdvertisingExcerpt,
+            departmentSlug,
+            presentation = GeneratedContentPresentation.BuildPresentationMap(sourceRow, contentRole),
             sourceProjectId = projectId,
             contentRole,
             sourcePillarSlug,

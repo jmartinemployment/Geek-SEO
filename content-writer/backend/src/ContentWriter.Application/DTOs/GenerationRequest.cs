@@ -36,7 +36,11 @@ public record ArticleMetadataDraft(
     string MetaDescription,
     List<string> Keywords,
     List<string> SectionOutline,
-    string? ListingExcerpt = null,
+    string HomeUseCaseExcerpt = "",
+    string DepartmentListExcerpt = "",
+    string HeroExcerpt = "",
+    string NewspaperExcerpt = "",
+    string PillarPageUseCaseExcerpt = "",
     string? DisplayTitle = null);
 
 public record BlogMetadataDraft(
@@ -44,12 +48,17 @@ public record BlogMetadataDraft(
     string MetaDescription,
     List<string> Keywords,
     List<string> SectionOutline,
-    string? ListingExcerpt = null,
+    string DepartmentListExcerpt = "",
+    string HeroExcerpt = "",
+    string NewspaperExcerpt = "",
+    string? Advertisement = null,
     string? DisplayTitle = null);
 
 public record ToolMetadataDraft(
-    string ListingExcerpt,
-    string AdvertisingExcerpt,
+    string DepartmentListExcerpt,
+    string HeroExcerpt,
+    string NewspaperExcerpt,
+    string Advertisement,
     string MetaDescription);
 
 public record ArticleDraft(
@@ -59,7 +68,11 @@ public record ArticleDraft(
     List<string> Keywords,
     int WordCount,
     List<string> SectionOutline,
-    string ListingExcerpt = "",
+    string HomeUseCaseExcerpt = "",
+    string DepartmentListExcerpt = "",
+    string HeroExcerpt = "",
+    string NewspaperExcerpt = "",
+    string PillarPageUseCaseExcerpt = "",
     string DisplayTitle = "");
 
 public record BlogDraft(
@@ -69,15 +82,20 @@ public record BlogDraft(
     List<string> Keywords,
     int WordCount,
     List<string> SectionOutline,
-    string ListingExcerpt = "",
+    string DepartmentListExcerpt = "",
+    string HeroExcerpt = "",
+    string NewspaperExcerpt = "",
+    string? Advertisement = null,
     string DisplayTitle = "");
 
 public record ToolDraft(
     string Title,
     string DisplayTitle,
-    string ListingExcerpt,
+    string DepartmentListExcerpt,
+    string HeroExcerpt,
+    string NewspaperExcerpt,
     string MetaDescription,
-    string? AdvertisingExcerpt,
+    string? Advertisement,
     string BodyHtml,
     string Slug,
     string SourceAppName,

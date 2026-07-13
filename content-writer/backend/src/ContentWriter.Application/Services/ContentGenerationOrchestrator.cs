@@ -81,14 +81,13 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         var metadata = await GenerateArticleMetadataAsync(provider, context, cancellationToken);
         var articleSlug = SlugHelper.Slugify(metadata.Title);
 
-        await AddContentAsync(project, provider.ProviderType, new GeneratedContent
+        var articleRow = new GeneratedContent
         {
             ProjectId = project.Id,
             ContentType = GeneratedContentType.TechnicalArticle,
             Title = metadata.Title,
             DisplayTitle = string.IsNullOrWhiteSpace(metadata.DisplayTitle) ? metadata.Title : metadata.DisplayTitle,
             Slug = articleSlug,
-            ListingExcerpt = metadata.ListingExcerpt ?? string.Empty,
             MetaDescription = metadata.MetaDescription,
             Keywords = metadata.Keywords,
             SectionOutline = metadata.SectionOutline,
@@ -96,7 +95,9 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             BodyHtml = string.Empty,
             GeneratedByProvider = provider.ProviderType,
             GeneratedByModel = ResolveModelName(project.PreferredProvider)
-        }, cancellationToken);
+        };
+        GeneratedContentPresentation.ApplyPillarFields(articleRow, metadata);
+        await AddContentAsync(project, provider.ProviderType, articleRow, cancellationToken);
 
         await SaveProjectAsync(project, ProjectStatus.ReadyForGeneration, cancellationToken);
         return Assemble(project);
@@ -123,7 +124,8 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             "Generating pillar body for project {ProjectId} via {Provider} (regeneration={IsRegeneration}, faqCount={FaqCount})",
             projectId, provider.ProviderType, isRegeneration, faqQuestions.Count);
 
-        var bodyHtml = await GenerateArticleBodyAsync(provider, context, bodyMetadata, faqQuestions, isRegeneration, cancellationToken);
+        var bodyHtml = GeneratedBodyHtmlNormalizer.Normalize(
+            await GenerateArticleBodyAsync(provider, context, bodyMetadata, faqQuestions, isRegeneration, cancellationToken));
         var wordCount = HtmlWordCounter.Count(bodyHtml);
         var department = GeekPublicUrlBuilder.ResolveDepartment(project);
         var articleUrl = GeekPublicUrlBuilder.ArticleUrl(context.ArticleBaseUrl, department, articleRow.Slug);
@@ -225,14 +227,13 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         articleRow.JsonLdSchema = _articleSchemaBuilder.Build(articleMetadata, blogUrl, softwareApplications);
         articleRow.RelatedArticleUrl = blogUrl;
 
-        await AddContentAsync(project, provider.ProviderType, new GeneratedContent
+        var blogRow = new GeneratedContent
         {
             ProjectId = project.Id,
             ContentType = GeneratedContentType.BlogPost,
             Title = blog.Title,
             DisplayTitle = string.IsNullOrWhiteSpace(blog.DisplayTitle) ? blog.Title : blog.DisplayTitle,
             Slug = blogSlug,
-            ListingExcerpt = blog.ListingExcerpt,
             MetaDescription = blog.MetaDescription,
             Keywords = blog.Keywords,
             WordCount = blog.WordCount,
@@ -240,9 +241,14 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             BodyHtml = blog.BodyHtml,
             JsonLdSchema = blogJsonLd,
             RelatedArticleUrl = articleUrl,
+            HeroExcerpt = blog.HeroExcerpt,
+            NewspaperExcerpt = blog.NewspaperExcerpt,
+            DepartmentListExcerpt = blog.DepartmentListExcerpt,
+            Advertisement = blog.Advertisement,
             GeneratedByProvider = provider.ProviderType,
             GeneratedByModel = ResolveModelName(project.PreferredProvider)
-        }, cancellationToken);
+        };
+        await AddContentAsync(project, provider.ProviderType, blogRow, cancellationToken);
 
         await SaveProjectAsync(project, ProjectStatus.ReadyForGeneration, cancellationToken);
         return Assemble(project);
@@ -530,7 +536,11 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         row.MetaDescription ?? string.Empty,
         row.Keywords,
         row.SectionOutline,
-        row.ListingExcerpt,
+        row.HomeUseCaseExcerpt,
+        row.DepartmentListExcerpt,
+        row.HeroExcerpt,
+        row.NewspaperExcerpt,
+        row.PillarPageUseCaseExcerpt,
         row.DisplayTitle);
 
     private void RemoveGeneratedContents(Project project, params GeneratedContentType[] types)
@@ -743,7 +753,7 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
                 faqResult.Content, "TechnicalArticle FAQ section"));
         }
 
-        return string.Join("\n\n", parts);
+        return GeneratedBodyHtmlNormalizer.Normalize(string.Join("\n\n", parts));
     }
 
     private static ArticleMetadataDraft SanitizePlanMetadata(
@@ -778,13 +788,14 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         var metadata = await GenerateArticleMetadataAsync(provider, context, cancellationToken);
         var (_, faqQuestions) = PillarOutlineNormalizer.Sanitize(
             metadata.SectionOutline, context.PeopleAlsoAskQuestions, context.TargetKeyword);
-        var bodyHtml = await GenerateArticleBodyAsync(
-            provider,
-            context,
-            metadata,
-            faqQuestions,
-            isRegeneration: false,
-            cancellationToken);
+        var bodyHtml = GeneratedBodyHtmlNormalizer.Normalize(
+            await GenerateArticleBodyAsync(
+                provider,
+                context,
+                metadata,
+                faqQuestions,
+                isRegeneration: false,
+                cancellationToken));
 
         return new ArticleDraft(
             metadata.Title,
@@ -807,7 +818,8 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         var metadata = NormalizeBlogMetadata(ParseJson<BlogMetadataDraft>(metadataResult.Content, "BlogPosting metadata"));
         metadata = EnsureBlogSectionOutline(metadata);
 
-        var bodyHtml = await GenerateBlogBodyAsync(provider, context, article, metadata, cancellationToken);
+        var bodyHtml = GeneratedBodyHtmlNormalizer.Normalize(
+            await GenerateBlogBodyAsync(provider, context, article, metadata, cancellationToken));
         var wordCount = HtmlWordCounter.Count(bodyHtml);
 
         const int maxExpansionPasses = 3;
@@ -832,8 +844,8 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             var expandedCount = HtmlWordCounter.Count(expandedHtml);
             if (expandedCount > wordCount)
             {
-                bodyHtml = expandedHtml;
-                wordCount = expandedCount;
+                bodyHtml = GeneratedBodyHtmlNormalizer.Normalize(expandedHtml);
+                wordCount = HtmlWordCounter.Count(bodyHtml);
             }
         }
 
@@ -844,7 +856,10 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             metadata.Keywords,
             wordCount,
             metadata.SectionOutline,
-            metadata.ListingExcerpt ?? string.Empty,
+            metadata.DepartmentListExcerpt,
+            metadata.HeroExcerpt,
+            metadata.NewspaperExcerpt,
+            metadata.Advertisement,
             metadata.DisplayTitle ?? metadata.Title);
     }
 
@@ -864,7 +879,7 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
                 "Key takeaways from the pillar",
                 "Practical steps you can take today",
                 "Common mistakes to avoid",
-                "What to read next"
+                "What to do next"
             ];
 
         var parts = new List<string>();
@@ -883,7 +898,7 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             parts.Add(sectionHtml);
         }
 
-        return string.Join("\n\n", parts);
+        return GeneratedBodyHtmlNormalizer.Normalize(string.Join("\n\n", parts));
     }
 
     private async Task<string> GenerateBlogSectionWithRetryAsync(
@@ -922,7 +937,9 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
 
     private static BlogMetadataDraft EnsureBlogSectionOutline(BlogMetadataDraft metadata)
     {
-        var outline = metadata.SectionOutline?.Where(s => !string.IsNullOrWhiteSpace(s)).ToList() ?? [];
+        var outline = metadata.SectionOutline?
+            .Where(s => !string.IsNullOrWhiteSpace(s) && !JunkBodySectionFilter.IsJunkSectionHeading(s))
+            .ToList() ?? [];
 
         while (outline.Count < ContentLengthTargets.BlogSectionCountMin)
         {
