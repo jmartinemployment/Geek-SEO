@@ -23,6 +23,30 @@ export interface GenerateFromBriefResponse {
   imageBase64: string;
 }
 
+type RawSection = Record<string, unknown>;
+
+function str(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function strOrNull(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function normalizeSection(raw: RawSection): ImageGeneratorSection {
+  return {
+    sourceType: str(raw.sourceType ?? raw.SourceType),
+    headingSlug: str(raw.headingSlug ?? raw.HeadingSlug),
+    heading: str(raw.heading ?? raw.Heading),
+    briefText: str(raw.briefText ?? raw.BriefText),
+    geekApiSlug: strOrNull(raw.geekApiSlug ?? raw.GeekApiSlug),
+    relativePath: strOrNull(raw.relativePath ?? raw.RelativePath),
+    existsOnDisk: Boolean(raw.existsOnDisk ?? raw.ExistsOnDisk),
+    imageUrl: strOrNull(raw.imageUrl ?? raw.ImageUrl),
+    status: str(raw.status ?? raw.Status) || "Pending",
+  };
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
@@ -53,8 +77,21 @@ export function generateFromBrief(heading: string, briefText: string): Promise<G
   });
 }
 
-export function listImageGeneratorSections(projectId: string): Promise<ImageGeneratorSectionsResponse> {
-  return request(`/api/image-generator/projects/${projectId}/sections`);
+export async function listImageGeneratorSections(
+  projectId: string
+): Promise<ImageGeneratorSectionsResponse> {
+  const raw = await request<{
+    projectId?: string;
+    ProjectId?: string;
+    sections?: RawSection[];
+    Sections?: RawSection[];
+  }>(`/api/image-generator/projects/${projectId}/sections`);
+
+  const sections = (raw.sections ?? raw.Sections ?? []).map(normalizeSection);
+  return {
+    projectId: str(raw.projectId ?? raw.ProjectId) || projectId,
+    sections,
+  };
 }
 
 export function generateFigureDraft(

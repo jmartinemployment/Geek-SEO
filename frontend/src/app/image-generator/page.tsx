@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { getRecentProjects } from "@/lib/content-writer/api";
 import type { ProjectSummary } from "@/lib/content-writer/types";
 import {
@@ -11,8 +11,12 @@ import {
 } from "@/lib/image-generator/api";
 
 function ImageGeneratorContent() {
+  const formRef = useRef<HTMLDivElement>(null);
+  const briefRef = useRef<HTMLTextAreaElement>(null);
+
   const [heading, setHeading] = useState("");
   const [briefText, setBriefText] = useState("");
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [downloadName, setDownloadName] = useState("figure-draft.avif");
   const [generating, setGenerating] = useState(false);
@@ -56,13 +60,35 @@ function ImageGeneratorContent() {
     }
   }, [selectedProjectId, loadSections]);
 
+  function useSectionBrief(section: ImageGeneratorSection) {
+    setError(null);
+    const nextHeading = section.heading?.trim() ?? "";
+    const nextBrief = section.briefText?.trim() ?? "";
+
+    setHeading(nextHeading);
+    setBriefText(nextBrief);
+
+    if (!nextBrief) {
+      setStatusMessage(null);
+      setError(`“${nextHeading || section.headingSlug}” has no brief text. Re-run Step 6 in Content Writer.`);
+      return;
+    }
+
+    setStatusMessage(`Loaded brief: ${nextHeading || section.headingSlug}`);
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      briefRef.current?.focus();
+    });
+  }
+
   async function handleGenerateFromBrief() {
     if (!briefText.trim()) {
-      setError("Paste a figure brief first.");
+      setError("Paste a figure brief first — or click Use brief under a project section.");
       return;
     }
     setGenerating(true);
     setError(null);
+    setStatusMessage(null);
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
@@ -73,6 +99,7 @@ function ImageGeneratorContent() {
       const blob = new Blob([bytes], { type: "image/avif" });
       setPreviewUrl(URL.createObjectURL(blob));
       setDownloadName(result.fileName);
+      setStatusMessage("Draft ready — preview below.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generate failed.");
     } finally {
@@ -89,6 +116,7 @@ function ImageGeneratorContent() {
     try {
       await generateFigureDraft(selectedProjectId, section.sourceType, section.headingSlug);
       await loadSections(selectedProjectId);
+      setStatusMessage(`Saved draft for ${section.heading}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed.");
     } finally {
@@ -106,7 +134,7 @@ function ImageGeneratorContent() {
         your site path.
       </p>
 
-      <div className="mt-8 space-y-4 rounded-lg border border-border bg-surface p-4">
+      <div ref={formRef} className="mt-8 space-y-4 rounded-lg border border-border bg-surface p-4">
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium text-foreground">Section title (optional)</span>
           <input
@@ -120,10 +148,11 @@ function ImageGeneratorContent() {
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium text-foreground">Figure brief</span>
           <textarea
+            ref={briefRef}
             className="min-h-[240px] rounded-md border border-border px-3 py-2 text-foreground"
             value={briefText}
             onChange={(e) => setBriefText(e.target.value)}
-            placeholder="Paste the full art-direction brief here…"
+            placeholder="Paste the full art-direction brief here, or Use brief from a project section below…"
           />
         </label>
 
@@ -136,6 +165,12 @@ function ImageGeneratorContent() {
           {generating ? "Generating draft…" : "Generate draft"}
         </button>
       </div>
+
+      {statusMessage && (
+        <p className="mt-4 text-sm text-emerald-800" role="status">
+          {statusMessage}
+        </p>
+      )}
 
       {error && (
         <p className="mt-4 text-sm text-red-700" role="alert">
@@ -187,15 +222,17 @@ function ImageGeneratorContent() {
                 key={`${section.sourceType}-${section.headingSlug}`}
                 className="flex flex-wrap items-center justify-between gap-2 rounded border border-border px-3 py-2"
               >
-                <span className="font-medium">{section.heading}</span>
+                <div className="min-w-0 flex-1">
+                  <span className="font-medium">{section.heading}</span>
+                  {!section.briefText.trim() && (
+                    <span className="ml-2 text-xs text-amber-800">no brief</span>
+                  )}
+                </div>
                 <div className="flex gap-3">
                   <button
                     type="button"
-                    className="text-xs underline"
-                    onClick={() => {
-                      setHeading(section.heading);
-                      setBriefText(section.briefText);
-                    }}
+                    className="text-xs font-medium text-[var(--color-accent)] underline"
+                    onClick={() => useSectionBrief(section)}
                   >
                     Use brief
                   </button>
