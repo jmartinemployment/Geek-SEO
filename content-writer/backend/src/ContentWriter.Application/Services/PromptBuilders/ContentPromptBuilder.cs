@@ -29,6 +29,11 @@ public interface IContentPromptBuilder
         ArticleMetadataDraft metadata,
         IReadOnlyList<string> faqQuestions,
         bool isRegeneration = false);
+    ChatCompletionRequest BuildPillarDepthExpansionPrompt(
+        ProjectGenerationContext context,
+        ArticleMetadataDraft metadata,
+        string currentBodyHtml,
+        int currentWordCount);
     ChatCompletionRequest BuildBlogMetadataPrompt(ProjectGenerationContext context, ArticleDraft sourceArticle);
     ChatCompletionRequest BuildBlogSectionPrompt(
         ProjectGenerationContext context,
@@ -182,7 +187,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
         return new ChatCompletionRequest(
             Messages: new List<ChatMessage> { new(ChatRole.System, system), new(ChatRole.User, user) },
             Temperature: isRegeneration ? 0.72 : 0.65,
-            MaxOutputTokens: isTools ? 4096 : 2048);
+            MaxOutputTokens: 4096);
     }
 
     public ChatCompletionRequest BuildArticleFaqSectionPrompt(
@@ -250,7 +255,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine("  2. Final H2 \"People Also Ask\" only: each FAQ as <h3> + 2-4 sentence answer <p>. FAQ must NOT appear earlier in the article.")
             .AppendLine(NoPreambleRule)
             .AppendLine("Ground factual claims in AUTHORITATIVE SOURCES — paraphrase and attribute where appropriate.")
-            .AppendLine($"Target at least {ContentLengthTargets.PillarMinWords:N0} words (aim for {ContentLengthTargets.PillarTargetMinWords:N0}-{ContentLengthTargets.PillarTargetMaxWords:N0}). Do not stop early.")
+            .AppendLine($"Target at least {ContentLengthTargets.PillarMinWords:N0} words for the full article. Do not stop early.")
             .AppendLine("Respond with ONLY semantic HTML using <h2>/<h3>/<p>/<ul>/<li> tags. No Markdown. No JSON wrapper.")
             .ToString();
 
@@ -278,6 +283,36 @@ public class ContentPromptBuilder : IContentPromptBuilder
         return new ChatCompletionRequest(
             Messages: new List<ChatMessage> { new(ChatRole.System, system), new(ChatRole.User, user) },
             Temperature: isRegeneration ? 0.75 : 0.65,
+            MaxOutputTokens: 8192);
+    }
+
+    public ChatCompletionRequest BuildPillarDepthExpansionPrompt(
+        ProjectGenerationContext context,
+        ArticleMetadataDraft metadata,
+        string currentBodyHtml,
+        int currentWordCount)
+    {
+        var wordsNeeded = ContentLengthTargets.PillarMinWords - currentWordCount;
+        var system = new StringBuilder()
+            .AppendLine("You are a senior technical content editor for an IT consulting firm.")
+            .AppendLine("Expand the pillar HTML below to meet the minimum word count without changing section headings or removing existing content.")
+            .AppendLine($"Editorial standard ({ContentLengthTargets.PillarRangeLabel} words): {ContentLengthTargets.PillarEditorialDefinition}")
+            .AppendLine("Add depth inside each <h2> section: more <p> paragraphs, extra <h3> subsections, examples, data points, and bullet lists where appropriate.")
+            .AppendLine($"Current length: {currentWordCount:N0} words. Minimum required: {ContentLengthTargets.PillarMinWords:N0}. Add at least {Math.Max(wordsNeeded, 500):N0} words of substantive material.")
+            .AppendLine("Respond with ONLY the full expanded HTML body. No Markdown. No JSON wrapper.")
+            .ToString();
+
+        var user = new StringBuilder()
+            .AppendLine($"Target keyword: {context.TargetKeyword}")
+            .AppendLine($"Pillar title: {metadata.Title}")
+            .AppendLine()
+            .AppendLine("Current HTML to expand:")
+            .AppendLine(currentBodyHtml)
+            .ToString();
+
+        return new ChatCompletionRequest(
+            Messages: [new(ChatRole.System, system), new(ChatRole.User, user.ToString())],
+            Temperature: 0.65,
             MaxOutputTokens: 8192);
     }
 
@@ -565,7 +600,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine("Use <h2> for main sections and <h3> for subsections with multiple <p> paragraphs.")
             .AppendLine("Start at the first <h2> — no introductory paragraphs before it.")
             .AppendLine("Required <h2> sections: Overview, Key Capabilities, Implementation Considerations, When to Use.")
-            .AppendLine($"Target {ContentLengthTargets.ToolMinWords}-{ContentLengthTargets.ToolTargetMaxWords} words (hard maximum {ContentLengthTargets.ToolHardMaxWords:N0}).")
+            .AppendLine($"Target at least {ContentLengthTargets.ToolMinWords:N0} words (aim for {ContentLengthTargets.ToolTargetMinWords:N0}-{ContentLengthTargets.ToolTargetMaxWords:N0}). Hard maximum {ContentLengthTargets.ToolHardMaxWords:N0}. Do not stop early.")
             .ToString();
 
         var user = new StringBuilder()
@@ -575,13 +610,13 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine($"Tool summary from pillar: {app.Description ?? "N/A"}")
             .AppendLine($"Department: {department}")
             .AppendLine($"Public path: /tools/{department}/{toolSlug}")
-            .AppendLine("Write expert third-person news-style prose focused on this single platform.")
+            .AppendLine("Write expert third-person technical prose focused on this single platform.")
             .ToString();
 
         return new ChatCompletionRequest(
             Messages: [new(ChatRole.System, system), new(ChatRole.User, user.ToString())],
             Temperature: 0.5,
-            MaxOutputTokens: 4096);
+            MaxOutputTokens: 8192);
     }
 
     public ChatCompletionRequest BuildToolMetadataPrompt(
@@ -629,7 +664,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
         var user = new StringBuilder()
             .AppendLine($"Tool: {app.Name}")
             .AppendLine($"Target keyword: {context.TargetKeyword}")
-            .AppendLine($"Current length: {currentWordCount:N0} words. Add at least {Math.Max(wordsNeeded, 150):N0} words of substantive material.")
+            .AppendLine($"Current length: {currentWordCount:N0} words. Add at least {Math.Max(wordsNeeded, 400):N0} words of substantive material.")
             .AppendLine()
             .AppendLine("Current HTML:")
             .AppendLine(currentBodyHtml)
@@ -638,7 +673,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
         return new ChatCompletionRequest(
             Messages: [new(ChatRole.System, system), new(ChatRole.User, user.ToString())],
             Temperature: 0.45,
-            MaxOutputTokens: 4096);
+            MaxOutputTokens: 8192);
     }
 
     public ChatCompletionRequest BuildToolWordCountTrimPrompt(
@@ -666,7 +701,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
         return new ChatCompletionRequest(
             Messages: [new(ChatRole.System, system), new(ChatRole.User, user.ToString())],
             Temperature: 0.35,
-            MaxOutputTokens: 4096);
+            MaxOutputTokens: 8192);
     }
 
     private static string StripHtmlExcerpt(string html, int maxChars)

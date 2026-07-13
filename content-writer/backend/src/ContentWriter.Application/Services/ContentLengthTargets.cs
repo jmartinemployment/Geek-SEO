@@ -3,18 +3,18 @@ namespace ContentWriter.Application.Services;
 /// <summary>Recommended word-count ranges and editorial definitions by content type.</summary>
 public static class ContentLengthTargets
 {
-    // TechnicalArticle pillar pages — topical authority, tutorials, long-tail keywords.
-    public const int PillarMinWords = 1_500;
-    public const int PillarTargetMinWords = 1_500;
-    public const int PillarTargetMaxWords = 2_500;
-    public const int PillarSectionMinWords = 250;
-    public const int PillarSectionTargetMaxWords = 450;
-    public const int PillarToolsSectionMinWords = 350;
-    public const int PillarToolsSectionTargetMaxWords = 550;
+    // TechnicalArticle pillar / cornerstone pages — broad topical authority, complete guides.
+    public const int PillarMinWords = 3_000;
+    public const int PillarTargetMinWords = 3_000;
+    public const int PillarSectionMinWords = 350;
+    public const int PillarSectionTargetMaxWords = 550;
+    public const int PillarToolsSectionMinWords = 450;
+    public const int PillarToolsSectionTargetMaxWords = 700;
 
     public const string PillarEditorialDefinition =
-        "Technical articles build topical authority with in-depth explanations, structured problem-solving, and room for " +
-        "long-tail keywords. Target depth that exceeds competing pages — comprehensive tutorials and trustworthy detail, not padding.";
+        "Pillar and cornerstone TechnicalArticles cover broad topics with exhaustive depth — suitable for complete guides " +
+        "(e.g. \"The Complete Guide to Python\"). Target 3,000+ words of topical authority, structured problem-solving, and " +
+        "long-tail keyword coverage without padding.";
 
     // BlogPosting companion articles — listicles, how-tos, evergreen depth.
     public const int BlogMinWords = 1_500;
@@ -37,16 +37,18 @@ public static class ContentLengthTargets
         "Standard listicles and guides are actionable, step-by-step tutorials that require substantial context, " +
         "data, and layout formatting. Used when the reader needs a practical walkthrough, not a macro overview.";
 
-    // Tool pages — TechnicalArticle overviews for each platform in the pillar Top AI Tools section.
-    public const int ToolMinWords = 600;
-    public const int ToolTargetMaxWords = 1_000;
-    public const int ToolHardMaxWords = 1_000;
+    // Tool pages — TechnicalArticle comprehensive guides for each platform in the pillar Top AI Tools section.
+    public const int ToolMinWords = 1_500;
+    public const int ToolTargetMinWords = 1_500;
+    public const int ToolTargetMaxWords = 2_500;
+    public const int ToolHardMaxWords = 2_500;
 
     public const string ToolEditorialDefinition =
-        "Tool pages are TechnicalArticle overviews of a single platform — implementation context, capabilities, " +
-        "and when to use it. Stay focused (600–1,000 words); one platform per page.";
+        "Tool pages are TechnicalArticle comprehensive guides for a single platform — deep implementation context, " +
+        "capabilities, architectural fit, and when to use it. Target 1,500–2,500 words (same band as comprehensive " +
+        "guides and tutorials); one platform per page.";
 
-    public static string PillarRangeLabel => $"{PillarMinWords:N0}–{PillarTargetMaxWords:N0}+";
+    public static string PillarRangeLabel => $"{PillarMinWords:N0}+";
     public static string BlogRangeLabel => $"{BlogTargetMinWords:N0}–{BlogTargetMaxWords:N0}";
     public static string ListicleGuideRangeLabel => $"{ListicleGuideMinWords:N0}–{ListicleGuideMaxWords:N0}";
     public static string ToolRangeLabel => $"{ToolMinWords:N0}–{ToolTargetMaxWords:N0}";

@@ -108,11 +108,10 @@ export interface ArticleDraft {
 
 export const CONTENT_LENGTH_TARGETS = {
   pillar: {
-    min: 1500,
-    max: 2500,
-    label: "1,500–2,500+",
+    min: 3000,
+    label: "3,000+",
     definition:
-      "Technical articles — in-depth tutorials and topical authority with room for long-tail keywords and structured problem-solving.",
+      "Pillar / cornerstone TechnicalArticles — broad complete-guide depth (3,000+ words) for topical authority and long-tail keywords.",
   },
   blog: {
     min: 1500,
@@ -136,12 +135,12 @@ export const CONTENT_LENGTH_TARGETS = {
       "News articles — timely, focused copy with core details upfront for quick indexing and skimming readers.",
   },
   tool: {
-    min: 600,
-    max: 1000,
-    hardMax: 1000,
-    label: "600–1,000",
+    min: 1500,
+    max: 2500,
+    hardMax: 2500,
+    label: "1,500–2,500",
     definition:
-      "TechnicalArticle tool overviews — concise platform coverage with distinct presentation copy and JSON-LD citing the pillar.",
+      "TechnicalArticle tool guides — comprehensive platform coverage (1,500–2,500 words) with distinct presentation copy and JSON-LD citing the pillar.",
   },
   emailColdOutreach: {
     min: 50,

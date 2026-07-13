@@ -167,7 +167,8 @@ public sealed class ToolPageGenerator : IToolPageGenerator
         var bodyHtml = LlmResponseJsonParser.ParseHtmlBody(result.Content, $"tool page '{app.Name}'");
         var wordCount = HtmlWordCounter.Count(bodyHtml);
 
-        if (wordCount < ContentLengthTargets.ToolMinWords)
+        const int maxExpansionPasses = 3;
+        for (var pass = 0; wordCount < ContentLengthTargets.ToolMinWords && pass < maxExpansionPasses; pass++)
         {
             var expansion = await provider.CompleteAsync(
                 _promptBuilder.BuildToolWordCountExpansionPrompt(context, app, bodyHtml, wordCount),
@@ -180,7 +181,8 @@ public sealed class ToolPageGenerator : IToolPageGenerator
                 wordCount = expandedCount;
             }
         }
-        else if (wordCount > ContentLengthTargets.ToolHardMaxWords)
+
+        if (wordCount > ContentLengthTargets.ToolHardMaxWords)
         {
             var trim = await provider.CompleteAsync(
                 _promptBuilder.BuildToolWordCountTrimPrompt(context, app, bodyHtml, wordCount),

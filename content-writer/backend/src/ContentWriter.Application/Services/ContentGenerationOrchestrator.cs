@@ -127,6 +127,25 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         var bodyHtml = GeneratedBodyHtmlNormalizer.Normalize(
             await GenerateArticleBodyAsync(provider, context, bodyMetadata, faqQuestions, isRegeneration, cancellationToken));
         var wordCount = HtmlWordCounter.Count(bodyHtml);
+
+        const int maxPillarExpansionPasses = 3;
+        for (var pass = 0; wordCount < ContentLengthTargets.PillarMinWords && pass < maxPillarExpansionPasses; pass++)
+        {
+            _logger.LogInformation(
+                "Expanding pillar body for project {ProjectId} (pass {Pass}, current {WordCount} words, minimum {Minimum})",
+                projectId, pass + 1, wordCount, ContentLengthTargets.PillarMinWords);
+
+            var expansion = await provider.CompleteAsync(
+                _promptBuilder.BuildPillarDepthExpansionPrompt(context, bodyMetadata, bodyHtml, wordCount),
+                cancellationToken);
+            var expanded = LlmResponseJsonParser.ParseHtmlBody(expansion.Content, "TechnicalArticle pillar expansion");
+            var expandedCount = HtmlWordCounter.Count(expanded);
+            if (expandedCount > wordCount)
+            {
+                bodyHtml = GeneratedBodyHtmlNormalizer.Normalize(expanded);
+                wordCount = expandedCount;
+            }
+        }
         var department = GeekPublicUrlBuilder.ResolveDepartment(project);
         var articleUrl = GeekPublicUrlBuilder.ArticleUrl(context.ArticleBaseUrl, department, articleRow.Slug);
         var placeholderBlogUrl = GeekPublicUrlBuilder.BlogUrl(context.BlogBaseUrl, department, $"{articleRow.Slug}-blog");
