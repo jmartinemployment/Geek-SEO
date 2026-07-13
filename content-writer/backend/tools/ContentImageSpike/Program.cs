@@ -42,11 +42,6 @@ var options = new ImageSpikeOptions
         ?? configuration["LlmProviders:OpenAi:ApiKey"]
         ?? string.Empty,
     OpenAiModel = configuration[$"{ImageSpikeOptions.SectionName}:OpenAiModel"] ?? "gpt-image-1",
-    LeonardoApiKey = Environment.GetEnvironmentVariable("LEONARDO_API_KEY")
-        ?? configuration[$"{ImageSpikeOptions.SectionName}:LeonardoApiKey"]
-        ?? string.Empty,
-    LeonardoModelId = configuration[$"{ImageSpikeOptions.SectionName}:LeonardoModelId"]
-        ?? "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
 };
 
 var connectionString = ResolveConnectionString(configuration);
@@ -60,13 +55,11 @@ services.AddSingleton(dbOptions);
 services.AddScoped<ContentWriterDbContext>(_ => new ContentWriterDbContext(dbOptions));
 
 services.AddHttpClient<OpenAiImageProvider>();
-services.AddHttpClient<LeonardoImageProvider>();
 services.AddSingleton<IContentImageSourceReader, ContentWriterImageSourceReader>();
 services.AddSingleton<IImagePromptBuilder, PillarFigurePromptBuilder>();
 services.AddSingleton<IImagePromptBuilder>(new SocialEyeCandyPromptBuilder(ImageUseCase.SocialFacebook, "Facebook"));
 services.AddSingleton<IImagePromptBuilder>(new SocialEyeCandyPromptBuilder(ImageUseCase.SocialLinkedIn, "LinkedIn"));
 services.AddSingleton<IImageGenerationProvider, OpenAiImageProvider>(sp => sp.GetRequiredService<OpenAiImageProvider>());
-services.AddSingleton<IImageGenerationProvider, LeonardoImageProvider>(sp => sp.GetRequiredService<LeonardoImageProvider>());
 services.AddSingleton<IImageArtifactWriter, LocalImageArtifactWriter>();
 services.AddSingleton<ImageSpikeService>();
 
@@ -162,9 +155,7 @@ internal static class CliArgs
 
     private static HashSet<string> ParseProviders(string value) => value.ToLowerInvariant() switch
     {
-        "both" => new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "openai", "leonardo" },
-        "openai" => new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "openai" },
-        "leonardo" => new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "leonardo" },
+        "openai" or "both" or "" => new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "openai" },
         _ => new HashSet<string>(
             value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
             StringComparer.OrdinalIgnoreCase),
@@ -173,14 +164,14 @@ internal static class CliArgs
     public static void PrintHelp()
     {
         Console.WriteLine("""
-            ContentImageSpike — compare OpenAI vs Leonardo images from Content Writer DB.
+            ContentImageSpike — generate OpenAI draft images from Content Writer DB (legacy bake-off tool).
 
             Usage:
               dotnet run --project tools/ContentImageSpike -- --project-id <guid> [options]
 
             Options:
               --project-id <guid>   Required. Content Writer project to read.
-              --provider both       openai | leonardo | both (default: both)
+              --provider openai     Only openai is supported (default)
               --output-dir <path>   Default: output/image-spike
               -h, --help
 
@@ -188,7 +179,6 @@ internal static class CliArgs
               CONTENT_WRITER_DATABASE_URL / DATABASE_URL  Postgres (production)
               ConnectionStrings:ContentWriterDb             SQLite path (local appsettings)
               OPENAI_API_KEY
-              LEONARDO_API_KEY
             """);
     }
 
@@ -200,7 +190,6 @@ internal static class CliArgs
         public HashSet<string> Providers { get; set; } = new(StringComparer.OrdinalIgnoreCase)
         {
             "openai",
-            "leonardo",
         };
     }
 }

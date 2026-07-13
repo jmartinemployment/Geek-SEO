@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using ContentImageSpike.Abstractions;
 using ContentImageSpike.Domain;
 using Microsoft.Extensions.Logging;
@@ -42,7 +41,6 @@ public sealed class OpenAiImageProvider : IImageGenerationProvider
             prompt = request.Prompt,
             n = 1,
             size,
-            response_format = "b64_json",
         };
 
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/images/generations");
@@ -57,13 +55,21 @@ public sealed class OpenAiImageProvider : IImageGenerationProvider
             throw new InvalidOperationException($"OpenAI images API failed ({(int)response.StatusCode}): {body}");
 
         using var doc = JsonDocument.Parse(body);
-        var b64 = doc.RootElement
-            .GetProperty("data")[0]
-            .GetProperty("b64_json")
-            .GetString()
-            ?? throw new InvalidOperationException("OpenAI response missing b64_json.");
+        var item = doc.RootElement.GetProperty("data")[0];
+        byte[] bytes;
+        if (item.TryGetProperty("b64_json", out var b64Prop) && b64Prop.GetString() is { Length: > 0 } b64)
+        {
+            bytes = Convert.FromBase64String(b64);
+        }
+        else if (item.TryGetProperty("url", out var urlProp) && urlProp.GetString() is { Length: > 0 } url)
+        {
+            bytes = await _http.GetByteArrayAsync(url, cancellationToken);
+        }
+        else
+        {
+            throw new InvalidOperationException("OpenAI response missing image data.");
+        }
 
-        var bytes = Convert.FromBase64String(b64);
         sw.Stop();
 
         _logger.LogInformation(
@@ -76,10 +82,18 @@ public sealed class OpenAiImageProvider : IImageGenerationProvider
         return new ImageGenerationResult(ProviderId, request.UseCase, bytes, "image/png", sw.Elapsed);
     }
 
-    private static string MapSize(int width, int height) => (width, height) switch
+    private static string MapSize(int width, int height)
     {
-        (>= 1792, >= 1024) => "1792x1024",
-        (>= 1024, >= 1792) => "1024x1792",
-        _ => "1024x1024",
-    };
+        if (width >= height * 1.2)
+        {
+            return "1536x1024";
+        }
+
+        if (height >= width * 1.2)
+        {
+            return "1024x1536";
+        }
+
+        return "1024x1024";
+    }
 }
