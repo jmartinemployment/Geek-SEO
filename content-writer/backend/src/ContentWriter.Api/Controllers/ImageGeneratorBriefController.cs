@@ -39,7 +39,8 @@ public class ImageGeneratorBriefController : ControllerBase
 
         try
         {
-            var avifBytes = await _draftGeneration.GenerateAvifFromBriefAsync(
+            // Preview downloads as PNG — avoids native avifenc deps on the API host.
+            var pngBytes = await _draftGeneration.GeneratePngFromBriefAsync(
                 heading,
                 brief,
                 cancellationToken);
@@ -47,13 +48,18 @@ public class ImageGeneratorBriefController : ControllerBase
             var slug = Slugify(heading);
             return Ok(new GenerateFromBriefResponse(
                 heading,
-                $"{slug}-draft.avif",
-                Convert.ToBase64String(avifBytes)));
+                $"{slug}-draft.png",
+                Convert.ToBase64String(pngBytes)));
         }
         catch (ContentGenerationException ex)
         {
             _logger.LogWarning(ex, "Generate from brief failed");
             return Problem(ex.Message, statusCode: 400, title: "Generate failed");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Generate from brief crashed");
+            return Problem(ex.Message, statusCode: 500, title: "Generate failed");
         }
     }
 

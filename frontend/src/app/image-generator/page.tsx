@@ -96,7 +96,8 @@ function ImageGeneratorContent() {
     try {
       const result = await generateFromBrief(heading.trim() || "Section figure", briefText.trim());
       const bytes = Uint8Array.from(atob(result.imageBase64), (c) => c.charCodeAt(0));
-      const blob = new Blob([bytes], { type: "image/avif" });
+      const mime = result.fileName.toLowerCase().endsWith(".png") ? "image/png" : "image/avif";
+      const blob = new Blob([bytes], { type: mime });
       setPreviewUrl(URL.createObjectURL(blob));
       setDownloadName(result.fileName);
       setStatusMessage("Draft ready — preview below.");

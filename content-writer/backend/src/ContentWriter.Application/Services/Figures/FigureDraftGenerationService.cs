@@ -21,6 +21,11 @@ public interface IFigureDraftGenerationService
         string heading,
         string briefText,
         CancellationToken cancellationToken = default);
+
+    Task<byte[]> GeneratePngFromBriefAsync(
+        string heading,
+        string briefText,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class FigureDraftGenerationService : IFigureDraftGenerationService
@@ -94,13 +99,20 @@ public sealed class FigureDraftGenerationService : IFigureDraftGenerationService
         string briefText,
         CancellationToken cancellationToken = default)
     {
+        var pngBytes = await GeneratePngFromBriefAsync(heading, briefText, cancellationToken);
+        return await FigureAvifEncoder.EncodePngAsync(pngBytes, cancellationToken);
+    }
+
+    public async Task<byte[]> GeneratePngFromBriefAsync(
+        string heading,
+        string briefText,
+        CancellationToken cancellationToken = default)
+    {
         var prompt = FigureImagePromptComposer.Compose(briefText, heading);
-        var pngBytes = await _imageClient.GeneratePngAsync(
+        return await _imageClient.GeneratePngAsync(
             prompt,
             ImagePromptDefaults.PillarWidth,
             ImagePromptDefaults.PillarHeight,
             cancellationToken);
-
-        return await FigureAvifEncoder.EncodePngAsync(pngBytes, cancellationToken);
     }
 }
