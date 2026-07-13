@@ -2,13 +2,14 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { AppHeaderActions } from '@/components/app/app-header';
 
 export function SiteNavbar() {
   return (
     <header className="sticky top-0 z-[60] bg-white shadow-sm">
       <div className="container">
         <nav className="w-full" aria-label="Site">
-          <div className="flex h-16 w-full items-center">
+          <div className="flex h-16 w-full items-center justify-between gap-4">
             <Link href="/" className="flex items-center">
               <Image
                 src="/images/GeekAtYourSpot.svg"
@@ -18,6 +19,7 @@ export function SiteNavbar() {
                 priority
               />
             </Link>
+            <AppHeaderActions />
           </div>
         </nav>
       </div>
