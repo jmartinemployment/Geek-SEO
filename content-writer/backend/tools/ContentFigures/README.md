@@ -53,5 +53,5 @@ The `generate` subcommand is **deprecated** — use SectionFigures instead.
 
 1. Generate figure briefs (Step 6) in Content Writer.
 2. Publish text — pick department, publish to site.
-3. **SectionFigures:** `export-jobs` → `plan` → `generate` → commit `public/images/...` → deploy geekatyourspot.
+3. **SectionFigures:** `export-jobs` → `plan` → `generate-one` per section → commit `public/images/...` → deploy geekatyourspot.
 4. (Optional) ContentFigures `attach` if you want DB `ImageUrl` stamps — not required for the live site.

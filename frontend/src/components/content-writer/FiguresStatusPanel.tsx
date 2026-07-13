@@ -56,8 +56,9 @@ export function FiguresStatusPanel({
         )}
       </p>
       <p className="mt-2 text-muted">
-        Generate AVIF with the external SectionFigures CLI (<code className="text-foreground">export-jobs</code>{" "}
-        → <code className="text-foreground">generate</code>), commit under{" "}
+        Generate AVIF with SectionFigures (<code className="text-foreground">export-jobs</code>{" "}
+        → <code className="text-foreground">plan</code> → <code className="text-foreground">generate-one</code> per
+        section), commit under{" "}
         <code className="text-foreground">public/images/</code>, then deploy geekatyourspot. Optional: upload AVIF
         per section below.
       </p>

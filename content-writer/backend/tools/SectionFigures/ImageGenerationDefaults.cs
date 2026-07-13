@@ -7,6 +7,4 @@ public static class ImageGenerationDefaults
 
     /// <summary>USD per image at 1792x1024 standard quality — verify against current OpenAI pricing.</summary>
     public const decimal EstimatedCostPerImageUsd = 0.080m;
-
-    public const int CostConfirmThreshold = 5;
 }

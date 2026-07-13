@@ -43,7 +43,7 @@ public class GenerateController : ControllerBase
     [Obsolete("In-app image generation removed — use the external SectionFigures CLI.")]
     public Task<IActionResult> GenerateImages(Guid projectId, CancellationToken cancellationToken) =>
         Task.FromResult<IActionResult>(Problem(
-            "In-app image generation is disabled. Use the SectionFigures CLI (export-jobs → generate).",
+            "In-app image generation is disabled. Use SectionFigures generate-one (export-jobs → plan → one section at a time).",
             statusCode: 410,
             title: "Use SectionFigures CLI"));
 

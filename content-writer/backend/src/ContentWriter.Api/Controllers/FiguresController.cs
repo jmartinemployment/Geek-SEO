@@ -75,7 +75,7 @@ public class FiguresController : ControllerBase
         Guid projectId,
         [FromBody] FigureGenerateRequest request) =>
         Problem(
-            "In-app figure generation is disabled. Use the SectionFigures CLI (export-jobs → generate).",
+            "In-app figure generation is disabled. Use SectionFigures generate-one (export-jobs → plan → one section at a time).",
             statusCode: 410,
             title: "Use SectionFigures CLI");
 
@@ -86,7 +86,7 @@ public class FiguresController : ControllerBase
         string source,
         string headingSlug) =>
         Problem(
-            "In-app figure generation is disabled. Use the SectionFigures CLI (export-jobs → generate).",
+            "In-app figure generation is disabled. Use SectionFigures generate-one (export-jobs → plan → one section at a time).",
             statusCode: 410,
             title: "Use SectionFigures CLI");
 

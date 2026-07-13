@@ -223,7 +223,7 @@ export OPENAI_API_KEY=sk-...
 dotnet run --project tools/SectionFigures/SectionFigures.csproj -- export-jobs \
   --project-id <guid> --out jobs.json
 dotnet run --project tools/SectionFigures/SectionFigures.csproj -- plan --jobs jobs.json
-dotnet run --project tools/SectionFigures/SectionFigures.csproj -- generate --jobs jobs.json --yes
+dotnet run --project tools/SectionFigures/SectionFigures.csproj -- generate-one --jobs jobs.json --heading-slug <slug>
 ```
 
 See [`tools/SectionFigures/README.md`](backend/tools/SectionFigures/README.md).

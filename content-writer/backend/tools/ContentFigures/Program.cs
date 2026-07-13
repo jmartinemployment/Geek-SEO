@@ -176,7 +176,7 @@ var headingSlugOptional = new Option<string?>("--heading-slug")
 var generateCmd = new Command("generate", "DEPRECATED — use SectionFigures generate instead");
 generateCmd.SetHandler(() =>
 {
-    Console.Error.WriteLine("ContentFigures generate is deprecated. Use tools/SectionFigures (export-jobs → generate).");
+    Console.Error.WriteLine("ContentFigures generate is deprecated. Use SectionFigures generate-one.");
     return Task.FromResult(1);
 });
 

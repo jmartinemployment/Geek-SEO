@@ -955,8 +955,9 @@ function ImagePromptsView({
     <div className="space-y-8">
       <p className="text-sm text-muted">
         Each H2 has a figure brief for the external SectionFigures CLI. After text is published, run{" "}
-        <code className="text-foreground">export-jobs</code> → <code className="text-foreground">generate</code>{" "}
-        or upload AVIF to the site path shown per section. Section images render in layout columns outside post body.
+        <code className="text-foreground">export-jobs</code> → <code className="text-foreground">plan</code> →{" "}
+        <code className="text-foreground">generate-one</code> per section, or upload AVIF to the site path shown per
+        section. Section images render in layout columns outside post body.
       </p>
       {pillarSections.length > 0 && (
         <ImagePromptSectionGroup
