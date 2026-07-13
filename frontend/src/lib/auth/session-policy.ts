@@ -10,7 +10,16 @@ export function computeRefreshDelayMs(expiresInSeconds: number): number {
 
 export function shouldBootstrapSession(pathname: string, devUserId?: string | null): boolean {
   if (devUserId) return false;
-  return !pathname.startsWith('/auth');
+  if (pathname.startsWith('/auth')) return false;
+  return isProtectedAppRoute(pathname);
+}
+
+/** Refresh an existing session on public routes without blocking first paint. */
+export function shouldBackgroundRefreshSession(pathname: string, devUserId?: string | null): boolean {
+  if (devUserId) return false;
+  if (pathname.startsWith('/auth')) return false;
+  if (isProtectedAppRoute(pathname)) return false;
+  return true;
 }
 
 export function isAuthenticated(accessToken: string | null, devUserId?: string | null): boolean {

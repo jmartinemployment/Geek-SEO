@@ -12,10 +12,13 @@ describe('session-policy', () => {
     expect(computeRefreshDelayMs(30)).toBe(30_000);
   });
 
-  it('skips bootstrap on auth routes and dev mode', () => {
+  it('bootstraps only on protected app routes', () => {
     expect(shouldBootstrapSession('/auth/callback', null)).toBe(false);
     expect(shouldBootstrapSession('/dashboard', 'dev-user')).toBe(false);
     expect(shouldBootstrapSession('/dashboard', null)).toBe(true);
+    expect(shouldBootstrapSession('/', null)).toBe(false);
+    expect(shouldBootstrapSession('/pricing', null)).toBe(false);
+    expect(shouldBootstrapSession('/strategy/topical-map', null)).toBe(true);
   });
 
   it('detects authenticated state from token or dev user', () => {

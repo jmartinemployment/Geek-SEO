@@ -14,6 +14,7 @@ import { usePathname } from 'next/navigation';
 import {
   computeRefreshDelayMs,
   isAuthenticated,
+  shouldBackgroundRefreshSession,
   shouldBootstrapSession,
 } from '@/lib/auth/session-policy';
 
@@ -35,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [accessToken, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const needsBootstrap = shouldBootstrapSession(pathname, DEV_USER_ID);
+  const backgroundRefresh = shouldBackgroundRefreshSession(pathname, DEV_USER_ID);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshAccessTokenRef = useRef<() => Promise<string | null>>(async () => null);
 
@@ -110,13 +112,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void (async () => {
       if (needsBootstrap) {
         await refreshAccessToken();
+      } else if (backgroundRefresh) {
+        void refreshAccessToken();
       }
       setIsLoading(false);
     })();
     return () => {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
     };
-  }, [needsBootstrap, refreshAccessToken]);
+  }, [backgroundRefresh, needsBootstrap, refreshAccessToken]);
 
   const value = useMemo(
     () => ({
