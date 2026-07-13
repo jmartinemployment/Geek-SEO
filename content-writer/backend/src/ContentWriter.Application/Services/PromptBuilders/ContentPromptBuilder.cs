@@ -57,7 +57,8 @@ public interface IContentPromptBuilder
         BlogDraft sourceBlog,
         string articleUrl,
         string blogUrl,
-        IReadOnlyList<ImagePromptSectionTarget> sections);
+        IReadOnlyList<ImagePromptSectionTarget> sections,
+        string? validationFeedback = null);
     ChatCompletionRequest BuildToolBodyPrompt(
         ProjectGenerationContext context,
         ArticleMetadataDraft pillarMetadata,
@@ -534,7 +535,8 @@ public class ContentPromptBuilder : IContentPromptBuilder
         BlogDraft sourceBlog,
         string articleUrl,
         string blogUrl,
-        IReadOnlyList<ImagePromptSectionTarget> sections)
+        IReadOnlyList<ImagePromptSectionTarget> sections,
+        string? validationFeedback = null)
     {
         var system = new StringBuilder()
             .AppendLine("You write figure briefs (art direction) for inline B2B article diagrams and infographics.")
@@ -554,6 +556,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine("BRIEF FORMAT (include in JSON for each section):")
             .AppendLine($"- Teaching sections: composition, shapes, flow, color mood in {ImagePromptDefaults.PromptMinWords}–{ImagePromptDefaults.PromptMaxWords} words.")
             .AppendLine($"- Advertisement sections: full art direction for a sponsored promotional spot in {ImagePromptDefaults.AdvertisementPromptMinWords}–{ImagePromptDefaults.AdvertisementPromptMaxWords} words.")
+            .AppendLine($"- Count words carefully — briefs below the minimum for their briefKind are rejected.")
             .AppendLine("- notes: optional operator hints (e.g. color mood). Do not include provider or model fields — the app uses OpenAI DALL·E.")
             .AppendLine()
             .AppendLine("Respond with ONLY a single valid JSON object — no markdown fences:")
@@ -574,7 +577,17 @@ public class ContentPromptBuilder : IContentPromptBuilder
         foreach (var section in sections)
         {
             var kind = ImagePromptWordLimits.IsAdvertisementFigure(section) ? "advertisement" : "teaching";
-            user.AppendLine($"- sourceType: {section.SourceType}, order: {section.Order}, heading: {section.Heading}, briefKind: {kind}");
+            var (minWords, maxWords) = ImagePromptWordLimits.ForSection(section);
+            user.AppendLine(
+                $"- sourceType: {section.SourceType}, order: {section.Order}, heading: {section.Heading}, briefKind: {kind}, wordTarget: {minWords}-{maxWords}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(validationFeedback))
+        {
+            user.AppendLine()
+                .AppendLine("CORRECTION REQUIRED — your prior response failed validation:")
+                .AppendLine(validationFeedback.Trim())
+                .AppendLine("Regenerate the full JSON object; expand any briefs that were too short.");
         }
 
         return new ChatCompletionRequest(

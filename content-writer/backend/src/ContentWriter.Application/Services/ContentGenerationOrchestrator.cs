@@ -431,28 +431,17 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
             GeneratedContentType.ImagePromptSection);
 
         const int maxAttempts = 3;
-        ImagePromptSectionPromptsDraft? draft = null;
-        for (var attempt = 1; attempt <= maxAttempts; attempt++)
-        {
-            var result = await provider.CompleteAsync(
-                _promptBuilder.BuildSectionImagePromptsPrompt(
-                    context, article, blog, articleUrl, blogUrl, sections),
-                cancellationToken);
-            try
-            {
-                draft = LlmResponseJsonParser.ParseSectionImagePrompts(result.Content, sections, "image prompts");
-                break;
-            }
-            catch (ContentGenerationException ex) when (attempt < maxAttempts)
-            {
-                _logger.LogWarning(ex, "Retrying image prompts after invalid JSON (attempt {Attempt})", attempt);
-            }
-        }
-
-        if (draft is null)
-        {
-            throw new ContentGenerationException($"Model did not return valid JSON for image prompts after {maxAttempts} attempts.");
-        }
+        var draft = await CompleteImagePromptsWithRetriesAsync(
+            provider,
+            context,
+            article,
+            blog,
+            articleUrl,
+            blogUrl,
+            sections,
+            "image prompts",
+            maxAttempts,
+            cancellationToken);
 
         var syncInputs = new List<FigureSyncSectionInput>();
         foreach (var section in draft.Sections)
@@ -600,6 +589,39 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         }
 
         return row;
+    }
+
+    private async Task<ImagePromptSectionPromptsDraft> CompleteImagePromptsWithRetriesAsync(
+        IContentGenerationProvider provider,
+        ProjectGenerationContext context,
+        ArticleDraft article,
+        BlogDraft blog,
+        string articleUrl,
+        string blogUrl,
+        IReadOnlyList<ImagePromptSectionTarget> sections,
+        string label,
+        int maxAttempts,
+        CancellationToken cancellationToken)
+    {
+        string? validationFeedback = null;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var result = await provider.CompleteAsync(
+                _promptBuilder.BuildSectionImagePromptsPrompt(
+                    context, article, blog, articleUrl, blogUrl, sections, validationFeedback),
+                cancellationToken);
+            try
+            {
+                return LlmResponseJsonParser.ParseSectionImagePrompts(result.Content, sections, label);
+            }
+            catch (ContentGenerationException ex) when (attempt < maxAttempts)
+            {
+                validationFeedback = ex.Message;
+                _logger.LogWarning(ex, "Retrying {Label} after validation failure (attempt {Attempt})", label, attempt);
+            }
+        }
+
+        throw new ContentGenerationException($"Model did not return valid {label} after {maxAttempts} attempts.");
     }
 
     private async Task<Guid> AddSectionImagePromptRowAsync(
@@ -1066,29 +1088,17 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         var blogUrl = GeekPublicUrlBuilder.BlogUrl(context.BlogBaseUrl, department, blogRow.Slug);
 
         const int maxAttempts = 3;
-        ImagePromptSectionPromptsDraft? draft = null;
-        for (var attempt = 1; attempt <= maxAttempts; attempt++)
-        {
-            var result = await provider.CompleteAsync(
-                _promptBuilder.BuildSectionImagePromptsPrompt(
-                    context, article, blog, articleUrl, blogUrl, toolSections),
-                cancellationToken);
-            try
-            {
-                draft = LlmResponseJsonParser.ParseSectionImagePrompts(result.Content, toolSections, "tool image prompts");
-                break;
-            }
-            catch (ContentGenerationException ex) when (attempt < maxAttempts)
-            {
-                _logger.LogWarning(ex, "Retrying tool image prompts after invalid JSON (attempt {Attempt})", attempt);
-            }
-        }
-
-        if (draft is null)
-        {
-            throw new ContentGenerationException(
-                $"Model did not return valid JSON for tool image prompts after {maxAttempts} attempts.");
-        }
+        var draft = await CompleteImagePromptsWithRetriesAsync(
+            provider,
+            context,
+            article,
+            blog,
+            articleUrl,
+            blogUrl,
+            toolSections,
+            "tool image prompts",
+            maxAttempts,
+            cancellationToken);
 
         RemoveToolImagePromptContents(project);
 
