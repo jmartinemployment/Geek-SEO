@@ -5,7 +5,7 @@ namespace ContentWriter.Application.Tests;
 public class FigureImagePromptComposerTests
 {
     [Fact]
-    public void Compose_includes_brief_and_no_text_guardrail()
+    public void Compose_includes_brief_and_real_label_guardrails()
     {
         var prompt = FigureImagePromptComposer.Compose(
             "Show a funnel with three stages for invoice intake.",
@@ -13,7 +13,9 @@ public class FigureImagePromptComposerTests
 
         Assert.Contains("Why automation matters", prompt);
         Assert.Contains("invoice intake", prompt);
-        Assert.Contains("No text", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("real English labels", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("No gibberish", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("No text, letters, words", prompt, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
