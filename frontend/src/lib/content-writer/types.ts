@@ -244,7 +244,7 @@ export type FigureStatus = "Pending" | "Ready" | "Skipped" | "Published";
 
 export interface ContentFigureDto {
   id: string;
-  sourceType: "pillar" | "blog";
+  sourceType: string;
   sectionOrder: number;
   headingSlug: string;
   heading: string;
@@ -252,6 +252,7 @@ export interface ContentFigureDto {
   status: FigureStatus;
   skipReason: string | null;
   imageUrl: string | null;
+  imageAlt: string;
   geekApiSlug: string | null;
   geekPostId: number | null;
 }

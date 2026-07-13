@@ -135,7 +135,9 @@ public class ContentGenerationOrchestrator : IContentGenerationOrchestrator
         var articleMetadata = new ContentMetadata(
             metadata.Title, metadata.MetaDescription, context.AuthorName, context.PublisherName,
             context.PublisherLogoUrl, articleUrl, context.PublisherLogoUrl, now, now, metadata.Keywords, wordCount);
-        var softwareApplications = ToolsSectionHtmlParser.ExtractApplications(bodyHtml, metadata.SectionOutline);
+        var toolsExtraction = ToolsSectionHtmlParser.DiagnoseExtraction(bodyHtml, metadata.SectionOutline);
+        var softwareApplications = toolsExtraction.Applications;
+        project.ToolsGenerationOutcome = toolsExtraction.Outcome.ToString();
         articleRow.BodyHtml = bodyHtml;
         articleRow.WordCount = wordCount;
         articleRow.JsonLdSchema = _articleSchemaBuilder.Build(articleMetadata, placeholderBlogUrl, softwareApplications);

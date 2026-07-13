@@ -81,6 +81,12 @@ export default function ContentResults({
   const hasSocial = result?.facebookPost != null && result?.linkedInPost != null;
   const hasColdOutreach = result?.coldOutreachEmail != null;
   const hasImagePrompts = (result?.imagePrompts?.sections?.length ?? 0) > 0;
+  const toolsRequiredForBriefs =
+    result?.toolsGenerationOutcome === "Success" ||
+    (result?.article?.sectionOutline ?? []).some((heading) =>
+      /tool|platform|software|vendor|solution|stack|technology/i.test(heading),
+    );
+  const toolsReadyForBriefs = !toolsRequiredForBriefs || hasTools;
   const hasExportableContent =
     hasPillarBody || hasTools || hasBlog || hasSocial || hasColdOutreach || hasImagePrompts;
   const isGenerating = generatingStep !== null;
@@ -237,11 +243,17 @@ export default function ContentResults({
           title="Figure briefs"
           description="One art-direction brief per H2 in the pillar, blog, and each tool page."
           done={hasImagePrompts}
-          disabled={!hasBlog || isGenerating}
+          disabled={!hasBlog || !toolsReadyForBriefs || isGenerating}
           isRunning={generatingStep === "image-prompts"}
           buttonLabel={hasImagePrompts ? "Regenerate briefs" : "Generate briefs"}
           onClick={() => runFigureBriefsStep()}
-          lockedMessage={!hasBlog ? "Complete Step 4 (blog) first." : undefined}
+          lockedMessage={
+            !hasBlog
+              ? "Complete Step 4 (blog) first."
+              : !toolsReadyForBriefs
+                ? "Complete Step 3 (tool pages) first — pillar includes a Top AI Tools section."
+                : undefined
+          }
         />
       </div>
 
