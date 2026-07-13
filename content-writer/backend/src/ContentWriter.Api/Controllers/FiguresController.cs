@@ -5,7 +5,6 @@ using ContentWriter.Domain.Entities;
 using ContentWriter.Domain.Enums;
 using ContentWriter.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace ContentWriter.Api.Controllers;
 
@@ -16,23 +15,17 @@ public class FiguresController : ControllerBase
     private readonly IContentFigureRepository _figures;
     private readonly IProjectRepository _projects;
     private readonly IContentFigureAttachService _attachService;
-    private readonly IContentFigureImageGenerationService _imageGeneration;
-    private readonly FigureImageGenerationOptions _figureImageOptions;
     private readonly ILogger<FiguresController> _logger;
 
     public FiguresController(
         IContentFigureRepository figures,
         IProjectRepository projects,
         IContentFigureAttachService attachService,
-        IContentFigureImageGenerationService imageGeneration,
-        IOptions<FigureImageGenerationOptions> figureImageOptions,
         ILogger<FiguresController> logger)
     {
         _figures = figures;
         _projects = projects;
         _attachService = attachService;
-        _imageGeneration = imageGeneration;
-        _figureImageOptions = figureImageOptions.Value;
         _logger = logger;
     }
 
@@ -49,7 +42,7 @@ public class FiguresController : ControllerBase
             projectId,
             rows.Select(ToDto).ToList(),
             BuildSummary(rows),
-            _figureImageOptions.InAppGenerationEnabled));
+            InAppGenerationEnabled: false));
     }
 
     [HttpGet("export")]
@@ -77,50 +70,25 @@ public class FiguresController : ControllerBase
     }
 
     [HttpPost("generate")]
-    public async Task<ActionResult<FigureGenerateResponse>> Generate(
+    [Obsolete("Use the external SectionFigures CLI.")]
+    public ActionResult<FigureGenerateResponse> Generate(
         Guid projectId,
-        [FromBody] FigureGenerateRequest request,
-        CancellationToken cancellationToken)
-    {
-        if (!await ProjectExistsAsync(projectId, cancellationToken))
-        {
-            return NotFound();
-        }
+        [FromBody] FigureGenerateRequest request) =>
+        Problem(
+            "In-app figure generation is disabled. Use the SectionFigures CLI (export-jobs → generate).",
+            statusCode: 410,
+            title: "Use SectionFigures CLI");
 
-        try
-        {
-            FigureSourceValidator.ValidateSourceType(request.Source);
-            IReadOnlyList<ContentFigure> figures;
-            if (string.IsNullOrWhiteSpace(request.HeadingSlug))
-            {
-                figures = await _imageGeneration.GeneratePendingAsync(
-                    projectId,
-                    request.Source,
-                    cancellationToken);
-            }
-            else
-            {
-                figures =
-                [
-                    await _imageGeneration.GenerateAsync(
-                        projectId,
-                        request.Source,
-                        request.HeadingSlug,
-                        cancellationToken),
-                ];
-            }
-
-            return Ok(new FigureGenerateResponse(
-                request.Source,
-                figures.Count,
-                figures.Select(ToDto).ToList()));
-        }
-        catch (ContentGenerationException ex)
-        {
-            _logger.LogWarning(ex, "Figure generation failed for project {ProjectId}", projectId);
-            return Problem(ex.Message, statusCode: 400, title: "Figure generation failed");
-        }
-    }
+    [HttpPost("{source}/{headingSlug}/generate")]
+    [Obsolete("Use the external SectionFigures CLI.")]
+    public ActionResult<ContentFigureDto> GenerateOne(
+        Guid projectId,
+        string source,
+        string headingSlug) =>
+        Problem(
+            "In-app figure generation is disabled. Use the SectionFigures CLI (export-jobs → generate).",
+            statusCode: 410,
+            title: "Use SectionFigures CLI");
 
     [HttpPost("{source}/{headingSlug}/attach")]
     [RequestSizeLimit(10 * 1024 * 1024)]
@@ -217,33 +185,6 @@ public class FiguresController : ControllerBase
         }
     }
 
-    [HttpPost("{source}/{headingSlug}/generate")]
-    public async Task<ActionResult<ContentFigureDto>> GenerateOne(
-        Guid projectId,
-        string source,
-        string headingSlug,
-        CancellationToken cancellationToken)
-    {
-        if (!await ProjectExistsAsync(projectId, cancellationToken))
-        {
-            return NotFound();
-        }
-
-        try
-        {
-            var figure = await _imageGeneration.GenerateAsync(
-                projectId,
-                source,
-                headingSlug,
-                cancellationToken);
-            return Ok(ToDto(figure));
-        }
-        catch (ContentGenerationException ex)
-        {
-            _logger.LogWarning(ex, "Figure generation failed for project {ProjectId}", projectId);
-            return Problem(ex.Message, statusCode: 400, title: "Figure generation failed");
-        }
-    }
 
     private async Task<bool> ProjectExistsAsync(Guid projectId, CancellationToken cancellationToken)
     {

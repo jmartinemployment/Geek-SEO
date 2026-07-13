@@ -5,10 +5,8 @@ import {
   generateBlogContent,
   generateColdOutreachContent,
   generateImagePromptsContent,
-  generateFigureImage,
   attachFigure,
   skipFigure,
-  generatePendingFigures,
   generatePillarBodyContent,
   generatePillarPlanContent,
   generateToolPagesContent,
@@ -27,7 +25,7 @@ import {
   resolveExportDirectory,
   writeExportFilesToDirectory,
 } from "@/lib/content-writer/exportToLocalDirectory";
-import type { ColdOutreachEmailDraft, ContentFigureDto, ExportMarkdownResponse, FigureStatus, GeneratedContentSet, ImagePromptSection, ImagePromptsSet, PublishToSiteResponse, SiteDepartmentSlug, ToolDraft } from "@/lib/content-writer/types";
+import type { ColdOutreachEmailDraft, ContentFigureDto, ExportMarkdownResponse, GeneratedContentSet, ImagePromptSection, ImagePromptsSet, PublishToSiteResponse, SiteDepartmentSlug, ToolDraft } from "@/lib/content-writer/types";
 import { CONTENT_LENGTH_TARGETS, SITE_DEPARTMENTS } from "@/lib/content-writer/types";
 
 type Tab = "article" | "tools" | "blog" | "facebook" | "linkedin" | "cold-outreach" | "image-prompts";
@@ -482,7 +480,6 @@ export default function ContentResults({
             <FiguresStatusPanel
               projectId={projectId}
               refreshKey={figuresRefreshKey}
-              onFiguresChanged={() => setFiguresRefreshKey((k) => k + 1)}
             />
           )}
         </div>
@@ -916,7 +913,6 @@ function ImagePromptsView({
   onFiguresChanged: () => void;
 }) {
   const [figureRows, setFigureRows] = useState<ContentFigureDto[]>([]);
-  const [inAppGenerationEnabled, setInAppGenerationEnabled] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -924,7 +920,6 @@ function ImagePromptsView({
       .then((response) => {
         if (!cancelled) {
           setFigureRows(response.figures);
-          setInAppGenerationEnabled(response.inAppGenerationEnabled);
         }
       })
       .catch(() => {
@@ -956,15 +951,12 @@ function ImagePromptsView({
     );
   }
 
-  function statusFor(section: ImagePromptSection) {
-    return figureFor(section)?.status;
-  }
-
   return (
     <div className="space-y-8">
       <p className="text-sm text-muted">
-        Each H2 has a figure brief. After text is published, save AVIF to the site path shown per section.
-        Section images render in layout columns outside post body — nothing is injected into markdown.
+        Each H2 has a figure brief for the external SectionFigures CLI. After text is published, run{" "}
+        <code className="text-foreground">export-jobs</code> → <code className="text-foreground">generate</code>{" "}
+        or upload AVIF to the site path shown per section. Section images render in layout columns outside post body.
       </p>
       {pillarSections.length > 0 && (
         <ImagePromptSectionGroup
@@ -972,9 +964,7 @@ function ImagePromptsView({
           sections={pillarSections}
           projectId={projectId}
           figureFor={figureFor}
-          statusFor={statusFor}
           onFiguresChanged={onFiguresChanged}
-          inAppGenerationEnabled={inAppGenerationEnabled}
         />
       )}
       {blogSections.length > 0 && (
@@ -983,9 +973,7 @@ function ImagePromptsView({
           sections={blogSections}
           projectId={projectId}
           figureFor={figureFor}
-          statusFor={statusFor}
           onFiguresChanged={onFiguresChanged}
-          inAppGenerationEnabled={inAppGenerationEnabled}
         />
       )}
       {Object.entries(toolGroups).map(([slug, sections]) => (
@@ -995,9 +983,7 @@ function ImagePromptsView({
           sections={sections}
           projectId={projectId}
           figureFor={figureFor}
-          statusFor={statusFor}
           onFiguresChanged={onFiguresChanged}
-          inAppGenerationEnabled={inAppGenerationEnabled}
         />
       ))}
     </div>
@@ -1065,17 +1051,13 @@ function ImagePromptSectionGroup({
   sections,
   projectId,
   figureFor,
-  statusFor,
   onFiguresChanged,
-  inAppGenerationEnabled,
 }: {
   title: string;
   sections: ImagePromptSection[];
   projectId: string;
   figureFor: (section: ImagePromptSection) => ContentFigureDto | undefined;
-  statusFor: (section: ImagePromptSection) => FigureStatus | undefined;
   onFiguresChanged: () => void;
-  inAppGenerationEnabled: boolean;
 }) {
   return (
     <div className="space-y-4">
@@ -1086,26 +1068,10 @@ function ImagePromptSectionGroup({
           item={item}
           projectId={projectId}
           figure={figureFor(item)}
-          figureStatus={statusFor(item)}
           onFiguresChanged={onFiguresChanged}
-          inAppGenerationEnabled={inAppGenerationEnabled}
         />
       ))}
     </div>
-  );
-}
-
-function FigureStatusBadge({ status }: { status: FigureStatus }) {
-  const styles: Record<FigureStatus, string> = {
-    Pending: "bg-slate-100 text-slate-700",
-    Ready: "bg-blue-100 text-blue-900",
-    Published: "bg-green-100 text-green-800",
-    Skipped: "bg-amber-100 text-amber-900",
-  };
-  return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}>
-      {status}
-    </span>
   );
 }
 
@@ -1113,22 +1079,18 @@ function ImagePromptCard({
   item,
   projectId,
   figure,
-  figureStatus,
   onFiguresChanged,
-  inAppGenerationEnabled,
 }: {
   item: ImagePromptSection;
   projectId: string;
   figure?: ContentFigureDto;
-  figureStatus?: FigureStatus;
   onFiguresChanged: () => void;
-  inAppGenerationEnabled: boolean;
 }) {
   const [copied, setCopied] = useState<"prompt" | "all" | null>(null);
-  const [busy, setBusy] = useState<"generate" | "upload" | "skip" | null>(null);
+  const [busy, setBusy] = useState<"upload" | "skip" | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const canAct = Boolean(figure?.geekApiSlug) && figureStatus !== "Skipped";
+  const canAct = Boolean(figure?.geekApiSlug) && figure?.status !== "Skipped";
   const headingSlug = figure?.headingSlug;
   const savePath =
     figure?.geekApiSlug && headingSlug
@@ -1139,20 +1101,6 @@ function ImagePromptCard({
     await copyText(mode === "prompt" ? item.prompt : formatFigureCopyBlock(item));
     setCopied(mode);
     window.setTimeout(() => setCopied(null), 2000);
-  }
-
-  async function handleGenerate() {
-    if (!headingSlug) return;
-    setBusy("generate");
-    setActionError(null);
-    try {
-      await generateFigureImage(projectId, item.sourceType, headingSlug);
-      onFiguresChanged();
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Image generation failed.");
-    } finally {
-      setBusy(null);
-    }
   }
 
   async function handleUpload(file: File) {
@@ -1190,7 +1138,6 @@ function ImagePromptCard({
           <h3 className="text-base font-semibold text-foreground">
             {item.order}. {item.heading}
           </h3>
-          {figureStatus && <FigureStatusBadge status={figureStatus} />}
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -1207,16 +1154,6 @@ function ImagePromptCard({
           >
             {copied === "all" ? "Copied!" : "Copy for image tool"}
           </button>
-          {inAppGenerationEnabled && (
-            <button
-              type="button"
-              disabled={!canAct || busy !== null}
-              onClick={() => void handleGenerate()}
-              className="rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
-            >
-              {busy === "generate" ? "Generating…" : "Generate & save"}
-            </button>
-          )}
           <label
             className={`cursor-pointer rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface ${!canAct || busy !== null ? "pointer-events-none opacity-50" : ""}`}
           >
@@ -1233,7 +1170,7 @@ function ImagePromptCard({
               }}
             />
           </label>
-          {figureStatus !== "Skipped" && (
+          {figure?.status !== "Skipped" && (
             <button
               type="button"
               disabled={!headingSlug || busy !== null}

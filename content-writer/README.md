@@ -200,23 +200,39 @@ When PAA research files are uploaded, publish fails if `## People Also Ask` is m
 
 Section art lives in **layout columns**, not in markdown. geekatyourspot renders static paths via `next/image`. There is no merge-into-body step.
 
-- **Allowed:** explicit save to the conventional path — upload, generate & save, or CLI `attach` / `sync-dir`.
-- **Vetoed:** auto-placement on publish, injecting figures into post body.
+- **Allowed:** Step 6 figure briefs in Content Writer; **SectionFigures CLI** (HTTP export → OpenAI → AVIF on disk); optional manual AVIF upload in UI or legacy `ContentFigures attach`.
+- **Vetoed:** auto-placement on publish, injecting figures into post body, in-app “Generate & save”, figure merge on republish, using DB `Ready`/`Pending` counts as image-completion truth.
 
 Target paths (shown in Content Writer UI after text publish):
 
 - Section: `geekatyourspot/public/images/{TechnicalArticle|Blog|Tool}/{department}/{pageSlug}/h2-{heading-slug}.avif`
 - Hero (blog/tool): `geekatyourspot/public/images/{TechnicalArticle|Blog|Tool}/{department}/{pageSlug}/hero.avif`
 
-Image URLs are **not** stored on or read from GeekAPI posts — save AVIF files to these paths only.
+Image URLs are **not** stored on or read from GeekAPI posts — save AVIF files to these paths only. The `NeedsFigureMerge` column is legacy schema with **no merge behavior**.
+
+### SectionFigures CLI (canonical image generation)
+
+Standalone operator tool — **no database access**. Reads briefs via HTTP; writes AVIF to disk only.
 
 ```bash
 cd content-writer/backend
-export CONTENT_WRITER_DATABASE_URL="postgresql://..."
+export CONTENT_WRITER_API_URL=https://seo-api.geekatyourspot.com
+export CONTENT_IMAGE_OUTPUT_DIR=/path/to/geekatyourspot/public
+export OPENAI_API_KEY=sk-...
 
-dotnet run --project tools/ContentFigures/ContentFigures.csproj -- list --project-id <guid>
-dotnet run --project tools/ContentFigures/ContentFigures.csproj -- attach \
-  --project-id <guid> --source pillar --heading-slug <slug> --file ./h2-<slug>.avif
+dotnet run --project tools/SectionFigures/SectionFigures.csproj -- export-jobs \
+  --project-id <guid> --out jobs.json
+dotnet run --project tools/SectionFigures/SectionFigures.csproj -- plan --jobs jobs.json
+dotnet run --project tools/SectionFigures/SectionFigures.csproj -- generate --jobs jobs.json --yes
 ```
 
-See [`tools/ContentFigures/README.md`](backend/tools/ContentFigures/README.md) for `skip`, `export-manifest`, and `sync-dir`.
+See [`tools/SectionFigures/README.md`](backend/tools/SectionFigures/README.md).
+
+### Legacy ContentFigures CLI (optional DB stamp)
+
+```bash
+export CONTENT_WRITER_DATABASE_URL="postgresql://..."
+dotnet run --project tools/ContentFigures/ContentFigures.csproj -- attach ...
+```
+
+See [`tools/ContentFigures/README.md`](backend/tools/ContentFigures/README.md) for `list`, `skip`, `export-manifest`, and `sync-dir`.

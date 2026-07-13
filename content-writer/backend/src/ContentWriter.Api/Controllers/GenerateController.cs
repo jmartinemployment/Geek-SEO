@@ -40,8 +40,12 @@ public class GenerateController : ControllerBase
         RunStep(projectId, _orchestrator.GenerateToolPagesAsync(projectId, cancellationToken), "tools");
 
     [HttpPost("images")]
+    [Obsolete("In-app image generation removed — use the external SectionFigures CLI.")]
     public Task<IActionResult> GenerateImages(Guid projectId, CancellationToken cancellationToken) =>
-        RunStep(projectId, _orchestrator.GenerateImagesAsync(projectId, cancellationToken), "images");
+        Task.FromResult<IActionResult>(Problem(
+            "In-app image generation is disabled. Use the SectionFigures CLI (export-jobs → generate).",
+            statusCode: 410,
+            title: "Use SectionFigures CLI"));
 
     [HttpPost("social")]
     public Task<IActionResult> GenerateSocial(Guid projectId, CancellationToken cancellationToken) =>

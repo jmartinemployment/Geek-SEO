@@ -3,7 +3,6 @@ import type {
   ContentFiguresListResponse,
   CrawlSummary,
   ExportMarkdownResponse,
-  FigureGenerateResponse,
   GeneratedContentSet,
   KeywordSourceCategory,
   KeywordSourceResponse,
@@ -226,28 +225,6 @@ export function skipFigure(
     `/api/projects/${projectId}/figures/${encodedSource}/${encodeURIComponent(headingSlug)}/skip`,
     { method: "POST" }
   );
-}
-
-export function generateFigureImage(
-  projectId: string,
-  source: string,
-  headingSlug: string
-): Promise<ContentFigureDto> {
-  const encodedSource = encodeURIComponent(source);
-  return request<ContentFigureDto>(
-    `/api/projects/${projectId}/figures/${encodedSource}/${encodeURIComponent(headingSlug)}/generate`,
-    { method: "POST" }
-  );
-}
-
-export function generatePendingFigures(
-  projectId: string,
-  source: string
-): Promise<FigureGenerateResponse> {
-  return request<FigureGenerateResponse>(`/api/projects/${projectId}/figures/generate`, {
-    method: "POST",
-    body: JSON.stringify({ source }),
-  });
 }
 
 export function generateAllContent(projectId: string): Promise<GeneratedContentSet> {

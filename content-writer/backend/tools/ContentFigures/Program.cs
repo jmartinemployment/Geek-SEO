@@ -173,15 +173,12 @@ var headingSlugOptional = new Option<string?>("--heading-slug")
     Description = "Stable heading slug; omit to generate all Pending figures for the source",
 };
 
-var generateCmd = new Command("generate", "Generate section art from figure briefs via OpenAI");
-generateCmd.AddOption(projectIdOption);
-generateCmd.AddOption(sourceOption);
-generateCmd.AddOption(headingSlugOptional);
-generateCmd.SetHandler(async (projectId, source, headingSlug) =>
+var generateCmd = new Command("generate", "DEPRECATED — use SectionFigures generate instead");
+generateCmd.SetHandler(() =>
 {
-    var count = await ContentFigureImageGenerationRunner.GenerateAsync(projectId, source, headingSlug);
-    Console.WriteLine($"Generated {count} figure(s) for {source}.");
-}, projectIdOption, sourceOption, headingSlugOptional);
+    Console.Error.WriteLine("ContentFigures generate is deprecated. Use tools/SectionFigures (export-jobs → generate).");
+    return Task.FromResult(1);
+});
 
 root.AddCommand(listCmd);
 root.AddCommand(attachCmd);
