@@ -67,6 +67,19 @@ public sealed class OpenAiImageClient(HttpClient http, string apiKey, string mod
     }
 }
 
+public enum FigureJobEventKind
+{
+    Started,
+    SkippedExists,
+    Succeeded,
+    Failed,
+}
+
+public sealed record FigureJobEvent(
+    FigureJobEventKind Kind,
+    string RelativePath,
+    string? Message);
+
 public sealed record GenerateSummary(int Succeeded, int SkippedExists, int Failed);
 
 public static class JobGenerator
@@ -79,6 +92,7 @@ public static class JobGenerator
         bool force,
         int concurrency,
         bool failFast,
+        Action<FigureJobEvent>? onEvent = null,
         CancellationToken cancellationToken = default)
     {
         var succeeded = 0;
@@ -95,21 +109,25 @@ public static class JobGenerator
                 if (!force && File.Exists(absolute))
                 {
                     Interlocked.Increment(ref skippedExists);
+                    onEvent?.Invoke(new FigureJobEvent(FigureJobEventKind.SkippedExists, job.RelativePath, null));
                     Console.WriteLine($"SKIP (exists): {job.RelativePath}");
                     return;
                 }
 
                 try
                 {
+                    onEvent?.Invoke(new FigureJobEvent(FigureJobEventKind.Started, job.RelativePath, null));
                     var png = await openAi.GeneratePngAsync(job.ComposedPrompt, cancellationToken);
                     var avif = await avifEncoder.EncodePngAsync(png, cancellationToken);
                     await WriteAvifAtomicallyAsync(absolute, avif, cancellationToken);
                     Interlocked.Increment(ref succeeded);
+                    onEvent?.Invoke(new FigureJobEvent(FigureJobEventKind.Succeeded, job.RelativePath, null));
                     Console.WriteLine($"OK: {job.RelativePath}");
                 }
                 catch (Exception ex)
                 {
                     Interlocked.Increment(ref failed);
+                    onEvent?.Invoke(new FigureJobEvent(FigureJobEventKind.Failed, job.RelativePath, ex.Message));
                     Console.Error.WriteLine(
                         $"FAIL: {job.SourceType}/{job.HeadingSlug} ({job.Heading}): {ex.Message}");
                     if (failFast)

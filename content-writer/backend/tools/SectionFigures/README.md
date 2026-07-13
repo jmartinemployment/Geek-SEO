@@ -15,7 +15,28 @@ geekatyourspot renders images from layout slots checking `public/images/{Technic
 
 Optional overrides: `SECTION_FIGURES_OPENAI_MODEL` (default `dall-e-3`), `SECTION_FIGURES_OPENAI_SIZE` (default `1792x1024`).
 
-## Commands
+## Open the app (primary)
+
+Set env vars (`.env` in repo root or shell):
+
+```bash
+export CONTENT_WRITER_API_URL=https://seo-api.geekatyourspot.com
+export CONTENT_IMAGE_OUTPUT_DIR=/path/to/geekatyourspot/public
+export OPENAI_API_KEY=sk-...
+```
+
+Then:
+
+```bash
+cd content-writer/backend
+dotnet run --project tools/SectionFigures/SectionFigures.csproj
+```
+
+Opens **http://127.0.0.1:5299** in your browser. Export → plan → generate batch there.
+
+Content Writer is **briefs only** — it never shipped working section AVIFs to disk. SectionFigures uses the same flowchart/infographic compose prompt that worked when agents generated images manually.
+
+## CLI (optional)
 
 ```bash
 cd content-writer/backend

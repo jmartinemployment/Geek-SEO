@@ -2,6 +2,7 @@ using System.CommandLine;
 using System.Text.Json;
 using DotNetEnv;
 using SectionFigures.Models;
+using SectionFigures.Web;
 
 namespace SectionFigures;
 
@@ -12,6 +13,14 @@ public static class Program
     public static async Task<int> Main(string[] args)
     {
         Env.TraversePath().Load();
+
+        if (args.Length == 0)
+        {
+            args = ["serve"];
+        }
+
+        var portOption = new Option<int>("--port", () => 5299, "Local HTTP port");
+        var noBrowserOption = new Option<bool>("--no-browser", "Do not open a browser tab automatically");
 
         var projectIdOption = new Option<Guid>("--project-id")
         {
@@ -30,7 +39,26 @@ public static class Program
 
         var failFastOption = new Option<bool>("--fail-fast", "Stop batch on first OpenAI failure");
 
-        var root = new RootCommand("SectionFigures — external section art pipeline (HTTP read, disk write, no database)");
+        var root = new RootCommand("SectionFigures — section art pipeline (local web UI or CLI)");
+
+        var serveCmd = new Command("serve", "Open the local web UI (default)");
+        serveCmd.AddOption(portOption);
+        serveCmd.AddOption(noBrowserOption);
+        serveCmd.SetHandler(async (port, noBrowser) =>
+        {
+            try
+            {
+                EnvironmentConfig.RequireOutputRoot();
+            }
+            catch (InvalidOperationException ex)
+            {
+                Console.Error.WriteLine(ex.Message);
+                Environment.ExitCode = 1;
+                return;
+            }
+
+            await WebHostRunner.RunAsync(port, openBrowser: !noBrowser);
+        }, portOption, noBrowserOption);
 
         var exportCmd = new Command("export-jobs", "Fetch figure briefs from Content Writer HTTP API and write jobs.json");
         exportCmd.AddOption(projectIdOption);
@@ -58,7 +86,7 @@ public static class Program
         planCmd.AddOption(projectIdOption);
         planCmd.SetHandler(async (jobsFile, projectId) =>
         {
-            var outputRoot = RequireOutputRoot();
+            var outputRoot = EnvironmentConfig.RequireOutputRoot();
             var jobFile = await LoadJobsAsync(jobsFile, projectId);
             var summary = JobPlanner.Summarize(jobFile.Jobs, outputRoot);
             JobPlanner.PrintPlan(summary, jobFile.Jobs, outputRoot);
@@ -73,7 +101,7 @@ public static class Program
         generateCmd.AddOption(failFastOption);
         generateCmd.SetHandler(async (jobsFile, projectId, yes, force, concurrency, failFast) =>
         {
-            var outputRoot = RequireOutputRoot();
+            var outputRoot = EnvironmentConfig.RequireOutputRoot();
             var jobFile = await LoadJobsAsync(jobsFile, projectId);
             var summary = JobPlanner.Summarize(jobFile.Jobs, outputRoot);
             var toRun = force ? summary.TotalJobs : summary.ToGenerate;
@@ -104,6 +132,7 @@ public static class Program
             }
         }, jobsOption, projectIdOption, yesOption, forceOption, concurrencyOption, failFastOption);
 
+        root.AddCommand(serveCmd);
         root.AddCommand(exportCmd);
         root.AddCommand(planCmd);
         root.AddCommand(generateCmd);
@@ -117,18 +146,6 @@ public static class Program
             Console.Error.WriteLine(ex.Message);
             return ex.Message.Contains("missing GeekApiSlug", StringComparison.OrdinalIgnoreCase) ? 2 : 1;
         }
-    }
-
-    private static string RequireOutputRoot()
-    {
-        var root = Environment.GetEnvironmentVariable("CONTENT_IMAGE_OUTPUT_DIR");
-        if (string.IsNullOrWhiteSpace(root))
-        {
-            throw new InvalidOperationException(
-                "CONTENT_IMAGE_OUTPUT_DIR is required (path to geekatyourspot/public).");
-        }
-
-        return Path.GetFullPath(root);
     }
 
     private static async Task<FigureJobFile> LoadJobsAsync(FileInfo? jobsFile, Guid projectId)
