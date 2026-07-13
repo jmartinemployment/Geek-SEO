@@ -33,10 +33,8 @@ public sealed class OpenAiImageClient(HttpClient http, string apiKey, string mod
 
     public async Task<byte[]> GeneratePngAsync(string prompt, CancellationToken cancellationToken = default)
     {
-        var useLegacyResponseFormat = model.StartsWith("dall-e", StringComparison.OrdinalIgnoreCase);
-        var payload = useLegacyResponseFormat
-            ? (object)new { model, prompt, n = 1, size, response_format = "b64_json" }
-            : new { model, prompt, n = 1, size };
+        // Do not send response_format — gpt-image-* and current Images API reject it as unknown.
+        var payload = new { model, prompt, n = 1, size };
 
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
@@ -52,18 +50,33 @@ public sealed class OpenAiImageClient(HttpClient http, string apiKey, string mod
                 $"OpenAI image generation failed ({(int)response.StatusCode}): {body}");
         }
 
-        using var document = JsonDocument.Parse(body);
-        var b64 = document.RootElement
-            .GetProperty("data")[0]
-            .GetProperty("b64_json")
-            .GetString();
+        return await ExtractImageBytesAsync(body, cancellationToken);
+    }
 
-        if (string.IsNullOrWhiteSpace(b64))
+    private async Task<byte[]> ExtractImageBytesAsync(string body, CancellationToken cancellationToken)
+    {
+        using var document = JsonDocument.Parse(body);
+        var item = document.RootElement.GetProperty("data")[0];
+
+        if (item.TryGetProperty("b64_json", out var b64Prop))
         {
-            throw new InvalidOperationException("OpenAI image response missing b64_json.");
+            var b64 = b64Prop.GetString();
+            if (!string.IsNullOrWhiteSpace(b64))
+            {
+                return Convert.FromBase64String(b64);
+            }
         }
 
-        return Convert.FromBase64String(b64);
+        if (item.TryGetProperty("url", out var urlProp))
+        {
+            var url = urlProp.GetString();
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                return await http.GetByteArrayAsync(url, cancellationToken);
+            }
+        }
+
+        throw new InvalidOperationException("OpenAI image response missing image data.");
     }
 }
 

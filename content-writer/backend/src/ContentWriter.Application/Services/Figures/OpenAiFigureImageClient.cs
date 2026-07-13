@@ -28,10 +28,8 @@ public sealed class OpenAiFigureImageClient(
 
         var size = MapSize(width, height);
         var model = _imageOptions.OpenAiModel;
-        var useLegacyResponseFormat = UsesLegacyResponseFormat(model);
-        var payload = useLegacyResponseFormat
-            ? (object)new { model, prompt, n = 1, size, response_format = "b64_json" }
-            : new { model, prompt, n = 1, size };
+        // Do not send response_format — gpt-image-* and current Images API reject it as unknown.
+        var payload = new { model, prompt, n = 1, size };
 
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
@@ -47,22 +45,34 @@ public sealed class OpenAiFigureImageClient(
                 $"OpenAI image generation failed ({(int)response.StatusCode}): {body}");
         }
 
-        using var document = JsonDocument.Parse(body);
-        var b64 = document.RootElement
-            .GetProperty("data")[0]
-            .GetProperty("b64_json")
-            .GetString();
-
-        if (string.IsNullOrWhiteSpace(b64))
-        {
-            throw new ContentGenerationException("OpenAI image response missing image data.");
-        }
-
-        return Convert.FromBase64String(b64);
+        return await ExtractImageBytesAsync(body, cancellationToken);
     }
 
-    private static bool UsesLegacyResponseFormat(string model) =>
-        model.StartsWith("dall-e", StringComparison.OrdinalIgnoreCase);
+    private async Task<byte[]> ExtractImageBytesAsync(string body, CancellationToken cancellationToken)
+    {
+        using var document = JsonDocument.Parse(body);
+        var item = document.RootElement.GetProperty("data")[0];
+
+        if (item.TryGetProperty("b64_json", out var b64Prop))
+        {
+            var b64 = b64Prop.GetString();
+            if (!string.IsNullOrWhiteSpace(b64))
+            {
+                return Convert.FromBase64String(b64);
+            }
+        }
+
+        if (item.TryGetProperty("url", out var urlProp))
+        {
+            var url = urlProp.GetString();
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                return await http.GetByteArrayAsync(url, cancellationToken);
+            }
+        }
+
+        throw new ContentGenerationException("OpenAI image response missing image data.");
+    }
 
     private static string MapSize(int width, int height) => (width, height) switch
     {
