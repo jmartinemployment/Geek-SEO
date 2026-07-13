@@ -154,6 +154,15 @@ public static class SeoBackendExtensions
         services.AddScoped<IGeocodeService, CompositeGeocodeService>();
         services.AddScoped<ILocalSerpContextResolver, LocalSerpContextResolver>();
 
+        services.AddHttpClient("Copyscape", client => client.Timeout = TimeSpan.FromSeconds(90));
+        services.AddSingleton(_ => new CopyscapeOptions
+        {
+            Username = ReadEnv("COPYSCAPE_USERNAME"),
+            ApiKey = ReadEnv("COPYSCAPE_API_KEY"),
+            SpendLimitUsd = decimal.TryParse(ReadEnv("COPYSCAPE_SPEND_LIMIT_USD"), out var limit) ? limit : 0.50m,
+        });
+        services.AddScoped<IPlagiarismProvider, CopyscapePlagiarismProvider>();
+
         services.AddSignalR();
         services.AddSingleton<Microsoft.AspNetCore.SignalR.IUserIdProvider, Hubs.SubUserIdProvider>();
         AddAuthentication(services, configuration);

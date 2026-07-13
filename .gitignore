@@ -31,3 +31,4 @@ node_modules/
 # Local operator SERP saves (uploaded to Site Analyzer; not versioned)
 research/**/*
 !research/.gitkeep
+!research/DO_NOT_DELETE
