@@ -16,6 +16,11 @@ public interface IFigureDraftGenerationService
         string sourceType,
         string headingSlug,
         CancellationToken cancellationToken = default);
+
+    Task<byte[]> GenerateAvifFromBriefAsync(
+        string heading,
+        string briefText,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class FigureDraftGenerationService : IFigureDraftGenerationService
@@ -82,5 +87,20 @@ public sealed class FigureDraftGenerationService : IFigureDraftGenerationService
             avifBytes,
             altOverride: null,
             cancellationToken);
+    }
+
+    public async Task<byte[]> GenerateAvifFromBriefAsync(
+        string heading,
+        string briefText,
+        CancellationToken cancellationToken = default)
+    {
+        var prompt = FigureImagePromptComposer.Compose(briefText, heading);
+        var pngBytes = await _imageClient.GeneratePngAsync(
+            prompt,
+            ImagePromptDefaults.PillarWidth,
+            ImagePromptDefaults.PillarHeight,
+            cancellationToken);
+
+        return await FigureAvifEncoder.EncodePngAsync(pngBytes, cancellationToken);
     }
 }
