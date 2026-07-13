@@ -4,12 +4,12 @@ using ContentWriter.Application.Services.SchemaBuilders;
 
 namespace ContentWriter.Application.Tests;
 
-public class NewsArticleSchemaBuilderTests
+public class TechnicalArticleSchemaBuilderTests
 {
     [Fact]
-    public void Build_emits_NewsArticle_with_pillar_citation_and_optional_about()
+    public void BuildToolOverview_emits_TechnicalArticle_with_pillar_citation_and_software_graph()
     {
-        var builder = new NewsArticleSchemaBuilder();
+        var builder = new TechnicalArticleSchemaBuilder(new SoftwareApplicationSchemaBuilder());
         var metadata = new ContentMetadata(
             "HubSpot",
             "SEO summary for HubSpot in accounting workflows.",
@@ -23,23 +23,26 @@ public class NewsArticleSchemaBuilderTests
             ["ai accounting"],
             650);
 
-        var json = builder.Build(
+        var json = builder.BuildToolOverview(
             metadata,
             "https://www.geekatyourspot.com/use-cases/accounting/ai-for-accounting",
             new SoftwareApplicationDescriptor("HubSpot", "CRM platform"));
 
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
-        Assert.Equal("NewsArticle", root.GetProperty("@type").GetString());
+        Assert.True(root.TryGetProperty("@graph", out var graph));
+        var article = graph.EnumerateArray().First(e =>
+            e.GetProperty("@type").GetString() == "TechnicalArticle");
         Assert.Equal("https://www.geekatyourspot.com/tools/accounting/hubspot",
-            root.GetProperty("mainEntityOfPage").GetProperty("@id").GetString());
+            article.GetProperty("mainEntityOfPage").GetProperty("@id").GetString());
         Assert.Equal("TechnicalArticle",
-            root.GetProperty("citation")[0].GetProperty("@type").GetString());
+            article.GetProperty("citation")[0].GetProperty("@type").GetString());
         Assert.Equal("https://www.geekatyourspot.com/use-cases/accounting/ai-for-accounting",
-            root.GetProperty("citation")[0].GetProperty("url").GetString());
-        Assert.Equal("SoftwareApplication",
-            root.GetProperty("about").GetProperty("@type").GetString());
-        Assert.Equal(650, root.GetProperty("wordCount").GetInt32());
+            article.GetProperty("citation")[0].GetProperty("url").GetString());
+        Assert.Equal(650, article.GetProperty("wordCount").GetInt32());
+        Assert.True(graph.EnumerateArray().Any(e =>
+            e.GetProperty("@type").GetString() == "SoftwareApplication"));
+        Assert.DoesNotContain("NewsArticle", json, StringComparison.Ordinal);
         Assert.DoesNotContain("BlogPosting", json, StringComparison.Ordinal);
     }
 }

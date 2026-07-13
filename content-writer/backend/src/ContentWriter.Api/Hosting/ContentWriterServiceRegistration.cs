@@ -113,7 +113,6 @@ public static class ContentWriterServiceRegistration
         services.AddScoped<IContentPromptBuilder, ContentPromptBuilder>();
         services.AddScoped<ISoftwareApplicationSchemaBuilder, SoftwareApplicationSchemaBuilder>();
         services.AddScoped<ITechnicalArticleSchemaBuilder, TechnicalArticleSchemaBuilder>();
-        services.AddScoped<INewsArticleSchemaBuilder, NewsArticleSchemaBuilder>();
         services.AddScoped<IBlogPostingSchemaBuilder, BlogPostingSchemaBuilder>();
         services.AddScoped<IContentGenerationOrchestrator, ContentGenerationOrchestrator>();
         services.AddScoped<IContentMarkdownExportService, ContentMarkdownExportService>();

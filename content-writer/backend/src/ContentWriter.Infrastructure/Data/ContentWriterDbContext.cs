@@ -104,6 +104,7 @@ public class ContentWriterDbContext : DbContext
             entity.Property(g => g.HeroExcerpt).HasMaxLength(2000);
             entity.Property(g => g.NewspaperExcerpt).HasMaxLength(2000);
             entity.Property(g => g.PillarPageUseCaseExcerpt).HasMaxLength(2000);
+            entity.Property(g => g.ToolPageExcerpt).HasMaxLength(2000);
             entity.Property(g => g.Advertisement).HasMaxLength(4000);
             entity.Property(g => g.JsonLdSchema);
             entity.Property(g => g.MetaDescription);

@@ -108,18 +108,18 @@ export interface ArticleDraft {
 
 export const CONTENT_LENGTH_TARGETS = {
   pillar: {
-    min: 3000,
-    max: 5000,
-    label: "3,000–5,000+",
+    min: 1500,
+    max: 2500,
+    label: "1,500–2,500+",
     definition:
-      "Exhaustive macro-level entry points for massive topics — multiple subsections that link out to cluster articles.",
+      "Technical articles — in-depth tutorials and topical authority with room for long-tail keywords and structured problem-solving.",
   },
   blog: {
-    min: 1800,
+    min: 1500,
     max: 2500,
-    label: "1,800–2,500",
+    label: "1,500–2,500",
     definition:
-      "Deep-dive articles aimed at outranking competitors — substantive depth in every section, not surface summaries.",
+      "Blog postings — listicles, how-tos, and evergreen guides with headers, bullets, and internal linking depth.",
   },
   listicleGuide: {
     min: 1200,
@@ -129,18 +129,19 @@ export const CONTENT_LENGTH_TARGETS = {
       "Actionable step-by-step tutorials with substantial context, data, and layout formatting.",
   },
   news: {
-    min: 400,
-    max: 800,
-    label: "400–800",
-    definition: "Press releases and short announcements — timely and concise.",
+    min: 600,
+    max: 1000,
+    label: "600–1,000",
+    definition:
+      "News articles — timely, focused copy with core details upfront for quick indexing and skimming readers.",
   },
   tool: {
-    min: 500,
-    max: 800,
+    min: 600,
+    max: 1000,
     hardMax: 1000,
-    label: "500–800",
+    label: "600–1,000",
     definition:
-      "NewsArticle-style tool overviews — hero, newspaper wire, advertisement, and SEO meta description.",
+      "TechnicalArticle tool overviews — concise platform coverage with distinct presentation copy and JSON-LD citing the pillar.",
   },
   emailColdOutreach: {
     min: 50,
@@ -172,8 +173,10 @@ export const CONTENT_LENGTH_TARGETS = {
 export interface ToolDraft {
   title: string;
   displayTitle: string;
+  departmentListExcerpt: string;
   heroExcerpt: string;
   newspaperExcerpt: string;
+  toolPageExcerpt: string;
   metaDescription: string;
   advertisement: string | null;
   bodyHtml: string;

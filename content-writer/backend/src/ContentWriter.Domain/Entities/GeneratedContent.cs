@@ -32,7 +32,10 @@ public class GeneratedContent
     /// <summary>Pillar page content slot (TechnicalArticle rows only).</summary>
     public string PillarPageUseCaseExcerpt { get; set; } = string.Empty;
 
-    /// <summary>NewsArticle / sponsored ad copy — not an excerpt (tool, blog).</summary>
+    /// <summary>Tool page content slot (TechnicalArticle tool rows only).</summary>
+    public string ToolPageExcerpt { get; set; } = string.Empty;
+
+    /// <summary>Sponsored ad copy — not an excerpt (tool, blog).</summary>
     public string? Advertisement { get; set; }
 
     public string? MetaDescription { get; set; }

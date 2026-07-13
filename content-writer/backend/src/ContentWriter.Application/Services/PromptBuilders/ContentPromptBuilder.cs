@@ -87,10 +87,14 @@ public class ContentPromptBuilder : IContentPromptBuilder
     private const string ColdOutreachJsonContract =
         "{\"subject\": string, \"bodyText\": string (50-125 words), \"ctaLabel\": string}";
 
-    private const string ImagePromptSectionItemJsonContract =
-        "{\"sourceType\": \"pillar|blog|tool\", \"heading\": string (exact H2 text), \"order\": number, \"prompt\": string (40-400 words), \"width\": number, \"height\": number, \"leonardoModel\": string, \"stylePreset\": string, \"alchemy\": boolean, \"photoReal\": boolean, \"notes\": string|null}";
+    private static readonly string ImagePromptSectionItemJsonContract =
+        "{\"sourceType\": \"pillar|blog|tool/{slug}\", \"heading\": string (exact H2 text), \"order\": number, \"prompt\": string (pillar/blog teaching sections: "
+        + ImagePromptDefaults.PromptMinWords + "-" + ImagePromptDefaults.PromptMaxWords
+        + " words; pillar Top AI Tools H2 and all tool/ sections: sponsored advertisement art direction "
+        + ImagePromptDefaults.AdvertisementPromptMinWords + "-" + ImagePromptDefaults.AdvertisementPromptMaxWords
+        + " words — NOT excerpt-length), \"width\": number, \"height\": number, \"leonardoModel\": string, \"stylePreset\": string, \"alchemy\": boolean, \"photoReal\": boolean, \"notes\": string|null}";
 
-    private const string ImagePromptSectionsJsonContract =
+    private static readonly string ImagePromptSectionsJsonContract =
         "{\"sections\": [" + ImagePromptSectionItemJsonContract + ", ...]}";
 
     private const string NoRelatedItemsSectionRule =
@@ -505,13 +509,15 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine("- Flat vector / infographic, professional fintech or B2B tech aesthetic.")
             .AppendLine($"- Intended dimensions: {ImagePromptDefaults.PillarWidth}x{ImagePromptDefaults.PillarHeight}.")
             .AppendLine("- NO readable text, logos, or watermarks in the image.")
-            .AppendLine("- Pillar sections: teaching diagram, slightly more technical.")
+            .AppendLine("- Pillar sections (except Top AI Tools H2): teaching diagram, slightly more technical.")
             .AppendLine("- Blog sections: warmer step-by-step feel, still no readable text.")
             .AppendLine("- People Also Ask: abstract Q&A bubbles/shapes without words.")
-            .AppendLine("- Tools sections: generic software tiles/icons — no brand names.")
+            .AppendLine($"- Pillar Top AI Tools H2 and tool/ sections: sponsored ADVERTISEMENT figure — promotional layout, rich visual storytelling (NOT a short excerpt). Target {ImagePromptDefaults.AdvertisementPromptMinWords}–{ImagePromptDefaults.AdvertisementPromptMaxWords} words per brief.")
+            .AppendLine("- Advertisement figures: bold sponsored-panel composition, product tiles, call-to-action shapes — no readable text or brand logos.")
             .AppendLine()
             .AppendLine("BRIEF FORMAT (include in JSON for each section):")
-            .AppendLine("- Describe composition, key shapes, flow arrows, and color mood in 2-4 sentences.")
+            .AppendLine($"- Teaching sections: composition, shapes, flow, color mood in {ImagePromptDefaults.PromptMinWords}–{ImagePromptDefaults.PromptMaxWords} words.")
+            .AppendLine($"- Advertisement sections: full art direction for a sponsored promotional spot in {ImagePromptDefaults.AdvertisementPromptMinWords}–{ImagePromptDefaults.AdvertisementPromptMaxWords} words.")
             .AppendLine("- leonardoModel, stylePreset, alchemy, photoReal, notes: optional legacy fields; use neutral illustration defaults.")
             .AppendLine()
             .AppendLine("Respond with ONLY a single valid JSON object — no markdown fences:")
@@ -531,7 +537,8 @@ public class ContentPromptBuilder : IContentPromptBuilder
 
         foreach (var section in sections)
         {
-            user.AppendLine($"- sourceType: {section.SourceType}, order: {section.Order}, heading: {section.Heading}");
+            var kind = ImagePromptWordLimits.IsAdvertisementFigure(section) ? "advertisement" : "teaching";
+            user.AppendLine($"- sourceType: {section.SourceType}, order: {section.Order}, heading: {section.Heading}, briefKind: {kind}");
         }
 
         return new ChatCompletionRequest(
@@ -541,7 +548,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
     }
 
     private const string ToolMetadataJsonContract =
-        "{\"departmentListExcerpt\": string (1-2 sentences for /tools/{department} hub cards), \"heroExcerpt\": string (1-2 sentences, blurb under tool page H1), \"newspaperExcerpt\": string (1-2 sentences for newspaper sponsored wire), \"advertisement\": string (2-4 sentences, longer NewsArticle promotional copy — not an excerpt), \"metaDescription\": string (max 160 chars, SEO only, distinct from the other four)}";
+        "{\"departmentListExcerpt\": string (1-2 sentences for /tools/{department} hub cards), \"heroExcerpt\": string (1-2 sentences, blurb under tool page H1), \"newspaperExcerpt\": string (1-2 sentences for newspaper sponsored wire), \"toolPageExcerpt\": string (1-2 sentences for newspaper tool content column), \"advertisement\": string (2-4 sentences, longer sponsored promotional copy — not an excerpt), \"metaDescription\": string (max 160 chars, SEO only, distinct from the other five)}";
 
     public ChatCompletionRequest BuildToolBodyPrompt(
         ProjectGenerationContext context,
@@ -554,6 +561,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine("You are a senior technical writer for an IT consulting firm.")
             .AppendLine($"Editorial standard: {ContentLengthTargets.ToolEditorialDefinition}")
             .AppendLine("Write a tool overview page as HTML only (no markdown, no JSON wrapper).")
+            .AppendLine("This page is published as schema.org TechnicalArticle — expert technical tone, not breaking news.")
             .AppendLine("Use <h2> for main sections and <h3> for subsections with multiple <p> paragraphs.")
             .AppendLine("Start at the first <h2> — no introductory paragraphs before it.")
             .AppendLine("Required <h2> sections: Overview, Key Capabilities, Implementation Considerations, When to Use.")
@@ -583,10 +591,10 @@ public class ContentPromptBuilder : IContentPromptBuilder
         string bodyHtml)
     {
         var system = new StringBuilder()
-            .AppendLine("You write presentation metadata for a B2B tool overview page (schema.org NewsArticle).")
+            .AppendLine("You write presentation metadata for a B2B tool overview page (schema.org TechnicalArticle).")
             .AppendLine("Respond with ONLY a single valid JSON object — no markdown fences:")
             .AppendLine(ToolMetadataJsonContract)
-            .AppendLine("departmentListExcerpt, heroExcerpt, newspaperExcerpt, advertisement, and metaDescription must each use different wording.")
+            .AppendLine("departmentListExcerpt, heroExcerpt, newspaperExcerpt, toolPageExcerpt, advertisement, and metaDescription must each use different wording.")
             .ToString();
 
         var user = new StringBuilder()

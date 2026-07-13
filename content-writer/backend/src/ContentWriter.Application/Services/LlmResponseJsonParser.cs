@@ -224,11 +224,12 @@ public static class LlmResponseJsonParser
                 $"Model returned empty prompt for {expected.SourceType} section \"{expected.Heading}\" in {label}.");
         }
 
+        var (minWords, maxWords) = ImagePromptWordLimits.ForSection(expected);
         var words = item.Prompt.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
-        if (words < ImagePromptDefaults.PromptMinWords || words > ImagePromptDefaults.PromptMaxWords)
+        if (words < minWords || words > maxWords)
         {
             throw new ContentGenerationException(
-                $"Prompt for \"{expected.Heading}\" must be {ImagePromptDefaults.PromptMinWords}–{ImagePromptDefaults.PromptMaxWords} words (got {words}).");
+                $"Prompt for \"{expected.Heading}\" must be {minWords}–{maxWords} words (got {words}).");
         }
 
         if (item.Width < 512 || item.Height < 512 || item.Width > 2048 || item.Height > 2048)

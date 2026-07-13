@@ -167,7 +167,7 @@ public class GeekBlogPublishService : IGeekBlogPublishService
                 department,
                 contentRole: "tool",
                 sourcePillarSlug: contentSet.ArticleSlug,
-                postType: "NewsArticle",
+                postType: "TechnicalArticle",
                 apiSlug,
                 GeneratedContentPresentation.PublishTitle(toolRow),
                 HtmlToMarkdownConverter.Convert(toolRow.BodyHtml),

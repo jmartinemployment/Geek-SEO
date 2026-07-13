@@ -10,6 +10,7 @@ public static class GeneratedContentPresentation
     public const string Hero = "hero";
     public const string NewspaperWire = "newspaper_wire";
     public const string PillarPageContent = "pillar_page_content";
+    public const string ToolPageContent = "tool_page_content";
     public const string Advertisement = "advertisement";
 
     public static string PublishTitle(GeneratedContent row) =>
@@ -40,6 +41,7 @@ public static class GeneratedContentPresentation
         row.DepartmentListExcerpt = metadata.DepartmentListExcerpt.Trim();
         row.HeroExcerpt = metadata.HeroExcerpt.Trim();
         row.NewspaperExcerpt = metadata.NewspaperExcerpt.Trim();
+        row.ToolPageExcerpt = metadata.ToolPageExcerpt.Trim();
         row.Advertisement = TrimOrNull(metadata.Advertisement);
     }
 
@@ -73,6 +75,7 @@ public static class GeneratedContentPresentation
                 Add(DepartmentList, row.DepartmentListExcerpt);
                 Add(Hero, row.HeroExcerpt);
                 Add(NewspaperWire, row.NewspaperExcerpt);
+                Add(ToolPageContent, row.ToolPageExcerpt);
                 Add(Advertisement, row.Advertisement);
                 break;
         }

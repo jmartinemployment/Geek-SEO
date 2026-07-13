@@ -58,6 +58,7 @@ public record ToolMetadataDraft(
     string DepartmentListExcerpt,
     string HeroExcerpt,
     string NewspaperExcerpt,
+    string ToolPageExcerpt,
     string Advertisement,
     string MetaDescription);
 
@@ -94,6 +95,7 @@ public record ToolDraft(
     string DepartmentListExcerpt,
     string HeroExcerpt,
     string NewspaperExcerpt,
+    string ToolPageExcerpt,
     string MetaDescription,
     string? Advertisement,
     string BodyHtml,

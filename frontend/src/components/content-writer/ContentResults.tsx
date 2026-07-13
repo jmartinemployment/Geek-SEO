@@ -162,7 +162,7 @@ export default function ContentResults({
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-foreground">4. Generate Content</h2>
       <p className="mt-1 text-sm text-muted">
-        Run each step separately. Steps 1–2 plan and write the pillar; step 2b generates NewsArticle tool pages from Top AI Tools; steps 3–6 build blog, social, email, and figure briefs.
+        Run each step separately. Steps 1–2 plan and write the pillar; step 2b generates TechnicalArticle tool pages from Top AI Tools; steps 3–6 build blog, social, email, and figure briefs.
       </p>
 
       <div className="mt-5 space-y-3">
@@ -191,7 +191,7 @@ export default function ContentResults({
 
         <StepRow
           step={3}
-          title="Tool pages (NewsArticle)"
+          title="Tool pages (TechnicalArticle)"
           description={`${CONTENT_LENGTH_TARGETS.tool.definition} Target ${CONTENT_LENGTH_TARGETS.tool.label} words per platform — distinct presentation copy (hub list, hero, newspaper wire, ad) plus JSON-LD citing the pillar.`}
           done={hasTools}
           disabled={!hasPillarBody || isGenerating}
@@ -1018,12 +1018,20 @@ function ToolsView({ tools, department }: { tools: ToolDraft[]; department: stri
           </p>
           <dl className="mt-4 grid gap-3 text-sm">
             <div>
+              <dt className="font-medium text-foreground">Department list excerpt</dt>
+              <dd className="mt-1 text-muted">{tool.departmentListExcerpt}</dd>
+            </div>
+            <div>
               <dt className="font-medium text-foreground">Hero excerpt</dt>
               <dd className="mt-1 text-muted">{tool.heroExcerpt}</dd>
             </div>
             <div>
               <dt className="font-medium text-foreground">Newspaper excerpt</dt>
               <dd className="mt-1 text-muted">{tool.newspaperExcerpt}</dd>
+            </div>
+            <div>
+              <dt className="font-medium text-foreground">Tool page excerpt</dt>
+              <dd className="mt-1 text-muted">{tool.toolPageExcerpt || "—"}</dd>
             </div>
             <div>
               <dt className="font-medium text-foreground">Advertisement</dt>
@@ -1040,7 +1048,7 @@ function ToolsView({ tools, department }: { tools: ToolDraft[]; department: stri
           />
           {tool.jsonLdSchema && (
             <details className="mt-4">
-              <summary className="cursor-pointer text-sm font-medium text-foreground">JSON-LD (NewsArticle)</summary>
+              <summary className="cursor-pointer text-sm font-medium text-foreground">JSON-LD (TechnicalArticle)</summary>
               <pre className="mt-2 overflow-x-auto rounded-md bg-slate-950 p-3 text-xs text-slate-100">
                 {tool.jsonLdSchema}
               </pre>

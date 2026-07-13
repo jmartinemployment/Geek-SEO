@@ -61,6 +61,68 @@ public class LlmResponseJsonParserImagePromptsTests
     }
 
     [Fact]
+    public void ParseSectionImagePrompts_AdvertisementToolsSection_RequiresLongerBrief()
+    {
+        var sections = new List<ImagePromptSectionTarget>
+        {
+            new("pillar", "Choosing the Right Tools for Automated Transaction Categorization", 1),
+        };
+        var shortAdPrompt = BuildPrompt(ImagePromptDefaults.AdvertisementPromptMinWords - 1);
+        var raw = $$"""
+            {
+              "sections": [
+                {
+                  "sourceType": "pillar",
+                  "heading": "Choosing the Right Tools for Automated Transaction Categorization",
+                  "order": 1,
+                  "prompt": "{{shortAdPrompt}}",
+                  "width": 1536,
+                  "height": 1024,
+                  "leonardoModel": "Leonardo Phoenix",
+                  "stylePreset": "Illustration",
+                  "alchemy": true,
+                  "photoReal": false
+                }
+              ]
+            }
+            """;
+
+        Assert.Throws<ContentGenerationException>(() =>
+            LlmResponseJsonParser.ParseSectionImagePrompts(raw, sections, "image prompts"));
+    }
+
+    [Fact]
+    public void ParseSectionImagePrompts_AdvertisementToolsSection_AcceptsLongBrief()
+    {
+        var sections = new List<ImagePromptSectionTarget>
+        {
+            new("pillar", "Choosing the Right Tools for Automated Transaction Categorization", 1),
+        };
+        var adPrompt = BuildPrompt(ImagePromptDefaults.AdvertisementPromptMinWords);
+        var raw = $$"""
+            {
+              "sections": [
+                {
+                  "sourceType": "pillar",
+                  "heading": "Choosing the Right Tools for Automated Transaction Categorization",
+                  "order": 1,
+                  "prompt": "{{adPrompt}}",
+                  "width": 1536,
+                  "height": 1024,
+                  "leonardoModel": "Leonardo Phoenix",
+                  "stylePreset": "Illustration",
+                  "alchemy": true,
+                  "photoReal": false
+                }
+              ]
+            }
+            """;
+
+        var draft = LlmResponseJsonParser.ParseSectionImagePrompts(raw, sections, "image prompts");
+        Assert.Single(draft.Sections);
+    }
+
+    [Fact]
     public void ParseSectionImagePrompts_PromptTooShort_Throws()
     {
         var raw = $$"""

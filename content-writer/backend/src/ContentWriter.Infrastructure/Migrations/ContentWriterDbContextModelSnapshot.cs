@@ -237,6 +237,11 @@ namespace ContentWriter.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<string>("ToolPageExcerpt")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("uuid");
 

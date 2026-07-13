@@ -28,14 +28,14 @@ public sealed record ToolGenerationResult(
 public sealed class ToolPageGenerator : IToolPageGenerator
 {
     private const int MaxTools = 5;
-    private readonly INewsArticleSchemaBuilder _newsArticleSchemaBuilder;
+    private readonly ITechnicalArticleSchemaBuilder _technicalArticleSchemaBuilder;
     private readonly IContentPromptBuilder _promptBuilder;
 
     public ToolPageGenerator(
-        INewsArticleSchemaBuilder newsArticleSchemaBuilder,
+        ITechnicalArticleSchemaBuilder technicalArticleSchemaBuilder,
         IContentPromptBuilder promptBuilder)
     {
-        _newsArticleSchemaBuilder = newsArticleSchemaBuilder;
+        _technicalArticleSchemaBuilder = technicalArticleSchemaBuilder;
         _promptBuilder = promptBuilder;
     }
 
@@ -87,7 +87,7 @@ public sealed class ToolPageGenerator : IToolPageGenerator
                 metadata.Keywords,
                 wordCount);
 
-            var jsonLd = _newsArticleSchemaBuilder.Build(schemaMeta, pillarArticleUrl, app);
+            var jsonLd = _technicalArticleSchemaBuilder.BuildToolOverview(schemaMeta, pillarArticleUrl, app);
 
             rows.Add(new GeneratedContent
             {
@@ -99,6 +99,7 @@ public sealed class ToolPageGenerator : IToolPageGenerator
                 HeroExcerpt = toolMetadata.HeroExcerpt,
                 NewspaperExcerpt = toolMetadata.NewspaperExcerpt,
                 DepartmentListExcerpt = toolMetadata.DepartmentListExcerpt,
+                ToolPageExcerpt = toolMetadata.ToolPageExcerpt,
                 Advertisement = toolMetadata.Advertisement,
                 MetaDescription = toolMetadata.MetaDescription.Length > 160
                     ? toolMetadata.MetaDescription[..160]

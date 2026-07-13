@@ -3,31 +3,31 @@ namespace ContentWriter.Application.Services;
 /// <summary>Recommended word-count ranges and editorial definitions by content type.</summary>
 public static class ContentLengthTargets
 {
-    // Pillar Pages — exhaustive macro-level hubs linking to cluster articles.
-    public const int PillarMinWords = 3_000;
-    public const int PillarTargetMinWords = 3_500;
-    public const int PillarTargetMaxWords = 5_000;
-    public const int PillarSectionMinWords = 500;
-    public const int PillarSectionTargetMaxWords = 700;
-    public const int PillarToolsSectionMinWords = 700;
-    public const int PillarToolsSectionTargetMaxWords = 900;
+    // TechnicalArticle pillar pages — topical authority, tutorials, long-tail keywords.
+    public const int PillarMinWords = 1_500;
+    public const int PillarTargetMinWords = 1_500;
+    public const int PillarTargetMaxWords = 2_500;
+    public const int PillarSectionMinWords = 250;
+    public const int PillarSectionTargetMaxWords = 450;
+    public const int PillarToolsSectionMinWords = 350;
+    public const int PillarToolsSectionTargetMaxWords = 550;
 
     public const string PillarEditorialDefinition =
-        "Pillar pages are exhaustive, macro-level entry points for massive topics. They host multiple subsections " +
-        "and link out to smaller cluster articles. Quality means comprehensive coverage — not padding.";
+        "Technical articles build topical authority with in-depth explanations, structured problem-solving, and room for " +
+        "long-tail keywords. Target depth that exceeds competing pages — comprehensive tutorials and trustworthy detail, not padding.";
 
-    // Deep-Dive Blog Posts — companion articles aimed at outranking competitors.
-    public const int BlogMinWords = 1_800;
-    public const int BlogTargetMinWords = 1_800;
+    // BlogPosting companion articles — listicles, how-tos, evergreen depth.
+    public const int BlogMinWords = 1_500;
+    public const int BlogTargetMinWords = 1_500;
     public const int BlogTargetMaxWords = 2_500;
-    public const int BlogSectionMinWords = 400;
-    public const int BlogSectionTargetMaxWords = 550;
+    public const int BlogSectionMinWords = 280;
+    public const int BlogSectionTargetMaxWords = 450;
     public const int BlogSectionCountMin = 5;
     public const int BlogSectionCountTarget = 6;
 
     public const string BlogEditorialDefinition =
-        "Deep-dive blog posts are the sweet spot for standard articles trying to outrank competitors on search engines. " +
-        "Each section must add real depth: context, examples, data, and actionable insight — not surface summaries.";
+        "Blog postings in the 1,500–2,500 word range support keyword synonyms, internal linking, and strong on-page structure. " +
+        "Use headers, bullets, and short paragraphs so listicles and how-to guides keep readers engaged.";
 
     // Standard Listicles & Guides — actionable step-by-step tutorials (future content type).
     public const int ListicleGuideMinWords = 1_200;
@@ -37,21 +37,14 @@ public static class ContentLengthTargets
         "Standard listicles and guides are actionable, step-by-step tutorials that require substantial context, " +
         "data, and layout formatting. Used when the reader needs a practical walkthrough, not a macro overview.";
 
-    // News & quick updates (reference for future content types).
-    public const int NewsMinWords = 400;
-    public const int NewsMaxWords = 800;
-
-    public const string NewsEditorialDefinition =
-        "News and quick updates are best for press releases or short announcements — timely, concise, and direct.";
-
-    // Tool pages — NewsArticle overviews for each platform in the pillar Top AI Tools section.
-    public const int ToolMinWords = 500;
-    public const int ToolTargetMaxWords = 800;
+    // Tool pages — TechnicalArticle overviews for each platform in the pillar Top AI Tools section.
+    public const int ToolMinWords = 600;
+    public const int ToolTargetMaxWords = 1_000;
     public const int ToolHardMaxWords = 1_000;
 
     public const string ToolEditorialDefinition =
-        "Tool pages are focused NewsArticle-style overviews of a single platform — news tone, implementation context, " +
-        "and when to use it. Not pillar depth; one platform per page.";
+        "Tool pages are TechnicalArticle overviews of a single platform — implementation context, capabilities, " +
+        "and when to use it. Stay focused (600–1,000 words); one platform per page.";
 
     public static string PillarRangeLabel => $"{PillarMinWords:N0}–{PillarTargetMaxWords:N0}+";
     public static string BlogRangeLabel => $"{BlogTargetMinWords:N0}–{BlogTargetMaxWords:N0}";
@@ -87,4 +80,3 @@ public static class ContentLengthTargets
     public static string EmailColdOutreachRangeLabel =>
         $"{EmailColdOutreachMinWords}–{EmailColdOutreachMaxWords}";
 }
-

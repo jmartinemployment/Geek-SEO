@@ -124,6 +124,7 @@ public static class GeneratedContentSetAssembler
         row.DepartmentListExcerpt,
         row.HeroExcerpt,
         row.NewspaperExcerpt,
+        row.ToolPageExcerpt,
         row.MetaDescription ?? string.Empty,
         row.Advertisement,
         row.BodyHtml,
