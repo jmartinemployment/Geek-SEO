@@ -34,6 +34,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Wait for GeekSeoBackend production deploy
+        run: |
+          url="https://geekseobackend-production.up.railway.app/api/seo/plagiarism/status"
+          for attempt in $(seq 1 24); do
+            code="$(curl -s -o /dev/null -w '%{http_code}' \
+              -H 'X-User-Id: 00000000-0000-0000-0000-000000000001' \
+              "$url")"
+            if [ "$code" = "200" ]; then
+              echo "GeekSeoBackend ready (attempt $attempt)"
+              exit 0
+            fi
+            echo "attempt $attempt: plagiarism/status => $code (waiting 10s)"
+            sleep 10
+          done
+          echo "GeekSeoBackend not ready after 4 minutes"
+          exit 1
+
       - name: Plagiarism API integration (production, status only)
         run: npm run test:integration:plagiarism
         env:
