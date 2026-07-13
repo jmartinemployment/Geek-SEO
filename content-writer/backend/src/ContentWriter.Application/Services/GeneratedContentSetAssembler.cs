@@ -60,7 +60,11 @@ public static class GeneratedContentSetAssembler
     {
         var toolOrderBySlug = project.GeneratedContents
             .Where(c => c.ContentType == GeneratedContentType.ToolPost)
-            .ToDictionary(c => c.Slug, c => c.SourceAppOrder ?? int.MaxValue, StringComparer.OrdinalIgnoreCase);
+            .GroupBy(c => c.Slug, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Min(c => c.SourceAppOrder ?? int.MaxValue),
+                StringComparer.OrdinalIgnoreCase);
 
         int SortKey(ImagePromptSectionContent section)
         {

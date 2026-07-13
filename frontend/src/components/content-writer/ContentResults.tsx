@@ -192,7 +192,7 @@ export default function ContentResults({
         <StepRow
           step={3}
           title="Tool pages (NewsArticle)"
-          description={`${CONTENT_LENGTH_TARGETS.tool.definition} Target ${CONTENT_LENGTH_TARGETS.tool.label} words per platform — three excerpts plus JSON-LD citing the pillar.`}
+          description={`${CONTENT_LENGTH_TARGETS.tool.definition} Target ${CONTENT_LENGTH_TARGETS.tool.label} words per platform — distinct presentation copy (hub list, hero, newspaper wire, ad) plus JSON-LD citing the pillar.`}
           done={hasTools}
           disabled={!hasPillarBody || isGenerating}
           isRunning={generatingStep === "tools"}

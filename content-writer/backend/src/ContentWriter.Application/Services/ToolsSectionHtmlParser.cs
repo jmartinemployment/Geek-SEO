@@ -52,6 +52,7 @@ public static class ToolsSectionHtmlParser
         }
 
         var applications = new List<SoftwareApplicationDescriptor>();
+        var seenSlugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         for (var i = toolsIndex + 1; i < matches.Count; i++)
         {
             var level = int.Parse(matches[i].Groups[1].Value);
@@ -68,6 +69,11 @@ public static class ToolsSectionHtmlParser
             var name = StripTags(matches[i].Groups[2].Value);
             if (string.IsNullOrWhiteSpace(name)
                 || name.StartsWith("How an AI implementer", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!seenSlugs.Add(SlugHelper.Slugify(name)))
             {
                 continue;
             }

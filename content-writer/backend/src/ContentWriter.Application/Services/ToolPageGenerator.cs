@@ -57,11 +57,12 @@ public sealed class ToolPageGenerator : IToolPageGenerator
 
         var applications = extraction.Applications.Take(MaxTools).ToList();
         var rows = new List<GeneratedContent>();
+        var usedSlugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var order = 1;
 
         foreach (var app in applications)
         {
-            var slug = SlugHelper.Slugify(app.Name);
+            var slug = SlugHelper.EnsureUniqueSlug(SlugHelper.Slugify(app.Name), usedSlugs);
             var toolUrl = GeekPublicUrlBuilder.ToolUrl(context.ToolBaseUrl, department, slug);
 
             var bodyHtml = await GenerateToolBodyWithValidationAsync(
