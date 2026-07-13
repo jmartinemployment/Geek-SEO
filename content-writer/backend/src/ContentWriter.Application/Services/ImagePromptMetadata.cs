@@ -14,18 +14,16 @@ public static class ImagePromptMetadata
     };
 
     public static string Serialize(ImagePromptSectionDraft item) =>
-        JsonSerializer.Serialize(new StoredImagePromptSettings(
-            item.Width,
-            item.Height,
-            item.LeonardoModel,
-            ResolveModelId(item.LeonardoModel),
-            item.StylePreset,
-            item.Alchemy,
-            item.PhotoReal,
-            item.Notes,
-            item.SourceType,
-            item.Heading,
-            item.Order), JsonOptions);
+        JsonSerializer.Serialize(new StoredImagePromptSettings
+        {
+            Width = item.Width,
+            Height = item.Height,
+            ImageModel = ImagePromptDefaults.OpenAiImageModel,
+            Notes = item.Notes,
+            SourceType = item.SourceType,
+            Heading = item.Heading,
+            Order = item.Order,
+        }, JsonOptions);
 
     public static ImagePromptSectionContent ToSectionContent(GeneratedContent row)
     {
@@ -37,11 +35,7 @@ public static class ImagePromptMetadata
             row.BodyHtml,
             settings.Width,
             settings.Height,
-            settings.LeonardoModel,
-            settings.LeonardoModelId,
-            settings.StylePreset,
-            settings.Alchemy,
-            settings.PhotoReal,
+            settings.ResolveImageModel(),
             settings.Notes);
     }
 
@@ -52,65 +46,49 @@ public static class ImagePromptMetadata
     {
         if (string.IsNullOrWhiteSpace(metaJson))
         {
-            return new StoredImagePromptSettings(
-                ImagePromptDefaults.PillarWidth,
-                ImagePromptDefaults.PillarHeight,
-                ImagePromptDefaults.LeonardoPhoenixModel,
-                ImagePromptDefaults.LeonardoPhoenixModelId,
-                ImagePromptDefaults.PillarStylePreset,
-                Alchemy: true,
-                PhotoReal: false,
-                Notes: null,
-                SourceType: null,
-                Heading: null,
-                Order: 0);
+            return DefaultSettings(notes: null);
         }
 
         try
         {
             var parsed = JsonSerializer.Deserialize<StoredImagePromptSettings>(metaJson, JsonOptions);
-            if (parsed is null)
-                throw new JsonException("Null settings.");
-
-            return parsed with
-            {
-                LeonardoModelId = string.IsNullOrWhiteSpace(parsed.LeonardoModelId)
-                    ? ResolveModelId(parsed.LeonardoModel)
-                    : parsed.LeonardoModelId,
-            };
+            return parsed ?? DefaultSettings(notes: null);
         }
         catch (JsonException)
         {
-            return new StoredImagePromptSettings(
-                ImagePromptDefaults.PillarWidth,
-                ImagePromptDefaults.PillarHeight,
-                ImagePromptDefaults.LeonardoPhoenixModel,
-                ImagePromptDefaults.LeonardoPhoenixModelId,
-                ImagePromptDefaults.PillarStylePreset,
-                Alchemy: true,
-                PhotoReal: false,
-                Notes: metaJson,
-                SourceType: null,
-                Heading: null,
-                Order: 0);
+            return DefaultSettings(notes: metaJson);
         }
     }
 
-    private static string ResolveModelId(string modelName) =>
-        modelName.Contains("Phoenix", StringComparison.OrdinalIgnoreCase)
-            ? ImagePromptDefaults.LeonardoPhoenixModelId
-            : ImagePromptDefaults.LeonardoPhoenixModelId;
+    private static StoredImagePromptSettings DefaultSettings(string? notes) => new()
+    {
+        Width = ImagePromptDefaults.PillarWidth,
+        Height = ImagePromptDefaults.PillarHeight,
+        ImageModel = ImagePromptDefaults.OpenAiImageModel,
+        Notes = notes,
+        Order = 0,
+    };
 
-    private sealed record StoredImagePromptSettings(
-        int Width,
-        int Height,
-        string LeonardoModel,
-        string LeonardoModelId,
-        string StylePreset,
-        bool Alchemy,
-        bool PhotoReal,
-        string? Notes,
-        string? SourceType,
-        string? Heading,
-        int Order);
+    private sealed class StoredImagePromptSettings
+    {
+        public int Width { get; set; } = ImagePromptDefaults.PillarWidth;
+        public int Height { get; set; } = ImagePromptDefaults.PillarHeight;
+        public string? ImageModel { get; set; }
+        public string? LeonardoModel { get; set; }
+        public string? Notes { get; set; }
+        public string? SourceType { get; set; }
+        public string? Heading { get; set; }
+        public int Order { get; set; }
+
+        public string ResolveImageModel()
+        {
+            if (!string.IsNullOrWhiteSpace(ImageModel))
+            {
+                return ImageModel.Trim();
+            }
+
+            // Legacy rows stored Leonardo model names — generation always uses OpenAI now.
+            return ImagePromptDefaults.OpenAiImageModel;
+        }
+    }
 }

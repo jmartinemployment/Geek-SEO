@@ -168,19 +168,20 @@ public static class LlmResponseJsonParser
         }
     }
 
-    private static ImagePromptSectionDraft ToSectionDraft(ImagePromptSectionResponse item) =>
-        new(
+    private static ImagePromptSectionDraft ToSectionDraft(ImagePromptSectionResponse item)
+    {
+        var width = item.Width > 0 ? item.Width : ImagePromptDefaults.PillarWidth;
+        var height = item.Height > 0 ? item.Height : ImagePromptDefaults.PillarHeight;
+
+        return new(
             (item.SourceType ?? "").Trim().ToLowerInvariant(),
             (item.Heading ?? "").Trim(),
             item.Order,
             (item.Prompt ?? "").Trim(),
-            item.Width,
-            item.Height,
-            (item.LeonardoModel ?? "").Trim(),
-            (item.StylePreset ?? "").Trim(),
-            item.Alchemy ?? true,
-            item.PhotoReal ?? false,
+            width,
+            height,
             string.IsNullOrWhiteSpace(item.Notes) ? null : item.Notes.Trim());
+    }
 
     private static ImagePromptSectionPromptsDraft ValidateSectionImagePrompts(
         ImagePromptSectionPromptsDraft draft,
@@ -240,16 +241,6 @@ public static class LlmResponseJsonParser
         if (item.Width < item.Height)
         {
             throw new ContentGenerationException($"Prompt for \"{expected.Heading}\" should be landscape (width >= height).");
-        }
-
-        if (string.IsNullOrWhiteSpace(item.LeonardoModel))
-        {
-            throw new ContentGenerationException($"Model returned empty leonardoModel for \"{expected.Heading}\" in {label}.");
-        }
-
-        if (string.IsNullOrWhiteSpace(item.StylePreset))
-        {
-            throw new ContentGenerationException($"Model returned empty stylePreset for \"{expected.Heading}\" in {label}.");
         }
     }
 
@@ -430,9 +421,5 @@ public static class LlmResponseJsonParser
         string? Prompt,
         int Width,
         int Height,
-        string? LeonardoModel,
-        string? StylePreset,
-        bool? Alchemy,
-        bool? PhotoReal,
         string? Notes);
 }

@@ -115,10 +115,7 @@ public record ImagePromptItemDraft(
     string Prompt,
     int Width,
     int Height,
-    string LeonardoModel,
-    string StylePreset,
-    bool Alchemy,
-    bool PhotoReal,
+    string ImageModel,
     string? Notes);
 
 public record ImagePromptSectionDraft(
@@ -128,10 +125,6 @@ public record ImagePromptSectionDraft(
     string Prompt,
     int Width,
     int Height,
-    string LeonardoModel,
-    string StylePreset,
-    bool Alchemy,
-    bool PhotoReal,
     string? Notes);
 
 public record ImagePromptSectionPromptsDraft(IReadOnlyList<ImagePromptSectionDraft> Sections);
@@ -143,11 +136,7 @@ public record ImagePromptSectionContent(
     string Prompt,
     int Width,
     int Height,
-    string LeonardoModel,
-    string LeonardoModelId,
-    string StylePreset,
-    bool Alchemy,
-    bool PhotoReal,
+    string ImageModel,
     string? Notes);
 
 public record ImagePromptsContent(IReadOnlyList<ImagePromptSectionContent> Sections);

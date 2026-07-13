@@ -2,16 +2,14 @@ namespace ContentWriter.Application.Services;
 
 public static class ImagePromptDefaults
 {
-    public const string LeonardoPhoenixModel = "Leonardo Phoenix";
-    public const string LeonardoPhoenixModelId = "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3";
+    /// <summary>OpenAI image model for in-app figure generation (FigureImageGeneration:OpenAiModel).</summary>
+    public const string OpenAiImageModel = "dall-e-3";
 
     public const int PillarWidth = 1536;
     public const int PillarHeight = 1024;
-    public const string PillarStylePreset = "Illustration";
 
     public const int SocialWidth = 1200;
     public const int SocialHeight = 630;
-    public const string SocialStylePreset = "Dynamic";
 
     /// <summary>Teaching diagram briefs for standard pillar/blog H2 sections.</summary>
     public const int PromptMinWords = 40;

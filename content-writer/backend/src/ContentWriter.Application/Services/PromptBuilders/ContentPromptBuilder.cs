@@ -97,7 +97,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
         + ImagePromptDefaults.PromptMinWords + "-" + ImagePromptDefaults.PromptMaxWords
         + " words; pillar Top AI Tools H2 and all tool/ sections: sponsored advertisement art direction "
         + ImagePromptDefaults.AdvertisementPromptMinWords + "-" + ImagePromptDefaults.AdvertisementPromptMaxWords
-        + " words — NOT excerpt-length), \"width\": number, \"height\": number, \"leonardoModel\": string, \"stylePreset\": string, \"alchemy\": boolean, \"photoReal\": boolean, \"notes\": string|null}";
+        + " words — NOT excerpt-length), \"width\": number, \"height\": number, \"notes\": string|null}";
 
     private static readonly string ImagePromptSectionsJsonContract =
         "{\"sections\": [" + ImagePromptSectionItemJsonContract + ", ...]}";
@@ -543,6 +543,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine("VISUAL STYLE:")
             .AppendLine("- Flat vector / infographic, professional fintech or B2B tech aesthetic.")
             .AppendLine($"- Intended dimensions: {ImagePromptDefaults.PillarWidth}x{ImagePromptDefaults.PillarHeight}.")
+            .AppendLine($"- Figures are generated in-app with OpenAI {ImagePromptDefaults.OpenAiImageModel} — briefs must be self-contained art direction.")
             .AppendLine("- NO readable text, logos, or watermarks in the image.")
             .AppendLine("- Pillar sections (except Top AI Tools H2): teaching diagram, slightly more technical.")
             .AppendLine("- Blog sections: warmer step-by-step feel, still no readable text.")
@@ -553,7 +554,7 @@ public class ContentPromptBuilder : IContentPromptBuilder
             .AppendLine("BRIEF FORMAT (include in JSON for each section):")
             .AppendLine($"- Teaching sections: composition, shapes, flow, color mood in {ImagePromptDefaults.PromptMinWords}–{ImagePromptDefaults.PromptMaxWords} words.")
             .AppendLine($"- Advertisement sections: full art direction for a sponsored promotional spot in {ImagePromptDefaults.AdvertisementPromptMinWords}–{ImagePromptDefaults.AdvertisementPromptMaxWords} words.")
-            .AppendLine("- leonardoModel, stylePreset, alchemy, photoReal, notes: optional legacy fields; use neutral illustration defaults.")
+            .AppendLine("- notes: optional operator hints (e.g. color mood). Do not include provider or model fields — the app uses OpenAI DALL·E.")
             .AppendLine()
             .AppendLine("Respond with ONLY a single valid JSON object — no markdown fences:")
             .AppendLine(ImagePromptSectionsJsonContract)

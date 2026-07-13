@@ -114,11 +114,7 @@ public static class MarkdownExportDocumentBuilder
         sb.AppendLine($"slug: {YamlScalar(slug)}");
         sb.AppendLine($"width: {prompt.Width}");
         sb.AppendLine($"height: {prompt.Height}");
-        sb.AppendLine($"leonardoModel: {YamlScalar(prompt.LeonardoModel)}");
-        sb.AppendLine($"leonardoModelId: {YamlScalar(prompt.LeonardoModelId)}");
-        sb.AppendLine($"stylePreset: {YamlScalar(prompt.StylePreset)}");
-        sb.AppendLine($"alchemy: {prompt.Alchemy.ToString().ToLowerInvariant()}");
-        sb.AppendLine($"photoReal: {prompt.PhotoReal.ToString().ToLowerInvariant()}");
+        sb.AppendLine($"imageModel: {YamlScalar(prompt.ImageModel)}");
         if (!string.IsNullOrWhiteSpace(prompt.Notes))
             sb.AppendLine($"notes: {YamlScalar(prompt.Notes)}");
         sb.AppendLine($"exportedAtUtc: {YamlScalar(exportedAtUtc.ToString("O"))}");

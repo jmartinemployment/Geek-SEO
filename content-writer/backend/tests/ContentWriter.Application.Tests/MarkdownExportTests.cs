@@ -151,7 +151,7 @@ public class MarkdownExportDocumentBuilderTests
     }
 
     [Fact]
-    public void BuildSectionImagePrompt_includes_leonardo_settings()
+    public void BuildSectionImagePrompt_includes_openai_image_model()
     {
         var markdown = MarkdownExportDocumentBuilder.BuildSectionImagePrompt(
             new ImagePromptSectionContent(
@@ -161,11 +161,7 @@ public class MarkdownExportDocumentBuilderTests
                 "Flat vector diagram of bank feeds.",
                 1536,
                 1024,
-                "Leonardo Phoenix",
-                "phoenix-id",
-                "Illustration",
-                true,
-                false,
+                "dall-e-3",
                 null),
             "accounting",
             "smart-bank-reconciliation",
@@ -173,7 +169,7 @@ public class MarkdownExportDocumentBuilderTests
 
         Assert.Contains("heading: Why reconciliation matters", markdown);
         Assert.Contains("sourceType: pillar", markdown);
-        Assert.Contains("leonardoModel: Leonardo Phoenix", markdown);
+        Assert.Contains("imageModel: dall-e-3", markdown);
         Assert.Contains("Flat vector diagram of bank feeds.", markdown);
     }
 }

@@ -205,11 +205,7 @@ export interface ImagePromptSection {
   prompt: string;
   width: number;
   height: number;
-  leonardoModel: string;
-  leonardoModelId: string;
-  stylePreset: string;
-  alchemy: boolean;
-  photoReal: boolean;
+  imageModel: string;
   notes: string | null;
 }
 

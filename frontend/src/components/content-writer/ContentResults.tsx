@@ -890,7 +890,7 @@ function ColdOutreachView({ email }: { email: ColdOutreachEmailDraft }) {
 function formatFigureSettings(item: ImagePromptSection): string {
   const lines = [
     `Suggested dimensions: ${item.width} × ${item.height}`,
-    `Style preset: ${item.stylePreset}`,
+    `Image model: ${item.imageModel}`,
   ];
   if (item.notes) lines.push(`Notes: ${item.notes}`);
   return lines.join("\n");
