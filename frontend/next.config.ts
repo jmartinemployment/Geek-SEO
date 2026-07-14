@@ -1,6 +1,18 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  async rewrites() {
+    return [
+      {
+        source: '/content-writer',
+        destination: 'https://content-writer-jeff-martins-projects-66716453.vercel.app',
+      },
+      {
+        source: '/content-writer/:path*',
+        destination: 'https://content-writer-jeff-martins-projects-66716453.vercel.app/:path*',
+      },
+    ];
+  },
   async redirects() {
     return [
       {
