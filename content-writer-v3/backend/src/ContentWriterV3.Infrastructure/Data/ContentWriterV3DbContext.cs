@@ -40,6 +40,13 @@ public class ContentWriterV3DbContext : DbContext
     public DbSet<StrategyBriefEvidenceLink> StrategyBriefEvidenceLinks => Set<StrategyBriefEvidenceLink>();
     public DbSet<ApprovalEvent> ApprovalEvents => Set<ApprovalEvent>();
 
+    // Phase 3: Intelligent Drafting (site-aware)
+    // (ContentAssetVersion status tracking included in Phase 3)
+
+    // Phase 4: Review & Approval
+    public DbSet<ContentReview> ContentReviews => Set<ContentReview>();
+    public DbSet<ReviewComment> ReviewComments => Set<ReviewComment>();
+
     public ContentWriterV3DbContext(DbContextOptions<ContentWriterV3DbContext> options) : base(options)
     {
     }

@@ -24,6 +24,9 @@ public static class ContentWriterV3ApiRegistration
         services.AddScoped<IContentIntelligenceValidator, ContentIntelligenceValidator>();
         services.AddScoped<IContentGenerator, MockContentGenerator>();
 
+        // Phase 4: Review & Approval
+        services.AddScoped<IReviewService, ReviewService>();
+
         // Job handlers
         services.AddScoped<IJobHandler, InitiateResearchHandler>();
         services.AddScoped<IJobHandler, ExtractInsightsHandler>();
