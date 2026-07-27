@@ -6,8 +6,10 @@ import type { ProjectSummary } from "@/lib/content-writer/types";
 import {
   generateFigureDraft,
   generateFromBrief,
+  IMAGE_MODELS,
   listImageGeneratorSections,
   type ImageGeneratorSection,
+  type ImageModel,
 } from "@/lib/image-generator/api";
 
 function ImageGeneratorContent() {
@@ -16,9 +18,10 @@ function ImageGeneratorContent() {
 
   const [heading, setHeading] = useState("");
   const [briefText, setBriefText] = useState("");
+  const [model, setModel] = useState<ImageModel>("gpt-image-1");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [downloadName, setDownloadName] = useState("figure-draft.avif");
+  const [downloadName, setDownloadName] = useState("figure-draft.png");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,13 +97,13 @@ function ImageGeneratorContent() {
       setPreviewUrl(null);
     }
     try {
-      const result = await generateFromBrief(heading.trim() || "Section figure", briefText.trim());
+      const result = await generateFromBrief(heading.trim() || "Section figure", briefText.trim(), model);
       const bytes = Uint8Array.from(atob(result.imageBase64), (c) => c.charCodeAt(0));
       const mime = result.fileName.toLowerCase().endsWith(".png") ? "image/png" : "image/avif";
       const blob = new Blob([bytes], { type: mime });
       setPreviewUrl(URL.createObjectURL(blob));
       setDownloadName(result.fileName);
-      setStatusMessage("Draft ready — preview below.");
+      setStatusMessage(`Draft ready (${result.model}) — preview below.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generate failed.");
     } finally {
@@ -131,8 +134,8 @@ function ImageGeneratorContent() {
     <div className="mx-auto max-w-3xl px-4 py-8">
       <h1 className="text-2xl font-semibold text-foreground">Image generator</h1>
       <p className="mt-2 text-sm text-muted">
-        Paste a figure brief and generate a draft. Review it, refine in Figma AI if you want, then save the AVIF to
-        your site path.
+        Paste a figure brief and generate a PNG draft for review. Refine in Figma if you want, then export AVIF to
+        your site path (or use Save to site path on a project section).
       </p>
 
       <div ref={formRef} className="mt-8 space-y-4 rounded-lg border border-border bg-surface p-4">
@@ -155,6 +158,24 @@ function ImageGeneratorContent() {
             onChange={(e) => setBriefText(e.target.value)}
             placeholder="Paste the full art-direction brief here, or Use brief from a project section below…"
           />
+        </label>
+
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium text-foreground">OpenAI model</span>
+          <select
+            className="rounded-md border border-border bg-surface px-3 py-2 text-foreground"
+            value={model}
+            onChange={(e) => setModel(e.target.value as ImageModel)}
+          >
+            {IMAGE_MODELS.map((id) => (
+              <option key={id} value={id}>
+                {id}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-muted">
+            gpt-image-1 is the current OpenAI Images model. Legacy dall-e-* IDs are retired on the API.
+          </span>
         </label>
 
         <button
@@ -189,7 +210,7 @@ function ImageGeneratorContent() {
             download={downloadName}
             className="mt-3 inline-block text-sm font-medium text-[var(--color-accent)] underline"
           >
-            Download AVIF
+            Download {downloadName.toLowerCase().endsWith(".png") ? "PNG" : "AVIF"}
           </a>
         </div>
       )}

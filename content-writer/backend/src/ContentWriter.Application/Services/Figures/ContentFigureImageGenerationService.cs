@@ -116,6 +116,7 @@ public sealed class ContentFigureImageGenerationService : IContentFigureImageGen
             prompt,
             ImagePromptDefaults.PillarWidth,
             ImagePromptDefaults.PillarHeight,
+            modelOverride: null,
             cancellationToken);
 
         var avifBytes = await FigureAvifEncoder.EncodePngAsync(pngBytes, cancellationToken);

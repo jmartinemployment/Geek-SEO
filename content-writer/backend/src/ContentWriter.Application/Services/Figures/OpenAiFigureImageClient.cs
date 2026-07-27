@@ -14,10 +14,18 @@ public sealed class OpenAiFigureImageClient(
     private readonly OpenAiOptions _openAi = llmOptions.Value.OpenAi;
     private readonly FigureImageGenerationOptions _imageOptions = imageOptions.Value;
 
+    public static readonly IReadOnlyList<string> AllowedModels =
+    [
+        "gpt-image-1",
+        "dall-e-3",
+        "dall-e-2",
+    ];
+
     public async Task<byte[]> GeneratePngAsync(
         string prompt,
         int width,
         int height,
+        string? modelOverride = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(_openAi.ApiKey))
@@ -26,9 +34,9 @@ public sealed class OpenAiFigureImageClient(
                 "OpenAI API key is not configured (LlmProviders:OpenAi:ApiKey).");
         }
 
-        var size = MapSize(width, height);
-        var model = _imageOptions.OpenAiModel;
-        // Do not send response_format — gpt-image-* and current Images API reject it as unknown.
+        var model = ResolveModel(modelOverride);
+        var size = MapSize(model, width, height);
+        // Do not send response_format — current Images API rejects it for several models.
         var payload = new { model, prompt, n = 1, size };
 
         using var request = new HttpRequestMessage(
@@ -47,6 +55,24 @@ public sealed class OpenAiFigureImageClient(
 
         return await ExtractImageBytesAsync(body, cancellationToken);
     }
+
+    public static string ResolveModel(string? modelOverride, string? configuredDefault = null)
+    {
+        var candidate = string.IsNullOrWhiteSpace(modelOverride)
+            ? (configuredDefault ?? "gpt-image-1")
+            : modelOverride.Trim();
+
+        if (!AllowedModels.Contains(candidate, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ContentGenerationException(
+                $"Unsupported image model \"{candidate}\". Allowed: {string.Join(", ", AllowedModels)}.");
+        }
+
+        return AllowedModels.First(m => m.Equals(candidate, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private string ResolveModel(string? modelOverride) =>
+        ResolveModel(modelOverride, _imageOptions.OpenAiModel);
 
     private async Task<byte[]> ExtractImageBytesAsync(string body, CancellationToken cancellationToken)
     {
@@ -74,9 +100,33 @@ public sealed class OpenAiFigureImageClient(
         throw new ContentGenerationException("OpenAI image response missing image data.");
     }
 
-    private static string MapSize(int width, int height)
+    private static string MapSize(string model, int width, int height)
     {
-        // gpt-image-1 sizes: 1024x1024, 1536x1024, 1024x1536 (not dall-e 1792x1024).
+        var isDallE = model.StartsWith("dall-e", StringComparison.OrdinalIgnoreCase);
+
+        if (isDallE)
+        {
+            // dall-e-3: 1024x1024, 1792x1024, 1024x1792
+            // dall-e-2: 256/512/1024 square — use 1024x1024 for landscape requests
+            if (model.Equals("dall-e-2", StringComparison.OrdinalIgnoreCase))
+            {
+                return "1024x1024";
+            }
+
+            if (width >= height * 1.2)
+            {
+                return "1792x1024";
+            }
+
+            if (height >= width * 1.2)
+            {
+                return "1024x1792";
+            }
+
+            return "1024x1024";
+        }
+
+        // gpt-image-1: 1024x1024, 1536x1024, 1024x1536
         if (width >= height * 1.2)
         {
             return "1536x1024";

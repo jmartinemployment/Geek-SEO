@@ -1,5 +1,8 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_SEO_API_URL ?? "http://localhost:5051";
 
+export const IMAGE_MODELS = ["gpt-image-1", "dall-e-3", "dall-e-2"] as const;
+export type ImageModel = (typeof IMAGE_MODELS)[number];
+
 export interface ImageGeneratorSection {
   sourceType: string;
   headingSlug: string;
@@ -21,6 +24,7 @@ export interface GenerateFromBriefResponse {
   heading: string;
   fileName: string;
   imageBase64: string;
+  model: string;
 }
 
 type RawSection = Record<string, unknown>;
@@ -70,11 +74,22 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function generateFromBrief(heading: string, briefText: string): Promise<GenerateFromBriefResponse> {
-  return request("/api/image-generator/generate-from-brief", {
+export async function generateFromBrief(
+  heading: string,
+  briefText: string,
+  model?: string
+): Promise<GenerateFromBriefResponse> {
+  const raw = await request<Record<string, unknown>>("/api/image-generator/generate-from-brief", {
     method: "POST",
-    body: JSON.stringify({ heading, briefText }),
+    body: JSON.stringify({ heading, briefText, model: model || undefined }),
   });
+
+  return {
+    heading: str(raw.heading ?? raw.Heading),
+    fileName: str(raw.fileName ?? raw.FileName) || "figure-draft.png",
+    imageBase64: str(raw.imageBase64 ?? raw.ImageBase64),
+    model: str(raw.model ?? raw.Model) || "gpt-image-1",
+  };
 }
 
 export async function listImageGeneratorSections(

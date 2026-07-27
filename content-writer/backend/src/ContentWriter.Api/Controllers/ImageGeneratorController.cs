@@ -71,6 +71,7 @@ public class ImageGeneratorController : ControllerBase
                 projectId,
                 source,
                 headingSlug,
+                modelOverride: null,
                 cancellationToken);
             return Ok(ToDto(figure));
         }

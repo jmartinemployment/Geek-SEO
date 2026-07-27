@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ContentWriterV3.Domain\ContentWriterV3.Domain.csproj" />
+    <ProjectReference Include="..\ContentWriterV3.Application\ContentWriterV3.Application.csproj" />
+    <ProjectReference Include="..\ContentWriterV3.Infrastructure\ContentWriterV3.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

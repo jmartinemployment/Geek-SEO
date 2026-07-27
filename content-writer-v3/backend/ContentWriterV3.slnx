@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ContentWriterV3.Api/ContentWriterV3.Api.csproj" />
+    <Project Path="src/ContentWriterV3.Application/ContentWriterV3.Application.csproj" />
+    <Project Path="src/ContentWriterV3.Domain/ContentWriterV3.Domain.csproj" />
+    <Project Path="src/ContentWriterV3.Infrastructure/ContentWriterV3.Infrastructure.csproj" />
+  </Folder>
+</Solution>

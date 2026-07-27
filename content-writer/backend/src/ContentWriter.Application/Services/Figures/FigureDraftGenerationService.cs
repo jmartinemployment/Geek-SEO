@@ -15,16 +15,19 @@ public interface IFigureDraftGenerationService
         Guid projectId,
         string sourceType,
         string headingSlug,
+        string? modelOverride = null,
         CancellationToken cancellationToken = default);
 
     Task<byte[]> GenerateAvifFromBriefAsync(
         string heading,
         string briefText,
+        string? modelOverride = null,
         CancellationToken cancellationToken = default);
 
     Task<byte[]> GeneratePngFromBriefAsync(
         string heading,
         string briefText,
+        string? modelOverride = null,
         CancellationToken cancellationToken = default);
 }
 
@@ -48,6 +51,7 @@ public sealed class FigureDraftGenerationService : IFigureDraftGenerationService
         Guid projectId,
         string sourceType,
         string headingSlug,
+        string? modelOverride = null,
         CancellationToken cancellationToken = default)
     {
         FigureSourceValidator.ValidateSourceType(sourceType);
@@ -81,6 +85,7 @@ public sealed class FigureDraftGenerationService : IFigureDraftGenerationService
             prompt,
             ImagePromptDefaults.PillarWidth,
             ImagePromptDefaults.PillarHeight,
+            modelOverride,
             cancellationToken);
 
         var avifBytes = await FigureAvifEncoder.EncodePngAsync(pngBytes, cancellationToken);
@@ -97,15 +102,17 @@ public sealed class FigureDraftGenerationService : IFigureDraftGenerationService
     public async Task<byte[]> GenerateAvifFromBriefAsync(
         string heading,
         string briefText,
+        string? modelOverride = null,
         CancellationToken cancellationToken = default)
     {
-        var pngBytes = await GeneratePngFromBriefAsync(heading, briefText, cancellationToken);
+        var pngBytes = await GeneratePngFromBriefAsync(heading, briefText, modelOverride, cancellationToken);
         return await FigureAvifEncoder.EncodePngAsync(pngBytes, cancellationToken);
     }
 
     public async Task<byte[]> GeneratePngFromBriefAsync(
         string heading,
         string briefText,
+        string? modelOverride = null,
         CancellationToken cancellationToken = default)
     {
         var prompt = FigureImagePromptComposer.Compose(briefText, heading);
@@ -113,6 +120,7 @@ public sealed class FigureDraftGenerationService : IFigureDraftGenerationService
             prompt,
             ImagePromptDefaults.PillarWidth,
             ImagePromptDefaults.PillarHeight,
+            modelOverride,
             cancellationToken);
     }
 }

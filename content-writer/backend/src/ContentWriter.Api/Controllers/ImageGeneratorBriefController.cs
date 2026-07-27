@@ -19,6 +19,10 @@ public class ImageGeneratorBriefController : ControllerBase
         _logger = logger;
     }
 
+    [HttpGet("models")]
+    public ActionResult<ImageGeneratorModelsResponse> ListModels() =>
+        Ok(new ImageGeneratorModelsResponse(OpenAiFigureImageClient.AllowedModels.ToList()));
+
     [HttpPost("generate-from-brief")]
     public async Task<ActionResult<GenerateFromBriefResponse>> GenerateFromBrief(
         [FromBody] GenerateFromBriefRequest request,
@@ -39,17 +43,21 @@ public class ImageGeneratorBriefController : ControllerBase
 
         try
         {
+            var model = string.IsNullOrWhiteSpace(request.Model) ? null : request.Model.Trim();
             // Preview downloads as PNG — avoids native avifenc deps on the API host.
             var pngBytes = await _draftGeneration.GeneratePngFromBriefAsync(
                 heading,
                 brief,
+                model,
                 cancellationToken);
 
             var slug = Slugify(heading);
+            var modelTag = OpenAiFigureImageClient.ResolveModel(model);
             return Ok(new GenerateFromBriefResponse(
                 heading,
-                $"{slug}-draft.png",
-                Convert.ToBase64String(pngBytes)));
+                $"{slug}-{modelTag}-draft.png",
+                Convert.ToBase64String(pngBytes),
+                modelTag));
         }
         catch (ContentGenerationException ex)
         {
@@ -79,9 +87,12 @@ public class ImageGeneratorBriefController : ControllerBase
     }
 }
 
-public sealed record GenerateFromBriefRequest(string? Heading, string? BriefText);
+public sealed record GenerateFromBriefRequest(string? Heading, string? BriefText, string? Model = null);
 
 public sealed record GenerateFromBriefResponse(
     string Heading,
     string FileName,
-    string ImageBase64);
+    string ImageBase64,
+    string Model);
+
+public sealed record ImageGeneratorModelsResponse(IReadOnlyList<string> Models);
