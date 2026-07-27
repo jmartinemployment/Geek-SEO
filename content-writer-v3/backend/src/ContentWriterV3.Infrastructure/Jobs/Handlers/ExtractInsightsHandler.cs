@@ -26,7 +26,7 @@ public class ExtractInsightsHandler : JobHandler<ExtractInsightsPayload>
     {
         _logger.LogInformation("Extracting insights from research run {ResearchRunId}", payload.ResearchRunId);
 
-        var researchRun = await _dbContext.ResearchRuns.FindAsync(new[] { payload.ResearchRunId }, cancellationToken: cancellationToken);
+        var researchRun = await _dbContext.ResearchRuns.FindAsync(new object[] { payload.ResearchRunId }, cancellationToken: cancellationToken);
         if (researchRun == null)
         {
             throw new InvalidOperationException($"Research run {payload.ResearchRunId} not found");
@@ -45,9 +45,7 @@ public class ExtractInsightsHandler : JobHandler<ExtractInsightsPayload>
         if (includedInsights.Count == 0)
         {
             _logger.LogWarning("No insights passed filtering for research run {ResearchRunId}", payload.ResearchRunId);
-            researchRun.MarkFailed("NO_INSIGHTS", "No insights survived filtering (all deemed too lame)");
-            await _dbContext.SaveChangesAsync(cancellationToken);
-            return;
+            throw new InvalidOperationException("No insights survived filtering (all deemed too lame)");
         }
 
         // Score and rank insights

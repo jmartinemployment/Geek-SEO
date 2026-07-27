@@ -14,6 +14,7 @@ public class Publication : BaseEntity
     public DateTime? ScheduledPublishAt { get; set; }
     public string? FailureReason { get; set; }
     public int RetryCount { get; set; }
+    public List<PublicationEvent> PublicationEvents { get; set; } = new();
 
     public Publication() { }
 

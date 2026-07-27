@@ -41,9 +41,9 @@ public class ContentPerformance : BaseEntity
         // Simple heuristic: high engagement + conversions + low bounce = good content
         var engagementRatio = Views > 0 ? (decimal)EngagedViews / Views : 0;
         var conversionRatio = Views > 0 ? (decimal)Conversions / Views : 0;
-        var bounceNormalized = (100 - BounceRate) / 100;
+        var bounceNormalized = (100 - BounceRate) / 100m;
 
-        var score = (int)((engagementRatio * 0.4 + conversionRatio * 0.4 + bounceNormalized * 0.2) * 10);
+        var score = (int)((engagementRatio * 0.4m + conversionRatio * 0.4m + bounceNormalized * 0.2m) * 10);
         return Math.Min(10, Math.Max(1, score));
     }
 }

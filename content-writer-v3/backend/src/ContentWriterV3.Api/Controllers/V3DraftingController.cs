@@ -1,3 +1,4 @@
+using ContentWriterV3.Domain.Entities;
 using ContentWriterV3.Infrastructure.Data;
 using ContentWriterV3.Infrastructure.Jobs;
 using ContentWriterV3.Infrastructure.Jobs.Handlers;
