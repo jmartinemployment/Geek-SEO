@@ -13,12 +13,16 @@ public static class ContentWriterV3ApiRegistration
         services.AddScoped<IEvidenceSupportLevelClassifier, EvidenceSupportLevelClassifier>();
         services.AddScoped<IReconciliationService, ReconciliationService>();
 
+        // Phase 1B: Insight Extraction (independent reasoning, not template-filling)
+        services.AddScoped<IInsightExtractor, InsightExtractor>();
+
         // Phase 2: Strategy Brief & Human Decision
         services.AddScoped<IStrategyBriefApprovalValidator, StrategyBriefApprovalValidator>();
         services.AddScoped<IContentPlanService, ContentPlanService>();
 
         // Job handlers
         services.AddScoped<IJobHandler, InitiateResearchHandler>();
+        services.AddScoped<IJobHandler, ExtractInsightsHandler>();
 
         // Controllers
         services.AddControllers();

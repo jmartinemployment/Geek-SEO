@@ -25,6 +25,10 @@ public class ContentWriterV3DbContext : DbContext
     public DbSet<ResearchEvidence> ResearchEvidence => Set<ResearchEvidence>();
     public DbSet<ReconciliationProposal> ReconciliationProposals => Set<ReconciliationProposal>();
 
+    // Phase 1B: Insight Extraction (independent reasoning, not template-filling)
+    public DbSet<ResearchInsight> ResearchInsights => Set<ResearchInsight>();
+    public DbSet<InsightEvidenceLink> InsightEvidenceLinks => Set<InsightEvidenceLink>();
+
     // Phase 2: Strategy Brief & Human Decision
     public DbSet<StrategyBrief> StrategyBriefs => Set<StrategyBrief>();
     public DbSet<StrategyBriefEvidenceLink> StrategyBriefEvidenceLinks => Set<StrategyBriefEvidenceLink>();

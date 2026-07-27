@@ -5,12 +5,12 @@ namespace ContentWriterV3.Application.Services;
 
 public interface IContentPlanService
 {
-    ContentPlan BuildPlan(StrategyBrief brief, PainPoint painPoint, List<ResearchEvidence> linkedEvidence);
+    ContentPlan BuildPlan(StrategyBrief brief, List<ResearchInsight> insights, List<InsightEvidenceLink> insightEvidenceLinks);
 }
 
 public class ContentPlanService : IContentPlanService
 {
-    public ContentPlan BuildPlan(StrategyBrief brief, PainPoint painPoint, List<ResearchEvidence> linkedEvidence)
+    public ContentPlan BuildPlan(StrategyBrief brief, List<ResearchInsight> insights, List<InsightEvidenceLink> insightEvidenceLinks)
     {
         var plan = new ContentPlan
         {
@@ -19,56 +19,63 @@ public class ContentPlanService : IContentPlanService
             Sections = new()
         };
 
-        // Section 1: Opening (addresses reader symptom)
+        // Add opening section that frames the angle
         plan.Sections.Add(new ContentPlanSection
         {
-            Purpose = "Capture reader's problem and establish relevance",
-            PainToOpenWith = painPoint.ReaderSymptom,
-            SectionName = "Opening / Hook",
-            ClaimConstraints = new() { "must include reader symptom", "must reference pain point" },
-            LinkedEvidenceIds = linkedEvidence.Where(e => e.Statement.Contains("symptom", StringComparison.OrdinalIgnoreCase)).Select(e => e.Id).ToList()
+            OrderIndex = 0,
+            SectionName = "Opening / Angle",
+            Purpose = "Hook with the content angle and establish why the reader should care",
+            Insight = brief.Angle,
+            ClaimConstraints = new() { "establish relevance to audience", "preview the angle" },
+            LinkedInsightIds = new(),
+            LinkedEvidenceIds = new()
         });
 
-        // Section 2: Cost of Inaction
-        plan.Sections.Add(new ContentPlanSection
-        {
-            Purpose = "Establish urgency and cost of not acting",
-            PainToOpenWith = painPoint.CostOfInaction,
-            SectionName = "Cost of Inaction",
-            ClaimConstraints = new() { "must quantify cost", "must establish urgency" },
-            LinkedEvidenceIds = linkedEvidence.Where(e => e.Statement.Contains("cost", StringComparison.OrdinalIgnoreCase)).Select(e => e.Id).ToList()
-        });
+        // Add sections for each included insight, ordered by importance/difficulty (hardest first)
+        var includedInsights = insights
+            .Where(i => i.IncludeInOutline)
+            .OrderBy(i => i.OrderIndex)
+            .ToList();
 
-        // Section 3: Solution / Offer
-        plan.Sections.Add(new ContentPlanSection
+        int sectionIndex = 1;
+        foreach (var insight in includedInsights)
         {
-            Purpose = "Present the solution using offer terminology",
-            PainToOpenWith = painPoint.OfferTerminology,
-            SectionName = "Solution",
-            ClaimConstraints = new() { "use offered terminology", "connect to pain point" },
-            LinkedEvidenceIds = linkedEvidence.Where(e => e.ApprovedForClaim).Select(e => e.Id).ToList()
-        });
+            // Get evidence linked to this insight
+            var linkedEvidence = insightEvidenceLinks
+                .Where(el => el.InsightId == insight.Id)
+                .Select(el => el.ResearchEvidenceId)
+                .ToList();
 
-        // Section 4: Address Objections
-        if (painPoint.Objections.Count > 0)
-        {
             plan.Sections.Add(new ContentPlanSection
             {
-                Purpose = "Address common objections",
-                PainToOpenWith = $"Objections: {string.Join(", ", painPoint.Objections)}",
-                SectionName = "Objections & Answers",
-                ClaimConstraints = new() { "address each objection", "provide evidence-backed answers" },
-                LinkedEvidenceIds = linkedEvidence.Select(e => e.Id).ToList()
+                OrderIndex = sectionIndex,
+                SectionName = insight.Title,
+                Purpose = insight.WhyItMatters,
+                Insight = insight.Description,
+                ClaimConstraints = new()
+                {
+                    $"Explain: {insight.Description}",
+                    $"Address misconception: {insight.WhatPeopleGetWrong}",
+                    "Ground in evidence, not opinion"
+                },
+                LinkedInsightIds = new() { insight.Id },
+                LinkedEvidenceIds = linkedEvidence,
+                Difficulty = insight.Difficulty,
+                Importance = insight.Importance
             });
+
+            sectionIndex++;
         }
 
-        // Section 5: CTA / Next Steps
+        // Final section: CTA
         plan.Sections.Add(new ContentPlanSection
         {
-            Purpose = "Drive action with clear call-to-action",
-            PainToOpenWith = brief.CallToAction,
+            OrderIndex = sectionIndex,
             SectionName = "Call to Action",
-            ClaimConstraints = new() { "match buying stage: " + brief.BuyingStage, "create urgency" },
+            Purpose = "Close with clear next step",
+            Insight = brief.CallToAction,
+            ClaimConstraints = new() { $"Match buying stage: {brief.BuyingStage}", "Create urgency without desperation" },
+            LinkedInsightIds = new(),
             LinkedEvidenceIds = new()
         });
 
@@ -87,9 +94,13 @@ public class ContentPlan
 
 public class ContentPlanSection
 {
+    public int OrderIndex { get; set; } // 0 = opening, 1+ = insights in order of importance
     public string SectionName { get; set; } = string.Empty;
     public string Purpose { get; set; } = string.Empty;
-    public string PainToOpenWith { get; set; } = string.Empty;
+    public string Insight { get; set; } = string.Empty; // The core insight for this section
     public List<string> ClaimConstraints { get; set; } = new();
-    public List<Guid> LinkedEvidenceIds { get; set; } = new();
+    public List<Guid> LinkedInsightIds { get; set; } = new(); // Which insights this section covers
+    public List<Guid> LinkedEvidenceIds { get; set; } = new(); // Evidence supporting this section
+    public int Difficulty { get; set; } // How intellectually challenging (1-10)
+    public int Importance { get; set; } // How critical to the decision (1-10)
 }
