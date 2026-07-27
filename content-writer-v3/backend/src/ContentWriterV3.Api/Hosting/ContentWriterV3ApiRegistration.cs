@@ -20,9 +20,14 @@ public static class ContentWriterV3ApiRegistration
         services.AddScoped<IStrategyBriefApprovalValidator, StrategyBriefApprovalValidator>();
         services.AddScoped<IContentPlanService, ContentPlanService>();
 
+        // Phase 3: Intelligent Drafting with Site Context
+        services.AddScoped<IContentIntelligenceValidator, ContentIntelligenceValidator>();
+        services.AddScoped<IContentGenerator, MockContentGenerator>();
+
         // Job handlers
         services.AddScoped<IJobHandler, InitiateResearchHandler>();
         services.AddScoped<IJobHandler, ExtractInsightsHandler>();
+        services.AddScoped<IJobHandler, DraftContentHandler>();
 
         // Controllers
         services.AddControllers();

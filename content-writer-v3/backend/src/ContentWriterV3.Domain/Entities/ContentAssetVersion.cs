@@ -5,6 +5,9 @@ public class ContentAssetVersion : BaseEntity
     public Guid AssetId { get; set; }
     public int VersionNumber { get; set; }
     public string BodyDocumentJson { get; set; } = string.Empty;
+    public string Status { get; set; } = "Draft"; // Draft, ReadyForReview, Approved, Published
+    public string ValidationWarningsJson { get; set; } = "[]";
+    public string ValidationRecommendationsJson { get; set; } = "[]";
 
     public ContentAssetVersion() { }
 

@@ -40,8 +40,7 @@ public class StrategyBrief : BaseEntity
         {
             StrategyBriefId = Id,
             Action = ApprovalAction.Approved,
-            UserId = userId,
-            CreatedAt = DateTime.UtcNow
+            UserId = userId
         });
         UpdatedAt = DateTime.UtcNow;
     }
@@ -54,8 +53,7 @@ public class StrategyBrief : BaseEntity
             StrategyBriefId = Id,
             Action = ApprovalAction.ReturnedToResearch,
             UserId = userId,
-            Notes = notes,
-            CreatedAt = DateTime.UtcNow
+            Notes = notes
         });
         UpdatedAt = DateTime.UtcNow;
     }
@@ -91,6 +89,14 @@ public class ApprovalEvent : BaseEntity
     public string? Notes { get; set; }
 
     public ApprovalEvent() { }
+
+    public ApprovalEvent(Guid strategyBriefId, ApprovalAction action, Guid userId, string? notes = null)
+    {
+        StrategyBriefId = strategyBriefId;
+        Action = action;
+        UserId = userId;
+        Notes = notes;
+    }
 }
 
 public enum ApprovalAction

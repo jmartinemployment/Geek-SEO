@@ -29,6 +29,12 @@ public class ContentWriterV3DbContext : DbContext
     public DbSet<ResearchInsight> ResearchInsights => Set<ResearchInsight>();
     public DbSet<InsightEvidenceLink> InsightEvidenceLinks => Set<InsightEvidenceLink>();
 
+    // Phase 1 Pre-Work: Site Intelligence
+    public DbSet<SiteAudit> SiteAudits => Set<SiteAudit>();
+    public DbSet<ContentNode> ContentNodes => Set<ContentNode>();
+    public DbSet<TopicalCluster> TopicalClusters => Set<TopicalCluster>();
+    public DbSet<ContentGap> ContentGaps => Set<ContentGap>();
+
     // Phase 2: Strategy Brief & Human Decision
     public DbSet<StrategyBrief> StrategyBriefs => Set<StrategyBrief>();
     public DbSet<StrategyBriefEvidenceLink> StrategyBriefEvidenceLinks => Set<StrategyBriefEvidenceLink>();
