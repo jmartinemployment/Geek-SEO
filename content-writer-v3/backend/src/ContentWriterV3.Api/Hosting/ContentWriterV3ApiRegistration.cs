@@ -9,9 +9,13 @@ public static class ContentWriterV3ApiRegistration
 {
     public static IServiceCollection AddContentWriterV3Api(this IServiceCollection services)
     {
-        // Application services
+        // Phase 1: Research & Intelligence
         services.AddScoped<IEvidenceSupportLevelClassifier, EvidenceSupportLevelClassifier>();
         services.AddScoped<IReconciliationService, ReconciliationService>();
+
+        // Phase 2: Strategy Brief & Human Decision
+        services.AddScoped<IStrategyBriefApprovalValidator, StrategyBriefApprovalValidator>();
+        services.AddScoped<IContentPlanService, ContentPlanService>();
 
         // Job handlers
         services.AddScoped<IJobHandler, InitiateResearchHandler>();

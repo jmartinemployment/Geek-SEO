@@ -25,6 +25,11 @@ public class ContentWriterV3DbContext : DbContext
     public DbSet<ResearchEvidence> ResearchEvidence => Set<ResearchEvidence>();
     public DbSet<ReconciliationProposal> ReconciliationProposals => Set<ReconciliationProposal>();
 
+    // Phase 2: Strategy Brief & Human Decision
+    public DbSet<StrategyBrief> StrategyBriefs => Set<StrategyBrief>();
+    public DbSet<StrategyBriefEvidenceLink> StrategyBriefEvidenceLinks => Set<StrategyBriefEvidenceLink>();
+    public DbSet<ApprovalEvent> ApprovalEvents => Set<ApprovalEvent>();
+
     public ContentWriterV3DbContext(DbContextOptions<ContentWriterV3DbContext> options) : base(options)
     {
     }
