@@ -47,6 +47,10 @@ public class ContentWriterV3DbContext : DbContext
     public DbSet<ContentReview> ContentReviews => Set<ContentReview>();
     public DbSet<ReviewComment> ReviewComments => Set<ReviewComment>();
 
+    // Phase 5: Publication
+    public DbSet<Publication> Publications => Set<Publication>();
+    public DbSet<PublicationEvent> PublicationEvents => Set<PublicationEvent>();
+
     public ContentWriterV3DbContext(DbContextOptions<ContentWriterV3DbContext> options) : base(options)
     {
     }

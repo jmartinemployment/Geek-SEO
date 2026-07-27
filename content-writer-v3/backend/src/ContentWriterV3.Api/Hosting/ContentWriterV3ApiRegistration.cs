@@ -27,6 +27,10 @@ public static class ContentWriterV3ApiRegistration
         // Phase 4: Review & Approval
         services.AddScoped<IReviewService, ReviewService>();
 
+        // Phase 5: Publication
+        services.AddScoped<IPublicationService, PublicationService>();
+        services.AddScoped<IPublishAdapter, MockPublishAdapter>();
+
         // Job handlers
         services.AddScoped<IJobHandler, InitiateResearchHandler>();
         services.AddScoped<IJobHandler, ExtractInsightsHandler>();
