@@ -19,6 +19,12 @@ public class ContentWriterV3DbContext : DbContext
     public DbSet<PainPoint> PainPoints => Set<PainPoint>();
     public DbSet<PainPointEvidenceLink> PainPointEvidenceLinks => Set<PainPointEvidenceLink>();
 
+    // Phase 1: Research & Intelligence
+    public DbSet<ResearchRun> ResearchRuns => Set<ResearchRun>();
+    public DbSet<ResearchSource> ResearchSources => Set<ResearchSource>();
+    public DbSet<ResearchEvidence> ResearchEvidence => Set<ResearchEvidence>();
+    public DbSet<ReconciliationProposal> ReconciliationProposals => Set<ReconciliationProposal>();
+
     public ContentWriterV3DbContext(DbContextOptions<ContentWriterV3DbContext> options) : base(options)
     {
     }
