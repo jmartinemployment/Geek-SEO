@@ -51,6 +51,11 @@ public class ContentWriterV3DbContext : DbContext
     public DbSet<Publication> Publications => Set<Publication>();
     public DbSet<PublicationEvent> PublicationEvents => Set<PublicationEvent>();
 
+    // Phase 6: Performance Feedback
+    public DbSet<ContentPerformance> ContentPerformances => Set<ContentPerformance>();
+    public DbSet<InsightPerformanceLink> InsightPerformanceLinks => Set<InsightPerformanceLink>();
+    public DbSet<InsightFeedback> InsightFeedbacks => Set<InsightFeedback>();
+
     public ContentWriterV3DbContext(DbContextOptions<ContentWriterV3DbContext> options) : base(options)
     {
     }

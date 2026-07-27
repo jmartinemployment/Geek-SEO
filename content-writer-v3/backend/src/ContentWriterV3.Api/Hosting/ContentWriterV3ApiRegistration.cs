@@ -31,6 +31,9 @@ public static class ContentWriterV3ApiRegistration
         services.AddScoped<IPublicationService, PublicationService>();
         services.AddScoped<IPublishAdapter, MockPublishAdapter>();
 
+        // Phase 6: Performance Feedback
+        services.AddScoped<IPerformanceService, PerformanceService>();
+
         // Job handlers
         services.AddScoped<IJobHandler, InitiateResearchHandler>();
         services.AddScoped<IJobHandler, ExtractInsightsHandler>();
