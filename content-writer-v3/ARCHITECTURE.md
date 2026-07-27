@@ -347,11 +347,22 @@ Next Content Generation:
 
 ## Future Enhancements
 
-1. **LLM Integration**: Replace MockContentGenerator with Claude/GPT-4
-2. **A/B Testing**: Test content variants before full publication
-3. **Cross-linking Automation**: Auto-link related content based on InsightPerformanceLinks
-4. **Semantic Search**: Find similar content not just by keyword but by meaning
-5. **Competitor Tracking**: Continuous monitoring of competitor content and positioning
-6. **Content Calendar**: Plan and schedule content across quarters
-7. **Team Collaboration**: Comments and feedback loops for team members
-8. **Webhooks**: Real-time alerts for content changes, approvals, publications
+See **PHASE_7_ROADMAP.md** for detailed enhancement plan.
+
+### Quick Reference
+
+1. **Phase 7: Competitive Intelligence** — Position vs. actual competitors, not just SERP
+2. **Phase 8: Audience Segmentation** — Different angles for different buyer personas
+3. **Phase 9: Iterative Refinement** — Edit sections surgically, not all-or-nothing
+4. **Phase 10: Content Calendar** — Quarterly batch planning and auto-publishing
+5. **Phase 11: Continuous Feedback Loop** — Performance data guides next generation
+6. **Phase 12: Multi-Channel Amplification** — Email, LinkedIn, social, partnerships
+7. **Phase 13: A/B Testing** — Test variants before full rollout
+8. **Phase 14: Knowledge Retrieval** — Searchable institutional memory of insights
+
+### Immediate Quick Wins
+- LLM Integration: Replace MockContentGenerator with Claude/GPT-4
+- Cross-linking Automation: Auto-link related content based on InsightPerformanceLinks
+- Semantic Search: Find similar content not just by keyword but by meaning
+- Team Collaboration: Comments and feedback loops for team members
+- Webhooks: Real-time alerts for content changes, approvals, publications
