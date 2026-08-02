@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useSeoHub } from '@/components/signalr/seo-hub-provider';
-import { getNicheAnalysisStatus, type NicheAnalysisStatus } from '@/lib/seo-api';
+import { getSiteAnalysisStatus, type SiteAnalysisStatus } from '@/lib/seo-api';
 
 type AnalysisProgressMsg = {
   profileId?: string;
@@ -33,10 +33,10 @@ function msgStatus(msg: AnalysisProgressMsg): string | undefined {
   return msg.status ?? msg.Status;
 }
 
-export function useNicheAnalysisSignalR(
+export function useSiteAnalysisSignalR(
   profileId: string | null,
   accessToken: string | null | undefined,
-  onStatus: (status: NicheAnalysisStatus) => void,
+  onStatus: (status: SiteAnalysisStatus) => void,
   options?: {
     onComplete?: (profileId: string) => void;
     onConnectionError?: (message: string) => void;
@@ -59,9 +59,9 @@ export function useNicheAnalysisSignalR(
     const activeProfileId = profileId;
     let hydrateTimer: ReturnType<typeof setTimeout> | null = null;
 
-    async function hydrate(): Promise<NicheAnalysisStatus | null> {
+    async function hydrate(): Promise<SiteAnalysisStatus | null> {
       try {
-        const status = await getNicheAnalysisStatus(activeProfileId, accessToken);
+        const status = await getSiteAnalysisStatus(activeProfileId, accessToken);
         onStatusRef.current(status);
         return status;
       } catch {

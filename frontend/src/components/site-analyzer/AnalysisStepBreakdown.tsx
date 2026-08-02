@@ -11,14 +11,14 @@ import {
   type NicheStepDefinition,
   type StepStatus,
 } from '@/lib/seo-api';
-import { OUTPUT_LABELS } from '@/components/niche-analyzer/pillar-provenance';
-import { TopicCandidateMatrix } from '@/components/niche-analyzer/TopicCandidateMatrix';
-import { waitForNicheStepViaSignalR } from '@/lib/niche-step-wait';
+import { OUTPUT_LABELS } from '@/components/site-analyzer/pillar-provenance';
+import { TopicCandidateMatrix } from '@/components/site-analyzer/TopicCandidateMatrix';
+import { waitForSiteStepViaSignalR } from '@/lib/site-step-wait';
 import {
-  isNicheStepComplete,
+  isSiteStepComplete,
   mergeStepStatuses,
   stepStatusesFromLog,
-} from '@/lib/niche-step-status';
+} from '@/lib/site-step-status';
 
 type Props = {
   profileId: string;
@@ -151,7 +151,7 @@ function StepRow({
       : isolatedStatus;
   const deps = stepDefinition?.dependencies ?? [];
   const depsKnown = deps.length === 0 || Boolean(stepStatuses);
-  const depsComplete = deps.every((dep) => isNicheStepComplete(dep, stepStatuses));
+  const depsComplete = deps.every((dep) => isSiteStepComplete(dep, stepStatuses));
   const canRun = Boolean(stepStatuses);
   const rerunDisabled =
     !depsKnown || !depsComplete || anyStepRunning || (rerunning && !isolatedTerminal);
@@ -175,7 +175,7 @@ function StepRow({
     ?? persistedError
     ?? persistedSummary
     ?? (!depsComplete
-      ? `Blocked until: ${deps.filter((dep) => !isNicheStepComplete(dep, stepStatuses)).join(', ')}`
+      ? `Blocked until: ${deps.filter((dep) => !isSiteStepComplete(dep, stepStatuses)).join(', ')}`
       : displayStatus === 'running'
         ? 'Step is currently running.'
       : displayStatus === 'complete'
@@ -200,7 +200,7 @@ function StepRow({
     setRerunError(null);
     setLiveProgress(null);
     try {
-      await waitForNicheStepViaSignalR({
+      await waitForSiteStepViaSignalR({
         profileId,
         slug: stepDefinition.slug,
         accessToken,
@@ -258,7 +258,7 @@ function StepRow({
                 !depsKnown
                   ? 'Step status map unavailable for this run.'
                   : !depsComplete
-                    ? `Dependencies not complete: ${deps.filter((d) => !isNicheStepComplete(d, stepStatuses)).join(', ')}`
+                    ? `Dependencies not complete: ${deps.filter((d) => !isSiteStepComplete(d, stepStatuses)).join(', ')}`
                     : ''
               }
               className="rounded px-2 py-0.5 text-[10px] font-medium transition-colors bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)] hover:bg-[var(--color-border)] disabled:cursor-not-allowed disabled:opacity-40"

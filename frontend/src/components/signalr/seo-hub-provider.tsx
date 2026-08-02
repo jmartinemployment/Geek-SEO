@@ -243,10 +243,10 @@ export function SeoHubProvider({ children }: { children: ReactNode }) {
       registerGroup(
         groupKey('niche', profileId),
         async () => {
-          await connectionRef.current!.invoke('JoinNicheProfile', profileId);
+          await connectionRef.current!.invoke('JoinSiteAnalysisProfile', profileId);
         },
         async () => {
-          await connectionRef.current!.invoke('LeaveNicheProfile', profileId);
+          await connectionRef.current!.invoke('LeaveSiteAnalysisProfile', profileId);
         },
       ),
     [registerGroup],

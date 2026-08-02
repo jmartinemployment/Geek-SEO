@@ -66,7 +66,7 @@ export function LocalServiceAreaSettings({ projectId, project, accessToken, onSa
     <section className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
       <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Location & service area</h2>
       <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-        Target market for SERP analysis and local SEO. Used for niche analysis, keyword research, and competitor detection.
+        Target market for SERP analysis and local SEO. Used for site analysis, keyword research, and competitor detection.
       </p>
 
       {error ? (

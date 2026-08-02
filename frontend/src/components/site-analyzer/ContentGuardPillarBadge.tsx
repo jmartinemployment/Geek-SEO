@@ -1,4 +1,4 @@
-import { pillarCoverageLabel, type PillarUrlMatch } from '@/lib/niche-url-match';
+import { pillarCoverageLabel, type PillarUrlMatch } from '@/lib/site-url-match';
 
 type Props = {
   match: PillarUrlMatch;
@@ -18,7 +18,7 @@ export function ContentGuardPillarBadge({ match }: Readonly<Props>) {
       className={`inline-flex max-w-full flex-col gap-0.5 rounded-lg border px-2.5 py-1.5 text-xs ${coverageClass[match.coverageStatus]}`}
     >
       <p className="font-medium leading-snug">
-        Topic from niche analysis: <span className="font-semibold">{match.pillarTopic}</span>
+        Topic from site analysis: <span className="font-semibold">{match.pillarTopic}</span>
       </p>
       <p className="leading-snug opacity-90">{hint}</p>
     </div>

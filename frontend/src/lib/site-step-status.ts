@@ -58,7 +58,7 @@ export function stepStatusesFromLog(
 }
 
 /** Legacy 14-step runs used site_structure instead of site_crawl. */
-export function isNicheStepComplete(
+export function isSiteStepComplete(
   slug: string,
   statuses?: Record<string, StepStatus>,
 ): boolean {

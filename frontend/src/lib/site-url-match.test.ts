@@ -4,7 +4,7 @@ import {
   matchUrlToNichePillar,
   normalizePagePath,
   pillarCoverageLabel,
-} from '@/lib/niche-url-match';
+} from '@/lib/site-url-match';
 import type { NichePillarResult } from '@/lib/seo-api';
 
 const pillars: NichePillarResult[] = [

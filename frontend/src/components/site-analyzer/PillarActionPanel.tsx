@@ -9,7 +9,7 @@ import {
 import {
   buildKnowsAboutSyncSnippet,
   orphanLinkSuggestions,
-} from '@/components/niche-analyzer/fusion-action-helpers';
+} from '@/components/site-analyzer/fusion-action-helpers';
 
 type Props = {
   fusion: SiteTopicProfile;

@@ -6,7 +6,7 @@ import {
   type NicheAnalysisStepLogEntry,
   type SiteTopicProfile,
 } from '@/lib/seo-api';
-import { TopicInsightsStack } from '@/components/niche-analyzer/TopicInsightsStack';
+import { TopicInsightsStack } from '@/components/site-analyzer/TopicInsightsStack';
 
 type Props = {
   profileId: string;

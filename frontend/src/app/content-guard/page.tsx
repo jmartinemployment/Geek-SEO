@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuthReady } from '@/hooks/use-auth-ready';
-import { NicheStrategyContextBanner } from '@/components/niche-analyzer/NicheStrategyContextBanner';
-import { ContentGuardPillarBadge } from '@/components/niche-analyzer/ContentGuardPillarBadge';
+import { SiteStrategyContextBanner } from '@/components/site-analyzer/SiteStrategyContextBanner';
+import { ContentGuardPillarBadge } from '@/components/site-analyzer/ContentGuardPillarBadge';
 import {
   approveContentGuardRun,
   getContentGuardPolicy,
@@ -25,7 +25,7 @@ import {
 import {
   compareDecayingPagesByPillarPriority,
   matchUrlToNichePillar,
-} from '@/lib/niche-url-match';
+} from '@/lib/site-url-match';
 
 function statusClass(status: PublishedPageMetrics['status']): string {
   if (status === 'critical') return 'bg-red-50 text-red-800 border-red-200';
@@ -189,7 +189,7 @@ function ContentGuardPageInner() {
       </p>
 
       {projectId ? (
-        <NicheStrategyContextBanner projectId={projectId} accessToken={accessToken} />
+        <SiteStrategyContextBanner projectId={projectId} accessToken={accessToken} />
       ) : null}
 
       <section className="mt-6 rounded-xl border bg-white p-5 shadow-sm">

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSeoHub } from '@/components/signalr/seo-hub-provider';
 import { getNicheAnalysisStatus, type NicheAnalysisStatus } from '@/lib/seo-api';
-import { isNicheStepStalled, NICHE_STALL_MS } from '@/lib/niche-analysis-stale';
+import { isSiteStepStalled, SITE_STALL_MS } from '@/lib/site-analysis-stale';
 
 const STEP_LABELS: Record<string, string> = {
   schema: 'Extracting schema.org data…',
@@ -64,7 +64,7 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
     if (step > 0 && step !== stepTrackerRef.current.step) {
       stepTrackerRef.current = { step, at: Date.now() };
       setStalled(false);
-    } else if (isNicheStepStalled(status, stepTrackerRef.current.step, stepTrackerRef.current.at)) {
+    } else if (isSiteStepStalled(status, stepTrackerRef.current.step, stepTrackerRef.current.at)) {
       setStalled(true);
     }
 
@@ -202,7 +202,7 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
       ) : null}
       {stalled ? (
         <p className="text-xs text-amber-700">
-          This step has not changed for {Math.round(NICHE_STALL_MS / 60_000)} minutes. If nothing
+          This step has not changed for {Math.round(SITE_STALL_MS / 60_000)} minutes. If nothing
           moves soon, click Re-analyze — the server will abandon stuck runs automatically.
         </p>
       ) : null}

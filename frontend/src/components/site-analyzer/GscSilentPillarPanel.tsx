@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getNicheAnalysisDetails, type SiteTopicProfile } from '@/lib/seo-api';
-import { resolveGscSilentPillars } from '@/components/niche-analyzer/pillar-provenance';
+import { resolveGscSilentPillars } from '@/components/site-analyzer/pillar-provenance';
 
 type Props = {
   profileId: string;

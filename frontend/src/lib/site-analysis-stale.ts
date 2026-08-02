@@ -4,7 +4,7 @@ import type { NicheAnalysisStatus } from '@/lib/seo-api';
 export const NICHE_STALE_MS = 5 * 60 * 1000;
 
 /** UI hint when step number stops advancing. */
-export const NICHE_STALL_MS = 5 * 60 * 1000;
+export const SITE_STALL_MS = 5 * 60 * 1000;
 
 export function nicheStatusLastActivityIso(status: NicheAnalysisStatus): string | undefined {
   return status.progressAt ?? status.createdAt;
@@ -17,7 +17,7 @@ export function isNicheRunStale(status: NicheAnalysisStatus, now = Date.now()): 
   return now - Date.parse(last) > NICHE_STALE_MS;
 }
 
-export function isNicheStepStalled(
+export function isSiteStepStalled(
   status: NicheAnalysisStatus,
   lastStepNumber: number,
   lastStepChangeAt: number,
@@ -26,5 +26,5 @@ export function isNicheStepStalled(
   if (status.status !== 'processing') return false;
   const step = status.stepNumber ?? 0;
   if (step <= 0 || step !== lastStepNumber) return false;
-  return now - lastStepChangeAt > NICHE_STALL_MS;
+  return now - lastStepChangeAt > SITE_STALL_MS;
 }

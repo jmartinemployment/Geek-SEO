@@ -9,7 +9,7 @@ type Props = {
   accessToken?: string | null;
 };
 
-export function NicheStrategyContextBanner({ projectId, accessToken }: Readonly<Props>) {
+export function SiteStrategyContextBanner({ projectId, accessToken }: Readonly<Props>) {
   const [profile, setProfile] = useState<NicheProfileResult | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -38,9 +38,9 @@ export function NicheStrategyContextBanner({ projectId, accessToken }: Readonly<
   if (!profile || profile.status !== 'complete') {
     return (
       <section className="mt-6 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-muted)]/20 px-5 py-4">
-        <p className="text-sm font-medium text-[var(--color-text-primary)]">No niche analysis yet</p>
+        <p className="text-sm font-medium text-[var(--color-text-primary)]">No site analysis yet</p>
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          Run niche analysis to group decaying pages by topic and plan refreshes.
+          Run site analysis to group decaying pages by topic and plan refreshes.
         </p>
         <Link
           href={topicalMapHref}

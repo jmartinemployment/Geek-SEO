@@ -1,14 +1,14 @@
 'use client';
 
 import type { NicheAnalysisStepLogEntry, SiteTopicProfile } from '@/lib/seo-api';
-import { PillarActionPanel } from '@/components/niche-analyzer/PillarActionPanel';
-import { EntityCoveragePanel } from '@/components/niche-analyzer/EntityCoveragePanel';
-import { InternalLinkGraphPanel } from '@/components/niche-analyzer/InternalLinkGraphPanel';
-import { TopicCandidateMatrix } from '@/components/niche-analyzer/TopicCandidateMatrix';
-import { GscSilentPillarPanel } from '@/components/niche-analyzer/GscSilentPillarPanel';
-import { PillarMapLauncher } from '@/components/niche-analyzer/PillarMapLauncher';
-import { LocalGeographyPanel } from '@/components/niche-analyzer/LocalGeographyPanel';
-import { CrawlResultsPanel } from '@/components/niche-analyzer/CrawlResultsPanel';
+import { PillarActionPanel } from '@/components/site-analyzer/PillarActionPanel';
+import { EntityCoveragePanel } from '@/components/site-analyzer/EntityCoveragePanel';
+import { InternalLinkGraphPanel } from '@/components/site-analyzer/InternalLinkGraphPanel';
+import { TopicCandidateMatrix } from '@/components/site-analyzer/TopicCandidateMatrix';
+import { GscSilentPillarPanel } from '@/components/site-analyzer/GscSilentPillarPanel';
+import { PillarMapLauncher } from '@/components/site-analyzer/PillarMapLauncher';
+import { LocalGeographyPanel } from '@/components/site-analyzer/LocalGeographyPanel';
+import { CrawlResultsPanel } from '@/components/site-analyzer/CrawlResultsPanel';
 
 type Props = {
   fusion: SiteTopicProfile;

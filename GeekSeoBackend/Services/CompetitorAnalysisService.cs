@@ -113,7 +113,7 @@ public sealed class CompetitorAnalysisService(
     {
         try
         {
-            await hub.Clients.Group($"niche-{profileId}").SendAsync(
+            await hub.Clients.Group(Hubs.SeoRealtimeHub.SiteAnalysisGroup(profileId)).SendAsync(
                 "CompetitorAnalysisProgress",
                 new { ProfileId = profileId, Done = done, Total = total, Message = message },
                 ct);

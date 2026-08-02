@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getNicheAnalysisDetails } from '@/lib/seo-api';
-import { buildPillarProvenanceSummary } from '@/components/niche-analyzer/pillar-provenance';
+import { buildPillarProvenanceSummary } from '@/components/site-analyzer/pillar-provenance';
 
 type Props = {
   profileId: string;

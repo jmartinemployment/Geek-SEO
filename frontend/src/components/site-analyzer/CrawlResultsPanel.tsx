@@ -1,7 +1,7 @@
 'use client';
 
 import type { NicheAnalysisStepLogEntry } from '@/lib/seo-api';
-import { OUTPUT_LABELS } from '@/components/niche-analyzer/pillar-provenance';
+import { OUTPUT_LABELS } from '@/components/site-analyzer/pillar-provenance';
 
 type CrawledUrlRow = {
   url: string;

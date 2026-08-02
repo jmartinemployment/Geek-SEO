@@ -8,7 +8,7 @@ import {
   PILLAR_COVERAGE_ROW,
   PILLAR_COVERAGE_SECTION,
   PILLAR_COVERAGE_SUMMARY,
-} from '@/components/niche-analyzer/pillar-coverage-labels';
+} from '@/components/site-analyzer/pillar-coverage-labels';
 
 type Props = {
   pillars: NichePillarResult[];

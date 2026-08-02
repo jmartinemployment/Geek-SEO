@@ -9,7 +9,7 @@ import {
   sourceLabel,
   SOURCE_COLORS,
   uniqueSources,
-} from '@/components/niche-analyzer/topic-candidate-matrix-utils';
+} from '@/components/site-analyzer/topic-candidate-matrix-utils';
 
 type Props = {
   fusion: SiteTopicProfile;

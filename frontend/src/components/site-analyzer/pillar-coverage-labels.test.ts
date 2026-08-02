@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countPillarCoverage, groupPillarsByCoverage } from '@/components/niche-analyzer/pillar-coverage-labels';
+import { countPillarCoverage, groupPillarsByCoverage } from '@/components/site-analyzer/pillar-coverage-labels';
 
 describe('groupPillarsByCoverage', () => {
   it('partitions pillars into covered, partial, and gap buckets', () => {

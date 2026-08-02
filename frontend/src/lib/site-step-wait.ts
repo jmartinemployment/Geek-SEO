@@ -65,7 +65,7 @@ export type WaitForNicheStepOptions = {
   onStatus?: (status: NicheAnalysisStatus) => void;
 };
 
-export async function waitForNicheStepViaSignalR(
+export async function waitForSiteStepViaSignalR(
   options: WaitForNicheStepOptions,
 ): Promise<NicheAnalysisStatus> {
   const { profileId, slug, accessToken, hub, onProgress, onStatus, triggerRun } = options;

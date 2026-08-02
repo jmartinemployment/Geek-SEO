@@ -4,7 +4,7 @@ import { Fragment, useEffect, useState } from 'react';
 import { useSeoHub } from '@/components/signalr/seo-hub-provider';
 import type { NicheAnalysisStatus, NicheCompetitorResult, StepStatus } from '@/lib/seo-api';
 import { analyzeCompetitors, getNicheProfileCompetitors, runNicheStep } from '@/lib/seo-api';
-import { waitForNicheStepViaSignalR } from '@/lib/niche-step-wait';
+import { waitForSiteStepViaSignalR } from '@/lib/site-step-wait';
 
 type Props = {
   profileId: string;
@@ -96,7 +96,7 @@ function ScopePersistenceBanner({
   );
 }
 
-export function NicheCompetitorPanel({
+export function SiteCompetitorPanel({
   profileId,
   competitors,
   accessToken,
@@ -154,7 +154,7 @@ export function NicheCompetitorPanel({
     setSerpRerunning(true);
     setSerpProgress('Starting SERP validation…');
     try {
-      await waitForNicheStepViaSignalR({
+      await waitForSiteStepViaSignalR({
         profileId,
         slug: 'serp_validation',
         accessToken,
@@ -247,7 +247,7 @@ export function NicheCompetitorPanel({
           </>
         ) : (
           <p className="text-sm text-[var(--color-text-muted)]">
-            No competitors identified yet. Complete SERP validation during niche analysis first.
+            No competitors identified yet. Complete SERP validation during site analysis first.
           </p>
         )}
         </div>

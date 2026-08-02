@@ -1,11 +1,11 @@
 'use client';
 
 import type { NicheProfileResult } from '@/lib/seo-api';
-import { PILLAR_COVERAGE_SUMMARY } from '@/components/niche-analyzer/pillar-coverage-labels';
+import { PILLAR_COVERAGE_SUMMARY } from '@/components/site-analyzer/pillar-coverage-labels';
 
 type Props = { profile: NicheProfileResult };
 
-export function NicheHeader({ profile }: Props) {
+export function SiteAnalyzerHeader({ profile }: Props) {
   const score = Math.round(profile.topicalAuthorityScore);
   const scoreColor =
     score >= 70 ? 'text-green-600' : score >= 40 ? 'text-yellow-500' : 'text-red-500';

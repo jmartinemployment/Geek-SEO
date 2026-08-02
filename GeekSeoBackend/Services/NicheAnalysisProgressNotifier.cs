@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.SignalR;
 namespace GeekSeoBackend.Services;
 
 /// <summary>
-/// Pushes niche analysis progress over SignalR with retries and dual delivery (user + profile group).
+/// Pushes site analysis progress over SignalR with retries and dual delivery (user + profile group).
 /// </summary>
 public sealed class NicheAnalysisProgressNotifier(
     IHubContext<SeoRealtimeHub> hub,
@@ -38,7 +38,7 @@ public sealed class NicheAnalysisProgressNotifier(
             try
             {
                 var userTarget = hub.Clients.User(userId.ToString());
-                var groupTarget = hub.Clients.Group(NicheProfileGroup(profileId));
+                var groupTarget = hub.Clients.Group(SeoRealtimeHub.SiteAnalysisGroup(profileId));
                 await userTarget.SendAsync("AnalysisProgress", payload, ct);
                 await groupTarget.SendAsync("AnalysisProgress", payload, ct);
                 return;
@@ -66,5 +66,5 @@ public sealed class NicheAnalysisProgressNotifier(
         }
     }
 
-    public static string NicheProfileGroup(Guid profileId) => $"niche-{profileId}";
 }
+
