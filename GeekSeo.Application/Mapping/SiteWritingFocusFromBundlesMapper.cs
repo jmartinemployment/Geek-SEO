@@ -4,7 +4,7 @@ using GeekSeo.Application.Services.Seo;
 namespace GeekSeo.Application.Mapping;
 
 /// <summary>
-/// Builds frozen <see cref="SiteWritingFocus"/> from SA2 site + keyword bundles only (no Niche Analyzer).
+/// Builds frozen <see cref="SiteWritingFocus"/> from SA2 site + keyword bundles only (no Site Analyzer).
 /// Keyword-specific pillar/gap fields come from the keyword bundle.
 /// </summary>
 public static class SiteWritingFocusFromBundlesMapper
@@ -24,9 +24,9 @@ public static class SiteWritingFocusFromBundlesMapper
                 ? site.DisplayName.Trim()
                 : site.SiteUrl,
             SiteUrl = site.SiteUrl.Trim(),
-            PrimaryNiche = site.PrimaryNiche ?? string.Empty,
-            NicheDescription = site.NicheDescription ?? string.Empty,
-            NicheTags = site.NicheTags,
+            PrimaryFocus = site.PrimaryFocus ?? string.Empty,
+            FocusDescription = site.FocusDescription ?? string.Empty,
+            FocusTags = site.FocusTags,
             BusinessSummary = site.BusinessSummary?.Trim() ?? string.Empty,
             MatchedPillarTopic = keyword.MatchedPillarTopic,
             MatchedPillarIntent = keyword.MatchedPillarIntent,

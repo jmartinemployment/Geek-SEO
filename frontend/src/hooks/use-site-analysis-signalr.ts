@@ -78,7 +78,7 @@ export function useSiteAnalysisSignalR(
       }, 250);
     }
 
-    const leave = hub.joinNicheProfile(activeProfileId);
+    const leave = hub.joinSiteAnalysisProfile(activeProfileId);
     const unsub = hub.subscribe('AnalysisProgress', (raw: unknown) => {
       const msg = raw as AnalysisProgressMsg;
       if (!idsMatch(msgProfileId(msg), activeProfileId)) return;

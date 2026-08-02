@@ -44,10 +44,10 @@ type TopicalMapWorkspaceProps = {
   accessToken: string | null;
   initialSeedKeyword?: string;
   initialMode?: GenerationMode;
-  autoGenerateNiche?: boolean;
+  autoGenerateFromSite?: boolean;
 };
 
-type GenerationMode = 'gsc' | 'seed' | 'niche';
+type GenerationMode = 'gsc' | 'seed' | 'site';
 
 export function TopicalMapWorkspace({
   projectId,
@@ -55,7 +55,7 @@ export function TopicalMapWorkspace({
   accessToken,
   initialSeedKeyword = '',
   initialMode = initialSeedKeyword.trim() ? 'seed' : 'gsc',
-  autoGenerateNiche = false,
+  autoGenerateFromSite = false,
 }: Readonly<TopicalMapWorkspaceProps>) {
   const [result, setResult] = useState<TopicalMapResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -70,7 +70,7 @@ export function TopicalMapWorkspace({
   const [mode, setMode] = useState<GenerationMode>(initialMode);
   const [seedKeyword, setSeedKeyword] = useState(initialSeedKeyword.trim());
   const [entityGaps, setEntityGaps] = useState<EntityGapAnalysis[] | null>(null);
-  const nicheAutoGenRef = useRef(false);
+  const siteAnalysisAutoGenRef = useRef(false);
 
   const loadCached = useCallback(async () => {
     if (!projectId) return;
@@ -79,7 +79,7 @@ export function TopicalMapWorkspace({
     try {
       const status = await getGoogleIntegrationStatus(projectId, accessToken);
       setGscConnected(status.connected);
-      if (!status.connected && mode !== 'niche') {
+      if (!status.connected && mode !== 'site') {
         setResult(null);
         setInitialLoad(false);
         return;
@@ -124,8 +124,8 @@ export function TopicalMapWorkspace({
     setLoading(true);
     setError(null);
     try {
-      if (mode === 'niche') {
-        const next = await generateTopicalMap(projectId, accessToken, { fromNiche: true, force });
+      if (mode === 'site') {
+        const next = await generateTopicalMap(projectId, accessToken, { fromSiteAnalysis: true, force });
         setResult(next);
         setSelected(next.recommendations?.[0] ?? next.topics[0] ?? null);
       } else if (mode === 'seed') {
@@ -176,12 +176,12 @@ export function TopicalMapWorkspace({
   }, [result?.topics, coverageFilter, pillarFilter, sortKey]);
 
   useEffect(() => {
-    if (!autoGenerateNiche || mode !== 'niche' || !projectId || initialLoad || nicheAutoGenRef.current) {
+    if (!autoGenerateFromSite || mode !== 'site' || !projectId || initialLoad || siteAnalysisAutoGenRef.current) {
       return;
     }
-    nicheAutoGenRef.current = true;
+    siteAnalysisAutoGenRef.current = true;
     void regenerate(true);
-  }, [autoGenerateNiche, mode, projectId, initialLoad]);
+  }, [autoGenerateFromSite, mode, projectId, initialLoad]);
 
   const summary = result
     ? {
@@ -214,8 +214,8 @@ export function TopicalMapWorkspace({
             </button>
             <button
               type="button"
-              className={`rounded-md px-3 py-1.5 ${mode === 'niche' ? 'bg-[var(--color-accent)] text-white' : ''}`}
-              onClick={() => setMode('niche')}
+              className={`rounded-md px-3 py-1.5 ${mode === 'site' ? 'bg-[var(--color-accent)] text-white' : ''}`}
+              onClick={() => setMode('site')}
             >
               From site analysis
             </button>
@@ -229,9 +229,9 @@ export function TopicalMapWorkspace({
             onChange={(e) => setSeedKeyword(e.target.value)}
             className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
           />
-        ) : mode === 'niche' ? (
+        ) : mode === 'site' ? (
           <p className="text-sm text-[var(--color-text-muted)]">
-            Uses your latest niche analyzer fusion snapshot — all pillars plus keyword expansion on
+            Uses your latest site analyzer fusion snapshot — all pillars plus keyword expansion on
             gap topics. No Search Console required.
           </p>
         ) : null}

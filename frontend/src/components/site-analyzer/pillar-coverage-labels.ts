@@ -1,4 +1,4 @@
-import type { NichePillarResult } from '@/lib/seo-api';
+import type { SiteAnalysisPillarResult } from '@/lib/seo-api';
 
 /** Summary stat labels (header + pillar table toolbar). */
 export const PILLAR_COVERAGE_SUMMARY = {
@@ -9,7 +9,7 @@ export const PILLAR_COVERAGE_SUMMARY = {
 
 /** Section headings in the grouped pillar table (include the count in UI). */
 export const PILLAR_COVERAGE_SECTION: Record<
-  NichePillarResult['coverageStatus'],
+  SiteAnalysisPillarResult['coverageStatus'],
   { title: string; empty: string; detail: string }
 > = {
   covered: {
@@ -30,13 +30,13 @@ export const PILLAR_COVERAGE_SECTION: Record<
 };
 
 /** Per-row badge text in the pillar table. */
-export const PILLAR_COVERAGE_ROW: Record<NichePillarResult['coverageStatus'], string> = {
+export const PILLAR_COVERAGE_ROW: Record<SiteAnalysisPillarResult['coverageStatus'], string> = {
   covered: 'Covered',
   partial: 'Partial',
   gap: 'Gap',
 };
 
-export const PILLAR_COVERAGE_ORDER: NichePillarResult['coverageStatus'][] = [
+export const PILLAR_COVERAGE_ORDER: SiteAnalysisPillarResult['coverageStatus'][] = [
   'gap',
   'partial',
   'covered',
@@ -56,8 +56,8 @@ export function countPillarCoverage(rows: ReadonlyArray<{ coverageStatus: string
 
 export function groupPillarsByCoverage<T extends { coverageStatus: string }>(
   rows: ReadonlyArray<T>,
-): Record<NichePillarResult['coverageStatus'], T[]> {
-  const grouped: Record<NichePillarResult['coverageStatus'], T[]> = {
+): Record<SiteAnalysisPillarResult['coverageStatus'], T[]> {
+  const grouped: Record<SiteAnalysisPillarResult['coverageStatus'], T[]> = {
     covered: [],
     partial: [],
     gap: [],

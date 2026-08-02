@@ -1,5 +1,5 @@
 using GeekSeo.Persistence.Entities;
-using GeekSeoBackend.Services.NicheExtraction;
+using GeekSeoBackend.Services.SiteExtraction;
 
 namespace GeekSeoBackend.Tests;
 
@@ -9,7 +9,7 @@ public sealed class SerpValidationMessagesTests
     public void Build_EmitsWarningWhenLocalQueriesFail()
     {
         var localStats = new SerpLocalQueryStats("Delray Beach, Florida, United States", 57, 0, 57, 0, "Serper.dev HTTP 429");
-        var competitors = new List<NicheCompetitor>
+        var competitors = new List<SiteAnalysisCompetitor>
         {
             new() { Domain = "example.com", Scope = "national", SerpPresence = 2 },
         };
@@ -31,7 +31,7 @@ public sealed class SerpValidationMessagesTests
     public void Build_WarnsWhenLocalPillarsSucceededButNoLocalScopedCompetitors()
     {
         var localStats = new SerpLocalQueryStats("Delray Beach, Florida, United States", 57, 34, 0, 23, null);
-        var competitors = new List<NicheCompetitor>
+        var competitors = new List<SiteAnalysisCompetitor>
         {
             new() { Domain = "example.com", Scope = "national", SerpPresence = 2 },
         };
@@ -53,7 +53,7 @@ public sealed class SerpValidationMessagesTests
     public void Build_NoWarningWhenLocalQueriesReturnEmpty()
     {
         var localStats = new SerpLocalQueryStats("Delray Beach, Florida, United States", 57, 43, 0, 14, null);
-        var competitors = new List<NicheCompetitor>
+        var competitors = new List<SiteAnalysisCompetitor>
         {
             new() { Domain = "example.com", Scope = "local", SerpPresence = 2 },
         };

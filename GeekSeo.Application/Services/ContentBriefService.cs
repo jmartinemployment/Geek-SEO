@@ -13,8 +13,8 @@ public sealed class ContentBriefService(
     ISerpCacheRepository serpCache,
     ISerpProvider serpProvider,
     IAIProvider ai,
-    INicheProfileRepository nicheProfiles,
-    INicheAnalyticsDapperRepository nicheAnalytics,
+    ISiteAnalysisProfileRepository siteAnalysisProfiles,
+    ISiteAnalysisAnalyticsRepository siteAnalysisAnalytics,
     CompetitorCrawlService competitorCrawl) : IContentBriefService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -126,9 +126,9 @@ public sealed class ContentBriefService(
                 $"Confirm the closing FAQ section contains exactly {ContentWritingRules.ClosingFaqCount} answered questions.",
                 "Check local references against the target service area.",
             ],
-            NicheContext = new NicheContextSpec
+            SiteFocusContext = new SiteFocusContextSpec
             {
-                PrimaryNiche = latestProfile?.PrimaryNiche,
+                PrimaryFocus = latestProfile?.PrimaryFocus,
                 MatchedPillar = matchedPillar,
                 GapTopics = gapTopics,
             },
@@ -239,9 +239,9 @@ public sealed class ContentBriefService(
     private static int CountWords(string text) =>
         string.IsNullOrWhiteSpace(text) ? 0 : text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
 
-    private async Task<NicheProfile?> TryGetLatestProfileAsync(Guid projectId, CancellationToken ct)
+    private async Task<SiteAnalysisProfile?> TryGetLatestProfileAsync(Guid projectId, CancellationToken ct)
     {
-        var profileResult = await nicheProfiles.GetLatestByProjectAsync(projectId, ct);
+        var profileResult = await siteAnalysisProfiles.GetLatestByProjectAsync(projectId, ct);
         return profileResult.IsSuccess ? profileResult.Value : null;
     }
 
@@ -250,7 +250,7 @@ public sealed class ContentBriefService(
         if (profileId is null)
             return [];
 
-        var gaps = await nicheAnalytics.GetTopicalGapsAsync(profileId.Value, quickWinsOnly: false, ct);
+        var gaps = await siteAnalysisAnalytics.GetTopicalGapsAsync(profileId.Value, quickWinsOnly: false, ct);
         return gaps.IsSuccess && gaps.Value is not null
             ? gaps.Value.Select(g => g.SubtopicTitle).Distinct(StringComparer.OrdinalIgnoreCase).Take(5).ToList()
             : [];
@@ -265,7 +265,7 @@ public sealed class ContentBriefService(
         return pages.IsSuccess && pages.Value is not null ? pages.Value : [];
     }
 
-    private static string? FindMatchedPillar(string keyword, NicheProfile? profile)
+    private static string? FindMatchedPillar(string keyword, SiteAnalysisProfile? profile)
     {
         if (profile?.Pillars is null || profile.Pillars.Count == 0)
             return null;
@@ -280,7 +280,7 @@ public sealed class ContentBriefService(
         return direct?.PillarTopic ?? profile.Pillars.First().PillarTopic;
     }
 
-    private static IReadOnlyList<string> BuildCompetitorDomains(SerpBenchmarksPayload benchmarks, NicheProfile? profile)
+    private static IReadOnlyList<string> BuildCompetitorDomains(SerpBenchmarksPayload benchmarks, SiteAnalysisProfile? profile)
     {
         var domains = benchmarks.OrganicResults
             .Select(o => o.Domain)
@@ -303,12 +303,12 @@ public sealed class ContentBriefService(
 
     private static IReadOnlyList<string> ExtractSoftwareEntities(
         string keyword,
-        NicheProfile? profile,
+        SiteAnalysisProfile? profile,
         IReadOnlyList<string> recommendedTerms)
     {
         var candidates = new List<string>();
         AddMatchingSoftwareEntities(candidates, keyword);
-        foreach (var tag in profile?.NicheTags ?? [])
+        foreach (var tag in profile?.FocusTags ?? [])
             AddMatchingSoftwareEntities(candidates, tag);
         foreach (var term in recommendedTerms)
             AddMatchingSoftwareEntities(candidates, term);
@@ -329,13 +329,13 @@ public sealed class ContentBriefService(
     }
 
     private static IReadOnlyList<string> BuildAboutEntities(
-        NicheProfile? profile,
+        SiteAnalysisProfile? profile,
         string? matchedPillar,
         IReadOnlyList<string> geoAnchorNodes)
     {
         var values = new List<string>();
-        if (!string.IsNullOrWhiteSpace(profile?.PrimaryNiche))
-            values.Add(profile.PrimaryNiche);
+        if (!string.IsNullOrWhiteSpace(profile?.PrimaryFocus))
+            values.Add(profile.PrimaryFocus);
         if (!string.IsNullOrWhiteSpace(matchedPillar))
             values.Add(matchedPillar);
         values.AddRange(geoAnchorNodes);

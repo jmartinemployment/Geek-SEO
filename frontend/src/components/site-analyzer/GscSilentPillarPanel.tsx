@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getNicheAnalysisDetails, type SiteTopicProfile } from '@/lib/seo-api';
+import { getSiteAnalysisDetails, type SiteTopicProfile } from '@/lib/seo-api';
 import { resolveGscSilentPillars } from '@/components/site-analyzer/pillar-provenance';
 
 type Props = {
@@ -20,7 +20,7 @@ export function GscSilentPillarPanel({
   useEffect(() => {
     let cancelled = false;
 
-    void getNicheAnalysisDetails(profileId, accessToken)
+    void getSiteAnalysisDetails(profileId, accessToken)
       .then((data) => {
         if (cancelled) return;
         setSilent(resolveGscSilentPillars(data.steps, data.fusionSnapshot ?? fusion));

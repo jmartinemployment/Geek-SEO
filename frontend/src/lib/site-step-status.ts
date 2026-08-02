@@ -1,4 +1,4 @@
-import type { NicheAnalysisStepLogEntry, StepStatus } from '@/lib/seo-api';
+import type { SiteAnalysisStepLogEntry, StepStatus } from '@/lib/seo-api';
 
 const TERMINAL_STEP_STATUSES = new Set<StepStatus>(['complete', 'error', 'skipped']);
 
@@ -34,7 +34,7 @@ export function mergeStepStatuses(
 
 /** Build a status map from persisted step-log entries (authoritative when json map is stale). */
 export function stepStatusesFromLog(
-  steps?: NicheAnalysisStepLogEntry[],
+  steps?: SiteAnalysisStepLogEntry[],
 ): Record<string, StepStatus> {
   if (!steps?.length) return {};
 
@@ -67,7 +67,7 @@ export function isSiteStepComplete(
   return false;
 }
 
-export function isAnyNicheStepRunning(statuses?: Record<string, StepStatus>): boolean {
+export function isAnySiteAnalysisStepRunning(statuses?: Record<string, StepStatus>): boolean {
   return Object.values(statuses ?? {}).some((status) => status === 'running');
 }
 

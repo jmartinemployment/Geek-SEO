@@ -29,7 +29,7 @@ export type SeoHubContextValue = {
   whenConnected: (timeoutMs?: number) => Promise<void>;
   subscribe: (event: string, handler: (...args: unknown[]) => void) => () => void;
   joinDocument: (documentId: string) => () => void;
-  joinNicheProfile: (profileId: string) => () => void;
+  joinSiteAnalysisProfile: (profileId: string) => () => void;
   joinUrlResearchProject: (projectId: string) => () => void;
   joinUrlResearch: (urlResearchId: string) => () => void;
 };
@@ -41,7 +41,7 @@ export type SeoHubApi = Pick<
   | 'whenConnected'
   | 'subscribe'
   | 'joinDocument'
-  | 'joinNicheProfile'
+  | 'joinSiteAnalysisProfile'
   | 'joinUrlResearchProject'
   | 'joinUrlResearch'
 >;
@@ -238,10 +238,10 @@ export function SeoHubProvider({ children }: { children: ReactNode }) {
     [registerGroup],
   );
 
-  const joinNicheProfile = useCallback(
+  const joinSiteAnalysisProfile = useCallback(
     (profileId: string) =>
       registerGroup(
-        groupKey('niche', profileId),
+        groupKey('site', profileId),
         async () => {
           await connectionRef.current!.invoke('JoinSiteAnalysisProfile', profileId);
         },
@@ -343,7 +343,7 @@ export function SeoHubProvider({ children }: { children: ReactNode }) {
       whenConnected,
       subscribe,
       joinDocument,
-      joinNicheProfile,
+      joinSiteAnalysisProfile,
       joinUrlResearchProject,
       joinUrlResearch,
     }),
@@ -353,7 +353,7 @@ export function SeoHubProvider({ children }: { children: ReactNode }) {
       whenConnected,
       subscribe,
       joinDocument,
-      joinNicheProfile,
+      joinSiteAnalysisProfile,
       joinUrlResearchProject,
       joinUrlResearch,
     ],

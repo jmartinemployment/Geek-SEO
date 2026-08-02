@@ -2,8 +2,8 @@ using System.Text;
 using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeoBackend.Jobs;
-using GeekSeoBackend.Services.NicheExtraction;
-using GeekSeoBackend.Services.NicheStepRunners;
+using GeekSeoBackend.Services.SiteExtraction;
+using GeekSeoBackend.Services.SiteAnalyzerStepRunners;
 using GeekSeo.Application.Services.Seo;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.HttpClients.Repo;
@@ -28,7 +28,7 @@ public static class SeoBackendExtensions
         services.AddSingleton<WorkerUserContext>();
         services.AddSingleton<IBackgroundUserContext>(sp => sp.GetRequiredService<WorkerUserContext>());
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();
-        services.AddSingleton<NicheAnalysisJobChannel>();
+        services.AddSingleton<SiteAnalysisJobChannel>();
         services.AddScoped<IProjectRepository, HttpProjectRepository>();
         services.AddScoped<ISerpCacheRepository, HttpSerpCacheRepository>();
         services.AddScoped<IKeywordVendorSnapshotRepository, HttpKeywordVendorSnapshotRepository>();
@@ -96,9 +96,9 @@ public static class SeoBackendExtensions
         services.AddScoped<ContentGuardService>();
         services.AddScoped<RankTrackingService>();
 
-        // Niche Analyzer
-        services.AddScoped<INicheProfileRepository, HttpNicheProfileRepository>();
-        services.AddScoped<INicheAnalyticsDapperRepository, HttpNicheAnalyticsDapperRepository>();
+        // Site Analyzer
+        services.AddScoped<ISiteAnalysisProfileRepository, HttpSiteAnalysisProfileRepository>();
+        services.AddScoped<ISiteAnalysisAnalyticsRepository, HttpSiteAnalysisAnalyticsRepository>();
         services.AddScoped<SchemaOrgExtractor>();
         services.AddScoped<SitemapExtractor>();
         services.AddScoped<NavMenuExtractor>();
@@ -112,18 +112,18 @@ public static class SeoBackendExtensions
         services.AddScoped<PillarSelector>();
         services.AddScoped<PillarDemandEnricher>();
         services.AddScoped<GscQueryExtractor>();
-        services.AddScoped<NicheAuthorityScorer>();
-        services.AddScoped<NicheRootEntityBuilder>();
-        services.AddScoped<NicheAnalysisPersistenceService>();
-        services.AddScoped<NicheStepExecutionService>();
-        services.AddScoped<NicheAnalyzerService>();
+        services.AddScoped<SiteAuthorityScorer>();
+        services.AddScoped<SiteRootEntityBuilder>();
+        services.AddScoped<SiteAnalysisPersistenceService>();
+        services.AddScoped<SiteAnalyzerStepExecutionService>();
+        services.AddScoped<SiteAnalyzerService>();
         services.AddScoped<CompetitorAnalysisService>();
-        services.AddScoped<NicheAnalysisProgressNotifier>();
+        services.AddScoped<SiteAnalysisProgressNotifier>();
         services.AddSingleton<HubGroupAccessCache>();
         services.AddScoped<IUrlResearchProgressNotifier, UrlResearchProgressNotifier>();
-        services.AddScoped<NicheStepRerunService>();
-        services.AddSingleton<NicheStepLock>();
-        services.AddScoped<NicheAnalysisBackgroundJob>();
+        services.AddScoped<SiteAnalyzerStepRerunService>();
+        services.AddSingleton<SiteAnalysisStepLock>();
+        services.AddScoped<SiteAnalysisBackgroundJob>();
 
         services.AddHttpClient("PayPal");
         services.AddSingleton(_ => new PayPalOptions

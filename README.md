@@ -1,6 +1,6 @@
 # Geek-SEO
 
-Monorepo for **Geek SEO** (seo.geekatyourspot.com): niche analysis, rank tracking, topical maps, and AI-assisted **Content Writer**.
+Monorepo for **Geek SEO** (seo.geekatyourspot.com): site analysis, rank tracking, topical maps, and AI-assisted **Content Writer**.
 
 ## Architecture
 
@@ -66,7 +66,7 @@ railway run dotnet ef database update --project GeekSeo.Persistence --startup-pr
 
 | Schema | Used by | Connection variable | Migrations |
 |--------|---------|---------------------|------------|
-| **`geek_seo`** | GeekRepository / GeekAPI (projects, niche, retired SA2 tables) | GeekRepository `DATABASE_URL` | `GeekSeo.Persistence` — run manually (above) |
+| **`geek_seo`** | GeekRepository / GeekAPI (projects, site analysis, retired SA2 tables) | GeekRepository `DATABASE_URL` | `GeekSeo.Persistence` — run manually (above) |
 | **`content_writer`** | Content Writer (projects, crawls, generated content) | `CONTENT_WRITER_DATABASE_URL` | `ContentWriter.Infrastructure` — auto on GeekSeoBackend startup |
 
 Both schemas can live on the **same** Supabase Postgres database. EF migrations always target the schema explicitly (`geek_seo.*` vs `content_writer.*`); the connection string only needs to reach the database.
@@ -86,7 +86,7 @@ The following were removed from this repo; delete any matching Railway projects/
 
 | Feature | Notes |
 |---------|--------|
-| **SiteAnalyzer2** | Standalone site crawl + SA2 handoff; replaced by Niche Analyzer + Content Writer |
+| **SiteAnalyzer2** | Standalone site crawl + SA2 handoff; replaced by Site Analyzer + Content Writer |
 | **URL research API** | `/api/seo/url-research` (SA2 page research); no frontend consumers |
 | **Standalone ContentWriter service** | API now lives inside GeekSeoBackend |
 

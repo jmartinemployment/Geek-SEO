@@ -8,7 +8,7 @@ using GeekSeo.Persistence.Entities;
 
 namespace GeekSeo.Application.Services.Seo;
 
-public sealed class SourceDiscoveryService(IAIProvider ai, INicheProfileRepository nicheProfiles) : ISourceDiscoveryService
+public sealed class SourceDiscoveryService(IAIProvider ai, ISiteAnalysisProfileRepository siteAnalysisProfiles) : ISourceDiscoveryService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -22,7 +22,7 @@ public sealed class SourceDiscoveryService(IAIProvider ai, INicheProfileReposito
         string plainTextExcerpt,
         CancellationToken ct = default)
     {
-        var nicheContext = await BuildNicheContextAsync(projectId, keyword, ct);
+        var siteFocusContext = await BuildSiteFocusContextAsync(projectId, keyword, ct);
         var excerpt = TrimExcerpt(plainTextExcerpt, maxWords: 800);
 
         var optimized = await ai.CompleteAsync(new AIRequest
@@ -40,7 +40,7 @@ public sealed class SourceDiscoveryService(IAIProvider ai, INicheProfileReposito
                 $"""
                 Keyword: {keyword.Trim()}
                 Location: {location.Trim()}
-                Niche context: {nicheContext}
+                Site focus context: {siteFocusContext}
                 Article excerpt:
                 {excerpt}
                 """,
@@ -85,19 +85,19 @@ public sealed class SourceDiscoveryService(IAIProvider ai, INicheProfileReposito
         }
     }
 
-    private async Task<string> BuildNicheContextAsync(Guid projectId, string keyword, CancellationToken ct)
+    private async Task<string> BuildSiteFocusContextAsync(Guid projectId, string keyword, CancellationToken ct)
     {
-        var profileResult = await nicheProfiles.GetLatestByProjectAsync(projectId, ct);
+        var profileResult = await siteAnalysisProfiles.GetLatestByProjectAsync(projectId, ct);
         var profile = profileResult.IsSuccess ? profileResult.Value : null;
         if (profile is null)
-            return "No niche profile available.";
+            return "No site analysis profile available.";
 
         var pillar = FindMatchedPillar(keyword, profile);
-        var tags = profile.NicheTags.Length > 0 ? string.Join(", ", profile.NicheTags.Take(6)) : "none";
-        return $"Primary niche: {profile.PrimaryNiche}. Description: {profile.NicheDescription}. Tags: {tags}. Matched pillar: {pillar ?? "none"}.";
+        var tags = profile.FocusTags.Length > 0 ? string.Join(", ", profile.FocusTags.Take(6)) : "none";
+        return $"Primary focus: {profile.PrimaryFocus}. Description: {profile.FocusDescription}. Tags: {tags}. Matched pillar: {pillar ?? "none"}.";
     }
 
-    private static string? FindMatchedPillar(string keyword, NicheProfile profile)
+    private static string? FindMatchedPillar(string keyword, SiteAnalysisProfile profile)
     {
         if (profile.Pillars is null || profile.Pillars.Count == 0)
             return null;

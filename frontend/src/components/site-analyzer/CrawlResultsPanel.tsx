@@ -1,6 +1,6 @@
 'use client';
 
-import type { NicheAnalysisStepLogEntry } from '@/lib/seo-api';
+import type { SiteAnalysisStepLogEntry } from '@/lib/seo-api';
 import { OUTPUT_LABELS } from '@/components/site-analyzer/pillar-provenance';
 
 type CrawledUrlRow = {
@@ -10,7 +10,7 @@ type CrawledUrlRow = {
 };
 
 type Props = {
-  steps: NicheAnalysisStepLogEntry[];
+  steps: SiteAnalysisStepLogEntry[];
 };
 
 function parseCrawledUrls(outputs: Record<string, unknown>): CrawledUrlRow[] {
@@ -33,7 +33,7 @@ function parseCrawledUrls(outputs: Record<string, unknown>): CrawledUrlRow[] {
     .filter((row): row is CrawledUrlRow => row !== null);
 }
 
-function findCrawlStep(steps: NicheAnalysisStepLogEntry[]): NicheAnalysisStepLogEntry | undefined {
+function findCrawlStep(steps: SiteAnalysisStepLogEntry[]): SiteAnalysisStepLogEntry | undefined {
   return (
     steps.find((s) => s.slug === 'internal_links')
     ?? steps.find((s) => s.slug === 'site_crawl')

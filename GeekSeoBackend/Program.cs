@@ -45,8 +45,8 @@ if (!disablePlaywright)
 
 builder.Services.AddGeekSeoBackend(builder.Configuration, playwrightHolder);
 builder.Services.AddContentWriter(builder.Configuration);
-builder.Services.AddHostedService<NicheAnalysisJobWorker>();
-builder.Services.AddHostedService<NicheEnrichmentJobWorker>();
+builder.Services.AddHostedService<SiteAnalysisJobWorker>();
+builder.Services.AddHostedService<SiteAnalysisEnrichmentJobWorker>();
 builder.Services.AddHostedService<SeoMaintenanceWorker>();
 
 var corsOrigins = CorsOriginParser.GetAllowedOrigins();
@@ -72,7 +72,7 @@ builder.Services.AddTransient<GeekDataGatewayHandler>();
 builder.Services.AddHttpClient(GeekDataGateway.HttpClientName, client =>
 {
     client.BaseAddress = new Uri(gatewayUrl.TrimEnd('/') + "/");
-    // Large niche profiles (60+ pillars, step log, fusion snapshot) can exceed 60s on read/write.
+    // Large site analysis profiles (60+ pillars, step log, fusion snapshot) can exceed 60s on read/write.
     client.Timeout = TimeSpan.FromSeconds(180);
 }).AddHttpMessageHandler<GeekDataGatewayHandler>();
 

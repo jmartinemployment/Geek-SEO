@@ -1,6 +1,6 @@
 'use client';
 
-import type { NicheAnalysisStepLogEntry, SiteTopicProfile } from '@/lib/seo-api';
+import type { SiteAnalysisStepLogEntry, SiteTopicProfile } from '@/lib/seo-api';
 import { PillarActionPanel } from '@/components/site-analyzer/PillarActionPanel';
 import { EntityCoveragePanel } from '@/components/site-analyzer/EntityCoveragePanel';
 import { InternalLinkGraphPanel } from '@/components/site-analyzer/InternalLinkGraphPanel';
@@ -16,7 +16,7 @@ type Props = {
   profileId?: string;
   accessToken?: string | null;
   showMatrix?: boolean;
-  steps?: NicheAnalysisStepLogEntry[];
+  steps?: SiteAnalysisStepLogEntry[];
 };
 
 export function TopicInsightsStack({

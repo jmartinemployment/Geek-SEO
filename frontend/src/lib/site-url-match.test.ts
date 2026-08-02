@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   compareDecayingPagesByPillarPriority,
-  matchUrlToNichePillar,
+  matchUrlToSiteAnalysisPillar,
   normalizePagePath,
   pillarCoverageLabel,
 } from '@/lib/site-url-match';
-import type { NichePillarResult } from '@/lib/seo-api';
+import type { SiteAnalysisPillarResult } from '@/lib/seo-api';
 
-const pillars: NichePillarResult[] = [
+const pillars: SiteAnalysisPillarResult[] = [
   {
     id: '1',
     pillarTopic: 'Managed IT',
@@ -77,20 +77,20 @@ describe('normalizePagePath', () => {
   });
 });
 
-describe('matchUrlToNichePillar', () => {
+describe('matchUrlToSiteAnalysisPillar', () => {
   it('matches dedicated pillar page', () => {
-    const match = matchUrlToNichePillar('https://example.com/managed-it', pillars);
+    const match = matchUrlToSiteAnalysisPillar('https://example.com/managed-it', pillars);
     expect(match?.pillarTopic).toBe('Managed IT');
     expect(match?.matchKind).toBe('pillar_page');
   });
 
   it('matches subtopic existing URL', () => {
-    const match = matchUrlToNichePillar('https://example.com/managed-it/backup', pillars);
+    const match = matchUrlToSiteAnalysisPillar('https://example.com/managed-it/backup', pillars);
     expect(match?.matchKind).toBe('subtopic_page');
   });
 
   it('returns null when no pillar matches', () => {
-    expect(matchUrlToNichePillar('https://example.com/contact', pillars)).toBeNull();
+    expect(matchUrlToSiteAnalysisPillar('https://example.com/contact', pillars)).toBeNull();
   });
 });
 

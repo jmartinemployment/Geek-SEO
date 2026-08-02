@@ -2,13 +2,13 @@
 
 import { Fragment, useEffect, useState } from 'react';
 import { useSeoHub } from '@/components/signalr/seo-hub-provider';
-import type { NicheAnalysisStatus, NicheCompetitorResult, StepStatus } from '@/lib/seo-api';
-import { analyzeCompetitors, getNicheProfileCompetitors, runNicheStep } from '@/lib/seo-api';
+import type { SiteAnalysisStatus, SiteCompetitorResult, StepStatus } from '@/lib/seo-api';
+import { analyzeCompetitors, getSiteAnalysisProfileCompetitors, runSiteAnalysisStep } from '@/lib/seo-api';
 import { waitForSiteStepViaSignalR } from '@/lib/site-step-wait';
 
 type Props = {
   profileId: string;
-  competitors: NicheCompetitorResult[];
+  competitors: SiteCompetitorResult[];
   accessToken?: string | null;
   onCompetitorsUpdated?: () => void;
   /** Set when SERP validation found competitors but none were persisted (re-run that step). */
@@ -17,7 +17,7 @@ type Props = {
   serpLocalWarning?: string | null;
   serpStepStatus?: StepStatus;
   anyStepRunning?: boolean;
-  onStepStatusChange?: (status: NicheAnalysisStatus) => void;
+  onStepStatusChange?: (status: SiteAnalysisStatus) => void;
 };
 
 type ProgressState = { done: number; total: number; message: string } | null;
@@ -55,7 +55,7 @@ function serpSummaryImpliesLocalResults(summary: string | null | undefined): boo
 }
 
 function scopeLabelsStaleAfterLocalSerp(
-  rows: NicheCompetitorResult[],
+  rows: SiteCompetitorResult[],
   serpSummary: string | null | undefined,
 ): boolean {
   if (rows.length === 0 || !serpSummaryImpliesLocalResults(serpSummary)) return false;
@@ -125,7 +125,7 @@ export function SiteCompetitorPanel({
     if (!accessToken) return;
     let cancelled = false;
     setLoadingCompetitors(true);
-    void getNicheProfileCompetitors(profileId, accessToken)
+    void getSiteAnalysisProfileCompetitors(profileId, accessToken)
       .then((rows) => {
         if (!cancelled) setLoadedCompetitors(rows);
       })
@@ -160,12 +160,12 @@ export function SiteCompetitorPanel({
         accessToken,
         hub,
         timeoutMs: 900_000,
-        triggerRun: () => runNicheStep(profileId, 'serp_validation', accessToken),
+        triggerRun: () => runSiteAnalysisStep(profileId, 'serp_validation', accessToken),
         onProgress: setSerpProgress,
         onStatus: onStepStatusChange,
       });
       await onCompetitorsUpdated?.();
-      const rows = await getNicheProfileCompetitors(profileId, accessToken);
+      const rows = await getSiteAnalysisProfileCompetitors(profileId, accessToken);
       setLoadedCompetitors(rows);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'SERP validation re-run failed');
@@ -180,7 +180,7 @@ export function SiteCompetitorPanel({
     setAnalyzing(true);
     setProgress({ done: 0, total: loadedCompetitors.length, message: 'Starting…' });
 
-    const leave = hub.joinNicheProfile(profileId);
+    const leave = hub.joinSiteAnalysisProfile(profileId);
     const unsub = hub.subscribe(
       'CompetitorAnalysisProgress',
       (data: unknown) => {

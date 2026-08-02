@@ -1,9 +1,9 @@
 'use client';
 
-import type { CompetitorSiteInsight, NichePillarResult, PaaQuestionItem } from '@/lib/seo-api';
+import type { CompetitorSiteInsight, SiteAnalysisPillarResult, PaaQuestionItem } from '@/lib/seo-api';
 
 type Props = {
-  pillars: NichePillarResult[];
+  pillars: SiteAnalysisPillarResult[];
 };
 
 export function PillarSerpInsightsPanel({ pillars }: Props) {
@@ -37,7 +37,7 @@ export function PillarSerpInsightsPanel({ pillars }: Props) {
   );
 }
 
-function PillarSerpCard({ pillar }: { pillar: NichePillarResult }) {
+function PillarSerpCard({ pillar }: { pillar: SiteAnalysisPillarResult }) {
   const hasNational = pillar.paaQuestions?.length > 0 || pillar.relatedSearches?.length > 0;
   const hasLocal = pillar.localPaaQuestions?.length > 0 || pillar.localRelatedSearches?.length > 0;
 

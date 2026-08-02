@@ -1,9 +1,9 @@
 'use client';
 
-import type { NicheProfileResult } from '@/lib/seo-api';
+import type { SiteAnalysisProfileResult } from '@/lib/seo-api';
 import { PILLAR_COVERAGE_SUMMARY } from '@/components/site-analyzer/pillar-coverage-labels';
 
-type Props = { profile: NicheProfileResult };
+type Props = { profile: SiteAnalysisProfileResult };
 
 export function SiteAnalyzerHeader({ profile }: Props) {
   const score = Math.round(profile.topicalAuthorityScore);
@@ -15,18 +15,18 @@ export function SiteAnalyzerHeader({ profile }: Props) {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-            Core Niche
+            Core Focus
           </p>
           <h2 className="mt-1 text-xl font-semibold text-[var(--color-text-primary)]">
-            {profile.primaryNiche}
+            {profile.primaryFocus}
           </h2>
-          {profile.nicheDescription && (
+          {profile.focusDescription && (
             <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-              {profile.nicheDescription}
+              {profile.focusDescription}
             </p>
           )}
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {profile.nicheTags.map((tag) => (
+            {profile.focusTags.map((tag) => (
               <span
                 key={tag}
                 className="rounded-full bg-[var(--color-accent-muted)] px-2 py-0.5 text-xs text-[var(--color-accent)]"

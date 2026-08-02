@@ -1,5 +1,5 @@
 using GeekSeo.Application.Models.Seo;
-using GeekSeoBackend.Services.NicheExtraction;
+using GeekSeoBackend.Services.SiteExtraction;
 
 namespace GeekSeoBackend.Tests;
 

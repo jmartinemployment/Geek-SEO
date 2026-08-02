@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { getLatestNicheProfile, type NicheProfileResult } from '@/lib/seo-api';
+import { getLatestSiteAnalysisProfile, type SiteAnalysisProfileResult } from '@/lib/seo-api';
 
 type Props = {
   projectId: string;
@@ -10,13 +10,13 @@ type Props = {
 };
 
 export function SiteStrategyContextBanner({ projectId, accessToken }: Readonly<Props>) {
-  const [profile, setProfile] = useState<NicheProfileResult | null>(null);
+  const [profile, setProfile] = useState<SiteAnalysisProfileResult | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    void getLatestNicheProfile(projectId, accessToken)
+    void getLatestSiteAnalysisProfile(projectId, accessToken)
       .then((data) => {
         if (!cancelled) setProfile(data);
       })
@@ -33,7 +33,7 @@ export function SiteStrategyContextBanner({ projectId, accessToken }: Readonly<P
 
   if (loading) return null;
 
-  const topicalMapHref = `/strategy/topical-map?projectId=${projectId}&mode=niche&autogen=1`;
+  const topicalMapHref = `/strategy/topical-map?projectId=${projectId}&mode=site&autogen=1`;
 
   if (!profile || profile.status !== 'complete') {
     return (
@@ -59,7 +59,7 @@ export function SiteStrategyContextBanner({ projectId, accessToken }: Readonly<P
           Your site&apos;s main topics
         </p>
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          {profile.primaryNiche}. You have strong pages for {profile.pillarsCovered} topic
+          {profile.primaryFocus}. You have strong pages for {profile.pillarsCovered} topic
           {profile.pillarsCovered === 1 ? '' : 's'}, partial coverage on {profile.pillarsPartial},
           and {profile.pillarsGap} topic{profile.pillarsGap === 1 ? '' : 's'} with little or no
           dedicated content.

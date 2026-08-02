@@ -170,8 +170,8 @@ public static class ArticlePromptBuilder
             builder.AppendLine("Site writing focus:");
             if (!string.IsNullOrWhiteSpace(siteFocus.SiteName))
                 builder.AppendLine($"- Site: {siteFocus.SiteName} ({siteFocus.SiteUrl})");
-            if (!string.IsNullOrWhiteSpace(siteFocus.PrimaryNiche))
-                builder.AppendLine($"- Primary niche: {siteFocus.PrimaryNiche}");
+            if (!string.IsNullOrWhiteSpace(siteFocus.PrimaryFocus))
+                builder.AppendLine($"- Primary focus: {siteFocus.PrimaryFocus}");
             if (!string.IsNullOrWhiteSpace(siteFocus.MatchedPillarTopic))
                 builder.AppendLine($"- Pillar cluster: {siteFocus.MatchedPillarTopic}");
             if (siteFocus.GeoAnchorNodes.Count > 0)
@@ -395,7 +395,7 @@ public static class ArticlePromptBuilder
     {
         var questions = brief.ClosingFaqQuestions.Count > 0
             ? brief.ClosingFaqQuestions
-            : ContentWritingRules.BuildClosingFaqQuestions(brief.Keyword, brief.PeopleAlsoAsk, brief.NicheContext.GapTopics);
+            : ContentWritingRules.BuildClosingFaqQuestions(brief.Keyword, brief.PeopleAlsoAsk, brief.SiteFocusContext.GapTopics);
 
         builder.AppendLine();
         builder.AppendLine(

@@ -664,12 +664,12 @@ export type TopicalMapResult = {
 export async function generateTopicalMap(
   projectId: string,
   accessToken?: string | null,
-  options?: { force?: boolean; seedKeyword?: string; fromNiche?: boolean },
+  options?: { force?: boolean; seedKeyword?: string; fromSiteAnalysis?: boolean },
 ): Promise<TopicalMapResult> {
   const params = new URLSearchParams();
   if (options?.force) params.set('force', 'true');
   if (options?.seedKeyword) params.set('seedKeyword', options.seedKeyword);
-  if (options?.fromNiche) params.set('fromNiche', 'true');
+  if (options?.fromSiteAnalysis) params.set('fromSiteAnalysis', 'true');
   const query = params.toString() ? `?${params.toString()}` : '';
   const res = await fetch(`${API_URL}/api/seo/topical-map/${projectId}/generate${query}`, {
     method: 'POST',
@@ -956,7 +956,7 @@ export async function rollbackContentGuardRun(runId: string, accessToken?: strin
 
 export type StepStatus = 'pending' | 'running' | 'complete' | 'skipped' | 'error';
 
-export type NicheAnalysisStatus = {
+export type SiteAnalysisStatus = {
   profileId: string;
   status: 'pending' | 'queued' | 'processing' | 'complete' | 'failed';
   step?: string;
@@ -974,7 +974,7 @@ export type NicheAnalysisStatus = {
   stepWarnings?: Record<string, string>;
 };
 
-export type NicheAnalysisStepLogEntry = {
+export type SiteAnalysisStepLogEntry = {
   stepNumber: number;
   slug: string;
   title: string;
@@ -983,7 +983,7 @@ export type NicheAnalysisStepLogEntry = {
   outputs: Record<string, unknown>;
 };
 
-export type NicheStepDefinition = {
+export type SiteAnalysisStepDefinition = {
   stepNumber: number;
   slug: string;
   title: string;
@@ -1080,16 +1080,16 @@ export type InternalLinkGraph = {
   orphanSlugs: string[];
 };
 
-export type NicheAnalysisDetails = {
+export type SiteAnalysisDetails = {
   stepLogVersion: number;
-  steps: NicheAnalysisStepLogEntry[];
+  steps: SiteAnalysisStepLogEntry[];
   fusionSnapshot?: SiteTopicProfile | null;
-  stepDefinitions?: NicheStepDefinition[] | null;
+  stepDefinitions?: SiteAnalysisStepDefinition[] | null;
 };
 
-export type NicheTopicCandidateRow = {
+export type SiteAnalysisTopicCandidateRow = {
   id: string;
-  nicheProfileId: string;
+  siteAnalysisProfileId: string;
   slug: string;
   name: string;
   confidence: number;
@@ -1102,14 +1102,14 @@ export type NicheTopicCandidateRow = {
   evidence?: TopicEvidence[] | null;
 };
 
-export type NicheTopicCandidateList = {
-  items: NicheTopicCandidateRow[];
+export type SiteAnalysisTopicCandidateList = {
+  items: SiteAnalysisTopicCandidateRow[];
   total: number;
   page: number;
   pageSize: number;
 };
 
-export type NicheSubtopicResult = {
+export type SiteAnalysisSubtopicResult = {
   id: string;
   subtopicTitle: string;
   targetKeyword: string;
@@ -1146,7 +1146,7 @@ export type CompetitorSiteInsight = {
   brandName?: string;
 };
 
-export type NichePillarResult = {
+export type SiteAnalysisPillarResult = {
   id: string;
   pillarTopic: string;
   pillarSlug: string;
@@ -1164,20 +1164,20 @@ export type NichePillarResult = {
   contentAngle?: string;
   source: string;
   displayOrder: number;
-  subtopics: NicheSubtopicResult[];
+  subtopics: SiteAnalysisSubtopicResult[];
   paaQuestions: PaaQuestionItem[];
   relatedSearches: string[];
   localPaaQuestions: PaaQuestionItem[];
   localRelatedSearches: string[];
 };
 
-export type NicheProfileResult = {
+export type SiteAnalysisProfileResult = {
   id: string;
   projectId: string;
   domain: string;
-  primaryNiche: string;
-  nicheDescription: string;
-  nicheTags: string[];
+  primaryFocus: string;
+  focusDescription: string;
+  focusTags: string[];
   audienceType: string;
   competitionLevel: string;
   topicalAuthorityScore: number;
@@ -1191,9 +1191,9 @@ export type NicheProfileResult = {
   status: string;
   structureStatus?: string;
   enrichmentStatus?: string;
-  pillars: NichePillarResult[];
-  competitors: NicheCompetitorResult[];
-  entities: NicheEntityResult[];
+  pillars: SiteAnalysisPillarResult[];
+  competitors: SiteCompetitorResult[];
+  entities: SiteAnalysisEntityResult[];
 };
 
 export type CompetitorPillarResult = {
@@ -1203,7 +1203,7 @@ export type CompetitorPillarResult = {
   confidence: number;
 };
 
-export type NicheCompetitorResult = {
+export type SiteCompetitorResult = {
   id: string;
   domain: string;
   serpPresence: number;
@@ -1224,7 +1224,7 @@ export type NicheCompetitorResult = {
   competitorAnalyzedAt?: string;
 };
 
-export type NicheEntityResult = {
+export type SiteAnalysisEntityResult = {
   id: string;
   entityName: string;
   entityType: string;
@@ -1267,10 +1267,10 @@ export type AuthorityProgressPoint = {
   totalGaps: number;
 };
 
-export type NicheProfileSummary = {
+export type SiteAnalysisProfileSummary = {
   id: string;
   domain: string;
-  primaryNiche: string;
+  primaryFocus: string;
   topicalAuthorityScore: number;
   totalPillars: number;
   pillarsCovered: number;
@@ -1280,7 +1280,7 @@ export type NicheProfileSummary = {
   status: string;
 };
 
-export async function analyzeNiche(
+export async function analyzeSite(
   projectId: string,
   domain: string,
   accessToken?: string | null,
@@ -1294,7 +1294,7 @@ export async function analyzeNiche(
   return seoJson(res);
 }
 
-export async function runNicheStep(
+export async function runSiteAnalysisStep(
   profileId: string,
   slug: string,
   accessToken?: string | null,
@@ -1309,7 +1309,7 @@ export async function runNicheStep(
 export async function getSiteProfileCompetitors(
   profileId: string,
   accessToken?: string | null,
-): Promise<NicheCompetitorResult[]> {
+): Promise<SiteCompetitorResult[]> {
   const res = await fetch(
     `${API_URL}/api/seo/site-analyzer/${profileId}/competitor-sites`,
     {
@@ -1321,7 +1321,7 @@ export async function getSiteProfileCompetitors(
 }
 
 /** @deprecated Use getSiteProfileCompetitors */
-export const getNicheProfileCompetitors = getSiteProfileCompetitors;
+export const getSiteAnalysisProfileCompetitors = getSiteProfileCompetitors;
 
 export async function analyzeCompetitors(
   profileId: string,
@@ -1334,10 +1334,10 @@ export async function analyzeCompetitors(
   return seoJson(res);
 }
 
-export async function getNicheAnalysisStatus(
+export async function getSiteAnalysisStatus(
   profileId: string,
   accessToken?: string | null,
-): Promise<NicheAnalysisStatus> {
+): Promise<SiteAnalysisStatus> {
   const res = await fetch(`${API_URL}/api/seo/site-analyzer/${profileId}/status`, {
     headers: apiHeaders(accessToken),
     cache: 'no-store',
@@ -1345,10 +1345,10 @@ export async function getNicheAnalysisStatus(
   return seoJson(res);
 }
 
-export async function getNicheAnalysisDetails(
+export async function getSiteAnalysisDetails(
   profileId: string,
   accessToken?: string | null,
-): Promise<NicheAnalysisDetails> {
+): Promise<SiteAnalysisDetails> {
   const res = await fetch(`${API_URL}/api/seo/site-analyzer/${profileId}/analysis-details`, {
     headers: apiHeaders(accessToken),
     cache: 'no-store',
@@ -1357,14 +1357,14 @@ export async function getNicheAnalysisDetails(
     // 404 = not ready yet; 5xx = GeekRepository transient error during analysis
     return { stepLogVersion: 1, steps: [], fusionSnapshot: null };
   }
-  return res.json() as Promise<NicheAnalysisDetails>;
+  return res.json() as Promise<SiteAnalysisDetails>;
 }
 
-export async function getNicheTopicCandidates(
+export async function getSiteAnalysisTopicCandidates(
   profileId: string,
   accessToken?: string | null,
   options?: { page?: number; pageSize?: number; selectedOnly?: boolean },
-): Promise<NicheTopicCandidateList> {
+): Promise<SiteAnalysisTopicCandidateList> {
   const page = options?.page ?? 1;
   const pageSize = options?.pageSize ?? 200;
   const selected =
@@ -1381,25 +1381,25 @@ export async function getNicheTopicCandidates(
 }
 
 /** Fetch full candidate inventory (paginated server-side). */
-export async function getAllNicheTopicCandidates(
+export async function getAllSiteAnalysisTopicCandidates(
   profileId: string,
   accessToken?: string | null,
-): Promise<NicheTopicCandidateRow[]> {
+): Promise<SiteAnalysisTopicCandidateRow[]> {
   const pageSize = 200;
-  const first = await getNicheTopicCandidates(profileId, accessToken, { page: 1, pageSize });
+  const first = await getSiteAnalysisTopicCandidates(profileId, accessToken, { page: 1, pageSize });
   const items = [...first.items];
   const pages = Math.ceil(first.total / pageSize);
   for (let page = 2; page <= pages; page++) {
-    const next = await getNicheTopicCandidates(profileId, accessToken, { page, pageSize });
+    const next = await getSiteAnalysisTopicCandidates(profileId, accessToken, { page, pageSize });
     items.push(...next.items);
   }
   return items;
 }
 
-export async function getNicheProfile(
+export async function getSiteAnalysisProfile(
   profileId: string,
   accessToken?: string | null,
-): Promise<NicheProfileResult> {
+): Promise<SiteAnalysisProfileResult> {
   const res = await fetch(`${API_URL}/api/seo/site-analyzer/${profileId}`, {
     headers: apiHeaders(accessToken),
     cache: 'no-store',
@@ -1407,10 +1407,10 @@ export async function getNicheProfile(
   return seoJson(res);
 }
 
-export async function getLatestNicheProfile(
+export async function getLatestSiteAnalysisProfile(
   projectId: string,
   accessToken?: string | null,
-): Promise<NicheProfileResult | null> {
+): Promise<SiteAnalysisProfileResult | null> {
   const res = await fetch(`${API_URL}/api/seo/site-analyzer/project/${projectId}/latest`, {
     headers: apiHeaders(accessToken),
     cache: 'no-store',
@@ -1419,7 +1419,7 @@ export async function getLatestNicheProfile(
   return seoJson(res);
 }
 
-export async function getNicheCoverageMatrix(
+export async function getSiteCoverageMatrix(
   profileId: string,
   accessToken?: string | null,
 ): Promise<PillarCoverageMatrix[]> {
@@ -1430,7 +1430,7 @@ export async function getNicheCoverageMatrix(
   return seoJson(res);
 }
 
-export async function getNicheGaps(
+export async function getSiteGaps(
   profileId: string,
   quickWinsOnly: boolean,
   accessToken?: string | null,
@@ -1442,7 +1442,7 @@ export async function getNicheGaps(
   return seoJson(res);
 }
 
-export async function getNicheProgress(
+export async function getSiteProgress(
   projectId: string,
   accessToken?: string | null,
   months = 12,
@@ -1456,10 +1456,10 @@ export async function getNicheProgress(
   return [];
 }
 
-export async function getNicheHistory(
+export async function getSiteHistory(
   projectId: string,
   accessToken?: string | null,
-): Promise<NicheProfileSummary[]> {
+): Promise<SiteAnalysisProfileSummary[]> {
   const res = await fetch(
     `${API_URL}/api/seo/site-analyzer/project/${projectId}/history`,
     { headers: apiHeaders(accessToken), cache: 'no-store' },

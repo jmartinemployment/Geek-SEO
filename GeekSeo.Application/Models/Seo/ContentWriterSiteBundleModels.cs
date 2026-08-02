@@ -2,7 +2,7 @@ namespace GeekSeo.Application.Models.Seo;
 
 /// <summary>
 /// Frozen site bundle from Site Analyzer 2 <c>content-writer-bundle</c> (bundle version 1).
-/// Site-level voice and niche only — keyword/run fields belong on <see cref="ContentWriterSerpExport"/>.
+/// Site-level voice and focus only — keyword/run fields belong on <see cref="ContentWriterSerpExport"/>.
 /// </summary>
 public sealed record ContentWriterSiteBundle
 {
@@ -22,9 +22,9 @@ public sealed record ContentWriterSiteBundle
     public string? BusinessDescription { get; init; }
     public string? BusinessSummary { get; init; }
     public string? GeneratedSchemaJson { get; init; }
-    public string? PrimaryNiche { get; init; }
-    public string? NicheDescription { get; init; }
-    public IReadOnlyList<string> NicheTags { get; init; } = [];
+    public string? PrimaryFocus { get; init; }
+    public string? FocusDescription { get; init; }
+    public IReadOnlyList<string> FocusTags { get; init; } = [];
     public IReadOnlyList<string> GeoAnchorNodes { get; init; } = [];
     public string? ServiceAreaDescription { get; init; }
     public IReadOnlyList<string> CompetitorDomains { get; init; } = [];

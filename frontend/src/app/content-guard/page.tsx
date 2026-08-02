@@ -9,7 +9,7 @@ import { ContentGuardPillarBadge } from '@/components/site-analyzer/ContentGuard
 import {
   approveContentGuardRun,
   getContentGuardPolicy,
-  getLatestNicheProfile,
+  getLatestSiteAnalysisProfile,
   getPublishedContentAudit,
   listContentGuardRuns,
   listProjects,
@@ -17,14 +17,14 @@ import {
   scanContentGuard,
   upsertContentGuardPolicy,
   type ContentGuardRun,
-  type NicheProfileResult,
+  type SiteAnalysisProfileResult,
   type PerformanceSnapshotPoint,
   type PublishedPageMetrics,
   type SeoProject,
 } from '@/lib/seo-api';
 import {
   compareDecayingPagesByPillarPriority,
-  matchUrlToNichePillar,
+  matchUrlToSiteAnalysisPillar,
 } from '@/lib/site-url-match';
 
 function statusClass(status: PublishedPageMetrics['status']): string {
@@ -67,7 +67,7 @@ function ContentGuardPageInner() {
   const [savingPolicy, setSavingPolicy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
-  const [nicheProfile, setNicheProfile] = useState<NicheProfileResult | null>(null);
+  const [siteAnalysisProfile, setSiteAnalysisProfile] = useState<SiteAnalysisProfileResult | null>(null);
 
   useEffect(() => {
     if (!authReady) return;
@@ -83,9 +83,9 @@ function ContentGuardPageInner() {
 
   useEffect(() => {
     if (!authReady || !projectId) return;
-    void getLatestNicheProfile(projectId, accessToken)
-      .then(setNicheProfile)
-      .catch(() => setNicheProfile(null));
+    void getLatestSiteAnalysisProfile(projectId, accessToken)
+      .then(setSiteAnalysisProfile)
+      .catch(() => setSiteAnalysisProfile(null));
   }, [projectId, accessToken, authReady]);
 
   useEffect(() => {
@@ -170,13 +170,13 @@ function ContentGuardPageInner() {
     }
   }
 
-  const nichePillars =
-    nicheProfile?.status === 'complete' ? nicheProfile.pillars : [];
+  const siteAnalysisPillars =
+    siteAnalysisProfile?.status === 'complete' ? siteAnalysisProfile.pillars : [];
 
   const visiblePages = (showAll
     ? pages
     : pages.filter((p) => p.status === 'decaying' || p.status === 'critical')
-  ).toSorted((a, b) => compareDecayingPagesByPillarPriority(a.url, b.url, nichePillars));
+  ).toSorted((a, b) => compareDecayingPagesByPillarPriority(a.url, b.url, siteAnalysisPillars));
 
   if (authLoading) return <main className="p-8">Loading…</main>;
 
@@ -321,7 +321,7 @@ function ContentGuardPageInner() {
       <ul className="mt-8 space-y-4">
         {visiblePages.map((page) => {
           const pillarMatch =
-            nichePillars.length > 0 ? matchUrlToNichePillar(page.url, nichePillars) : null;
+            siteAnalysisPillars.length > 0 ? matchUrlToSiteAnalysisPillar(page.url, siteAnalysisPillars) : null;
 
           return (
           <li key={page.url} className="rounded-xl border bg-white p-5 shadow-sm">

@@ -8,8 +8,8 @@ using GeekSeo.Persistence.Entities;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Models;
 using GeekSeoBackend.Providers.Seo.Metering;
-using GeekSeoBackend.Services.NicheExtraction;
-using GeekSeoBackend.Services.NicheStepRunners;
+using GeekSeoBackend.Services.SiteExtraction;
+using GeekSeoBackend.Services.SiteAnalyzerStepRunners;
 
 namespace GeekSeoBackend.Services;
 
@@ -17,7 +17,7 @@ public sealed class TopicalMapService(
     IGoogleDataService googleData,
     IProjectRepository projects,
     ITopicalMapRepository topicalMaps,
-    INicheProfileRepository nicheProfiles,
+    ISiteAnalysisProfileRepository siteAnalysisProfiles,
     ISerpProvider serp,
     IKeywordRepository keywordRepository,
     IKeywordProvider keywordProvider,
@@ -294,7 +294,7 @@ public sealed class TopicalMapService(
         return result;
     }
 
-    public async Task<TopicalMapResult> GenerateFromNicheAsync(
+    public async Task<TopicalMapResult> GenerateFromSiteAnalysisAsync(
         Guid userId,
         Guid projectId,
         string? location = null,
@@ -303,30 +303,30 @@ public sealed class TopicalMapService(
         var project = await EnsureProjectAsync(userId, projectId, ct);
         location ??= project.DefaultLocation;
 
-        var profileResult = await nicheProfiles.GetLatestByProjectAsync(projectId, ct);
+        var profileResult = await siteAnalysisProfiles.GetLatestByProjectAsync(projectId, ct);
         if (!profileResult.IsSuccess || profileResult.Value is null)
         {
             throw new InvalidOperationException(
-                "No niche analysis found for this project. Run Niche Analyzer first.");
+                "No site analysis found for this project. Run Site Analyzer first.");
         }
 
         var profile = profileResult.Value;
         if (!string.Equals(profile.Status, "complete", StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
-                "Niche analysis is still in progress. Wait for it to complete before building a topical map.");
+                "site analysis is still in progress. Wait for it to complete before building a topical map.");
         }
 
-        var details = await nicheProfiles.GetAnalysisDetailsRowAsync(profile.Id, includeFusion: true, ct);
+        var details = await siteAnalysisProfiles.GetAnalysisDetailsRowAsync(profile.Id, includeFusion: true, ct);
         if (!details.IsSuccess || details.Value is null)
         {
             throw new InvalidOperationException(
-                "Niche analysis details are unavailable. Re-analyze to refresh pillar data.");
+                "site analysis details are unavailable. Re-analyze to refresh pillar data.");
         }
 
-        var steps = NicheAnalysisStepLogJson.Parse(details.Value.AnalysisStepLog);
-        var fused = await NicheStepRunState.LoadMergedFusionSnapshotAsync(
-            nicheProfiles,
+        var steps = SiteAnalysisStepLogJson.Parse(details.Value.AnalysisStepLog);
+        var fused = await SiteAnalyzerStepRunState.LoadMergedFusionSnapshotAsync(
+            siteAnalysisProfiles,
             profile.Id,
             details.Value.FusionSnapshot,
             steps,
@@ -334,17 +334,17 @@ public sealed class TopicalMapService(
         if (fused is null || fused.SelectedPillars.Count == 0)
         {
             throw new InvalidOperationException(
-                "No fusion snapshot on the latest niche profile. Re-analyze to refresh pillar data.");
+                "No fusion snapshot on the latest site analysis profile. Re-analyze to refresh pillar data.");
         }
 
-        var seeds = NicheTopicalMapSeedResolver.ResolveSeeds(fused);
+        var seeds = SiteTopicalMapSeedResolver.ResolveSeeds(fused);
         var docs = new List<SeoContentDocument>();
 
         var topics = fused.SelectedPillars
-            .Select(p => ToNichePillarTopic(p, docs))
+            .Select(p => ToSiteAnalysisPillarTopic(p, docs))
             .ToList();
 
-        foreach (var seed in seeds.Take(NicheTopicalMapSeedResolver.DefaultExpansionSeeds))
+        foreach (var seed in seeds.Take(SiteTopicalMapSeedResolver.DefaultExpansionSeeds))
         {
             var expansion = await CollectExpansionTopicsFromSeedAsync(
                 seed,
@@ -356,7 +356,7 @@ public sealed class TopicalMapService(
 
         var assignedTopics = await hierarchyBuilder.AssignTiersAsync(topics.ToArray(), ct);
         var enrichedTopics = ApplyDocumentCoverage(assignedTopics, docs);
-        enrichedTopics = EnforceNichePillarTiers(enrichedTopics, fused.SelectedPillars);
+        enrichedTopics = EnforceSiteAnalysisPillarTiers(enrichedTopics, fused.SelectedPillars);
 
         var deduped = TopicalHierarchyBuilder.DeduplicateTopics(enrichedTopics);
         var withPriority = AssignStrategicPriority(deduped);
@@ -389,7 +389,7 @@ public sealed class TopicalMapService(
             GeneratedAt = now.ToString("O"),
             ExpiresAt = now.Add(MapTtl).ToString("O"),
             Topics = topicsWithGaps,
-            Mode = "niche",
+            Mode = "site",
             SeedKeyword = string.Join(", ", seeds.Take(3)),
             CoveredCount = topicsWithGaps.Count(t => t.Coverage == "covered"),
             GapCount = topicsWithGaps.Count(t => t.Coverage == "gap"),
@@ -422,7 +422,7 @@ public sealed class TopicalMapService(
 
     private async Task<IReadOnlyList<TopicalMapTopic>> CollectExpansionTopicsFromSeedAsync(
         string seed,
-        IReadOnlyList<TopicCandidate> nichePillars,
+        IReadOnlyList<TopicCandidate> siteAnalysisPillars,
         string location,
         CancellationToken ct)
     {
@@ -445,7 +445,7 @@ public sealed class TopicalMapService(
             ? discoveredKeywordsResult.Value.ToList()
             : [];
 
-        var pillarName = NicheTopicalMapSeedResolver.MatchPillarName(seed, nichePillars) ?? seed;
+        var pillarName = SiteTopicalMapSeedResolver.MatchPillarName(seed, siteAnalysisPillars) ?? seed;
 
         return keywordSuggestionsResult.Value
             .Concat(discoveredKeywords)
@@ -463,14 +463,14 @@ public sealed class TopicalMapService(
                 TotalImpressions = 0,
                 AveragePosition = 0,
                 PriorityScore = 0,
-                ClusterMethod = "niche_seed",
+                ClusterMethod = "site_seed",
                 PillarName = pillarName,
                 CompetitorDomains = [],
             })
             .ToList();
     }
 
-    private static TopicalMapTopic ToNichePillarTopic(
+    private static TopicalMapTopic ToSiteAnalysisPillarTopic(
         TopicCandidate pillar,
         IReadOnlyList<SeoContentDocument> docs)
     {
@@ -490,7 +490,7 @@ public sealed class TopicalMapService(
         }
         else if (!string.IsNullOrWhiteSpace(pillar.DedicatedPageUrl))
         {
-            matchSource = "niche";
+            matchSource = "site";
             coverage = "partial";
         }
 
@@ -507,7 +507,7 @@ public sealed class TopicalMapService(
             TotalImpressions = 0,
             AveragePosition = 0,
             PriorityScore = (double)pillar.Confidence * 100,
-            ClusterMethod = "niche_pillar",
+            ClusterMethod = "site_pillar",
             Tier = TopicalTier.Pillar,
             PillarName = pillar.Name,
             CompetitorDomains = [],
@@ -546,11 +546,11 @@ public sealed class TopicalMapService(
         return enriched;
     }
 
-    private static IReadOnlyList<TopicalMapTopic> EnforceNichePillarTiers(
+    private static IReadOnlyList<TopicalMapTopic> EnforceSiteAnalysisPillarTiers(
         IReadOnlyList<TopicalMapTopic> topics,
-        IReadOnlyList<TopicCandidate> nichePillars)
+        IReadOnlyList<TopicCandidate> siteAnalysisPillars)
     {
-        var pillarNames = nichePillars
+        var pillarNames = siteAnalysisPillars
             .Select(p => p.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -564,7 +564,7 @@ public sealed class TopicalMapService(
                 {
                     Tier = TopicalTier.Pillar,
                     PillarName = topic.Name,
-                    ClusterMethod = "niche_pillar",
+                    ClusterMethod = "site_pillar",
                 };
             })
             .ToList();

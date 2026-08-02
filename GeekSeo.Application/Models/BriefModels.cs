@@ -21,7 +21,7 @@ public sealed record ContentBrief
     public IReadOnlyList<string> GeoAnchorNodes { get; init; } = [];
     public SchemaBlueprint SchemaBlueprint { get; init; } = new();
     public IReadOnlyList<string> ReviewChecklist { get; init; } = [];
-    public NicheContextSpec NicheContext { get; init; } = new();
+    public SiteFocusContextSpec SiteFocusContext { get; init; } = new();
     public SerpIntelligenceSnapshot SerpIntelligence { get; init; } = new();
     public string? AuthorOrganizationName { get; init; }
     public string? AuthorOrganizationUrl { get; init; }
@@ -99,9 +99,9 @@ public sealed record SchemaBlueprint
     public IReadOnlyList<string> AboutEntities { get; init; } = [];
 }
 
-public sealed record NicheContextSpec
+public sealed record SiteFocusContextSpec
 {
-    public string? PrimaryNiche { get; init; }
+    public string? PrimaryFocus { get; init; }
     public string? MatchedPillar { get; init; }
     public IReadOnlyList<string> GapTopics { get; init; } = [];
 }

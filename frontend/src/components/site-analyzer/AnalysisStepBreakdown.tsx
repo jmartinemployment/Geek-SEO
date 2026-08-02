@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSeoHub } from '@/components/signalr/seo-hub-provider';
 import {
-  getNicheAnalysisDetails,
-  runNicheStep,
-  type NicheAnalysisDetails,
-  type NicheAnalysisStatus,
-  type NicheAnalysisStepLogEntry,
-  type NicheStepDefinition,
+  getSiteAnalysisDetails,
+  runSiteAnalysisStep,
+  type SiteAnalysisDetails,
+  type SiteAnalysisStatus,
+  type SiteAnalysisStepLogEntry,
+  type SiteAnalysisStepDefinition,
   type StepStatus,
 } from '@/lib/seo-api';
 import { OUTPUT_LABELS } from '@/components/site-analyzer/pillar-provenance';
@@ -31,7 +31,7 @@ type Props = {
   stepErrors?: Record<string, string>;
   stepWarnings?: Record<string, string>;
   onStepRerun?: () => void | Promise<void>;
-  onStepStatusChange?: (status: NicheAnalysisStatus) => void;
+  onStepStatusChange?: (status: SiteAnalysisStatus) => void;
 };
 
 const TERMINAL_STEP_STATUSES = new Set<StepStatus>(['complete', 'error', 'skipped']);
@@ -122,8 +122,8 @@ function StepRow({
   onStepRerun,
   onStepStatusChange,
 }: {
-  step?: NicheAnalysisStepLogEntry;
-  stepDefinition: NicheStepDefinition;
+  step?: SiteAnalysisStepLogEntry;
+  stepDefinition: SiteAnalysisStepDefinition;
   stepStatuses?: Record<string, StepStatus>;
   anyStepRunning?: boolean;
   stepSummaries?: Record<string, string>;
@@ -133,7 +133,7 @@ function StepRow({
   profileId: string;
   accessToken?: string | null;
   onStepRerun?: () => void | Promise<void>;
-  onStepStatusChange?: (status: NicheAnalysisStatus) => void;
+  onStepStatusChange?: (status: SiteAnalysisStatus) => void;
 }) {
   const hub = useSeoHub();
   const [rerunning, setRerunning] = useState(false);
@@ -206,7 +206,7 @@ function StepRow({
         accessToken,
         hub,
         timeoutMs: stepDefinition.slug === 'serp_validation' ? 900_000 : undefined,
-        triggerRun: () => runNicheStep(profileId, stepDefinition.slug, accessToken),
+        triggerRun: () => runSiteAnalysisStep(profileId, stepDefinition.slug, accessToken),
         onProgress: setLiveProgress,
         onStatus: (status) => {
           onStepStatusChange?.(status);
@@ -290,8 +290,8 @@ function PhaseSection({
   onStepStatusChange,
 }: {
   phase: Phase;
-  steps: NicheAnalysisStepLogEntry[];
-  stepDefinitions: NicheStepDefinition[];
+  steps: SiteAnalysisStepLogEntry[];
+  stepDefinitions: SiteAnalysisStepDefinition[];
   defaultExpanded: boolean;
   stepStatuses?: Record<string, StepStatus>;
   anyStepRunning?: boolean;
@@ -302,7 +302,7 @@ function PhaseSection({
   profileId: string;
   accessToken?: string | null;
   onStepRerun?: () => void | Promise<void>;
-  onStepStatusChange?: (status: NicheAnalysisStatus) => void;
+  onStepStatusChange?: (status: SiteAnalysisStatus) => void;
 }) {
   const [open, setOpen] = useState(defaultExpanded);
   const phaseDefinitions = stepDefinitions.filter((definition) => phase.slugs.includes(definition.slug));
@@ -367,7 +367,7 @@ export function AnalysisStepBreakdown({
   onStepStatusChange,
 }: Readonly<Props>) {
   const [open, setOpen] = useState(defaultOpen);
-  const [details, setDetails] = useState<NicheAnalysisDetails | null>(null);
+  const [details, setDetails] = useState<SiteAnalysisDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -378,7 +378,7 @@ export function AnalysisStepBreakdown({
       setLoading(true);
       setError(null);
       try {
-        const data = await getNicheAnalysisDetails(profileId, accessToken);
+        const data = await getSiteAnalysisDetails(profileId, accessToken);
         if (!cancelled) {
           setDetails(data);
           setError(null);
@@ -402,7 +402,7 @@ export function AnalysisStepBreakdown({
   async function handleStepRerun() {
     await onStepRerun?.();
     try {
-      const data = await getNicheAnalysisDetails(profileId, accessToken);
+      const data = await getSiteAnalysisDetails(profileId, accessToken);
       setDetails(data);
     } catch {
       // keep last loaded step log

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useSeoHub } from '@/components/signalr/seo-hub-provider';
-import { getNicheAnalysisStatus, type NicheAnalysisStatus } from '@/lib/seo-api';
+import { getSiteAnalysisStatus, type SiteAnalysisStatus } from '@/lib/seo-api';
 import { isSiteStepStalled, SITE_STALL_MS } from '@/lib/site-analysis-stale';
 
 const STEP_LABELS: Record<string, string> = {
@@ -18,7 +18,7 @@ const STEP_LABELS: Record<string, string> = {
   site_structure: 'Scanning site structure…',
   keywords: 'Enriching keyword demand…',
   serp_validation: 'Validating SERP footprint…',
-  profile: 'Building niche profile…',
+  profile: 'Building site analysis profile…',
   local: 'Local geography…',
   coverage: 'Content coverage…',
   scoring: 'Computing authority score…',
@@ -26,7 +26,7 @@ const STEP_LABELS: Record<string, string> = {
   failed: 'Analysis failed',
   sitemap: 'Collecting site URLs…',
   discovery: 'Collecting site URLs…',
-  validating: 'Building niche profile…',
+  validating: 'Building site analysis profile…',
   saving: 'Saving analysis…',
 };
 
@@ -38,9 +38,9 @@ type Props = {
 };
 
 function mergeStatus(
-  prev: NicheAnalysisStatus | null,
-  next: NicheAnalysisStatus,
-): NicheAnalysisStatus {
+  prev: SiteAnalysisStatus | null,
+  next: SiteAnalysisStatus,
+): SiteAnalysisStatus {
   const prevStep = prev?.stepNumber ?? 0;
   const nextStep = next.stepNumber ?? 0;
   if (prev && prevStep > nextStep && prev.status === 'processing')
@@ -50,7 +50,7 @@ function mergeStatus(
 
 export function AnalysisStatusListener({ profileId, accessToken, onComplete, onError }: Props) {
   const hub = useSeoHub();
-  const [progress, setProgress] = useState<NicheAnalysisStatus | null>(null);
+  const [progress, setProgress] = useState<SiteAnalysisStatus | null>(null);
   const [liveMessage, setLiveMessage] = useState<string | null>(null);
   const [stalled, setStalled] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -59,7 +59,7 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
   const onErrorRef = useRef(onError);
   const stepTrackerRef = useRef({ step: 0, at: Date.now() });
 
-  function applyStatus(status: NicheAnalysisStatus) {
+  function applyStatus(status: SiteAnalysisStatus) {
     const step = status.stepNumber ?? 0;
     if (step > 0 && step !== stepTrackerRef.current.step) {
       stepTrackerRef.current = { step, at: Date.now() };
@@ -99,7 +99,7 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
 
     void (async () => {
       try {
-        const status = await getNicheAnalysisStatus(profileId, accessToken);
+        const status = await getSiteAnalysisStatus(profileId, accessToken);
         if (!cancelled) applyStatus(status);
       } catch {
         if (!cancelled) {
@@ -118,18 +118,18 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
 
     async function hydrateOnce() {
       try {
-        const status = await getNicheAnalysisStatus(profileId, accessToken);
+        const status = await getSiteAnalysisStatus(profileId, accessToken);
         applyStatus(status);
       } catch {
         setConnectionError('Could not refresh analysis status.');
       }
     }
 
-    const leave = hub.joinNicheProfile(profileId);
+    const leave = hub.joinSiteAnalysisProfile(profileId);
     const unsub = hub.subscribe(
       'AnalysisProgress',
       (msg: unknown) => {
-        const payload = msg as NicheAnalysisStatus & {
+        const payload = msg as SiteAnalysisStatus & {
           message?: string;
           Message?: string;
           ProfileId?: string;
@@ -153,7 +153,7 @@ export function AnalysisStatusListener({ profileId, accessToken, onComplete, onE
 
         applyStatus({
           profileId: msgProfileId ?? profileId,
-          status: status as NicheAnalysisStatus['status'],
+          status: status as SiteAnalysisStatus['status'],
           step: payload.step ?? (payload as { Step?: string }).Step,
           stepNumber: payload.stepNumber ?? (payload as { StepNumber?: number }).StepNumber,
           totalSteps: payload.totalSteps ?? (payload as { TotalSteps?: number }).TotalSteps ?? 16,

@@ -64,8 +64,8 @@ function TopicalMapPageInner() {
             projectName={selected.name}
             accessToken={accessToken}
             initialSeedKeyword={seedFromUrl}
-            initialMode={modeFromUrl === 'niche' ? 'niche' : seedFromUrl.trim() ? 'seed' : 'gsc'}
-            autoGenerateNiche={modeFromUrl === 'niche' && autogenFromUrl}
+            initialMode={modeFromUrl === 'site' ? 'site' : seedFromUrl.trim() ? 'seed' : 'gsc'}
+            autoGenerateFromSite={modeFromUrl === 'site' && autogenFromUrl}
           />
         </div>
       ) : null}

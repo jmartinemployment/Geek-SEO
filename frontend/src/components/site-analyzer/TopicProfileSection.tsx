@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import {
-  getNicheAnalysisDetails,
-  type NicheAnalysisStepLogEntry,
+  getSiteAnalysisDetails,
+  type SiteAnalysisStepLogEntry,
   type SiteTopicProfile,
 } from '@/lib/seo-api';
 import { TopicInsightsStack } from '@/components/site-analyzer/TopicInsightsStack';
@@ -23,7 +23,7 @@ export function TopicProfileSection({
   showMatrix = false,
 }: Readonly<Props>) {
   const [fusion, setFusion] = useState<SiteTopicProfile | null>(null);
-  const [steps, setSteps] = useState<NicheAnalysisStepLogEntry[]>([]);
+  const [steps, setSteps] = useState<SiteAnalysisStepLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -33,7 +33,7 @@ export function TopicProfileSection({
     async function load(showSpinner: boolean) {
       if (showSpinner) setLoading(true);
       try {
-        const data = await getNicheAnalysisDetails(profileId, accessToken);
+        const data = await getSiteAnalysisDetails(profileId, accessToken);
         if (cancelled) return;
 
         setSteps(data.steps ?? []);
@@ -62,7 +62,7 @@ export function TopicProfileSection({
   async function handleRefreshSignals() {
     setRefreshing(true);
     try {
-      const data = await getNicheAnalysisDetails(profileId, accessToken);
+      const data = await getSiteAnalysisDetails(profileId, accessToken);
       setSteps(data.steps ?? []);
       if (data.fusionSnapshot && data.fusionSnapshot.allCandidates.length > 0) {
         setFusion(data.fusionSnapshot);

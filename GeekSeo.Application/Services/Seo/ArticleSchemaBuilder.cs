@@ -111,7 +111,7 @@ public static class ArticleSchemaBuilder
             return brief.ClosingFaqQuestions.Take(ContentWritingRules.ClosingFaqCount).ToList();
 
         return ContentWritingRules
-            .BuildClosingFaqQuestions(brief.Keyword, brief.PeopleAlsoAsk, brief.NicheContext.GapTopics)
+            .BuildClosingFaqQuestions(brief.Keyword, brief.PeopleAlsoAsk, brief.SiteFocusContext.GapTopics)
             .Take(ContentWritingRules.ClosingFaqCount)
             .ToList();
     }

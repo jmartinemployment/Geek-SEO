@@ -28,8 +28,8 @@ public sealed class HubGroupAccessCacheTests
         var userId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
         var entityId = Guid.Parse("11111111-2222-3333-4444-555555555555");
 
-        var a = HubGroupAccessCache.Key(userId, "niche", entityId);
-        var b = HubGroupAccessCache.Key(userId, "niche", entityId);
+        var a = HubGroupAccessCache.Key(userId, "site", entityId);
+        var b = HubGroupAccessCache.Key(userId, "site", entityId);
 
         Assert.Equal(a, b);
         Assert.NotEqual(HubGroupAccessCache.Key(userId, "document", entityId), a);

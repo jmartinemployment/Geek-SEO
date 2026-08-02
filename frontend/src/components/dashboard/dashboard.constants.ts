@@ -49,10 +49,10 @@ export const FEATURE_MODULES: FeatureModule[] = [
     iconColor: '#0284C7',
   },
   {
-    id: 'niche',
+    id: 'site-analyzer',
     title: 'Site Analyzer',
     description: 'Map pillars and competitors for your market',
-    href: '/strategy/topical-map',
+    href: '/strategy/site-analyzer',
     iconBg: '#EEF2FF',
     iconColor: '#4F46E5',
   },

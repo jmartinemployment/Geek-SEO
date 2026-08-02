@@ -3,7 +3,7 @@ using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
 using GeekSeo.Persistence.Entities;
-using GeekSeoBackend.Services.NicheExtraction;
+using GeekSeoBackend.Services.SiteExtraction;
 
 namespace GeekSeoBackend.Services.LocalServiceArea;
 

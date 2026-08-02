@@ -229,7 +229,7 @@ public static partial class ArticleClosingFaqEnricher
             : ContentWritingRules.BuildClosingFaqQuestions(
                 brief.Keyword,
                 brief.PeopleAlsoAsk,
-                brief.NicheContext.GapTopics);
+                brief.SiteFocusContext.GapTopics);
 
     private static string AppendPlaceholderFaq(string html, IReadOnlyList<string> questions)
     {

@@ -5,13 +5,13 @@ namespace GeekSeo.Application.Services.Seo;
 
 internal static class SiteWritingFocusHelpers
 {
-    public static string? FindMatchedPillarTopic(string keyword, NicheProfile? profile)
+    public static string? FindMatchedPillarTopic(string keyword, SiteAnalysisProfile? profile)
     {
         var pillar = FindMatchedPillar(keyword, profile);
         return pillar?.PillarTopic;
     }
 
-    public static NichePillar? FindMatchedPillar(string keyword, NicheProfile? profile)
+    public static SiteAnalysisPillar? FindMatchedPillar(string keyword, SiteAnalysisProfile? profile)
     {
         if (profile?.Pillars is null || profile.Pillars.Count == 0)
             return null;
@@ -64,14 +64,14 @@ internal static class SiteWritingFocusHelpers
         if (!string.IsNullOrWhiteSpace(focus.BusinessSummary))
             lines.Add($"Business: {focus.BusinessSummary.Trim()}");
 
-        if (!string.IsNullOrWhiteSpace(focus.PrimaryNiche))
-            lines.Add($"Site niche: {focus.PrimaryNiche.Trim()}.");
+        if (!string.IsNullOrWhiteSpace(focus.PrimaryFocus))
+            lines.Add($"Site focus: {focus.PrimaryFocus.Trim()}.");
 
-        if (!string.IsNullOrWhiteSpace(focus.NicheDescription))
-            lines.Add(focus.NicheDescription.Trim());
+        if (!string.IsNullOrWhiteSpace(focus.FocusDescription))
+            lines.Add(focus.FocusDescription.Trim());
 
-        if (focus.NicheTags.Count > 0)
-            lines.Add($"Themes: {string.Join(", ", focus.NicheTags.Take(8))}.");
+        if (focus.FocusTags.Count > 0)
+            lines.Add($"Themes: {string.Join(", ", focus.FocusTags.Take(8))}.");
 
         if (!string.IsNullOrWhiteSpace(focus.MatchedPillarTopic))
         {

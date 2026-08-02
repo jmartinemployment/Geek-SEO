@@ -87,15 +87,15 @@ public static class BusinessVoicePackBuilder
         {
             research.BusinessContext,
             focus?.BusinessSummary ?? string.Empty,
-            focus?.PrimaryNiche ?? string.Empty,
-            focus?.NicheDescription ?? string.Empty,
+            focus?.PrimaryFocus ?? string.Empty,
+            focus?.FocusDescription ?? string.Empty,
             focus?.ServiceAreaDescription ?? string.Empty,
             focus?.WritingInstructions ?? string.Empty,
         };
 
         if (focus is not null)
         {
-            parts.AddRange(focus.NicheTags);
+            parts.AddRange(focus.FocusTags);
         }
 
         return string.Join(' ', parts.Where(p => !string.IsNullOrWhiteSpace(p)));

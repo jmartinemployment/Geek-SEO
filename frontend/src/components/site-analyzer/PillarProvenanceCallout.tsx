@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getNicheAnalysisDetails } from '@/lib/seo-api';
+import { getSiteAnalysisDetails } from '@/lib/seo-api';
 import { buildPillarProvenanceSummary } from '@/components/site-analyzer/pillar-provenance';
 
 type Props = {
@@ -19,7 +19,7 @@ export function PillarProvenanceCallout({
 
   useEffect(() => {
     let cancelled = false;
-    void getNicheAnalysisDetails(profileId, accessToken)
+    void getSiteAnalysisDetails(profileId, accessToken)
       .then((data) => {
         if (cancelled) return;
         setSummary(buildPillarProvenanceSummary(data.steps, pillarCount));

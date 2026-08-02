@@ -1,6 +1,6 @@
 import {
-  getNicheAnalysisStatus,
-  type NicheAnalysisStatus,
+  getSiteAnalysisStatus,
+  type SiteAnalysisStatus,
   type StepStatus,
 } from '@/lib/seo-api';
 import type { SeoHubApi } from '@/components/signalr/seo-hub-provider';
@@ -54,7 +54,7 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
-export type WaitForNicheStepOptions = {
+export type WaitForSiteAnalysisStepOptions = {
   profileId: string;
   slug: string;
   accessToken?: string | null;
@@ -62,12 +62,12 @@ export type WaitForNicheStepOptions = {
   timeoutMs?: number;
   triggerRun?: () => Promise<void>;
   onProgress?: (message: string) => void;
-  onStatus?: (status: NicheAnalysisStatus) => void;
+  onStatus?: (status: SiteAnalysisStatus) => void;
 };
 
 export async function waitForSiteStepViaSignalR(
-  options: WaitForNicheStepOptions,
-): Promise<NicheAnalysisStatus> {
+  options: WaitForSiteAnalysisStepOptions,
+): Promise<SiteAnalysisStatus> {
   const { profileId, slug, accessToken, hub, onProgress, onStatus, triggerRun } = options;
   const timeoutMs =
     options.timeoutMs ??
@@ -85,7 +85,7 @@ export async function waitForSiteStepViaSignalR(
       leaveGroup?.();
     };
 
-    const finishResolve = (status: NicheAnalysisStatus) => {
+    const finishResolve = (status: SiteAnalysisStatus) => {
       if (settled) return;
       settled = true;
       cleanup();
@@ -99,8 +99,8 @@ export async function waitForSiteStepViaSignalR(
       reject(error);
     };
 
-    const hydrate = async (): Promise<NicheAnalysisStatus> => {
-      const status = await getNicheAnalysisStatus(profileId, accessToken);
+    const hydrate = async (): Promise<SiteAnalysisStatus> => {
+      const status = await getSiteAnalysisStatus(profileId, accessToken);
       onStatus?.(status);
       return status;
     };
@@ -168,7 +168,7 @@ export async function waitForSiteStepViaSignalR(
       })();
     }, timeoutMs);
 
-    leaveGroup = hub.joinNicheProfile(profileId);
+    leaveGroup = hub.joinSiteAnalysisProfile(profileId);
 
     unsubProgress = hub.subscribe('AnalysisProgress', (raw: unknown) => {
       const msg = raw as AnalysisProgressMsg;

@@ -148,28 +148,28 @@ public sealed class SeoMaintenanceWorker(
             }
         }
 
-        // Monthly niche re-analysis (daily check, triggers when next_analysis_due <= now)
+        // Monthly site re-analysis (daily check, triggers when next_analysis_due <= now)
         workerUser.UserId = serviceUserId;
-        var nicheRepo = scope.ServiceProvider.GetRequiredService<INicheProfileRepository>();
+        var siteAnalysisRepo = scope.ServiceProvider.GetRequiredService<ISiteAnalysisProfileRepository>();
 
-        var dueProfiles = await nicheRepo.ListDueForReanalysisAsync(5, ct);
+        var dueProfiles = await siteAnalysisRepo.ListDueForReanalysisAsync(5, ct);
         if (dueProfiles.IsSuccess && dueProfiles.Value is not null)
         {
             foreach (var summary in dueProfiles.Value)
             {
                 try
                 {
-                    var reset = await nicheRepo.UpdateStatusAsync(summary.Id, "pending", ct: ct);
+                    var reset = await siteAnalysisRepo.UpdateStatusAsync(summary.Id, "pending", ct: ct);
                     if (!reset.IsSuccess)
                     {
-                        logger.LogWarning("Could not reset niche profile {ProfileId} for re-analysis: {Error}", summary.Id, reset.Error);
+                        logger.LogWarning("Could not reset site analysis profile {ProfileId} for re-analysis: {Error}", summary.Id, reset.Error);
                         continue;
                     }
-                    logger.LogInformation("Reset niche profile {ProfileId} to pending for manual re-analysis", summary.Id);
+                    logger.LogInformation("Reset site analysis profile {ProfileId} to pending for manual re-analysis", summary.Id);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning(ex, "Failed to queue niche profile {ProfileId} for re-analysis", summary.Id);
+                    logger.LogWarning(ex, "Failed to queue site analysis profile {ProfileId} for re-analysis", summary.Id);
                 }
             }
         }

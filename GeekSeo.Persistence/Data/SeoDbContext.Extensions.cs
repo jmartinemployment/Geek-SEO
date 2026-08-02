@@ -191,12 +191,12 @@ public partial class SeoDbContext
             .HasForeignKey(x => x.OrgId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        modelBuilder.Entity<NicheProfile>(e =>
+        modelBuilder.Entity<SiteAnalysisProfile>(e =>
         {
-            e.ToTable("niche_profiles");
+            e.ToTable("site_analysis_profiles");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
-            e.Property(x => x.NicheTags).HasColumnType("text[]");
+            e.Property(x => x.FocusTags).HasColumnType("text[]");
             e.HasIndex(x => x.ProjectId);
             e.HasIndex(x => x.Status);
             e.HasIndex(x => x.Domain);
@@ -207,139 +207,139 @@ public partial class SeoDbContext
             e.Property(x => x.ScanChangeScore).HasPrecision(5, 4);
         });
 
-        modelBuilder.Entity<NicheProfileStepRun>(e =>
+        modelBuilder.Entity<SiteAnalysisProfileStepRun>(e =>
         {
-            e.ToTable("niche_profile_step_runs");
+            e.ToTable("site_analysis_profile_step_runs");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
-            e.HasOne(x => x.NicheProfile).WithMany(p => p.StepRuns).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(x => new { x.NicheProfileId, x.StepNumber }).IsUnique();
-            e.HasIndex(x => new { x.NicheProfileId, x.StepSlug }).IsUnique();
+            e.HasOne(x => x.SiteAnalysisProfile).WithMany(p => p.StepRuns).HasForeignKey(x => x.SiteAnalysisProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.SiteAnalysisProfileId, x.StepNumber }).IsUnique();
+            e.HasIndex(x => new { x.SiteAnalysisProfileId, x.StepSlug }).IsUnique();
         });
 
-        modelBuilder.Entity<NicheProfileSchemaSignal>(e =>
+        modelBuilder.Entity<SiteAnalysisProfileSchemaSignal>(e =>
         {
-            e.ToTable("niche_profile_schema_signals");
+            e.ToTable("site_analysis_profile_schema_signals");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
-            e.HasOne(x => x.NicheProfile).WithMany(p => p.SchemaSignals).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(x => x.NicheProfileId);
+            e.HasOne(x => x.SiteAnalysisProfile).WithMany(p => p.SchemaSignals).HasForeignKey(x => x.SiteAnalysisProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.SiteAnalysisProfileId);
         });
 
-        modelBuilder.Entity<NicheProfileDiscoveredUrl>(e =>
+        modelBuilder.Entity<SiteAnalysisProfileDiscoveredUrl>(e =>
         {
-            e.ToTable("niche_profile_discovered_urls");
+            e.ToTable("site_analysis_profile_discovered_urls");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
-            e.HasOne(x => x.NicheProfile).WithMany(p => p.DiscoveredUrls).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(x => x.NicheProfileId);
-            e.HasIndex(x => new { x.NicheProfileId, x.Url, x.SourceType }).IsUnique();
+            e.HasOne(x => x.SiteAnalysisProfile).WithMany(p => p.DiscoveredUrls).HasForeignKey(x => x.SiteAnalysisProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.SiteAnalysisProfileId);
+            e.HasIndex(x => new { x.SiteAnalysisProfileId, x.Url, x.SourceType }).IsUnique();
         });
 
-        modelBuilder.Entity<NicheProfileNavigationLink>(e =>
+        modelBuilder.Entity<SiteAnalysisProfileNavigationLink>(e =>
         {
-            e.ToTable("niche_profile_navigation_links");
+            e.ToTable("site_analysis_profile_navigation_links");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
-            e.HasOne(x => x.NicheProfile).WithMany(p => p.NavigationLinks).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(x => x.NicheProfileId);
+            e.HasOne(x => x.SiteAnalysisProfile).WithMany(p => p.NavigationLinks).HasForeignKey(x => x.SiteAnalysisProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.SiteAnalysisProfileId);
         });
 
-        modelBuilder.Entity<NicheProfileHeading>(e =>
+        modelBuilder.Entity<SiteAnalysisProfileHeading>(e =>
         {
-            e.ToTable("niche_profile_headings");
+            e.ToTable("site_analysis_profile_headings");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
-            e.HasOne(x => x.NicheProfile).WithMany(p => p.Headings).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(x => x.NicheProfileId);
+            e.HasOne(x => x.SiteAnalysisProfile).WithMany(p => p.Headings).HasForeignKey(x => x.SiteAnalysisProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.SiteAnalysisProfileId);
         });
 
-        modelBuilder.Entity<NicheProfilePageContentItem>(e =>
+        modelBuilder.Entity<SiteAnalysisProfilePageContentItem>(e =>
         {
-            e.ToTable("niche_profile_page_content_items");
+            e.ToTable("site_analysis_profile_page_content_items");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
-            e.HasOne(x => x.NicheProfile).WithMany(p => p.PageContentItems).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(x => x.NicheProfileId);
+            e.HasOne(x => x.SiteAnalysisProfile).WithMany(p => p.PageContentItems).HasForeignKey(x => x.SiteAnalysisProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.SiteAnalysisProfileId);
         });
 
-        modelBuilder.Entity<NicheProfilePageContentMeta>(e =>
+        modelBuilder.Entity<SiteAnalysisProfilePageContentMeta>(e =>
         {
-            e.ToTable("niche_profile_page_content_meta");
-            e.HasKey(x => x.NicheProfileId);
-            e.HasOne(x => x.NicheProfile).WithOne(p => p.PageContentMeta).HasForeignKey<NicheProfilePageContentMeta>(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.ToTable("site_analysis_profile_page_content_meta");
+            e.HasKey(x => x.SiteAnalysisProfileId);
+            e.HasOne(x => x.SiteAnalysisProfile).WithOne(p => p.PageContentMeta).HasForeignKey<SiteAnalysisProfilePageContentMeta>(x => x.SiteAnalysisProfileId).OnDelete(DeleteBehavior.Cascade);
         });
 
-        modelBuilder.Entity<NicheProfileSitePage>(e =>
+        modelBuilder.Entity<SiteAnalysisProfileSitePage>(e =>
         {
-            e.ToTable("niche_profile_site_pages");
+            e.ToTable("site_analysis_profile_site_pages");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
-            e.HasOne(x => x.NicheProfile).WithMany(p => p.SitePages).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(x => x.NicheProfileId);
-            e.HasIndex(x => new { x.NicheProfileId, x.Url }).IsUnique();
+            e.HasOne(x => x.SiteAnalysisProfile).WithMany(p => p.SitePages).HasForeignKey(x => x.SiteAnalysisProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.SiteAnalysisProfileId);
+            e.HasIndex(x => new { x.SiteAnalysisProfileId, x.Url }).IsUnique();
         });
 
-        modelBuilder.Entity<NicheProfileSitePageLink>(e =>
+        modelBuilder.Entity<SiteAnalysisProfileSitePageLink>(e =>
         {
-            e.ToTable("niche_profile_site_page_links");
+            e.ToTable("site_analysis_profile_site_page_links");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
-            e.HasOne(x => x.NicheProfile).WithMany(p => p.SitePageLinks).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(x => x.NicheProfileId);
+            e.HasOne(x => x.SiteAnalysisProfile).WithMany(p => p.SitePageLinks).HasForeignKey(x => x.SiteAnalysisProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.SiteAnalysisProfileId);
         });
 
-        modelBuilder.Entity<NicheProfileUrlPatternTopic>(e =>
+        modelBuilder.Entity<SiteAnalysisProfileUrlPatternTopic>(e =>
         {
-            e.ToTable("niche_profile_url_pattern_topics");
+            e.ToTable("site_analysis_profile_url_pattern_topics");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
-            e.HasOne(x => x.NicheProfile).WithMany(p => p.UrlPatternTopics).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(x => x.NicheProfileId);
-            e.HasIndex(x => new { x.NicheProfileId, x.Slug }).IsUnique();
+            e.HasOne(x => x.SiteAnalysisProfile).WithMany(p => p.UrlPatternTopics).HasForeignKey(x => x.SiteAnalysisProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.SiteAnalysisProfileId);
+            e.HasIndex(x => new { x.SiteAnalysisProfileId, x.Slug }).IsUnique();
         });
 
-        modelBuilder.Entity<NicheProfileSiteCrawlMeta>(e =>
+        modelBuilder.Entity<SiteAnalysisProfileSiteCrawlMeta>(e =>
         {
-            e.ToTable("niche_profile_site_crawl_meta");
-            e.HasKey(x => x.NicheProfileId);
-            e.HasOne(x => x.NicheProfile).WithOne(p => p.SiteCrawlMeta).HasForeignKey<NicheProfileSiteCrawlMeta>(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.ToTable("site_analysis_profile_site_crawl_meta");
+            e.HasKey(x => x.SiteAnalysisProfileId);
+            e.HasOne(x => x.SiteAnalysisProfile).WithOne(p => p.SiteCrawlMeta).HasForeignKey<SiteAnalysisProfileSiteCrawlMeta>(x => x.SiteAnalysisProfileId).OnDelete(DeleteBehavior.Cascade);
         });
 
-        modelBuilder.Entity<NicheTopicCandidate>(e =>
+        modelBuilder.Entity<SiteAnalysisTopicCandidate>(e =>
         {
-            e.ToTable("niche_topic_candidates");
+            e.ToTable("site_analysis_topic_candidates");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
             e.Property(x => x.EvidenceJson).HasColumnType("jsonb");
-            e.HasOne(x => x.NicheProfile).WithMany(p => p.TopicCandidates).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(x => new { x.NicheProfileId, x.Slug }).IsUnique();
-            e.HasIndex(x => x.NicheProfileId);
-            e.HasIndex(x => new { x.NicheProfileId, x.IsSelected });
+            e.HasOne(x => x.SiteAnalysisProfile).WithMany(p => p.TopicCandidates).HasForeignKey(x => x.SiteAnalysisProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.SiteAnalysisProfileId, x.Slug }).IsUnique();
+            e.HasIndex(x => x.SiteAnalysisProfileId);
+            e.HasIndex(x => new { x.SiteAnalysisProfileId, x.IsSelected });
         });
 
-        modelBuilder.Entity<NicheTopicCandidateEvidence>(e =>
+        modelBuilder.Entity<SiteAnalysisTopicCandidateEvidence>(e =>
         {
-            e.ToTable("niche_topic_candidate_evidence");
+            e.ToTable("site_analysis_topic_candidate_evidence");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
             e.HasOne(x => x.TopicCandidate).WithMany(c => c.EvidenceRows).HasForeignKey(x => x.TopicCandidateId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.TopicCandidateId);
         });
 
-        modelBuilder.Entity<NichePillar>(e =>
+        modelBuilder.Entity<SiteAnalysisPillar>(e =>
         {
-            e.ToTable("niche_pillars");
+            e.ToTable("site_analysis_pillars");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
-            e.HasOne(x => x.NicheProfile).WithMany(p => p.Pillars).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(x => x.NicheProfileId);
+            e.HasOne(x => x.SiteAnalysisProfile).WithMany(p => p.Pillars).HasForeignKey(x => x.SiteAnalysisProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.SiteAnalysisProfileId);
             e.HasIndex(x => x.CoverageStatus);
         });
 
-        modelBuilder.Entity<NicheSubtopic>(e =>
+        modelBuilder.Entity<SiteAnalysisSubtopic>(e =>
         {
-            e.ToTable("niche_subtopics");
+            e.ToTable("site_analysis_subtopics");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
             e.HasOne(x => x.Pillar).WithMany(p => p.Subtopics).HasForeignKey(x => x.PillarId).OnDelete(DeleteBehavior.Cascade);
@@ -476,28 +476,28 @@ public partial class SeoDbContext
             e.HasIndex(x => new { x.UrlResearchId, x.StepNumber });
         });
 
-        modelBuilder.Entity<NicheCompetitor>(e =>
+        modelBuilder.Entity<SiteAnalysisCompetitor>(e =>
         {
-            e.ToTable("niche_competitors");
+            e.ToTable("site_analysis_competitors");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
-            e.HasOne(x => x.NicheProfile).WithMany(p => p.Competitors).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(x => x.NicheProfileId);
+            e.HasOne(x => x.SiteAnalysisProfile).WithMany(p => p.Competitors).HasForeignKey(x => x.SiteAnalysisProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.SiteAnalysisProfileId);
         });
 
-        modelBuilder.Entity<NicheEntity>(e =>
+        modelBuilder.Entity<SiteAnalysisEntity>(e =>
         {
-            e.ToTable("niche_entities");
+            e.ToTable("site_analysis_entities");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
             e.Property(x => x.AssociatedPillarIds).HasColumnType("uuid[]");
-            e.HasOne(x => x.NicheProfile).WithMany(p => p.Entities).HasForeignKey(x => x.NicheProfileId).OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(x => x.NicheProfileId);
+            e.HasOne(x => x.SiteAnalysisProfile).WithMany(p => p.Entities).HasForeignKey(x => x.SiteAnalysisProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.SiteAnalysisProfileId);
         });
 
-        modelBuilder.Entity<NichePillarPage>(e =>
+        modelBuilder.Entity<SiteAnalysisPillarPage>(e =>
         {
-            e.ToTable("niche_pillar_pages");
+            e.ToTable("site_analysis_pillar_pages");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
             e.Property(x => x.TopicsFound).HasColumnType("text[]");

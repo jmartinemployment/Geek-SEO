@@ -79,7 +79,7 @@ try {
 
   if (!p.credentials.dataforseo && !p.credentials.serpapi) {
     console.warn(
-      '⚠ No DataForSEO or SerpApi credentials — Niche Analyzer steps 8–9 will skip (Tier 1 fusion still runs).',
+      '⚠ No DataForSEO or SerpApi credentials — Site Analyzer steps 8–9 will skip (Tier 1 fusion still runs).',
     );
   } else if (p.serpProvider === 'dataforseo' && !p.credentials.dataforseo) {
     console.warn('⚠ SERP_PROVIDER=dataforseo but DATAFORSEO_* not set.');
@@ -110,7 +110,7 @@ try {
       '✗ DataForSEO account returned Payment Required (402). Credentials are set but the vendor account has no balance.',
     );
     console.error('  Fix: fund DataForSEO OR set SERP_PROVIDER=serpapi on Railway (SERPAPI_API_KEY is already flagged).');
-    console.error('  Niche Analyzer steps 8–9 skip until Tier-2 calls succeed.');
+    console.error('  Site Analyzer steps 8–9 skip until Tier-2 calls succeed.');
     process.exit(1);
   }
 

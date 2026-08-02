@@ -1,8 +1,8 @@
 import type { SiteTopicProfile, TopicCandidate, TopicEvidence } from '@/lib/seo-api';
 
-export type NicheTopicCandidateRow = {
+export type SiteAnalysisTopicCandidateRow = {
   id: string;
-  nicheProfileId: string;
+  siteAnalysisProfileId: string;
   slug: string;
   name: string;
   confidence: number;
@@ -15,8 +15,8 @@ export type NicheTopicCandidateRow = {
   evidence?: TopicEvidence[] | null;
 };
 
-export type NicheTopicCandidateList = {
-  items: NicheTopicCandidateRow[];
+export type SiteAnalysisTopicCandidateList = {
+  items: SiteAnalysisTopicCandidateRow[];
   total: number;
   page: number;
   pageSize: number;
@@ -40,7 +40,7 @@ function parseEvidenceJson(raw: unknown): TopicEvidence[] {
   });
 }
 
-function rowToCandidate(row: NicheTopicCandidateRow): TopicCandidate {
+function rowToCandidate(row: SiteAnalysisTopicCandidateRow): TopicCandidate {
   return {
     name: row.name,
     slug: row.slug,
@@ -53,7 +53,7 @@ function rowToCandidate(row: NicheTopicCandidateRow): TopicCandidate {
 
 /** Build a partial fusion view from paginated candidate inventory (Phase 2 read path). */
 export function fusionFromTopicCandidates(
-  rows: NicheTopicCandidateRow[],
+  rows: SiteAnalysisTopicCandidateRow[],
   sulVersion = 'sul-2.0',
 ): SiteTopicProfile | null {
   if (rows.length === 0) return null;

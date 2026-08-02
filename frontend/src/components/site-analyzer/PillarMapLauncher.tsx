@@ -10,7 +10,7 @@ type Props = {
 
 function topicalMapHref(
   projectId: string | undefined,
-  options: { seed?: string; mode?: 'niche'; autogen?: boolean },
+  options: { seed?: string; mode?: 'site'; autogen?: boolean },
 ): string {
   const params = new URLSearchParams();
   if (projectId) params.set('projectId', projectId);
@@ -50,13 +50,13 @@ export function PillarMapLauncher({ fusion, projectId }: Readonly<Props>) {
           Plan content from this analysis
         </p>
         <p className="text-xs text-[var(--color-text-muted)]">
-          Build a topical map from niche pillars
+          Build a topical map from site pillars
           {gapCount > 0 ? ` — ${gapCount} without a dedicated page` : ''}.
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
         <Link
-          href={topicalMapHref(projectId, { mode: 'niche', autogen: true })}
+          href={topicalMapHref(projectId, { mode: 'site', autogen: true })}
           className="rounded-lg bg-[var(--color-accent)] px-3 py-2 text-xs font-medium text-white hover:opacity-90"
         >
           Build from gap pillars

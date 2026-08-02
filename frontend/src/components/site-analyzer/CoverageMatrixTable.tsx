@@ -1,6 +1,6 @@
 'use client';
 
-import type { NichePillarResult, PillarCoverageMatrix } from '@/lib/seo-api';
+import type { SiteAnalysisPillarResult, PillarCoverageMatrix } from '@/lib/seo-api';
 import {
   countPillarCoverage,
   groupPillarsByCoverage,
@@ -11,7 +11,7 @@ import {
 } from '@/components/site-analyzer/pillar-coverage-labels';
 
 type Props = {
-  pillars: NichePillarResult[];
+  pillars: SiteAnalysisPillarResult[];
   coverageFallback?: PillarCoverageMatrix[];
   totalPillarsIdentified?: number;
   pillarsCovered?: number;
@@ -25,13 +25,13 @@ const PRIORITY_BADGE: Record<string, string> = {
   expansion: 'bg-blue-100 text-blue-700',
 };
 
-const SECTION_ACCENT: Record<NichePillarResult['coverageStatus'], string> = {
+const SECTION_ACCENT: Record<SiteAnalysisPillarResult['coverageStatus'], string> = {
   covered: 'border-green-200 bg-green-50/40',
   partial: 'border-amber-200 bg-amber-50/40',
   gap: 'border-red-200 bg-red-50/40',
 };
 
-const SECTION_COUNT_COLOR: Record<NichePillarResult['coverageStatus'], string> = {
+const SECTION_COUNT_COLOR: Record<SiteAnalysisPillarResult['coverageStatus'], string> = {
   covered: 'text-green-700',
   partial: 'text-yellow-700',
   gap: 'text-red-600',
@@ -46,7 +46,7 @@ type PillarRowData = {
   coverageScore: number;
   coveredSubtopics: number;
   totalSubtopics: number;
-  coverageStatus: NichePillarResult['coverageStatus'];
+  coverageStatus: SiteAnalysisPillarResult['coverageStatus'];
   strategicPriority: string;
   quickWinCount?: number;
   hasQuickWins?: boolean;
@@ -114,13 +114,13 @@ function toPillarRowsFromMatrix(rows: PillarCoverageMatrix[]): PillarRowData[] {
     coverageScore: row.coverageScore,
     coveredSubtopics: row.coveredSubtopics,
     totalSubtopics: row.totalSubtopics,
-    coverageStatus: row.coverageStatus as NichePillarResult['coverageStatus'],
+    coverageStatus: row.coverageStatus as SiteAnalysisPillarResult['coverageStatus'],
     strategicPriority: row.strategicPriority,
     hasQuickWins: row.hasQuickWins,
   }));
 }
 
-function toPillarRowsFromResults(pillars: NichePillarResult[]): PillarRowData[] {
+function toPillarRowsFromResults(pillars: SiteAnalysisPillarResult[]): PillarRowData[] {
   return pillars.map((p) => ({
     id: p.id,
     pillarTopic: p.pillarTopic,
@@ -179,7 +179,7 @@ function CoverageSection({
   rows,
   count,
 }: {
-  status: NichePillarResult['coverageStatus'];
+  status: SiteAnalysisPillarResult['coverageStatus'];
   rows: PillarRowData[];
   count: number;
 }) {

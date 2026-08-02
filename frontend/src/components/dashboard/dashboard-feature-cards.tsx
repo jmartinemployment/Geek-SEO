@@ -18,7 +18,7 @@ const moduleIcons = {
   rankings: BarChart3,
   audit: ShieldCheck,
   analytics: FileSearch,
-  niche: Compass,
+  'site-analyzer': Compass,
 } as const;
 
 export function DashboardFeatureCards() {

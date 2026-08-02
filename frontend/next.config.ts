@@ -47,7 +47,12 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/app/strategy/niche-analyzer',
-        destination: '/strategy/topical-map',
+        destination: '/strategy/site-analyzer',
+        permanent: true,
+      },
+      {
+        source: '/strategy/niche-analyzer',
+        destination: '/strategy/site-analyzer',
         permanent: true,
       },
       {

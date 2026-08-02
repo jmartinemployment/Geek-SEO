@@ -1,11 +1,11 @@
-import type { NicheAnalysisStepLogEntry } from '@/lib/seo-api';
+import type { SiteAnalysisStepLogEntry } from '@/lib/seo-api';
 
-function outputNumber(step: NicheAnalysisStepLogEntry | undefined, key: string): number | null {
+function outputNumber(step: SiteAnalysisStepLogEntry | undefined, key: string): number | null {
   const value = step?.outputs[key];
   return typeof value === 'number' ? value : null;
 }
 
-function outputStringArray(step: NicheAnalysisStepLogEntry | undefined, key: string): string[] {
+function outputStringArray(step: SiteAnalysisStepLogEntry | undefined, key: string): string[] {
   const value = step?.outputs[key];
   if (!Array.isArray(value)) return [];
   return value.map((item) => String(item));
@@ -13,7 +13,7 @@ function outputStringArray(step: NicheAnalysisStepLogEntry | undefined, key: str
 
 /** Human-readable explanation of why the pillar table looks the way it does. */
 export function buildPillarProvenanceSummary(
-  steps: NicheAnalysisStepLogEntry[],
+  steps: SiteAnalysisStepLogEntry[],
   pillarCount: number,
 ): string | null {
   const schema = steps.find((s) => s.slug === 'schema');
@@ -223,7 +223,7 @@ export function buildPillarProvenanceSummary(
 
 /** Resolve GSC-silent pillar slugs to display names using the fusion snapshot. */
 export function resolveGscSilentPillars(
-  steps: NicheAnalysisStepLogEntry[],
+  steps: SiteAnalysisStepLogEntry[],
   fusion?: { selectedPillars?: { slug: string; name: string }[] } | null,
 ): { slug: string; name: string }[] {
   const merging = steps.find((s) => s.slug === 'merging');

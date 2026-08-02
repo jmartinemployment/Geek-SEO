@@ -4,7 +4,7 @@ using GeekSeo.Application.Results;
 
 namespace GeekSeoBackend.Providers.Seo;
 
-/// <summary>Keyword enrichment disabled (KEYWORD_PROVIDER=none). Niche analyzer uses SERP PAA + related searches instead.</summary>
+/// <summary>Keyword enrichment disabled (KEYWORD_PROVIDER=none). site analyzer uses SERP PAA + related searches instead.</summary>
 public sealed class NoOpKeywordProvider : IKeywordProvider
 {
     public string ProviderName => "none";

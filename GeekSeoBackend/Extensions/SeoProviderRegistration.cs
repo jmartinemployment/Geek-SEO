@@ -134,7 +134,7 @@ public static class SeoProviderRegistration
         switch (config.KeywordProvider)
         {
             case "none":
-                // Keyword enrichment disabled — niche analyzer uses SERP (PAA + related searches) instead.
+                // Keyword enrichment disabled — site analyzer uses SERP (PAA + related searches) instead.
                 services.AddScoped<IKeywordProvider, NoOpKeywordProvider>();
                 break;
             case "dataforseo":

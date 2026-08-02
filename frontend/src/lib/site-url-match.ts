@@ -1,20 +1,20 @@
-import type { NichePillarResult } from '@/lib/seo-api';
+import type { SiteAnalysisPillarResult } from '@/lib/seo-api';
 
 export type PillarUrlMatch = {
   pillarTopic: string;
   pillarSlug: string;
-  coverageStatus: NichePillarResult['coverageStatus'];
-  strategicPriority: NichePillarResult['strategicPriority'];
+  coverageStatus: SiteAnalysisPillarResult['coverageStatus'];
+  strategicPriority: SiteAnalysisPillarResult['strategicPriority'];
   matchKind: 'pillar_page' | 'subtopic_page' | 'path_slug';
 };
 
-const coverageLabels: Record<NichePillarResult['coverageStatus'], string> = {
+const coverageLabels: Record<SiteAnalysisPillarResult['coverageStatus'], string> = {
   gap: 'No strong page for this topic yet',
   partial: 'Topic only partly covered on your site',
   covered: 'You already have a solid page for this topic',
 };
 
-export function pillarCoverageLabel(status: NichePillarResult['coverageStatus']): string {
+export function pillarCoverageLabel(status: SiteAnalysisPillarResult['coverageStatus']): string {
   return coverageLabels[status];
 }
 
@@ -31,9 +31,9 @@ export function normalizePagePath(url: string): string {
   }
 }
 
-export function matchUrlToNichePillar(
+export function matchUrlToSiteAnalysisPillar(
   pageUrl: string,
-  pillars: NichePillarResult[],
+  pillars: SiteAnalysisPillarResult[],
 ): PillarUrlMatch | null {
   if (pillars.length === 0) return null;
 
@@ -87,13 +87,13 @@ export function matchUrlToNichePillar(
   return null;
 }
 
-const priorityRank: Record<NichePillarResult['strategicPriority'], number> = {
+const priorityRank: Record<SiteAnalysisPillarResult['strategicPriority'], number> = {
   must_have: 0,
   high_value: 1,
   expansion: 2,
 };
 
-const coverageRank: Record<NichePillarResult['coverageStatus'], number> = {
+const coverageRank: Record<SiteAnalysisPillarResult['coverageStatus'], number> = {
   gap: 0,
   partial: 1,
   covered: 2,
@@ -103,10 +103,10 @@ const coverageRank: Record<NichePillarResult['coverageStatus'], number> = {
 export function compareDecayingPagesByPillarPriority(
   aUrl: string,
   bUrl: string,
-  pillars: NichePillarResult[],
+  pillars: SiteAnalysisPillarResult[],
 ): number {
-  const aMatch = matchUrlToNichePillar(aUrl, pillars);
-  const bMatch = matchUrlToNichePillar(bUrl, pillars);
+  const aMatch = matchUrlToSiteAnalysisPillar(aUrl, pillars);
+  const bMatch = matchUrlToSiteAnalysisPillar(bUrl, pillars);
 
   if (!aMatch && !bMatch) return 0;
   if (!aMatch) return 1;

@@ -2,7 +2,7 @@ using System.Threading.Channels;
 
 namespace GeekSeoBackend.Infrastructure;
 
-public sealed class NicheAnalysisJobChannel(ILogger<NicheAnalysisJobChannel> logger)
+public sealed class SiteAnalysisJobChannel(ILogger<SiteAnalysisJobChannel> logger)
 {
     private readonly Channel<byte> _channel = Channel.CreateBounded<byte>(
         new BoundedChannelOptions(500) { FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true });

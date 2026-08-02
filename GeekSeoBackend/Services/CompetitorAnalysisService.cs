@@ -3,7 +3,7 @@ using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Persistence.Entities;
 using GeekSeoBackend.Hubs;
-using GeekSeoBackend.Services.NicheExtraction;
+using GeekSeoBackend.Services.SiteExtraction;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Playwright;
 
@@ -12,10 +12,10 @@ namespace GeekSeoBackend.Services;
 /// <summary>
 /// Runs the full topic-extraction pipeline on each competitor domain — same
 /// pipeline used on the project site — and stores their discovered pillars.
-/// Triggered separately after the initial niche analysis completes.
+/// Triggered separately after the initial site analysis completes.
 /// </summary>
 public sealed class CompetitorAnalysisService(
-    INicheProfileRepository profileRepo,
+    ISiteAnalysisProfileRepository profileRepo,
     SchemaOrgExtractor schemaExtractor,
     SitemapExtractor sitemapExtractor,
     NavMenuExtractor navMenuExtractor,
@@ -33,7 +33,7 @@ public sealed class CompetitorAnalysisService(
     public async Task AnalyzeAsync(
         Guid profileId,
         Guid userId,
-        IReadOnlyList<NicheCompetitor> competitors,
+        IReadOnlyList<SiteAnalysisCompetitor> competitors,
         IBrowser? browser,
         CancellationToken ct)
     {
