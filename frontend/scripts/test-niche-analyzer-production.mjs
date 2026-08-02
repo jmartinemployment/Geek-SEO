@@ -58,7 +58,7 @@ try {
     );
   }
 
-  const latest = await request('GET', `/api/seo/niche-analyzer/project/${projectId}/latest`);
+  const latest = await request('GET', `/api/seo/site-analyzer/project/${projectId}/latest`);
   if (latest.status === 204) {
     console.log('○ no niche profile yet (204)');
     process.exit(0);
@@ -82,7 +82,7 @@ try {
     }
     console.log('✓ latest complete profile includes pillar rows');
 
-    const byId = await request('GET', `/api/seo/niche-analyzer/${p.id}`);
+    const byId = await request('GET', `/api/seo/site-analyzer/${p.id}`);
     assert(byId.status === 200, `getById ${byId.status}`);
     assert(
       (byId.json.pillars?.length ?? 0) === (p.pillars?.length ?? 0),
@@ -90,19 +90,19 @@ try {
     );
     console.log('✓ getById pillar count matches latest');
 
-    const matrix = await request('GET', `/api/seo/niche-analyzer/${p.id}/coverage-matrix`);
+    const matrix = await request('GET', `/api/seo/site-analyzer/${p.id}/coverage-matrix`);
     assert(matrix.status === 200, `coverage-matrix ${matrix.status}`);
     console.log(`✓ coverage-matrix rows=${Array.isArray(matrix.json) ? matrix.json.length : 0}`);
 
     const progress = await request(
       'GET',
-      `/api/seo/niche-analyzer/project/${projectId}/progress?months=12`,
+      `/api/seo/site-analyzer/project/${projectId}/progress?months=12`,
     );
     assert(progress.status === 200, `progress ${progress.status}`);
     const points = Array.isArray(progress.json) ? progress.json : [];
     console.log(`✓ progress points=${points.length}`);
 
-    const details = await request('GET', `/api/seo/niche-analyzer/${p.id}/analysis-details`);
+    const details = await request('GET', `/api/seo/site-analyzer/${p.id}/analysis-details`);
     if (details.status === 200 && details.json?.fusionSnapshot) {
       const sul = details.json.fusionSnapshot.sulVersion;
       const candidates = details.json.fusionSnapshot.allCandidates?.length ?? 0;

@@ -952,7 +952,7 @@ export async function rollbackContentGuardRun(runId: string, accessToken?: strin
 }
 
 
-// ─── Niche Analyzer (legacy API — UI removed) ────────────────────────────────
+// ─── Site Analyzer API ───────────────────────────────────────────────────────
 
 export type StepStatus = 'pending' | 'running' | 'complete' | 'skipped' | 'error';
 
@@ -1286,7 +1286,7 @@ export async function analyzeNiche(
   accessToken?: string | null,
   seedTopic?: string,
 ): Promise<{ profileId: string; status: string }> {
-  const res = await fetch(`${API_URL}/api/seo/niche-analyzer/analyze`, {
+  const res = await fetch(`${API_URL}/api/seo/site-analyzer/analyze`, {
     method: 'POST',
     headers: { ...apiHeaders(accessToken), 'Content-Type': 'application/json' },
     body: JSON.stringify({ projectId, domain, seedTopic }),
@@ -1299,29 +1299,35 @@ export async function runNicheStep(
   slug: string,
   accessToken?: string | null,
 ): Promise<void> {
-  const res = await fetch(`${API_URL}/api/seo/niche-analyzer/${profileId}/run-step/${slug}`, {
+  const res = await fetch(`${API_URL}/api/seo/site-analyzer/${profileId}/run-step/${slug}`, {
     method: 'POST',
     headers: apiHeaders(accessToken),
   });
   if (!res.ok) throw await parseSeoApiErrorResponse(res);
 }
 
-export async function getNicheProfileCompetitors(
+export async function getSiteProfileCompetitors(
   profileId: string,
   accessToken?: string | null,
 ): Promise<NicheCompetitorResult[]> {
-  const res = await fetch(`${API_URL}/api/seo/niche-analyzer/${profileId}/niche-competitors`, {
-    headers: apiHeaders(accessToken),
-  });
+  const res = await fetch(
+    `${API_URL}/api/seo/site-analyzer/${profileId}/competitor-sites`,
+    {
+      headers: apiHeaders(accessToken),
+    },
+  );
   if (res.status === 404) return [];
   return seoJson(res);
 }
+
+/** @deprecated Use getSiteProfileCompetitors */
+export const getNicheProfileCompetitors = getSiteProfileCompetitors;
 
 export async function analyzeCompetitors(
   profileId: string,
   accessToken?: string | null,
 ): Promise<{ profileId: string; message: string }> {
-  const res = await fetch(`${API_URL}/api/seo/niche-analyzer/${profileId}/analyze-competitors`, {
+  const res = await fetch(`${API_URL}/api/seo/site-analyzer/${profileId}/analyze-competitors`, {
     method: 'POST',
     headers: apiHeaders(accessToken),
   });
@@ -1332,7 +1338,7 @@ export async function getNicheAnalysisStatus(
   profileId: string,
   accessToken?: string | null,
 ): Promise<NicheAnalysisStatus> {
-  const res = await fetch(`${API_URL}/api/seo/niche-analyzer/${profileId}/status`, {
+  const res = await fetch(`${API_URL}/api/seo/site-analyzer/${profileId}/status`, {
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
@@ -1343,7 +1349,7 @@ export async function getNicheAnalysisDetails(
   profileId: string,
   accessToken?: string | null,
 ): Promise<NicheAnalysisDetails> {
-  const res = await fetch(`${API_URL}/api/seo/niche-analyzer/${profileId}/analysis-details`, {
+  const res = await fetch(`${API_URL}/api/seo/site-analyzer/${profileId}/analysis-details`, {
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
@@ -1368,7 +1374,7 @@ export async function getNicheTopicCandidates(
         ? '&selectedOnly=false'
         : '';
   const res = await fetch(
-    `${API_URL}/api/seo/niche-analyzer/${profileId}/topic-candidates?page=${page}&pageSize=${pageSize}${selected}`,
+    `${API_URL}/api/seo/site-analyzer/${profileId}/topic-candidates?page=${page}&pageSize=${pageSize}${selected}`,
     { headers: apiHeaders(accessToken), cache: 'no-store' },
   );
   return seoJson(res);
@@ -1394,7 +1400,7 @@ export async function getNicheProfile(
   profileId: string,
   accessToken?: string | null,
 ): Promise<NicheProfileResult> {
-  const res = await fetch(`${API_URL}/api/seo/niche-analyzer/${profileId}`, {
+  const res = await fetch(`${API_URL}/api/seo/site-analyzer/${profileId}`, {
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
@@ -1405,7 +1411,7 @@ export async function getLatestNicheProfile(
   projectId: string,
   accessToken?: string | null,
 ): Promise<NicheProfileResult | null> {
-  const res = await fetch(`${API_URL}/api/seo/niche-analyzer/project/${projectId}/latest`, {
+  const res = await fetch(`${API_URL}/api/seo/site-analyzer/project/${projectId}/latest`, {
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
@@ -1417,7 +1423,7 @@ export async function getNicheCoverageMatrix(
   profileId: string,
   accessToken?: string | null,
 ): Promise<PillarCoverageMatrix[]> {
-  const res = await fetch(`${API_URL}/api/seo/niche-analyzer/${profileId}/coverage-matrix`, {
+  const res = await fetch(`${API_URL}/api/seo/site-analyzer/${profileId}/coverage-matrix`, {
     headers: apiHeaders(accessToken),
     cache: 'no-store',
   });
@@ -1430,7 +1436,7 @@ export async function getNicheGaps(
   accessToken?: string | null,
 ): Promise<TopicalGapSummary[]> {
   const res = await fetch(
-    `${API_URL}/api/seo/niche-analyzer/${profileId}/gaps?quickWinsOnly=${quickWinsOnly}`,
+    `${API_URL}/api/seo/site-analyzer/${profileId}/gaps?quickWinsOnly=${quickWinsOnly}`,
     { headers: apiHeaders(accessToken), cache: 'no-store' },
   );
   return seoJson(res);
@@ -1442,7 +1448,7 @@ export async function getNicheProgress(
   months = 12,
 ): Promise<AuthorityProgressPoint[]> {
   const res = await fetch(
-    `${API_URL}/api/seo/niche-analyzer/project/${projectId}/progress?months=${months}`,
+    `${API_URL}/api/seo/site-analyzer/project/${projectId}/progress?months=${months}`,
     { headers: apiHeaders(accessToken), cache: 'no-store' },
   );
   if (res.ok) return seoJson(res);
@@ -1455,7 +1461,7 @@ export async function getNicheHistory(
   accessToken?: string | null,
 ): Promise<NicheProfileSummary[]> {
   const res = await fetch(
-    `${API_URL}/api/seo/niche-analyzer/project/${projectId}/history`,
+    `${API_URL}/api/seo/site-analyzer/project/${projectId}/history`,
     { headers: apiHeaders(accessToken), cache: 'no-store' },
   );
   return seoJson(res);

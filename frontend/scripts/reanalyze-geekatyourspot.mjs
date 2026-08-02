@@ -58,7 +58,7 @@ try {
   assert(geek, 'geekatyourspot project not found');
   console.log(`✓ project ${geek.name} (${geek.id})`);
 
-  const analyze = await request('POST', '/api/seo/niche-analyzer/analyze', {
+  const analyze = await request('POST', '/api/seo/site-analyzer/analyze', {
     projectId: geek.id,
     domain: geek.url ?? 'https://www.geekatyourspot.com',
   });
@@ -71,7 +71,7 @@ try {
   let lastStep = '';
 
   while (Date.now() - started < timeoutMs) {
-    const status = await request('GET', `/api/seo/niche-analyzer/${profileId}/status`);
+    const status = await request('GET', `/api/seo/site-analyzer/${profileId}/status`);
     assert(status.status === 200, `status ${status.status}`);
     const s = status.json;
     const stepLabel = `${s.stepNumber ?? '?'}/${s.totalSteps ?? 14} ${s.step ?? ''}`;
@@ -81,7 +81,7 @@ try {
     }
 
     if (s.status === 'complete') {
-      const profile = await request('GET', `/api/seo/niche-analyzer/${profileId}`);
+      const profile = await request('GET', `/api/seo/site-analyzer/${profileId}`);
       assert(profile.status === 200, `profile ${profile.status}`);
       const pillarCount =
         profile.json.pillars?.length ?? profile.json.totalPillarsIdentified ?? 0;
@@ -91,13 +91,13 @@ try {
 
       const candidates = await request(
         'GET',
-        `/api/seo/niche-analyzer/${profileId}/topic-candidates?page=1&pageSize=5`,
+        `/api/seo/site-analyzer/${profileId}/topic-candidates?page=1&pageSize=5`,
       );
       if (candidates.status === 200) {
         console.log(`  topic-candidates total=${candidates.json?.total ?? 0}`);
       }
 
-      const details = await request('GET', `/api/seo/niche-analyzer/${profileId}/analysis-details`);
+      const details = await request('GET', `/api/seo/site-analyzer/${profileId}/analysis-details`);
       if (details.status === 200) {
         const sul = details.json?.fusionSnapshot?.sulVersion;
         const candidates = details.json?.fusionSnapshot?.allCandidates?.length ?? 0;

@@ -20,7 +20,7 @@ public sealed class NicheAnalysisJobWorker(
     {
         if (!TryResolveWorkerUserId(out var serviceUserId))
         {
-            logger.LogWarning("WORKER_SERVICE_USER_ID not set — NicheAnalysisJobWorker idle");
+            logger.LogWarning("WORKER_SERVICE_USER_ID not set — Site analysis worker idle");
             return;
         }
 

@@ -4,6 +4,7 @@ using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Services;
 using GeekSeo.Persistence.Entities;
 using GeekSeoBackend.Auth;
+using GeekSeoBackend.Infrastructure;
 using GeekSeoBackend.Services.NicheExtraction;
 using GeekSeoBackend.Services.NicheStepRunners;
 using Microsoft.Playwright;
@@ -29,6 +30,7 @@ public sealed class NicheAnalyzerService(
     NicheRootEntityBuilder rootBuilder,
     NicheStepExecutionService stepExecution,
     NicheAnalysisProgressNotifier progressNotifier,
+    NicheAnalysisJobChannel jobChannel,
     ICurrentUserContext userContext,
     ILogger<NicheAnalyzerService> logger)
 {
@@ -92,6 +94,127 @@ public sealed class NicheAnalyzerService(
         return profileId;
     }
 
+    /// <summary>
+    /// Queues a site-model run through coverage for the worker (Content Creator Site Analyzer).
+    /// </summary>
+    public async Task<Guid> QueueSiteAnalysisAsync(
+        Guid userId,
+        Guid projectId,
+        string domain,
+        string? seedTopic = null,
+        CancellationToken ct = default)
+    {
+        if (!IsWorkerConfigured())
+            throw new InvalidOperationException("Site analysis worker is not running");
+
+        var profileId = await EnqueueAsync(userId, projectId, domain, seedTopic, ct);
+
+        await profileRepo.UpdatePhaseStatusAsync(
+            profileId,
+            new NichePhaseStatusPatch(
+                StructureStatus: "pending",
+                EnrichmentStatus: "pending",
+                PersistStage: SiteAnalyzerStepCatalog.SiteCoveragePersistStage,
+                Status: "queued"),
+            ct);
+        await profileRepo.UpdateStatusAsync(
+            profileId,
+            "queued",
+            step: SiteAnalyzerStepCatalog.ThroughCoverage[0],
+            stepNumber: 0,
+            totalSteps: SiteAnalyzerStepCatalog.ThroughCoverage.Count,
+            errorMessage: null,
+            ct: ct);
+
+        jobChannel.Notify();
+        logger.LogInformation(
+            "Queued site analysis profile {ProfileId} for project {ProjectId}",
+            profileId,
+            projectId);
+        return profileId;
+    }
+
+    public static bool IsWorkerConfigured()
+    {
+        var raw = Environment.GetEnvironmentVariable("WORKER_SERVICE_USER_ID");
+        return Guid.TryParse(raw, out var id) && id != Guid.Empty;
+    }
+
+    /// <summary>
+    /// Runs site-model spine through coverage only (no market/SERP/scoring finalize).
+    /// </summary>
+    public async Task RunThroughCoverageAsync(Guid profileId, Guid userId, IBrowser? browser, CancellationToken ct)
+    {
+        _lastProgressStepSlug = "schema";
+        _lastProgressStepNumber = 0;
+        var total = SiteAnalyzerStepCatalog.ThroughCoverage.Count;
+
+        try
+        {
+            var profileResult = await profileRepo.GetByIdAsync(profileId, ct);
+            if (!profileResult.IsSuccess || profileResult.Value is null)
+            {
+                await FailAsync(userId, profileId, "Profile not found", totalStepsOverride: total);
+                return;
+            }
+
+            var profile = profileResult.Value;
+            var domain = NicheSiteUrlNormalizer.Normalize(profile.Domain);
+            await InitializeStepStatusesAsync(profileId, ct);
+            await profileRepo.UpdatePhaseStatusAsync(
+                profileId,
+                new NichePhaseStatusPatch(
+                    PersistStage: SiteAnalyzerStepCatalog.SiteCoveragePersistStage,
+                    Status: "processing"),
+                ct);
+            await profileRepo.UpdateStatusAsync(
+                profileId,
+                "processing",
+                step: SiteAnalyzerStepCatalog.ThroughCoverage[0],
+                stepNumber: 1,
+                totalSteps: total,
+                ct: ct);
+
+            var stepNumber = 0;
+            foreach (var slug in SiteAnalyzerStepCatalog.ThroughCoverage)
+            {
+                stepNumber++;
+                _lastProgressStepSlug = slug;
+                _lastProgressStepNumber = stepNumber;
+                var entry = await stepExecution.RunAsync(slug, profileId, userId, domain, browser, ct);
+                if (string.Equals(entry.Status, "error", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException(entry.Summary ?? $"Site analysis stage '{slug}' failed");
+
+                await PushProgress(userId, profileId, stepNumber, entry, ct, totalStepsOverride: total);
+            }
+
+            await profileRepo.UpdatePhaseStatusAsync(
+                profileId,
+                new NichePhaseStatusPatch(
+                    StructureStatus: "complete",
+                    EnrichmentStatus: "complete",
+                    PersistStage: SiteAnalyzerStepCatalog.SiteCoveragePersistStage,
+                    Status: "complete"),
+                ct);
+            await profileRepo.UpdateStatusAsync(
+                profileId,
+                "complete",
+                "coverage",
+                total,
+                total,
+                ct: ct);
+            logger.LogInformation("Site analysis (through coverage) complete for {ProfileId}", profileId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Site analysis failed for {ProfileId}", profileId);
+            var message = ex is OperationCanceledException
+                ? "Analysis timed out."
+                : ex.Message;
+            await FailAsync(userId, profileId, message, ct, totalStepsOverride: total);
+        }
+    }
+
     public async Task RunAnalysisAsync(Guid profileId, Guid userId, IBrowser? browser, CancellationToken ct)
     {
         _lastProgressStepSlug = "schema";
@@ -144,17 +267,23 @@ public sealed class NicheAnalyzerService(
         }
     }
 
-    private async Task FailAsync(Guid userId, Guid profileId, string error, CancellationToken ct = default)
+    private async Task FailAsync(
+        Guid userId,
+        Guid profileId,
+        string error,
+        CancellationToken ct = default,
+        int? totalStepsOverride = null)
     {
         var failedStep = _lastProgressStepNumber > 0 ? _lastProgressStepSlug : "failed";
         var failedStepNumber = _lastProgressStepNumber > 0 ? _lastProgressStepNumber : 0;
+        var totalSteps = totalStepsOverride ?? TotalSteps;
 
         await profileRepo.UpdateStatusAsync(
             profileId,
             "failed",
             step: failedStep,
             stepNumber: failedStepNumber,
-            totalSteps: TotalSteps,
+            totalSteps: totalSteps,
             errorMessage: error,
             ct: ct);
         if (!string.IsNullOrWhiteSpace(_lastProgressStepSlug) && _lastProgressStepSlug != "failed")
@@ -183,7 +312,7 @@ public sealed class NicheAnalyzerService(
             "failed",
             error,
             failedStepNumber,
-            TotalSteps,
+            totalSteps,
             ct);
     }
 
@@ -242,21 +371,23 @@ public sealed class NicheAnalyzerService(
         Guid profileId,
         int stepNumber,
         NicheAnalysisStepLogEntry stepEntry,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        int? totalStepsOverride = null)
     {
         _lastProgressStepSlug = stepEntry.Slug;
         _lastProgressStepNumber = stepNumber;
+        var totalSteps = totalStepsOverride ?? TotalSteps;
 
-        var stepStatus = stepNumber >= TotalSteps ? "complete" : "complete";
-        var overallStatus = stepNumber >= TotalSteps ? "complete" : "processing";
+        var stepStatus = "complete";
+        var overallStatus = stepNumber >= totalSteps ? "complete" : "processing";
         try
         {
             await profileRepo.UpdateStatusAsync(
-                profileId, overallStatus, stepEntry.Slug, stepNumber, TotalSteps, stepLogEntry: stepEntry, ct: ct);
+                profileId, overallStatus, stepEntry.Slug, stepNumber, totalSteps, stepLogEntry: stepEntry, ct: ct);
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to persist niche step {Step} (step {StepNumber}) for profile {ProfileId}",
+            logger.LogWarning(ex, "Failed to persist site analysis step {Step} (step {StepNumber}) for profile {ProfileId}",
                 stepEntry.Slug, stepNumber, profileId);
         }
 
@@ -277,10 +408,10 @@ public sealed class NicheAnalyzerService(
             profileId,
             userId,
             stepEntry.Slug,
-            stepNumber >= TotalSteps ? "complete" : "processing",
+            stepNumber >= totalSteps ? "complete" : "processing",
             stepEntry.Summary,
             stepNumber,
-            TotalSteps,
+            totalSteps,
             ct);
     }
 

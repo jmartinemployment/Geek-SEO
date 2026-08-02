@@ -217,7 +217,7 @@ export function TopicalMapWorkspace({
               className={`rounded-md px-3 py-1.5 ${mode === 'niche' ? 'bg-[var(--color-accent)] text-white' : ''}`}
               onClick={() => setMode('niche')}
             >
-              From niche analysis
+              From site analysis
             </button>
           </div>
         </div>

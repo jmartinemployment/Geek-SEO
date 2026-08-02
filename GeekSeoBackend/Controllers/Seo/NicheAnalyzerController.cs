@@ -12,7 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace GeekSeoBackend.Controllers.Seo;
 
 [ApiController]
-[Route("api/seo/niche-analyzer")]
+[Route("api/seo/site-analyzer")]
 public sealed class NicheAnalyzerController(
     NicheAnalyzerService analyzer,
     INicheProfileRepository profileRepo,
@@ -22,6 +22,35 @@ public sealed class NicheAnalyzerController(
     WorkerUserContext workerUser,
     ILogger<NicheAnalyzerController> logger) : ControllerBase
 {
+    [HttpPost("analyze-and-run")]
+    public async Task<IActionResult> AnalyzeAndRun(
+        [FromBody] AnalyzeRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            if (request is null || request.ProjectId == Guid.Empty || string.IsNullOrWhiteSpace(request.Domain))
+                return BadRequest(new { error = "projectId and domain required" });
+
+            if (!NicheAnalyzerService.IsWorkerConfigured())
+                return StatusCode(503, new { error = "Site analysis worker is not running" });
+
+            var userId = user.RequireUserId();
+            var profileId = await analyzer.QueueSiteAnalysisAsync(
+                userId, request.ProjectId, request.Domain, request.SeedTopic, ct);
+            return Ok(new { profileId, status = "queued" });
+        }
+        catch (InvalidOperationException ex) when (
+            ex.Message.Contains("worker is not running", StringComparison.OrdinalIgnoreCase))
+        {
+            return StatusCode(503, new { error = "Site analysis worker is not running" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpPost("analyze")]
     public async Task<IActionResult> Analyze(
         [FromBody] AnalyzeRequest request,
@@ -362,8 +391,8 @@ public sealed class NicheAnalyzerController(
         }
     }
 
-    [HttpGet("{profileId:guid}/niche-competitors")]
-    public async Task<IActionResult> GetNicheCompetitors(Guid profileId, CancellationToken ct)
+    [HttpGet("{profileId:guid}/competitor-sites")]
+    public async Task<IActionResult> GetCompetitorSites(Guid profileId, CancellationToken ct)
     {
         try
         {
@@ -378,7 +407,7 @@ public sealed class NicheAnalyzerController(
         }
         catch (Exception ex) when (GeekDataGatewayExceptions.IsTransientGatewayFailure(ex, ct))
         {
-            logger.LogWarning(ex, "Transient error fetching niche competitors for profile {ProfileId}", profileId);
+            logger.LogWarning(ex, "Transient error fetching competitor sites for profile {ProfileId}", profileId);
             return StatusCode(503, new { error = "Competitors temporarily unavailable" });
         }
     }
@@ -396,7 +425,7 @@ public sealed class NicheAnalyzerController(
 
             var competitors = profileResult.Value.Competitors.ToList();
             if (competitors.Count == 0)
-                return BadRequest(new { error = "No competitors to analyze. Run niche analysis first." });
+                return BadRequest(new { error = "No competitors to analyze. Run site analysis first." });
 
             _ = Task.Run(async () =>
             {

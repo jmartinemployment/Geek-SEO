@@ -50,7 +50,7 @@ export const FEATURE_MODULES: FeatureModule[] = [
   },
   {
     id: 'niche',
-    title: 'Niche Analyzer',
+    title: 'Site Analyzer',
     description: 'Map pillars and competitors for your market',
     href: '/strategy/topical-map',
     iconBg: '#EEF2FF',

@@ -10,7 +10,7 @@ public sealed class NicheAnalysisJobChannel(ILogger<NicheAnalysisJobChannel> log
     public void Notify()
     {
         if (!_channel.Writer.TryWrite(0))
-            logger.LogWarning("NicheAnalysisJobChannel at capacity — notification dropped; job will be picked up on next startup drain");
+            logger.LogWarning("SiteAnalysisJobChannel at capacity — notification dropped; job will be picked up on next startup drain");
     }
 
     public ChannelReader<byte> Reader => _channel.Reader;
