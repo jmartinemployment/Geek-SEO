@@ -101,3 +101,5 @@ Content Creator Analyze drives Geek-SEO **`RunThroughCoverageAsync`** (site mode
 Shipped as this repo's commit `281ec37`, GeekBackend `7ef3c61`, GeekContentCreator `efc2f23` — all deployed live. Planning/handoff docs for this item were removed post-merge; see those commits for full detail.
 
 Do **not** invent ghost APIs (`EnsureSiteMapAsync`, `SiteMapReady`, `sitemapEntities`). Use discovered-URL rows + step status.
+
+**Known issue, fix scoped but not started:** content-gap detection currently fabricates gaps — `SiteAnalysisStepExecutionService.cs:1125` pads a pillar with <3 real crawled child pages with 5 hardcoded generic subtopic templates instead of finding real ones. Full fix (real heading-based gap detection) plus a broader elimination of silent fallback/soft-success patterns (provider auto-switching, swallowed exceptions) across this repo and GeekAPI is planned at `/Users/jeffmartin/development/GeekContentCreator/docs/FALLBACK_ELIMINATION_PLAN.md` (inventory at `docs/FALLBACK_INVENTORY.md` in that repo) — not yet implemented.
