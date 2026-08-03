@@ -108,6 +108,7 @@ public static class SeoBackendExtensions
         services.AddScoped<HomepageHeadingsExtractor>();
         services.AddScoped<PageContentExtractor>();
         services.AddScoped<SitePageCrawler>();
+        services.AddScoped<SitemapGenerator>();
         services.AddScoped<InternalLinkExtractor>();
         services.AddScoped<UrlPatternExtractor>();
         services.AddScoped<PillarValidator>();

@@ -483,7 +483,7 @@ public sealed class SiteAnalyzerService(
         {
             if (!discMap.TryGetValue(pillar.PillarSlug, out var disc)) continue;
 
-            var childSlugs = disc.ChildSlugs.Take(10).ToList();
+            var childSlugs = disc.ChildSlugs.ToList();
             foreach (var childSlug in childSlugs)
             {
                 subtopics.Add(new SiteAnalysisSubtopic
@@ -572,9 +572,9 @@ public sealed class SiteAnalyzerService(
         List<SiteAnalysisPillar> pillars)
     {
         var tags = new List<string>();
-        tags.AddRange(schema.AreaServed.Take(3));
-        tags.AddRange(pillars.Take(3).Select(p => p.PillarTopic));
-        return tags.Distinct(StringComparer.OrdinalIgnoreCase).Take(8);
+        tags.AddRange(schema.AreaServed);
+        tags.AddRange(pillars.Select(p => p.PillarTopic));
+        return tags.Distinct(StringComparer.OrdinalIgnoreCase);
     }
 
     internal static string NameToSlug(string name) =>
@@ -613,7 +613,6 @@ public sealed class SiteAnalyzerService(
 
     private static string[] SampleExclusionReasons(SiteTopicProfile fused) =>
         fused.ExclusionReasons
-            .Take(20)
             .Select(kvp => $"{kvp.Key}: {kvp.Value}")
             .ToArray();
 

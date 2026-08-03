@@ -225,6 +225,47 @@ public sealed class SiteAnalyzerController(
         }
     }
 
+    /// <summary>
+    /// Downloads the sitemap.xml built from the current step-1 URL inventory
+    /// (<c>SourceType ∈ {sitemap, generated}</c>). Always reflects the latest Analyze — the
+    /// document is rebuilt from the persisted inventory on every request, so there is no separate
+    /// "stale artifact" to go out of sync. No FTP/root upload — download only.
+    /// </summary>
+    [HttpGet("{profileId:guid}/sitemap.xml")]
+    public async Task<IActionResult> GetSitemapXml(Guid profileId, CancellationToken ct)
+    {
+        try
+        {
+            user.RequireUserId();
+            var urlsResult = await profileRepo.GetDiscoveredUrlsAsync(profileId, ct);
+            if (!urlsResult.IsSuccess)
+                return StatusCode(503, new { error = "Sitemap temporarily unavailable" });
+
+            var inventoryUrls = (urlsResult.Value ?? [])
+                .Where(x =>
+                    string.Equals(x.SourceType, "sitemap", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(x.SourceType, "generated", StringComparison.OrdinalIgnoreCase))
+                .Select(x => x.Url)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (inventoryUrls.Count == 0)
+                return NotFound(new { error = "No sitemap inventory available for this profile yet. Run Analyze first." });
+
+            var xml = SitemapGenerator.BuildUrlsetXml(inventoryUrls);
+            return Content(xml, "application/xml");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex) when (GeekDataGatewayExceptions.IsTransientGatewayFailure(ex, ct))
+        {
+            logger.LogWarning(ex, "Transient error building sitemap.xml for profile {ProfileId}", profileId);
+            return StatusCode(503, new { error = "Sitemap temporarily unavailable" });
+        }
+    }
+
     [HttpGet("{profileId:guid}/topic-candidates")]
     public async Task<IActionResult> GetTopicCandidates(
         Guid profileId,

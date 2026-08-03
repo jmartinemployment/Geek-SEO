@@ -13,10 +13,9 @@ public sealed class CompetitorPageFetcher(
     SitePageCrawler crawler,
     ILogger<CompetitorPageFetcher> logger)
 {
-    private const int MaxPagesPerCompetitor = 50;
-
     /// <summary>
     /// Crawl all unique competitor domains, return insights keyed by domain.
+    /// Uncapped — same unlimited <see cref="SitePageCrawler"/> rules as the own-site crawl.
     /// </summary>
     public async Task<Dictionary<string, CompetitorSiteInsight>> CrawlCompetitorsAsync(
         IEnumerable<string> domains,
@@ -35,7 +34,7 @@ public sealed class CompetitorPageFetcher(
                     ? domain : $"https://{domain}";
 
                 logger.LogDebug("Crawling competitor site: {Domain}", domain);
-                var crawl = await crawler.CrawlAsync(siteUrl, [], browser, ct, maxPages: MaxPagesPerCompetitor);
+                var crawl = await crawler.CrawlAsync(siteUrl, [], browser, ct);
 
                 var allHeadings = new List<string>();
                 var totalWords = 0;

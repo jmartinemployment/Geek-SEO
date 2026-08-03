@@ -5,10 +5,13 @@ namespace GeekSeoBackend.Services.SiteExtraction;
 /// <summary>Derives topical-map seed keywords from a fusion snapshot (same pillar list as site analyzer).</summary>
 internal static class SiteTopicalMapSeedResolver
 {
-    internal const int DefaultMaxSeeds = 7;
+    // Used downstream to bound how many seeds get full topical-map expansion (unrelated to
+    // pillar-selection minimums/caps — this is a separate, deliberate expansion-cost control).
     internal const int DefaultExpansionSeeds = 3;
 
-    internal static IReadOnlyList<string> ResolveSeeds(SiteTopicProfile fusion, int maxSeeds = DefaultMaxSeeds)
+    // No forced cap on topical-map seeds: every real recommended-action / selected-pillar
+    // signal becomes a seed candidate. Do not invent placeholder seeds to hit a minimum either.
+    internal static IReadOnlyList<string> ResolveSeeds(SiteTopicProfile fusion)
     {
         if (fusion.SelectedPillars.Count == 0)
             return [];
@@ -29,23 +32,19 @@ internal static class SiteTopicalMapSeedResolver
         foreach (var action in fusion.RecommendedActions
                      .OrderByDescending(a => a.Priority))
         {
-            if (seeds.Count >= maxSeeds)
-                break;
             if (action.ActionType is "suggest_pillar_page" or "entity_thin_content")
                 Add(action.TopicName);
         }
 
         foreach (var pillar in fusion.SelectedPillars.OrderByDescending(p => p.Confidence))
         {
-            if (seeds.Count >= maxSeeds)
-                break;
             if (string.IsNullOrWhiteSpace(pillar.DedicatedPageUrl))
                 Add(pillar.Name);
         }
 
         if (seeds.Count == 0)
         {
-            foreach (var pillar in fusion.SelectedPillars.Take(maxSeeds))
+            foreach (var pillar in fusion.SelectedPillars)
                 Add(pillar.Name);
         }
 

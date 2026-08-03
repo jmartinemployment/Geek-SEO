@@ -10,7 +10,6 @@ namespace GeekSeoBackend.Services.SiteExtraction;
 public sealed class PillarSelector(PillarValidator validator)
 {
     public const string SulVersion = "sul-2.0";
-    private const int MinPillars = 3;
 
     public SiteTopicProfile Select(
         IReadOnlyList<TopicCandidate> pool,
@@ -54,36 +53,10 @@ public sealed class PillarSelector(PillarValidator validator)
 
         var afterGate2 = afterGate3.Where(p => !toRemove.Contains(p.Slug)).ToList();
 
-        // Location fallbacks: inject when too few pillars survive (sites with no location URL structure)
-        if (afterGate2.Count < MinPillars)
-        {
-            foreach (var loc in locationFallbacks.Take(MinPillars - afterGate2.Count))
-            {
-                var slug = SiteAnalyzerService.NameToSlug(loc);
-                if (afterGate2.Any(p => p.Slug.Equals(slug, StringComparison.OrdinalIgnoreCase)))
-                    continue;
-
-                var fallback = new TopicCandidate
-                {
-                    Name = loc,
-                    Slug = slug,
-                    Confidence = TopicEvidenceWeights.Schema,
-                    Evidence =
-                    [
-                        new TopicEvidence
-                        {
-                            Source = "schema",
-                            Snippet = "areaServed fallback",
-                            Weight = TopicEvidenceWeights.Schema,
-                        },
-                    ],
-                };
-                workingPool.Add(fallback);
-                confidenceBySlug[slug] = fallback.Confidence;
-                afterGate2.Add(ToDiscoveredPillar(fallback));
-            }
-        }
-
+        // No forced minimum pillar count / invented placeholder pillars: a site with genuinely
+        // few real topics keeps few pillars. `locationFallbacks` (schema areaServed) already
+        // flows in as schema-sourced candidates elsewhere in the pool; it is not re-injected
+        // here just to pad the pillar count.
         var candidateBySlug = workingPool.ToDictionary(c => c.Slug, StringComparer.OrdinalIgnoreCase);
 
         // Selection rules (mirrors documented SE behavior):

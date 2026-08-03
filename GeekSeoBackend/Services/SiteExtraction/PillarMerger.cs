@@ -4,8 +4,6 @@ namespace GeekSeoBackend.Services.SiteExtraction;
 
 public sealed class PillarMerger
 {
-    private const int MinPillars = 3;
-
     // Priority: schema > sitemap > nav > heading
     private static readonly Dictionary<string, int> SourcePriority = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -26,9 +24,7 @@ public sealed class PillarMerger
         AddRange(merged, sitemap, "sitemap");
         AddRange(merged, nav, "nav");
 
-        // Headings only if total < MinPillars
-        if (merged.Count < MinPillars)
-            AddRange(merged, headings, "heading");
+        AddRange(merged, headings, "heading");
 
         // Validate gates
         var validator = new PillarValidator();
@@ -44,25 +40,7 @@ public sealed class PillarMerger
             toRemove.Add(merge.Slug);
         candidates = candidates.Where(c => !toRemove.Contains(c.Slug)).ToList();
 
-        // If still < MinPillars, add location pillars
-        if (candidates.Count < MinPillars)
-        {
-            foreach (var loc in locationFallbacks.Take(MinPillars - candidates.Count))
-            {
-                var slug = loc.ToLowerInvariant().Replace(' ', '-');
-                if (!candidates.Any(c => c.Slug.Equals(slug, StringComparison.OrdinalIgnoreCase)))
-                {
-                    candidates.Add(new DiscoveredPillar
-                    {
-                        Name = loc,
-                        Slug = slug,
-                        Intent = "local",
-                        Source = "schema",
-                        ChildPageCount = 1,
-                    });
-                }
-            }
-        }
+        // No forced minimum pillar count / invented placeholder pillars.
 
         // Sort: schema first, then by ChildPageCount desc
         var selected = candidates

@@ -15,8 +15,9 @@ public sealed partial class SitePageCrawler(
     IHttpClientFactory factory,
     ILogger<SitePageCrawler> logger)
 {
-    private const int HttpFetchTimeoutSeconds = 8;
-    private const int DefaultAttemptBudget = 30;
+    // Matches Playwright's page.GotoAsync timeout (15_000 ms) so HTTP-only crawl mode
+    // doesn't time out URLs sooner than the Playwright-backed BFS mode would.
+    private const int HttpFetchTimeoutSeconds = 15;
 
     private static readonly string[] SkipExtensions =
     [
@@ -24,12 +25,17 @@ public sealed partial class SitePageCrawler(
         ".css", ".js", ".woff", ".woff2",
     ];
 
+    /// <summary>
+    /// Crawls the full same-origin inventory (homepage + sitemap/inventory seeds + BFS-discovered
+    /// links when Playwright is available). Unlimited — no page cap, no attempt-budget soft-stop.
+    /// Callers that need a bounded crawl must apply their own post-hoc limiting; this method always
+    /// attempts every reachable, non-junk URL so crawl completeness can be checked against inventory.
+    /// </summary>
     public async Task<SiteCrawlData> CrawlAsync(
         string siteUrl,
         IReadOnlyList<string> sitemapUrls,
         IBrowser? browser,
-        CancellationToken ct,
-        int? maxPages = null)
+        CancellationToken ct)
     {
         if (!TryGetOrigin(siteUrl, out var origin, out var homepage))
             return new SiteCrawlData([], 0, 0);
@@ -57,15 +63,10 @@ public sealed partial class SitePageCrawler(
 
         var client = playwrightContext is null ? BuildClient() : null;
         var followLinks = playwrightContext is not null;
-        var attemptBudget = maxPages is int cap
-            ? Math.Min(cap + 5, DefaultAttemptBudget)
-            : DefaultAttemptBudget;
 
         try
         {
-            while (queue.Count > 0
-                   && (maxPages is null || pages.Count < maxPages)
-                   && attempted < attemptBudget)
+            while (queue.Count > 0)
             {
                 ct.ThrowIfCancellationRequested();
                 var url = queue.Dequeue();
@@ -96,11 +97,10 @@ public sealed partial class SitePageCrawler(
         }
 
         logger.LogInformation(
-            "Site crawl finished for {Origin}: {Fetched}/{Attempted} page(s) (budget {Budget}, mode {Mode})",
+            "Site crawl finished for {Origin}: {Fetched}/{Attempted} page(s) (unlimited, mode {Mode})",
             origin,
             pages.Count,
             attempted,
-            attemptBudget,
             followLinks ? "playwright-bfs" : "http-seeds-only");
 
         return new SiteCrawlData(pages, attempted, pages.Count);
@@ -164,6 +164,11 @@ public sealed partial class SitePageCrawler(
         }
     }
 
+    /// <summary>
+    /// Hard-junk-only crawl filter. Utility pages (/about, /contact, /faq, …) are legitimate
+    /// sitemap-inventory / site-audit URLs and MUST be fetched — they are excluded only from
+    /// pillar/topic selection via <see cref="NoisePaths"/>, never from the crawl itself.
+    /// </summary>
     private static bool ShouldSkipUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -186,14 +191,7 @@ public sealed partial class SitePageCrawler(
         }
 
         var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (segments.Length == 0)
-            return false;
-
-        // Skip utility pages (/contact, /about) but still crawl /services/accounting.
-        if (segments.Length == 1)
-            return NoisePaths.IsNoise(segments[0]);
-
-        return segments.All(NoisePaths.IsNoise);
+        return segments.Any(HardJunkPaths.IsHardJunk);
     }
 
     private async Task<string?> FetchWithPlaywrightAsync(

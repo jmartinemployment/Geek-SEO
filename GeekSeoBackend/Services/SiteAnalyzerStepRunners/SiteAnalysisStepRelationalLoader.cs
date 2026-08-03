@@ -69,6 +69,13 @@ internal static partial class SiteAnalyzerStepRelationalLoader
         return SiteAnalyzerStepArtifactStore.GetRequiredArtifact<SchemaOrgData>(steps, "schema", "schema");
     }
 
+    /// <summary>
+    /// Reads the step-1 (sitemap generation) inventory persisted by <c>site_urls</c> —
+    /// <c>SourceType ∈ {{sitemap, generated}}</c>. Step 1 always runs first and always persists a
+    /// non-empty inventory or throws, so an empty result here means step 1 has not actually run
+    /// yet for this profile (a real ordering bug), not a "site has no sitemap" condition — the
+    /// old empty soft-success (<c>new SitemapData([], 0, [])</c>) masked that and is vetoed.
+    /// </summary>
     internal static async Task<SitemapData> LoadSitemapAsync(
         ISiteAnalysisProfileRepository profileRepo,
         Guid profileId,
@@ -78,22 +85,30 @@ internal static partial class SiteAnalyzerStepRelationalLoader
         var urlsResult = await profileRepo.GetDiscoveredUrlsAsync(profileId, ct);
         if (urlsResult.IsSuccess && urlsResult.Value is { Count: > 0 } urls)
         {
-            var sitemapUrls = urls
-                .Where(x => string.Equals(x.SourceType, "sitemap", StringComparison.OrdinalIgnoreCase))
+            var inventoryUrls = urls
+                .Where(x =>
+                    string.Equals(x.SourceType, "sitemap", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(x.SourceType, "generated", StringComparison.OrdinalIgnoreCase))
                 .Select(x => x.Url)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            if (sitemapUrls.Count > 0)
+            if (inventoryUrls.Count > 0)
             {
                 var fallback = SiteAnalyzerStepArtifactStore.TryGetArtifact<SitemapData>(steps, "site_urls", "site_urls");
                 return new SitemapData(
                     fallback?.Pillars ?? [],
-                    fallback?.TotalUrlsScanned ?? sitemapUrls.Count,
-                    sitemapUrls);
+                    fallback?.TotalUrlsScanned ?? inventoryUrls.Count,
+                    inventoryUrls);
             }
         }
 
-        return SiteAnalyzerStepArtifactStore.GetRequiredArtifact<SitemapData>(steps, "site_urls", "site_urls");
+        var fromLog = SiteAnalyzerStepArtifactStore.TryGetArtifact<SitemapData>(steps, "site_urls", "site_urls");
+        if (fromLog is { SampleUrls.Count: > 0 })
+            return fromLog;
+
+        throw new InvalidOperationException(
+            "Sitemap inventory is not available — step 1 (sitemap generation) has not completed for this profile. " +
+            "Re-run Analyze so step 1 can generate and persist the URL inventory.");
     }
 
     internal static async Task<NavMenuData> LoadNavAsync(
@@ -438,24 +453,16 @@ internal static partial class SiteAnalyzerStepRelationalLoader
         }
     }
 
-    private const int MaxHtmlCharsForVisibleText = 512_000;
-    private const int MaxVisibleTextChars = 32_768;
-
+    // No truncation cap: persist the full visible text extracted from fetched HTML.
     private static string ExtractVisibleText(string html)
     {
         if (string.IsNullOrWhiteSpace(html))
             return string.Empty;
 
-        if (html.Length > MaxHtmlCharsForVisibleText)
-            html = html[..MaxHtmlCharsForVisibleText];
-
         var stripped = ScriptTagRegex().Replace(html, " ");
         stripped = StyleTagRegex().Replace(stripped, " ");
         stripped = TagRegex().Replace(stripped, " ");
-        var decoded = WebUtility.HtmlDecode(stripped).Trim();
-        return decoded.Length <= MaxVisibleTextChars
-            ? decoded
-            : decoded[..MaxVisibleTextChars];
+        return WebUtility.HtmlDecode(stripped).Trim();
     }
 
     [GeneratedRegex("<script\\b[^<]*(?:(?!<\\/script>)<[^<]*)*<\\/script>", RegexOptions.IgnoreCase)]

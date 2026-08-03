@@ -91,3 +91,14 @@ The following were removed from this repo; delete any matching Railway projects/
 | **Standalone ContentWriter service** | API now lives inside GeekSeoBackend |
 
 Legacy columns on `seo_content_documents` (`SiteProfileId`, `KeywordBundleJson`, `AnalysisRunId`, `SiteFocusJson`) are kept for existing rows but are no longer written by Site Analyzer.
+
+## Site Analyzer (ThroughCoverage)
+
+Content Creator Analyze drives Geek-SEO **`RunThroughCoverageAsync`** (site model spine → content-gap findings). Fail closed on any step throw.
+
+**Implemented (unit-tested, not yet live-verified):** sitemap **generate/update as step 1** on every Analyze — uncapped same-origin discovery, persist discovered URLs (`SourceType` `sitemap`|`generated`), auto-update `sitemap.xml` artifact + Download UI, then **inventory-complete** crawl (no `MaxSiteCrawlPages` / attempt-budget soft-stop). Utility pages are crawled for inventory but excluded from topics via `NoisePaths`. HTTP fetch timeout aligned to Playwright (15s).
+
+Canonical handoff (GCC repo): `/Users/jeffmartin/development/GeekContentCreator/docs/HANDOFF-site-analyzer-sitemap-step1.md`  
+Plan (project-canonical): `/Users/jeffmartin/development/GeekContentCreator/docs/plans/sitemap-generator-step1.plan.md`
+
+Do **not** invent ghost APIs (`EnsureSiteMapAsync`, `SiteMapReady`, `sitemapEntities`). Use discovered-URL rows + step status.

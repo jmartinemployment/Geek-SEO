@@ -28,7 +28,6 @@ public sealed class CompetitorAnalysisService(
     IHubContext<SeoRealtimeHub> hub,
     ILogger<CompetitorAnalysisService> logger)
 {
-    private const int MaxPagesPerCompetitor = 50;
 
     public async Task AnalyzeAsync(
         Guid profileId,
@@ -63,7 +62,7 @@ public sealed class CompetitorAnalysisService(
                 var headings = await headingsExtractor.ExtractAsync(siteUrl, browser, ct);
                 var pageContent = await pageContentExtractor.ExtractAsync(siteUrl, browser, ct);
                 var crawlData = await sitePageCrawler.CrawlAsync(
-                    siteUrl, sitemap.SampleUrls, browser, ct, maxPages: MaxPagesPerCompetitor);
+                    siteUrl, sitemap.SampleUrls, browser, ct);
                 var internalLinks = internalLinkExtractor.Extract(crawlData, domain);
                 var urlPatterns = urlPatternExtractor.Extract(
                     crawlData.Pages.Select(p => p.Url).Concat(sitemap.SampleUrls).Distinct().ToList(),

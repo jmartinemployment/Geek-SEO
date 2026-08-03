@@ -1252,8 +1252,7 @@ public sealed class SiteExtractionTests
             "https://example.com",
             ["https://example.com/pricing"],
             browser: null,
-            CancellationToken.None,
-            maxPages: 20);
+            CancellationToken.None);
 
         Assert.Equal(2, result.PagesFetched);
         Assert.Equal(2, result.PagesAttempted);
@@ -1261,8 +1260,10 @@ public sealed class SiteExtractionTests
     }
 
     [Fact]
-    public async Task SitePageCrawler_HttpOnly_StopsAfterAttemptBudget()
+    public async Task SitePageCrawler_HttpOnly_IsUnlimited_AttemptsEveryInventoryUrl()
     {
+        // Unlimited crawl: no page cap, no attempt-budget soft-stop. Every seed URL is attempted
+        // regardless of count so crawl completeness can be checked against the full inventory.
         var requestCount = 0;
         var handler = new StubHttpHandler(_ =>
         {
@@ -1281,12 +1282,12 @@ public sealed class SiteExtractionTests
             "https://example.com",
             sitemapSeeds,
             browser: null,
-            CancellationToken.None,
-            maxPages: 20);
+            CancellationToken.None);
 
+        // Homepage + all 40 seeds attempted — no 25-attempt soft-stop.
         Assert.Equal(0, result.PagesFetched);
-        Assert.Equal(25, result.PagesAttempted);
-        Assert.Equal(25, requestCount);
+        Assert.Equal(41, result.PagesAttempted);
+        Assert.Equal(41, requestCount);
     }
 
     private sealed class StubHttpClientFactory(StubHttpHandler handler) : IHttpClientFactory

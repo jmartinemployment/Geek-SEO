@@ -13,8 +13,6 @@ public sealed partial class PageContentExtractor(
     IHttpClientFactory httpClientFactory,
     ILogger<PageContentExtractor> logger)
 {
-    private const int MaxListItems = 30;
-
     public async Task<PageContentData> ExtractAsync(string domain, IBrowser? browser, CancellationToken ct)
     {
         if (browser is not null)
@@ -64,7 +62,6 @@ public sealed partial class PageContentExtractor(
               });
 
               document.querySelectorAll('main li, article li, section li, ul li, ol li').forEach(li => {
-                if (result.listItems.length >= 30) return;
                 const text = (li.textContent || '').replace(/\s+/g, ' ').trim();
                 if (text.length >= 4 && text.length <= 80) add(result.listItems, text);
               });
@@ -97,9 +94,6 @@ public sealed partial class PageContentExtractor(
         var listItems = new List<string>();
         foreach (Match match in ListItemRegex().Matches(html))
         {
-            if (listItems.Count >= MaxListItems)
-                break;
-
             var text = WebUtility.HtmlDecode(match.Groups[1].Value.Trim());
             text = TagStripRegex().Replace(text, " ").Trim();
             if (text.Length is >= 4 and <= 80 && !NoisePaths.IsNoise(SiteAnalyzerService.NameToSlug(text)))

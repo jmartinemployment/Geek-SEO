@@ -12,7 +12,7 @@ public sealed class SiteAnalyzerStepExecutionService(
     ISiteAnalysisProfileRepository profileRepo,
     SiteAnalysisPersistenceService persistence,
     SchemaOrgExtractor schemaExtractor,
-    SitemapExtractor sitemapExtractor,
+    SitemapGenerator sitemapGenerator,
     NavMenuExtractor navMenuExtractor,
     HomepageHeadingsExtractor headingsExtractor,
     PageContentExtractor pageContentExtractor,
@@ -27,7 +27,6 @@ public sealed class SiteAnalyzerStepExecutionService(
     SiteRootEntityBuilder rootBuilder,
     ILogger<SiteAnalyzerStepExecutionService> logger)
 {
-    private const int MaxSiteCrawlPages = 20;
     private sealed record KeywordArtifact(
         IReadOnlyList<PillarKeywordEnrichment> Keywords,
         bool Skipped,
@@ -57,7 +56,7 @@ public sealed class SiteAnalyzerStepExecutionService(
         slug switch
         {
             "schema" => RunSchemaAsync(profileId, domain, browser, ct),
-            "site_urls" => RunSiteUrlsAsync(profileId, domain, ct),
+            "site_urls" => RunSiteUrlsAsync(profileId, domain, browser, ct),
             "nav" => RunNavAsync(profileId, domain, browser, ct),
             "headings" => RunHeadingsAsync(profileId, domain, browser, ct),
             "page_content" => RunPageContentAsync(profileId, domain, browser, ct),
@@ -98,29 +97,101 @@ public sealed class SiteAnalyzerStepExecutionService(
             schemaData);
     }
 
+    /// <summary>
+    /// Site Analyzer step 1 (sitemap generation): always regenerates the full URL inventory via
+    /// <see cref="SitemapGenerator"/> — unlimited same-origin BFS crawl merged with any public
+    /// <c>/sitemap.xml</c> URLs — and rewrites the persisted <c>sitemap.xml</c> artifact from that
+    /// inventory on every Analyze. Fails closed: zero discovered URLs, or persisted rows outside
+    /// <c>SourceType ∈ {{sitemap, generated}}</c> / not same-origin, throw rather than soft-continue.
+    /// </summary>
     private async Task<SiteAnalysisStepLogEntry> RunSiteUrlsAsync(
         Guid profileId,
         string domain,
+        IBrowser? browser,
         CancellationToken ct)
     {
-        var sitemapData = await sitemapExtractor.ExtractAsync(domain, ct);
+        var generated = await sitemapGenerator.GenerateAsync(domain, browser, ct);
+
+        if (!TryGetOrigin(domain, out var origin))
+            throw new InvalidOperationException($"Sitemap generation found no pages for {domain} — invalid site URL.");
+
+        var validInventory = generated.Inventory
+            .Where(u =>
+                (string.Equals(u.SourceType, "sitemap", StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(u.SourceType, "generated", StringComparison.OrdinalIgnoreCase))
+                && IsSameOrigin(u.Url, origin))
+            .ToList();
+
+        if (validInventory.Count == 0)
+            throw new InvalidOperationException($"Sitemap generation found no pages for {domain}.");
+
         var persistUrls = await profileRepo.ReplaceDiscoveredUrlsAsync(
             profileId,
-            sitemapData.SampleUrls
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Select(url => new SiteAnalysisProfileDiscoveredUrlWrite(url, "sitemap"))
+            validInventory
+                .GroupBy(u => $"{u.Url}␟{u.SourceType}", StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
+                .Select(u => new SiteAnalysisProfileDiscoveredUrlWrite(u.Url, u.SourceType))
                 .ToList(),
             ct);
         if (!persistUrls.IsSuccess)
             throw new InvalidOperationException(persistUrls.Error ?? "Failed to persist discovered URLs.");
-        var message = sitemapData.TotalUrlsScanned > 0
-            ? $"Site URLs: {sitemapData.TotalUrlsScanned} from sitemap."
-            : "Site URLs: none found in sitemap.";
 
-        return SiteAnalyzerStepArtifactStore.WithArtifact(
-            SiteAnalysisStepLogBuilder.SiteUrls(2, sitemapData, message),
-            "site_urls",
-            sitemapData);
+        var xmlArtifact = SitemapGenerator.BuildUrlsetXml(validInventory.Select(u => u.Url));
+        var sitemapUrlCount = validInventory.Count(u => string.Equals(u.SourceType, "sitemap", StringComparison.OrdinalIgnoreCase));
+        var generatedUrlCount = validInventory.Count - sitemapUrlCount;
+
+        var sitemapData = new SitemapData(
+            [],
+            validInventory.Count,
+            validInventory.Select(u => u.Url).ToList());
+
+        var message =
+            $"Sitemap generated: {validInventory.Count} URL(s) ({sitemapUrlCount} from public sitemap.xml, {generatedUrlCount} discovered by crawl). sitemap.xml artifact updated.";
+
+        logger.LogInformation(
+            "Site analysis step 1 (site_urls) complete for profile {ProfileId}: inventoryUrls: {InventoryUrls}",
+            profileId,
+            validInventory.Count);
+
+        var entry = SiteAnalysisStepLogBuilder.SiteUrls(2, sitemapData, message);
+        entry = entry with
+        {
+            Outputs = new Dictionary<string, object?>(entry.Outputs, StringComparer.OrdinalIgnoreCase)
+            {
+                ["inventoryUrls"] = validInventory.Count,
+                ["sitemapXml"] = xmlArtifact,
+            },
+        };
+
+        return SiteAnalyzerStepArtifactStore.WithArtifact(entry, "site_urls", sitemapData);
+    }
+
+    private static bool TryGetOrigin(string siteUrl, out string origin)
+    {
+        origin = string.Empty;
+        try
+        {
+            var uri = new Uri(SiteUrlNormalizer.Normalize(siteUrl));
+            origin = uri.GetLeftPart(UriPartial.Authority);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsSameOrigin(string url, string origin)
+    {
+        try
+        {
+            return new Uri(url).GetLeftPart(UriPartial.Authority)
+                .Equals(origin, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private async Task<SiteAnalysisStepLogEntry> RunNavAsync(
@@ -214,6 +285,12 @@ public sealed class SiteAnalyzerStepExecutionService(
             pageContent);
     }
 
+    /// <summary>
+    /// Unlimited, inventory-complete site crawl: fetches every URL in the step-1 inventory (no
+    /// page cap, no attempt-budget soft-stop). Success requires every inventory URL to have been
+    /// fetched — not <c>PagesFetched >= 1</c> — otherwise this throws with the missing URLs
+    /// listed so the failure is diagnosable rather than a soft "N pages fetched" success.
+    /// </summary>
     private async Task<SiteAnalysisStepLogEntry> RunSiteCrawlAsync(
         Guid profileId,
         string domain,
@@ -222,15 +299,24 @@ public sealed class SiteAnalyzerStepExecutionService(
     {
         logger.LogInformation("Site crawl starting for profile {ProfileId} domain {Domain}", profileId, domain);
         var sitemap = await SiteAnalyzerStepRelationalLoader.LoadSitemapAsync(profileRepo, profileId, [], ct);
-        var crawlData = await sitePageCrawler.CrawlAsync(
-            domain,
-            sitemap.SampleUrls,
-            browser,
-            ct,
-            maxPages: MaxSiteCrawlPages);
+        var inventoryUrls = sitemap.SampleUrls
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var crawlData = await sitePageCrawler.CrawlAsync(domain, inventoryUrls, browser, ct);
         var crawlUrls = crawlData.Pages.Select(p => p.Url).ToList();
+        var fetchedSet = new HashSet<string>(crawlUrls, StringComparer.OrdinalIgnoreCase);
+        var missing = inventoryUrls.Where(u => !fetchedSet.Contains(u)).ToList();
+
+        if (missing.Count > 0)
+        {
+            var sample = string.Join(", ", missing.Take(10));
+            var suffix = missing.Count > 10 ? $" (+{missing.Count - 10} more)" : string.Empty;
+            throw new InvalidOperationException(
+                $"Site crawl incomplete: {missing.Count} of {inventoryUrls.Count} inventory URL(s) were not fetched: {sample}{suffix}");
+        }
+
         var message =
-            $"Site crawl: {crawlData.PagesFetched} page(s) fetched from {crawlData.PagesAttempted} attempt(s).";
+            $"Site crawl: {crawlData.PagesFetched} of {inventoryUrls.Count} inventory page(s) fetched (complete).";
         logger.LogInformation(
             "Site crawl extracted for profile {ProfileId}: {Message}",
             profileId,
@@ -1011,7 +1097,7 @@ public sealed class SiteAnalyzerStepExecutionService(
             if (!discMap.TryGetValue(pillar.PillarSlug, out var disc))
                 continue;
 
-            var childSlugs = disc.ChildSlugs.Take(10).ToList();
+            var childSlugs = disc.ChildSlugs.ToList();
             foreach (var childSlug in childSlugs)
             {
                 var keyword = $"{pillar.PrimaryKeyword} {childSlug.Replace('-', ' ')}".Trim();
@@ -1116,9 +1202,9 @@ public sealed class SiteAnalyzerStepExecutionService(
     private static IEnumerable<string> BuildFocusTags(SchemaOrgData schema, List<SiteAnalysisPillar> pillars)
     {
         var tags = new List<string>();
-        tags.AddRange(schema.AreaServed.Take(3));
-        tags.AddRange(pillars.Take(3).Select(p => p.PillarTopic));
-        return tags.Distinct(StringComparer.OrdinalIgnoreCase).Take(8);
+        tags.AddRange(schema.AreaServed);
+        tags.AddRange(pillars.Select(p => p.PillarTopic));
+        return tags.Distinct(StringComparer.OrdinalIgnoreCase);
     }
 
     private static string BuildMergeMessage(
@@ -1177,7 +1263,6 @@ public sealed class SiteAnalyzerStepExecutionService(
 
     private static string[] SampleExclusionReasons(SiteTopicProfile fused) =>
         fused.ExclusionReasons
-            .Take(20)
             .Select(kvp => $"{kvp.Key}: {kvp.Value}")
             .ToArray();
 }

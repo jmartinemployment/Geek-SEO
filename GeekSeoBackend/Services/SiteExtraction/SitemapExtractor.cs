@@ -6,9 +6,6 @@ namespace GeekSeoBackend.Services.SiteExtraction;
 
 public sealed class SitemapExtractor(IHttpClientFactory factory, ILogger<SitemapExtractor> logger)
 {
-    private const int MaxUrls = 5_000;
-    private const int MaxChildSitemaps = 3;
-
     private static readonly string[] SitemapPaths =
     [
         "/sitemap.xml", "/sitemap_index.xml",
@@ -30,7 +27,7 @@ public sealed class SitemapExtractor(IHttpClientFactory factory, ILogger<Sitemap
                     siteUrl, urls.Count);
             }
 
-            return new SitemapData(pillars, urls.Count, urls.Take(20).ToList());
+            return new SitemapData(pillars, urls.Count, urls);
         }
         catch (Exception ex)
         {
@@ -78,30 +75,27 @@ public sealed class SitemapExtractor(IHttpClientFactory factory, ILogger<Sitemap
             var doc = XDocument.Parse(content);
             var ns = doc.Root?.Name.Namespace ?? XNamespace.None;
 
-            // Sitemap index — fetch first N child sitemaps
+            // Sitemap index — fetch all child sitemaps (uncapped)
             if (doc.Root?.Name.LocalName == "sitemapindex")
             {
                 var urls = new List<string>();
                 var childUrls = doc.Descendants(ns + "loc")
                     .Select(e => e.Value.Trim())
                     .Where(u => !string.IsNullOrWhiteSpace(u))
-                    .Take(MaxChildSitemaps)
                     .ToList();
 
                 foreach (var childUrl in childUrls)
                 {
                     var childUrls2 = await TryFetchSitemapAsync(childUrl, client, depth + 1, ct);
                     urls.AddRange(childUrls2);
-                    if (urls.Count >= MaxUrls) break;
                 }
-                return urls.Take(MaxUrls).ToList();
+                return urls;
             }
 
-            // Regular sitemap
+            // Regular sitemap — uncapped
             return doc.Descendants(ns + "loc")
                 .Select(e => e.Value.Trim())
                 .Where(u => !string.IsNullOrWhiteSpace(u))
-                .Take(MaxUrls)
                 .ToList();
         }
         catch
@@ -140,7 +134,7 @@ public sealed class SitemapExtractor(IHttpClientFactory factory, ILogger<Sitemap
                 Intent = InferIntent(kv.Key),
                 Source = "sitemap",
                 ChildPageCount = kv.Value.Count,
-                ChildSlugs = kv.Value.Distinct(StringComparer.OrdinalIgnoreCase).Take(20).ToList(),
+                ChildSlugs = kv.Value.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
             })
             .ToList();
     }

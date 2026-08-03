@@ -96,6 +96,7 @@ public sealed class SiteAnalyzerServiceCanonicalProfileTests
                 NullHubContext.Instance,
                 NullLogger<SiteAnalysisProgressNotifier>.Instance),
             null!,
+            null!,
             NullLogger<SiteAnalyzerService>.Instance);
 
     private sealed class FakeProjectRepository(SeoProject project) : IProjectRepository
