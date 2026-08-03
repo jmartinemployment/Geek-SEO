@@ -46,6 +46,7 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
+        // Legacy bookmark path only — product name is Site Analyzer.
         source: '/app/strategy/niche-analyzer',
         destination: '/strategy/site-analyzer',
         permanent: true,

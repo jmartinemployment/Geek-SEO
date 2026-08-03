@@ -13,7 +13,7 @@ namespace GeekSeo.Persistence.Migrations
 {
     [DbContext(typeof(SeoDbContext))]
     [Migration("20260803000000_RenameNicheToSiteAnalysis")]
-    partial class RenameNicheToSiteAnalysis
+    partial class RenameLegacySiteAnalysisCutover
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

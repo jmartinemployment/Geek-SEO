@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace GeekSeo.Persistence.Migrations;
 
 /// <inheritdoc />
-public partial class AddNicheProfileFusionSnapshot : Migration
+public partial class AddSiteAnalysisProfileFusionSnapshot : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -13,7 +13,7 @@ public partial class AddNicheProfileFusionSnapshot : Migration
         migrationBuilder.AddColumn<string>(
             name: "FusionSnapshot",
             schema: "geek_seo",
-            table: "niche_profiles",
+            table: "site_analysis_profiles",
             type: "jsonb",
             nullable: true);
     }
@@ -24,6 +24,6 @@ public partial class AddNicheProfileFusionSnapshot : Migration
         migrationBuilder.DropColumn(
             name: "FusionSnapshot",
             schema: "geek_seo",
-            table: "niche_profiles");
+            table: "site_analysis_profiles");
     }
 }

@@ -13,19 +13,19 @@ namespace GeekSeo.Persistence.Migrations
             migrationBuilder.DropColumn(
                 name: "CompetitorInsightsJson",
                 schema: "geek_seo",
-                table: "niche_pillars");
+                table: "site_analysis_pillars");
 
             migrationBuilder.AddColumn<string>(
                 name: "AreaServedJson",
                 schema: "geek_seo",
-                table: "niche_competitors",
+                table: "site_analysis_competitors",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<int>(
                 name: "AvgWordCount",
                 schema: "geek_seo",
-                table: "niche_competitors",
+                table: "site_analysis_competitors",
                 type: "integer",
                 nullable: false,
                 defaultValue: 0);
@@ -33,21 +33,21 @@ namespace GeekSeo.Persistence.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "BrandName",
                 schema: "geek_seo",
-                table: "niche_competitors",
+                table: "site_analysis_competitors",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "Description",
                 schema: "geek_seo",
-                table: "niche_competitors",
+                table: "site_analysis_competitors",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<bool>(
                 name: "HasFaqSchema",
                 schema: "geek_seo",
-                table: "niche_competitors",
+                table: "site_analysis_competitors",
                 type: "boolean",
                 nullable: false,
                 defaultValue: false);
@@ -55,14 +55,14 @@ namespace GeekSeo.Persistence.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "KnowsAboutJson",
                 schema: "geek_seo",
-                table: "niche_competitors",
+                table: "site_analysis_competitors",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<int>(
                 name: "PagesCrawled",
                 schema: "geek_seo",
-                table: "niche_competitors",
+                table: "site_analysis_competitors",
                 type: "integer",
                 nullable: false,
                 defaultValue: 0);
@@ -70,14 +70,14 @@ namespace GeekSeo.Persistence.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "SameAsJson",
                 schema: "geek_seo",
-                table: "niche_competitors",
+                table: "site_analysis_competitors",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "ServicesJson",
                 schema: "geek_seo",
-                table: "niche_competitors",
+                table: "site_analysis_competitors",
                 type: "text",
                 nullable: true);
         }
@@ -88,52 +88,52 @@ namespace GeekSeo.Persistence.Migrations
             migrationBuilder.DropColumn(
                 name: "AreaServedJson",
                 schema: "geek_seo",
-                table: "niche_competitors");
+                table: "site_analysis_competitors");
 
             migrationBuilder.DropColumn(
                 name: "AvgWordCount",
                 schema: "geek_seo",
-                table: "niche_competitors");
+                table: "site_analysis_competitors");
 
             migrationBuilder.DropColumn(
                 name: "BrandName",
                 schema: "geek_seo",
-                table: "niche_competitors");
+                table: "site_analysis_competitors");
 
             migrationBuilder.DropColumn(
                 name: "Description",
                 schema: "geek_seo",
-                table: "niche_competitors");
+                table: "site_analysis_competitors");
 
             migrationBuilder.DropColumn(
                 name: "HasFaqSchema",
                 schema: "geek_seo",
-                table: "niche_competitors");
+                table: "site_analysis_competitors");
 
             migrationBuilder.DropColumn(
                 name: "KnowsAboutJson",
                 schema: "geek_seo",
-                table: "niche_competitors");
+                table: "site_analysis_competitors");
 
             migrationBuilder.DropColumn(
                 name: "PagesCrawled",
                 schema: "geek_seo",
-                table: "niche_competitors");
+                table: "site_analysis_competitors");
 
             migrationBuilder.DropColumn(
                 name: "SameAsJson",
                 schema: "geek_seo",
-                table: "niche_competitors");
+                table: "site_analysis_competitors");
 
             migrationBuilder.DropColumn(
                 name: "ServicesJson",
                 schema: "geek_seo",
-                table: "niche_competitors");
+                table: "site_analysis_competitors");
 
             migrationBuilder.AddColumn<string>(
                 name: "CompetitorInsightsJson",
                 schema: "geek_seo",
-                table: "niche_pillars",
+                table: "site_analysis_pillars",
                 type: "text",
                 nullable: false,
                 defaultValue: "");

@@ -6,22 +6,22 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace GeekSeo.Persistence.Migrations
 {
     /// <inheritdoc />
-    public partial class AddNicheAnalysis : Migration
+    public partial class AddSiteAnalysis : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "niche_profiles",
+                name: "site_analysis_profiles",
                 schema: "geek_seo",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
                     ProjectId = table.Column<Guid>(type: "uuid", nullable: false),
                     Domain = table.Column<string>(type: "text", nullable: false),
-                    PrimaryNiche = table.Column<string>(type: "text", nullable: false),
-                    NicheDescription = table.Column<string>(type: "text", nullable: false),
-                    NicheTags = table.Column<string[]>(type: "text[]", nullable: false),
+                    PrimaryFocus = table.Column<string>(type: "text", nullable: false),
+                    FocusDescription = table.Column<string>(type: "text", nullable: false),
+                    FocusTags = table.Column<string[]>(type: "text[]", nullable: false),
                     AudienceType = table.Column<string>(type: "text", nullable: false),
                     CompetitionLevel = table.Column<string>(type: "text", nullable: false),
                     DiscoveryMethod = table.Column<string>(type: "text", nullable: false),
@@ -39,16 +39,16 @@ namespace GeekSeo.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_niche_profiles", x => x.Id);
+                    table.PrimaryKey("PK_site_analysis_profiles", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
-                name: "niche_competitors",
+                name: "site_analysis_competitors",
                 schema: "geek_seo",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
-                    NicheProfileId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SiteAnalysisProfileId = table.Column<Guid>(type: "uuid", nullable: false),
                     Domain = table.Column<string>(type: "text", nullable: false),
                     SerpPresence = table.Column<int>(type: "integer", nullable: false),
                     EstimatedAuthorityScore = table.Column<decimal>(type: "numeric", nullable: false),
@@ -57,23 +57,23 @@ namespace GeekSeo.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_niche_competitors", x => x.Id);
+                    table.PrimaryKey("PK_site_analysis_competitors", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_niche_competitors_niche_profiles_NicheProfileId",
-                        column: x => x.NicheProfileId,
+                        name: "FK_site_analysis_competitors_site_analysis_profiles_SiteAnalysisProfileId",
+                        column: x => x.SiteAnalysisProfileId,
                         principalSchema: "geek_seo",
-                        principalTable: "niche_profiles",
+                        principalTable: "site_analysis_profiles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "niche_entities",
+                name: "site_analysis_entities",
                 schema: "geek_seo",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
-                    NicheProfileId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SiteAnalysisProfileId = table.Column<Guid>(type: "uuid", nullable: false),
                     EntityName = table.Column<string>(type: "text", nullable: false),
                     EntityType = table.Column<string>(type: "text", nullable: false),
                     MentionFrequency = table.Column<int>(type: "integer", nullable: false),
@@ -82,23 +82,23 @@ namespace GeekSeo.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_niche_entities", x => x.Id);
+                    table.PrimaryKey("PK_site_analysis_entities", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_niche_entities_niche_profiles_NicheProfileId",
-                        column: x => x.NicheProfileId,
+                        name: "FK_site_analysis_entities_site_analysis_profiles_SiteAnalysisProfileId",
+                        column: x => x.SiteAnalysisProfileId,
                         principalSchema: "geek_seo",
-                        principalTable: "niche_profiles",
+                        principalTable: "site_analysis_profiles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "niche_pillars",
+                name: "site_analysis_pillars",
                 schema: "geek_seo",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
-                    NicheProfileId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SiteAnalysisProfileId = table.Column<Guid>(type: "uuid", nullable: false),
                     PillarTopic = table.Column<string>(type: "text", nullable: false),
                     PillarSlug = table.Column<string>(type: "text", nullable: false),
                     PrimaryKeyword = table.Column<string>(type: "text", nullable: false),
@@ -121,18 +121,18 @@ namespace GeekSeo.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_niche_pillars", x => x.Id);
+                    table.PrimaryKey("PK_site_analysis_pillars", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_niche_pillars_niche_profiles_NicheProfileId",
-                        column: x => x.NicheProfileId,
+                        name: "FK_site_analysis_pillars_site_analysis_profiles_SiteAnalysisProfileId",
+                        column: x => x.SiteAnalysisProfileId,
                         principalSchema: "geek_seo",
-                        principalTable: "niche_profiles",
+                        principalTable: "site_analysis_profiles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "niche_pillar_pages",
+                name: "site_analysis_pillar_pages",
                 schema: "geek_seo",
                 columns: table => new
                 {
@@ -148,18 +148,18 @@ namespace GeekSeo.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_niche_pillar_pages", x => x.Id);
+                    table.PrimaryKey("PK_site_analysis_pillar_pages", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_niche_pillar_pages_niche_pillars_PillarId",
+                        name: "FK_site_analysis_pillar_pages_site_analysis_pillars_PillarId",
                         column: x => x.PillarId,
                         principalSchema: "geek_seo",
-                        principalTable: "niche_pillars",
+                        principalTable: "site_analysis_pillars",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "niche_subtopics",
+                name: "site_analysis_subtopics",
                 schema: "geek_seo",
                 columns: table => new
                 {
@@ -180,74 +180,74 @@ namespace GeekSeo.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_niche_subtopics", x => x.Id);
+                    table.PrimaryKey("PK_site_analysis_subtopics", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_niche_subtopics_niche_pillars_PillarId",
+                        name: "FK_site_analysis_subtopics_site_analysis_pillars_PillarId",
                         column: x => x.PillarId,
                         principalSchema: "geek_seo",
-                        principalTable: "niche_pillars",
+                        principalTable: "site_analysis_pillars",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_niche_competitors_NicheProfileId",
+                name: "IX_site_analysis_competitors_SiteAnalysisProfileId",
                 schema: "geek_seo",
-                table: "niche_competitors",
-                column: "NicheProfileId");
+                table: "site_analysis_competitors",
+                column: "SiteAnalysisProfileId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_niche_entities_NicheProfileId",
+                name: "IX_site_analysis_entities_SiteAnalysisProfileId",
                 schema: "geek_seo",
-                table: "niche_entities",
-                column: "NicheProfileId");
+                table: "site_analysis_entities",
+                column: "SiteAnalysisProfileId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_niche_pillar_pages_PillarId",
+                name: "IX_site_analysis_pillar_pages_PillarId",
                 schema: "geek_seo",
-                table: "niche_pillar_pages",
+                table: "site_analysis_pillar_pages",
                 column: "PillarId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_niche_pillars_CoverageStatus",
+                name: "IX_site_analysis_pillars_CoverageStatus",
                 schema: "geek_seo",
-                table: "niche_pillars",
+                table: "site_analysis_pillars",
                 column: "CoverageStatus");
 
             migrationBuilder.CreateIndex(
-                name: "IX_niche_pillars_NicheProfileId",
+                name: "IX_site_analysis_pillars_SiteAnalysisProfileId",
                 schema: "geek_seo",
-                table: "niche_pillars",
-                column: "NicheProfileId");
+                table: "site_analysis_pillars",
+                column: "SiteAnalysisProfileId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_niche_profiles_Domain",
+                name: "IX_site_analysis_profiles_Domain",
                 schema: "geek_seo",
-                table: "niche_profiles",
+                table: "site_analysis_profiles",
                 column: "Domain");
 
             migrationBuilder.CreateIndex(
-                name: "IX_niche_profiles_ProjectId",
+                name: "IX_site_analysis_profiles_ProjectId",
                 schema: "geek_seo",
-                table: "niche_profiles",
+                table: "site_analysis_profiles",
                 column: "ProjectId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_niche_profiles_Status",
+                name: "IX_site_analysis_profiles_Status",
                 schema: "geek_seo",
-                table: "niche_profiles",
+                table: "site_analysis_profiles",
                 column: "Status");
 
             migrationBuilder.CreateIndex(
-                name: "IX_niche_subtopics_IsQuickWin",
+                name: "IX_site_analysis_subtopics_IsQuickWin",
                 schema: "geek_seo",
-                table: "niche_subtopics",
+                table: "site_analysis_subtopics",
                 column: "IsQuickWin");
 
             migrationBuilder.CreateIndex(
-                name: "IX_niche_subtopics_PillarId",
+                name: "IX_site_analysis_subtopics_PillarId",
                 schema: "geek_seo",
-                table: "niche_subtopics",
+                table: "site_analysis_subtopics",
                 column: "PillarId");
         }
 
@@ -255,27 +255,27 @@ namespace GeekSeo.Persistence.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "niche_competitors",
+                name: "site_analysis_competitors",
                 schema: "geek_seo");
 
             migrationBuilder.DropTable(
-                name: "niche_entities",
+                name: "site_analysis_entities",
                 schema: "geek_seo");
 
             migrationBuilder.DropTable(
-                name: "niche_pillar_pages",
+                name: "site_analysis_pillar_pages",
                 schema: "geek_seo");
 
             migrationBuilder.DropTable(
-                name: "niche_subtopics",
+                name: "site_analysis_subtopics",
                 schema: "geek_seo");
 
             migrationBuilder.DropTable(
-                name: "niche_pillars",
+                name: "site_analysis_pillars",
                 schema: "geek_seo");
 
             migrationBuilder.DropTable(
-                name: "niche_profiles",
+                name: "site_analysis_profiles",
                 schema: "geek_seo");
         }
     }

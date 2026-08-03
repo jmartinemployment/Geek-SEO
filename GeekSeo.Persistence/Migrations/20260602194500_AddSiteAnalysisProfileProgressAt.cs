@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace GeekSeo.Persistence.Migrations;
 
 /// <inheritdoc />
-public partial class AddNicheProfileProgressAt : Migration
+public partial class AddSiteAnalysisProfileProgressAt : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -13,7 +13,7 @@ public partial class AddNicheProfileProgressAt : Migration
         migrationBuilder.AddColumn<DateTimeOffset>(
             name: "AnalysisProgressAt",
             schema: "geek_seo",
-            table: "niche_profiles",
+            table: "site_analysis_profiles",
             type: "timestamp with time zone",
             nullable: true);
     }
@@ -24,6 +24,6 @@ public partial class AddNicheProfileProgressAt : Migration
         migrationBuilder.DropColumn(
             name: "AnalysisProgressAt",
             schema: "geek_seo",
-            table: "niche_profiles");
+            table: "site_analysis_profiles");
     }
 }

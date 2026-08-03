@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace GeekSeo.Persistence.Migrations;
 
 /// <inheritdoc />
-public partial class AddNicheProfileAnalysisStepLog : Migration
+public partial class AddSiteAnalysisProfileAnalysisStepLog : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -13,7 +13,7 @@ public partial class AddNicheProfileAnalysisStepLog : Migration
         migrationBuilder.AddColumn<string>(
             name: "AnalysisStepLog",
             schema: "geek_seo",
-            table: "niche_profiles",
+            table: "site_analysis_profiles",
             type: "jsonb",
             nullable: false,
             defaultValueSql: "'[]'::jsonb");
@@ -21,7 +21,7 @@ public partial class AddNicheProfileAnalysisStepLog : Migration
         migrationBuilder.AddColumn<int>(
             name: "AnalysisStepLogVersion",
             schema: "geek_seo",
-            table: "niche_profiles",
+            table: "site_analysis_profiles",
             type: "integer",
             nullable: false,
             defaultValue: 1);
@@ -33,11 +33,11 @@ public partial class AddNicheProfileAnalysisStepLog : Migration
         migrationBuilder.DropColumn(
             name: "AnalysisStepLog",
             schema: "geek_seo",
-            table: "niche_profiles");
+            table: "site_analysis_profiles");
 
         migrationBuilder.DropColumn(
             name: "AnalysisStepLogVersion",
             schema: "geek_seo",
-            table: "niche_profiles");
+            table: "site_analysis_profiles");
     }
 }

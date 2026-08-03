@@ -13,14 +13,14 @@ namespace GeekSeo.Persistence.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "CrawledUrlsJson",
                 schema: "geek_seo",
-                table: "niche_profiles",
+                table: "site_analysis_profiles",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "StepStatusesJson",
                 schema: "geek_seo",
-                table: "niche_profiles",
+                table: "site_analysis_profiles",
                 type: "text",
                 nullable: false,
                 defaultValue: "");
@@ -32,12 +32,12 @@ namespace GeekSeo.Persistence.Migrations
             migrationBuilder.DropColumn(
                 name: "CrawledUrlsJson",
                 schema: "geek_seo",
-                table: "niche_profiles");
+                table: "site_analysis_profiles");
 
             migrationBuilder.DropColumn(
                 name: "StepStatusesJson",
                 schema: "geek_seo",
-                table: "niche_profiles");
+                table: "site_analysis_profiles");
         }
     }
 }

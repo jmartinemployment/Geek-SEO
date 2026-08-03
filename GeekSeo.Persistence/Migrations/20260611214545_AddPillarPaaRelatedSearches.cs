@@ -13,7 +13,7 @@ namespace GeekSeo.Persistence.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "PaaQuestionsJson",
                 schema: "geek_seo",
-                table: "niche_pillars",
+                table: "site_analysis_pillars",
                 type: "text",
                 nullable: false,
                 defaultValue: "");
@@ -21,7 +21,7 @@ namespace GeekSeo.Persistence.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "RelatedSearchesJson",
                 schema: "geek_seo",
-                table: "niche_pillars",
+                table: "site_analysis_pillars",
                 type: "text",
                 nullable: false,
                 defaultValue: "");
@@ -33,12 +33,12 @@ namespace GeekSeo.Persistence.Migrations
             migrationBuilder.DropColumn(
                 name: "PaaQuestionsJson",
                 schema: "geek_seo",
-                table: "niche_pillars");
+                table: "site_analysis_pillars");
 
             migrationBuilder.DropColumn(
                 name: "RelatedSearchesJson",
                 schema: "geek_seo",
-                table: "niche_pillars");
+                table: "site_analysis_pillars");
         }
     }
 }

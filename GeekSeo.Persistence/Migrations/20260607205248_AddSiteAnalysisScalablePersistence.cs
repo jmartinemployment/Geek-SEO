@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace GeekSeo.Persistence.Migrations
 {
     /// <inheritdoc />
-    public partial class AddNicheScalablePersistence : Migration
+    public partial class AddSiteAnalysisScalablePersistence : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -14,7 +14,7 @@ namespace GeekSeo.Persistence.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "EnrichmentStatus",
                 schema: "geek_seo",
-                table: "niche_profiles",
+                table: "site_analysis_profiles",
                 type: "text",
                 nullable: false,
                 defaultValue: "");
@@ -22,14 +22,14 @@ namespace GeekSeo.Persistence.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "PersistStage",
                 schema: "geek_seo",
-                table: "niche_profiles",
+                table: "site_analysis_profiles",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<decimal>(
                 name: "ScanChangeScore",
                 schema: "geek_seo",
-                table: "niche_profiles",
+                table: "site_analysis_profiles",
                 type: "numeric(5,4)",
                 precision: 5,
                 scale: 4,
@@ -38,14 +38,14 @@ namespace GeekSeo.Persistence.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "ScanFingerprint",
                 schema: "geek_seo",
-                table: "niche_profiles",
+                table: "site_analysis_profiles",
                 type: "text",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "StructureStatus",
                 schema: "geek_seo",
-                table: "niche_profiles",
+                table: "site_analysis_profiles",
                 type: "text",
                 nullable: false,
                 defaultValue: "");
@@ -53,32 +53,32 @@ namespace GeekSeo.Persistence.Migrations
             migrationBuilder.AddColumn<Guid>(
                 name: "CandidateId",
                 schema: "geek_seo",
-                table: "niche_pillars",
+                table: "site_analysis_pillars",
                 type: "uuid",
                 nullable: true);
 
             migrationBuilder.AddColumn<DateTimeOffset>(
                 name: "EnrichedAt",
                 schema: "geek_seo",
-                table: "niche_pillars",
+                table: "site_analysis_pillars",
                 type: "timestamp with time zone",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "EnrichmentStatus",
                 schema: "geek_seo",
-                table: "niche_pillars",
+                table: "site_analysis_pillars",
                 type: "text",
                 nullable: false,
                 defaultValue: "");
 
             migrationBuilder.CreateTable(
-                name: "niche_topic_candidates",
+                name: "site_analysis_topic_candidates",
                 schema: "geek_seo",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
-                    NicheProfileId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SiteAnalysisProfileId = table.Column<Guid>(type: "uuid", nullable: false),
                     Slug = table.Column<string>(type: "text", nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
                     Confidence = table.Column<decimal>(type: "numeric", nullable: false),
@@ -93,33 +93,33 @@ namespace GeekSeo.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_niche_topic_candidates", x => x.Id);
+                    table.PrimaryKey("PK_site_analysis_topic_candidates", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_niche_topic_candidates_niche_profiles_NicheProfileId",
-                        column: x => x.NicheProfileId,
+                        name: "FK_site_analysis_topic_candidates_site_analysis_profiles_SiteAnalysisProfileId",
+                        column: x => x.SiteAnalysisProfileId,
                         principalSchema: "geek_seo",
-                        principalTable: "niche_profiles",
+                        principalTable: "site_analysis_profiles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_niche_topic_candidates_NicheProfileId",
+                name: "IX_site_analysis_topic_candidates_SiteAnalysisProfileId",
                 schema: "geek_seo",
-                table: "niche_topic_candidates",
-                column: "NicheProfileId");
+                table: "site_analysis_topic_candidates",
+                column: "SiteAnalysisProfileId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_niche_topic_candidates_NicheProfileId_IsSelected",
+                name: "IX_site_analysis_topic_candidates_SiteAnalysisProfileId_IsSelected",
                 schema: "geek_seo",
-                table: "niche_topic_candidates",
-                columns: new[] { "NicheProfileId", "IsSelected" });
+                table: "site_analysis_topic_candidates",
+                columns: new[] { "SiteAnalysisProfileId", "IsSelected" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_niche_topic_candidates_NicheProfileId_Slug",
+                name: "IX_site_analysis_topic_candidates_SiteAnalysisProfileId_Slug",
                 schema: "geek_seo",
-                table: "niche_topic_candidates",
-                columns: new[] { "NicheProfileId", "Slug" },
+                table: "site_analysis_topic_candidates",
+                columns: new[] { "SiteAnalysisProfileId", "Slug" },
                 unique: true);
         }
 
@@ -127,48 +127,48 @@ namespace GeekSeo.Persistence.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "niche_topic_candidates",
+                name: "site_analysis_topic_candidates",
                 schema: "geek_seo");
 
             migrationBuilder.DropColumn(
                 name: "EnrichmentStatus",
                 schema: "geek_seo",
-                table: "niche_profiles");
+                table: "site_analysis_profiles");
 
             migrationBuilder.DropColumn(
                 name: "PersistStage",
                 schema: "geek_seo",
-                table: "niche_profiles");
+                table: "site_analysis_profiles");
 
             migrationBuilder.DropColumn(
                 name: "ScanChangeScore",
                 schema: "geek_seo",
-                table: "niche_profiles");
+                table: "site_analysis_profiles");
 
             migrationBuilder.DropColumn(
                 name: "ScanFingerprint",
                 schema: "geek_seo",
-                table: "niche_profiles");
+                table: "site_analysis_profiles");
 
             migrationBuilder.DropColumn(
                 name: "StructureStatus",
                 schema: "geek_seo",
-                table: "niche_profiles");
+                table: "site_analysis_profiles");
 
             migrationBuilder.DropColumn(
                 name: "CandidateId",
                 schema: "geek_seo",
-                table: "niche_pillars");
+                table: "site_analysis_pillars");
 
             migrationBuilder.DropColumn(
                 name: "EnrichedAt",
                 schema: "geek_seo",
-                table: "niche_pillars");
+                table: "site_analysis_pillars");
 
             migrationBuilder.DropColumn(
                 name: "EnrichmentStatus",
                 schema: "geek_seo",
-                table: "niche_pillars");
+                table: "site_analysis_pillars");
         }
     }
 }

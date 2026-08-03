@@ -14,14 +14,14 @@ namespace GeekSeo.Persistence.Migrations
             migrationBuilder.AddColumn<DateTimeOffset>(
                 name: "CompetitorAnalyzedAt",
                 schema: "geek_seo",
-                table: "niche_competitors",
+                table: "site_analysis_competitors",
                 type: "timestamp with time zone",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "PillarsJson",
                 schema: "geek_seo",
-                table: "niche_competitors",
+                table: "site_analysis_competitors",
                 type: "text",
                 nullable: true);
         }
@@ -32,12 +32,12 @@ namespace GeekSeo.Persistence.Migrations
             migrationBuilder.DropColumn(
                 name: "CompetitorAnalyzedAt",
                 schema: "geek_seo",
-                table: "niche_competitors");
+                table: "site_analysis_competitors");
 
             migrationBuilder.DropColumn(
                 name: "PillarsJson",
                 schema: "geek_seo",
-                table: "niche_competitors");
+                table: "site_analysis_competitors");
         }
     }
 }

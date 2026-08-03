@@ -49,13 +49,7 @@ public static class SiteWritingFocusSerializer
 
         try
         {
-            // Dual-read retired JSON keys from before the site-analysis rename.
-            var normalized = json
-                .Replace("\"primaryNiche\"", "\"primaryFocus\"", StringComparison.Ordinal)
-                .Replace("\"nicheDescription\"", "\"focusDescription\"", StringComparison.Ordinal)
-                .Replace("\"nicheTags\"", "\"focusTags\"", StringComparison.Ordinal)
-                .Replace("\"nicheProfileId\"", "\"siteAnalysisProfileId\"", StringComparison.Ordinal);
-            return JsonSerializer.Deserialize<SiteWritingFocus>(normalized, Options);
+            return JsonSerializer.Deserialize<SiteWritingFocus>(json, Options);
         }
         catch (JsonException)
         {
