@@ -46,6 +46,7 @@ public static class SeoBackendExtensions
         services.AddScoped<IRankTrackingRepository, HttpRankTrackingRepository>();
         services.AddScoped<IWordPressConnectionRepository, HttpWordPressConnectionRepository>();
         services.AddScoped<IWordPressPublishRepository, HttpWordPressPublishRepository>();
+        services.AddScoped<IWordPressProvider, WordPressRestProvider>();
 
         services.AddScoped<IProjectService, ProjectService>();
         services.AddScoped<SubscriptionService>();
