@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GeekSeo.Persistence.Migrations
 {
     [DbContext(typeof(SeoDbContext))]
-    [Migration("20260803000000_RenameNicheToSiteAnalysis")]
+    [Migration("20260803000000_RenameLegacySiteAnalysisCutover")]
     partial class RenameLegacySiteAnalysisCutover
     {
         /// <inheritdoc />

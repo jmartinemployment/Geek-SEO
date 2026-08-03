@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GeekSeo.Persistence.Migrations
 {
     [DbContext(typeof(SeoDbContext))]
-    [Migration("20260614114306_AddNicheProfilePhase2RelationalStepTables")]
+    [Migration("20260614114306_AddSiteAnalysisProfilePhase2RelationalStepTables")]
     partial class AddSiteAnalysisProfilePhase2RelationalStepTables
     {
         /// <inheritdoc />
