@@ -1576,4 +1576,63 @@ public sealed class SiteExtractionTests
         Assert.False(result.IsLocalBusiness);
         Assert.Empty(result.Gaps);
     }
+
+    [Fact]
+    public void SiteContentCoverageMatcher_HasNoMatchingPage_TrueWhenNoUrlMatchesHeadingSlug()
+    {
+        var allUrls = new List<string>
+        {
+            "https://example.com/services/ai-consulting",
+            "https://example.com/blog/getting-started",
+        };
+
+        Assert.True(SiteContentCoverageMatcher.HasNoMatchingPage("Data Migration Strategy", allUrls));
+    }
+
+    [Fact]
+    public void SiteContentCoverageMatcher_HasNoMatchingPage_FalseWhenAUrlAlreadyCoversTheHeading()
+    {
+        var allUrls = new List<string>
+        {
+            "https://example.com/services/ai-consulting",
+        };
+
+        Assert.False(SiteContentCoverageMatcher.HasNoMatchingPage("AI Consulting", allUrls));
+    }
+
+    [Fact]
+    public void SiteContentCoverageMatcher_HasNoMatchingPage_FalseForTooShortSlug()
+    {
+        // Slugs under 3 chars are excluded to avoid false-positive gaps on noise headings.
+        Assert.False(SiteContentCoverageMatcher.HasNoMatchingPage("Hi", []));
+    }
+
+    [Fact]
+    public void SiteContentCoverageMatcher_UrlBelongsToPillarSlug_MatchesPathSegment()
+    {
+        Assert.True(SiteContentCoverageMatcher.UrlBelongsToPillarSlug(
+            "https://example.com/services/ai-consulting", "services"));
+        Assert.False(SiteContentCoverageMatcher.UrlBelongsToPillarSlug(
+            "https://example.com/blog/ai-consulting", "services"));
+    }
+
+    [Fact]
+    public void HomepageHeadingsExtractor_ExtractHeadingsFromHtml_ParsesAllLevelsRealTextOnly()
+    {
+        const string html = """
+            <html><body>
+            <h1>Main Title</h1>
+            <h2>Section One</h2>
+            <h3>  Sub Section  </h3>
+            <h2></h2>
+            </body></html>
+            """;
+
+        var headings = HomepageHeadingsExtractor.ExtractHeadingsFromHtml(html);
+
+        Assert.Equal(3, headings.Count);
+        Assert.Contains(headings, h => h.Level == 1 && h.Text == "Main Title");
+        Assert.Contains(headings, h => h.Level == 2 && h.Text == "Section One");
+        Assert.Contains(headings, h => h.Level == 3 && h.Text == "Sub Section");
+    }
 }

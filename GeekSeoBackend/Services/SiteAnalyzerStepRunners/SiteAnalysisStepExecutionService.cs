@@ -322,6 +322,18 @@ public sealed class SiteAnalyzerStepExecutionService(
             profileId,
             message);
 
+        // Real per-page heading extraction for gap detection — must happen here, while raw HTML is
+        // still in scope: PersistSiteStructureAsync below strips it down to VisibleText only, and no
+        // later step ever has HTML available again. Supersedes the schema step's homepage-only
+        // heading write (step 4) with the full per-crawled-page set via the same Replace semantics.
+        var headingWrites = crawlData.Pages
+            .SelectMany(page => HomepageHeadingsExtractor.ExtractHeadingsFromHtml(page.Html)
+                .Select((h, index) => new SiteAnalysisProfileHeadingWrite(page.Url, h.Level, h.Text, index)))
+            .ToList();
+        var persistHeadings = await profileRepo.ReplaceHeadingsAsync(profileId, headingWrites, ct);
+        if (!persistHeadings.IsSuccess)
+            throw new InvalidOperationException(persistHeadings.Error ?? "Failed to persist per-page headings.");
+
         await PersistCrawlDiscoveredUrlsAsync(profileId, crawlUrls, ct);
         await PersistSiteStructureAsync(
             profileId,
@@ -725,7 +737,15 @@ public sealed class SiteAnalyzerStepExecutionService(
                 pillar.Id = Guid.NewGuid();
         }
 
-        var subtopics = BuildSubtopics(pillars, merged, existingSubtopics);
+        var headingsResult = await profileRepo.GetHeadingsAsync(profileId, ct);
+        var headingRows = headingsResult.IsSuccess ? headingsResult.Value ?? [] : [];
+        var allUrls = structure.Crawl.Pages
+            .Select(p => p.Url)
+            .Concat(sitemap.SampleUrls)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var subtopics = BuildSubtopics(pillars, merged, existingSubtopics, headingRows, allUrls);
         AttachSubtopics(pillars, subtopics);
 
         var coverageResult = SiteContentCoverageMatcher.Apply(
@@ -1087,7 +1107,9 @@ public sealed class SiteAnalyzerStepExecutionService(
     private static List<SiteAnalysisSubtopic> BuildSubtopics(
         List<SiteAnalysisPillar> pillars,
         IReadOnlyList<DiscoveredPillar> discovered,
-        IReadOnlyDictionary<string, SiteAnalysisSubtopic> existingByKey)
+        IReadOnlyDictionary<string, SiteAnalysisSubtopic> existingByKey,
+        IReadOnlyList<SiteAnalysisProfileHeadingRow> headingRows,
+        IReadOnlyList<string> allUrls)
     {
         var subtopics = new List<SiteAnalysisSubtopic>();
         var discMap = discovered.ToDictionary(d => d.Slug, StringComparer.OrdinalIgnoreCase);
@@ -1098,11 +1120,13 @@ public sealed class SiteAnalyzerStepExecutionService(
                 continue;
 
             var childSlugs = disc.ChildSlugs.ToList();
+            var seenSlugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var childSlug in childSlugs)
             {
                 var keyword = $"{pillar.PrimaryKeyword} {childSlug.Replace('-', ' ')}".Trim();
                 var key = $"{pillar.Id:N}:{keyword}";
                 existingByKey.TryGetValue(key, out var existing);
+                seenSlugs.Add(childSlug);
 
                 subtopics.Add(new SiteAnalysisSubtopic
                 {
@@ -1122,40 +1146,39 @@ public sealed class SiteAnalyzerStepExecutionService(
                 });
             }
 
-            if (childSlugs.Count < 3)
+            // Real gap detection: headings found on this pillar's crawled pages that have no
+            // dedicated page of their own anywhere on the site — not invented keyword templates.
+            // A pillar with zero such headings gets zero extra gaps here, never padded filler.
+            var pillarHeadings = headingRows
+                .Where(h => SiteContentCoverageMatcher.UrlBelongsToPillarSlug(h.PageUrl, pillar.PillarSlug))
+                .Where(h => SiteContentCoverageMatcher.HasNoMatchingPage(h.HeadingText, allUrls));
+
+            foreach (var heading in pillarHeadings)
             {
-                var generic = new[]
-                {
-                    ("what-is", "informational", "definition"),
-                    ("how-much-does-cost", "commercial", "how_to"),
-                    ("near-me", "local", "local_page"),
-                    ("how-to", "informational", "how_to"),
-                    ("benefits", "informational", "listicle"),
-                };
+                var headingSlug = SiteAnalyzerService.NameToSlug(heading.HeadingText);
+                if (headingSlug.Length < 3 || !seenSlugs.Add(headingSlug))
+                    continue;
 
-                foreach (var (suffix, intent, format) in generic)
-                {
-                    var keyword = $"{pillar.PrimaryKeyword} {suffix.Replace('-', ' ')}".Trim();
-                    var key = $"{pillar.Id:N}:{keyword}";
-                    existingByKey.TryGetValue(key, out var existing);
+                var keyword = $"{pillar.PrimaryKeyword} {heading.HeadingText}".Trim();
+                var key = $"{pillar.Id:N}:{keyword}";
+                existingByKey.TryGetValue(key, out var existing);
 
-                    subtopics.Add(new SiteAnalysisSubtopic
-                    {
-                        Id = existing?.Id ?? Guid.NewGuid(),
-                        PillarId = pillar.Id,
-                        SubtopicTitle = $"{pillar.PillarTopic} – {SitemapExtractor.SlugToTitle(suffix)}",
-                        TargetKeyword = keyword,
-                        SearchIntent = existing?.SearchIntent ?? intent,
-                        CoverageStatus = existing?.CoverageStatus ?? "gap",
-                        ExistingUrl = existing?.ExistingUrl,
-                        RecommendedFormat = existing?.RecommendedFormat ?? format,
-                        FixEffort = existing?.FixEffort ?? "create",
-                        SearchVolume = existing?.SearchVolume ?? 0,
-                        KeywordDifficulty = existing?.KeywordDifficulty ?? 0m,
-                        RecommendedWordCount = existing?.RecommendedWordCount ?? 0,
-                        IsQuickWin = existing?.IsQuickWin ?? false,
-                    });
-                }
+                subtopics.Add(new SiteAnalysisSubtopic
+                {
+                    Id = existing?.Id ?? Guid.NewGuid(),
+                    PillarId = pillar.Id,
+                    SubtopicTitle = heading.HeadingText,
+                    TargetKeyword = keyword,
+                    SearchIntent = existing?.SearchIntent ?? (pillar.SearchIntent == "local" ? "local" : "informational"),
+                    CoverageStatus = existing?.CoverageStatus ?? "gap",
+                    ExistingUrl = existing?.ExistingUrl,
+                    RecommendedFormat = existing?.RecommendedFormat ?? InferFormat(headingSlug),
+                    FixEffort = existing?.FixEffort ?? "create",
+                    SearchVolume = existing?.SearchVolume ?? 0,
+                    KeywordDifficulty = existing?.KeywordDifficulty ?? 0m,
+                    RecommendedWordCount = existing?.RecommendedWordCount ?? 0,
+                    IsQuickWin = existing?.IsQuickWin ?? false,
+                });
             }
         }
 

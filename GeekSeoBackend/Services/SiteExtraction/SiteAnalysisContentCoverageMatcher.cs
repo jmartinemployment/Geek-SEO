@@ -295,4 +295,20 @@ internal static class SiteContentCoverageMatcher
 
     private static string Slugify(string value) =>
         SiteAnalyzerService.NameToSlug(value);
+
+    /// <summary>
+    /// Real content-gap detection: a heading found somewhere on the crawled site whose slug
+    /// matches no crawled/sitemap URL is a genuine gap (the site talks about/links to a topic
+    /// but has no dedicated page for it) — as opposed to inventing generic keyword templates.
+    /// </summary>
+    internal static bool HasNoMatchingPage(string headingText, IReadOnlyList<string> allUrls)
+    {
+        var slug = Slugify(headingText);
+        return slug.Length >= 3 && !allUrls.Any(u => UrlPathContainsSlug(u, slug));
+    }
+
+    /// <summary>Whether a page URL's path relates to the given pillar slug — used to scope real
+    /// per-page headings to the pillar they were found under for gap detection.</summary>
+    internal static bool UrlBelongsToPillarSlug(string url, string pillarSlug) =>
+        UrlPathContainsSlug(url, pillarSlug);
 }

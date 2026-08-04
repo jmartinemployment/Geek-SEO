@@ -472,60 +472,6 @@ public sealed class SiteAnalyzerService(
         }).ToList();
     }
 
-    private static List<SiteAnalysisSubtopic> BuildSubtopics(
-        List<SiteAnalysisPillar> pillars,
-        IReadOnlyList<DiscoveredPillar> discovered)
-    {
-        var subtopics = new List<SiteAnalysisSubtopic>();
-        var discMap = discovered.ToDictionary(d => d.Slug, StringComparer.OrdinalIgnoreCase);
-
-        foreach (var pillar in pillars)
-        {
-            if (!discMap.TryGetValue(pillar.PillarSlug, out var disc)) continue;
-
-            var childSlugs = disc.ChildSlugs.ToList();
-            foreach (var childSlug in childSlugs)
-            {
-                subtopics.Add(new SiteAnalysisSubtopic
-                {
-                    PillarId = pillar.Id,
-                    SubtopicTitle = SitemapExtractor.SlugToTitle(childSlug),
-                    TargetKeyword = $"{pillar.PrimaryKeyword} {childSlug.Replace('-', ' ')}".Trim(),
-                    SearchIntent = pillar.SearchIntent == "local" ? "local" : "informational",
-                    CoverageStatus = "gap",
-                    RecommendedFormat = InferFormat(childSlug),
-                    FixEffort = "create",
-                });
-            }
-
-            if (childSlugs.Count < 3)
-            {
-                var generic = new[]
-                {
-                    ("what-is", "informational", "definition"),
-                    ("how-much-does-cost", "commercial", "how_to"),
-                    ("near-me", "local", "local_page"),
-                    ("how-to", "informational", "how_to"),
-                    ("benefits", "informational", "listicle"),
-                };
-                foreach (var (suffix, intent, format) in generic)
-                {
-                    subtopics.Add(new SiteAnalysisSubtopic
-                    {
-                        PillarId = pillar.Id,
-                        SubtopicTitle = $"{pillar.PillarTopic} – {SitemapExtractor.SlugToTitle(suffix)}",
-                        TargetKeyword = $"{pillar.PrimaryKeyword} {suffix.Replace('-', ' ')}".Trim(),
-                        SearchIntent = intent,
-                        CoverageStatus = "gap",
-                        RecommendedFormat = format,
-                        FixEffort = "create",
-                    });
-                }
-            }
-        }
-
-        return subtopics;
-    }
 
     private static void AttachSubtopics(List<SiteAnalysisPillar> pillars, List<SiteAnalysisSubtopic> subtopics)
     {
@@ -539,17 +485,6 @@ public sealed class SiteAnalyzerService(
                 ? list
                 : [];
         }
-    }
-
-    private static string InferFormat(string slug)
-    {
-        if (slug.Contains("how") || slug.Contains("guide")) return "how_to";
-        if (slug.Contains("cost") || slug.Contains("price") || slug.Contains("cheap")) return "comparison";
-        if (slug.Contains("best") || slug.Contains("top")) return "listicle";
-        if (slug.Contains("near") || slug.Contains("location")) return "local_page";
-        if (slug.Contains("vs") || slug.Contains("compare")) return "comparison";
-        if (slug.Contains("faq") || slug.Contains("question")) return "faq";
-        return "how_to";
     }
 
     private static string DetermineAudienceType(

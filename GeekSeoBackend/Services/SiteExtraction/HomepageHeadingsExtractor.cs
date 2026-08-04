@@ -8,9 +8,7 @@ namespace GeekSeoBackend.Services.SiteExtraction;
 /// <summary>
 /// Reads document title, meta description, and H1–H6 from the homepage (HTTP or Playwright).
 /// </summary>
-public sealed partial class HomepageHeadingsExtractor(
-    IHttpClientFactory factory,
-    ILogger<HomepageHeadingsExtractor> logger)
+public sealed partial class HomepageHeadingsExtractor
 {
     public async Task<HomepageHeadings> ExtractAsync(
         string siteUrl, IBrowser? browser, CancellationToken ct)
@@ -56,27 +54,6 @@ public sealed partial class HomepageHeadingsExtractor(
         return ParsePayload(payload);
     }
 
-    private async Task<HomepageHeadings> ExtractFromHttpAsync(string siteUrl, CancellationToken ct)
-    {
-        var client = factory.CreateClient();
-        client.Timeout = TimeSpan.FromSeconds(15);
-        client.DefaultRequestHeaders.Add("User-Agent",
-            "Mozilla/5.0 (compatible; GeekSEO/1.0; +https://seo.geekatyourspot.com)");
-
-        var html = await client.GetStringAsync(siteUrl, ct);
-        var title = ExtractTitle(html);
-        var description = ExtractMetaDescription(html);
-        var headings = ExtractHeadingsFromHtml(html);
-
-        return new HomepageHeadings
-        {
-            Title = title,
-            MetaDescription = description,
-            Headings = headings,
-            H2Texts = headings.Where(h => h.Level == 2).Select(h => h.Text).ToList(),
-        };
-    }
-
     private static HomepageHeadings ParsePayload(string json)
     {
         using var doc = JsonDocument.Parse(json);
@@ -116,21 +93,12 @@ public sealed partial class HomepageHeadingsExtractor(
         };
     }
 
-    private static string? ExtractTitle(string html)
-    {
-        var match = TitleRegex().Match(html);
-        return match.Success ? StripTags(match.Groups[1].Value).Trim() : null;
-    }
-
-    private static string? ExtractMetaDescription(string html)
-    {
-        var match = MetaDescriptionRegex().Match(html);
-        if (!match.Success)
-            match = MetaDescriptionAltRegex().Match(html);
-        return match.Success ? StripTags(match.Groups[1].Value).Trim() : null;
-    }
-
-    private static List<PageHeading> ExtractHeadingsFromHtml(string html)
+    /// <summary>
+    /// Parses H1-H6 (level + text) from a raw HTML string already fetched by the crawler — used
+    /// to build real per-page heading data for gap detection, not as a Playwright-degrade path
+    /// (there's no live browser page for already-crawled HTML to fall back from).
+    /// </summary>
+    internal static List<PageHeading> ExtractHeadingsFromHtml(string html)
     {
         var list = new List<PageHeading>();
         foreach (Match match in HeadingRegex().Matches(html))
@@ -150,15 +118,6 @@ public sealed partial class HomepageHeadingsExtractor(
 
     private static string StripTags(string value) =>
         TagRegex().Replace(value, " ").Replace("&nbsp;", " ", StringComparison.OrdinalIgnoreCase).Trim();
-
-    [GeneratedRegex("<title[^>]*>([^<]*)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
-    private static partial Regex TitleRegex();
-
-    [GeneratedRegex("<meta[^>]+name=[\"']description[\"'][^>]+content=[\"']([^\"']*)[\"']", RegexOptions.IgnoreCase)]
-    private static partial Regex MetaDescriptionRegex();
-
-    [GeneratedRegex("<meta[^>]+content=[\"']([^\"']*)[\"'][^>]+name=[\"']description[\"']", RegexOptions.IgnoreCase)]
-    private static partial Regex MetaDescriptionAltRegex();
 
     [GeneratedRegex("<h([1-6])(?:\\s[^>]*)?>([\\s\\S]*?)</h\\1>", RegexOptions.IgnoreCase)]
     private static partial Regex HeadingRegex();
