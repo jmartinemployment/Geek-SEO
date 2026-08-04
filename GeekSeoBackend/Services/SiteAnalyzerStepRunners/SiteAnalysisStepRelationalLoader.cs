@@ -59,14 +59,18 @@ internal static partial class SiteAnalyzerStepRelationalLoader
         IReadOnlyList<SiteAnalysisStepLogEntry> steps,
         CancellationToken ct)
     {
-        var signalsResult = await profileRepo.GetSchemaSignalsAsync(profileId, ct);
-        if (signalsResult.IsSuccess && signalsResult.Value is { Count: > 0 } signals)
+        // A schema step that ran and genuinely found no JSON-LD is a real, common outcome (most
+        // sites have none) — not a failure. Distinguish that from "the step never ran" using the
+        // step-log entry's existence, not the signal count or the artifact's content.
+        if (!steps.Any(s => s.Slug.Equals("schema", StringComparison.OrdinalIgnoreCase)))
         {
-            var fallback = SiteAnalyzerStepArtifactStore.TryGetArtifact<SchemaOrgData>(steps, "schema", "schema");
-            return BuildSchemaOrgData(signals, fallback);
+            throw new InvalidOperationException(
+                "Schema.org signals are not available — the schema step has not completed for this profile.");
         }
 
-        return SiteAnalyzerStepArtifactStore.GetRequiredArtifact<SchemaOrgData>(steps, "schema", "schema");
+        var signalsResult = await profileRepo.GetSchemaSignalsAsync(profileId, ct);
+        var signals = signalsResult.IsSuccess ? signalsResult.Value ?? [] : [];
+        return BuildSchemaOrgData(signals);
     }
 
     /// <summary>
@@ -94,17 +98,11 @@ internal static partial class SiteAnalyzerStepRelationalLoader
                 .ToList();
             if (inventoryUrls.Count > 0)
             {
-                var fallback = SiteAnalyzerStepArtifactStore.TryGetArtifact<SitemapData>(steps, "site_urls", "site_urls");
-                return new SitemapData(
-                    fallback?.Pillars ?? [],
-                    fallback?.TotalUrlsScanned ?? inventoryUrls.Count,
-                    inventoryUrls);
+                // Pillars are derived from the crawl/nav steps elsewhere in the merge pipeline, not
+                // from this loader — real discovered URLs are the only thing this method owns.
+                return new SitemapData([], inventoryUrls.Count, inventoryUrls);
             }
         }
-
-        var fromLog = SiteAnalyzerStepArtifactStore.TryGetArtifact<SitemapData>(steps, "site_urls", "site_urls");
-        if (fromLog is { SampleUrls.Count: > 0 })
-            return fromLog;
 
         throw new InvalidOperationException(
             "Sitemap inventory is not available — step 1 (sitemap generation) has not completed for this profile. " +
@@ -148,28 +146,34 @@ internal static partial class SiteAnalyzerStepRelationalLoader
         IReadOnlyList<SiteAnalysisStepLogEntry> steps,
         CancellationToken ct)
     {
-        var headingsResult = await profileRepo.GetHeadingsAsync(profileId, ct);
-        if (headingsResult.IsSuccess && headingsResult.Value is { Count: > 0 } rows)
+        // A headings step that ran and genuinely found no H1-H6 is a real (if rare) outcome, not a
+        // failure — distinguish "step never ran" via the step-log entry's existence, not row count
+        // or the artifact's content. Title/MetaDescription have no relational column (verified) and
+        // are simply unavailable on a relationally-loaded profile — all downstream consumers already
+        // handle that null-tolerantly (SiteAnalysisRootEntityBuilder, SiteBusinessProfileBuilder).
+        if (!steps.Any(s => s.Slug.Equals("headings", StringComparison.OrdinalIgnoreCase)))
         {
-            var fallback = SiteAnalyzerStepArtifactStore.TryGetArtifact<HomepageHeadings>(steps, "headings", "headings");
-            var pageHeadings = rows
-                .OrderBy(x => x.DisplayOrder)
-                .Select(x => new PageHeading { Level = x.HeadingLevel, Text = x.HeadingText })
-                .ToList();
-            var h2Texts = pageHeadings
-                .Where(h => h.Level == 2)
-                .Select(h => h.Text)
-                .ToList();
-            return new HomepageHeadings
-            {
-                Title = fallback?.Title,
-                MetaDescription = fallback?.MetaDescription,
-                Headings = pageHeadings,
-                H2Texts = h2Texts,
-            };
+            throw new InvalidOperationException(
+                "Headings are not available — the headings step has not completed for this profile.");
         }
 
-        return SiteAnalyzerStepArtifactStore.GetRequiredArtifact<HomepageHeadings>(steps, "headings", "headings");
+        var headingsResult = await profileRepo.GetHeadingsAsync(profileId, ct);
+        var rows = headingsResult.IsSuccess ? headingsResult.Value ?? [] : [];
+        var pageHeadings = rows
+            .OrderBy(x => x.DisplayOrder)
+            .Select(x => new PageHeading { Level = x.HeadingLevel, Text = x.HeadingText })
+            .ToList();
+        var h2Texts = pageHeadings
+            .Where(h => h.Level == 2)
+            .Select(h => h.Text)
+            .ToList();
+        return new HomepageHeadings
+        {
+            Title = null,
+            MetaDescription = null,
+            Headings = pageHeadings,
+            H2Texts = h2Texts,
+        };
     }
 
     internal static async Task<PageContentData> LoadPageContentAsync(
@@ -391,8 +395,7 @@ internal static partial class SiteAnalyzerStepRelationalLoader
     }
 
     private static SchemaOrgData BuildSchemaOrgData(
-        IReadOnlyList<SiteAnalysisProfileSchemaSignalRow> signals,
-        SchemaOrgData? fallback)
+        IReadOnlyList<SiteAnalysisProfileSchemaSignalRow> signals)
     {
         static IEnumerable<string> Values(
             IEnumerable<SiteAnalysisProfileSchemaSignalRow> rows,
@@ -412,6 +415,7 @@ internal static partial class SiteAnalyzerStepRelationalLoader
         var sameAs = Values(signals, "organization", "sameAs").ToList();
         var description = Values(signals, "organization", "description").FirstOrDefault();
         var brandName = Values(signals, "organization", "brandName").FirstOrDefault();
+        var resolvedPlatforms = SameAsClassifier.ResolvePlatforms(sameAs);
 
         return new SchemaOrgData(
             serviceNames,
@@ -421,8 +425,8 @@ internal static partial class SiteAnalyzerStepRelationalLoader
             brandName,
             areaServed,
             sameAs,
-            fallback?.ResolvedEntityPlatforms ?? [],
-            fallback?.EntityResolved ?? sameAs.Count > 0);
+            resolvedPlatforms,
+            SameAsClassifier.IsEntityResolved(resolvedPlatforms));
     }
 
     private static DiscoveredPillar ToNavPillar(SiteAnalysisProfileNavigationLinkRow link, string domain)
