@@ -20,19 +20,13 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
     {
         var blocks = new List<string>();
 
+        // Unlike headings/page content, JSON-LD is typically present in server-rendered HTML too,
+        // so checking HTTP when Playwright legitimately finds zero blocks is real multi-source
+        // enrichment, not a quality degrade — kept as-is. What's eliminated: silently swallowing
+        // an actual Playwright failure (navigation error, timeout) as if it just "found nothing."
         if (browser is not null)
         {
-            try
-            {
-                blocks.AddRange(await ExtractJsonLdWithPlaywrightAsync(siteUrl, browser, ct));
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(
-                    ex,
-                    "Playwright schema.org extraction failed for {Url}, falling back to HTTP",
-                    siteUrl);
-            }
+            blocks.AddRange(await ExtractJsonLdWithPlaywrightAsync(siteUrl, browser, ct));
         }
 
         if (blocks.Count == 0)

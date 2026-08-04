@@ -15,22 +15,15 @@ public sealed partial class HomepageHeadingsExtractor(
     public async Task<HomepageHeadings> ExtractAsync(
         string siteUrl, IBrowser? browser, CancellationToken ct)
     {
-        if (browser is not null)
-        {
-            try
-            {
-                return await ExtractWithPlaywrightAsync(siteUrl, browser, ct);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(
-                    ex,
-                    "Playwright heading extraction failed for {Url}, falling back to HTTP",
-                    siteUrl);
-            }
-        }
+        // The HTTP/regex path is H1-blind and lower-fidelity than Playwright's real DOM read —
+        // silently degrading to it on a null/failed browser would poison heading-gap detection
+        // with worse data nobody would notice. Fail closed instead: Playwright unavailable or
+        // failing means this extraction fails, not "succeeds" with degraded output.
+        if (browser is null)
+            throw new InvalidOperationException(
+                $"Playwright browser unavailable — cannot extract real headings for {siteUrl}.");
 
-        return await ExtractFromHttpAsync(siteUrl, ct);
+        return await ExtractWithPlaywrightAsync(siteUrl, browser, ct);
     }
 
     private async Task<HomepageHeadings> ExtractWithPlaywrightAsync(

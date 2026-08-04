@@ -24,23 +24,18 @@ builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()))
     .AddApplicationPart(typeof(ProjectsController).Assembly);
 
+// DISABLE_PLAYWRIGHT is an explicit, deliberate operator opt-out — not the same as an unexpected
+// launch failure. When Playwright is expected to be available (the default) and fails to launch,
+// that's a real startup failure and must crash the app, not silently degrade every extractor to
+// its lower-quality HTTP/regex path with nobody the wiser.
 PlaywrightBrowserHolder? playwrightHolder = null;
 var disablePlaywright = string.Equals(
     Environment.GetEnvironmentVariable("DISABLE_PLAYWRIGHT"), "true", StringComparison.OrdinalIgnoreCase);
 if (!disablePlaywright)
 {
-    try
-    {
-        playwrightHolder = new PlaywrightBrowserHolder();
-        await playwrightHolder.InitializeAsync();
-        builder.Services.AddSingleton(playwrightHolder);
-    }
-    catch (Exception ex)
-    {
-        builder.Logging.AddConsole();
-        var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger("Startup");
-        logger.LogWarning(ex, "Playwright unavailable; competitor crawl disabled (NoOpCrawlerProvider).");
-    }
+    playwrightHolder = new PlaywrightBrowserHolder();
+    await playwrightHolder.InitializeAsync();
+    builder.Services.AddSingleton(playwrightHolder);
 }
 
 builder.Services.AddGeekSeoBackend(builder.Configuration, playwrightHolder);

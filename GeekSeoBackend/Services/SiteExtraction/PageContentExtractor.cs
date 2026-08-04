@@ -15,21 +15,14 @@ public sealed partial class PageContentExtractor(
 {
     public async Task<PageContentData> ExtractAsync(string domain, IBrowser? browser, CancellationToken ct)
     {
-        if (browser is not null)
-        {
-            try
-            {
-                var (phrases, verticalTopics, listCount) = await ExtractWithPlaywrightAsync(domain, browser, ct);
-                return new PageContentData(phrases, verticalTopics, listCount);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Playwright page content extraction failed for {Domain}, falling back to HTTP", domain);
-            }
-        }
+        // See HomepageHeadingsExtractor — the HTTP/regex path is lower-fidelity; degrading to it
+        // silently would poison downstream heading-gap detection. Fail closed instead.
+        if (browser is null)
+            throw new InvalidOperationException(
+                $"Playwright browser unavailable — cannot extract real page content for {domain}.");
 
-        var httpResult = await ExtractFromHttpAsync(domain, ct);
-        return new PageContentData(httpResult.Phrases, httpResult.VerticalTopics, httpResult.ListItemsScanned);
+        var (phrases, verticalTopics, listCount) = await ExtractWithPlaywrightAsync(domain, browser, ct);
+        return new PageContentData(phrases, verticalTopics, listCount);
     }
 
     private async Task<(IReadOnlyList<string> Phrases, IReadOnlyList<string> VerticalTopics, int ListItemsScanned)> ExtractWithPlaywrightAsync(
