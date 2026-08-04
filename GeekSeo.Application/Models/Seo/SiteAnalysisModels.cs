@@ -374,8 +374,13 @@ public record NavMenuData(
 
 public record HomepageHeadings
 {
+    /// <summary>Document title when extracted from a single page (homepage step).</summary>
     public string? Title { get; init; }
     public string? MetaDescription { get; init; }
+    /// <summary>
+    /// Heading list for pillar candidates. After site crawl this is every crawled page
+    /// (not homepage-only); the type name is historical.
+    /// </summary>
     public IReadOnlyList<PageHeading> Headings { get; init; } = [];
     public IReadOnlyList<string> H2Texts { get; init; } = [];
 }

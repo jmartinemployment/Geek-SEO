@@ -139,6 +139,11 @@ internal static partial class SiteAnalyzerStepRelationalLoader
         return new NavMenuData([], "skipped");
     }
 
+    /// <summary>
+    /// Loads persisted headings for the profile. After site crawl, this is every crawled page
+    /// (crawl ReplaceHeadingsAsync supersedes the early homepage-only headings step). The
+    /// <see cref="HomepageHeadings"/> wrapper name is historical — <c>Headings</c> is site-wide.
+    /// </summary>
     internal static async Task<HomepageHeadings> LoadHeadingsAsync(
         ISiteAnalysisProfileRepository profileRepo,
         Guid profileId,
@@ -159,8 +164,10 @@ internal static partial class SiteAnalyzerStepRelationalLoader
 
         var headingsResult = await profileRepo.GetHeadingsAsync(profileId, ct);
         var rows = headingsResult.IsSuccess ? headingsResult.Value ?? [] : [];
+        // Prefer crawl order: group by page URL, then display order within each page.
         var pageHeadings = rows
-            .OrderBy(x => x.DisplayOrder)
+            .OrderBy(x => x.PageUrl, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.DisplayOrder)
             .Select(x => new PageHeading { Level = x.HeadingLevel, Text = x.HeadingText })
             .ToList();
         var h2Texts = pageHeadings

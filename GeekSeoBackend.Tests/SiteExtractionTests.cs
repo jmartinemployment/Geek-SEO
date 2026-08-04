@@ -1635,4 +1635,29 @@ public sealed class SiteExtractionTests
         Assert.Contains(headings, h => h.Level == 2 && h.Text == "Section One");
         Assert.Contains(headings, h => h.Level == 3 && h.Text == "Sub Section");
     }
+
+    [Fact]
+    public void HeadingPillarBuilder_IncludesH1ThroughH6_FromAnyPages()
+    {
+        var headings = new HomepageHeadings
+        {
+            Headings =
+            [
+                new PageHeading { Level = 1, Text = "Company Home" },
+                new PageHeading { Level = 2, Text = "Managed IT Services" },
+                new PageHeading { Level = 3, Text = "Cloud Migration" },
+                new PageHeading { Level = 4, Text = "Database Hardening Checklist" },
+                new PageHeading { Level = 5, Text = "Connection Pool Tuning" },
+                new PageHeading { Level = 6, Text = "JSONB Index Notes" },
+            ],
+        };
+
+        var pillars = HeadingPillarBuilder.Build(headings);
+
+        Assert.Contains(pillars, p => p.Name == "Managed IT Services");
+        Assert.Contains(pillars, p => p.Name == "Cloud Migration");
+        Assert.Contains(pillars, p => p.Name == "Database Hardening Checklist");
+        Assert.Contains(pillars, p => p.Name == "Connection Pool Tuning");
+        Assert.Contains(pillars, p => p.Name == "JSONB Index Notes");
+    }
 }

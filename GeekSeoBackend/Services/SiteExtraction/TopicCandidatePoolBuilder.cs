@@ -52,14 +52,16 @@ internal static class TopicCandidatePoolBuilder
                 pillar.PageUrl);
         }
 
-        foreach (var pillar in HeadingPillarBuilder.Build(headings))
+        // headings.Headings is the full persisted set after site crawl (every crawled page),
+        // not homepage-only — crawl ReplaceHeadingsAsync supersedes the early homepage step.
+        foreach (var pillar in HeadingPillarBuilder.Build(headings.Headings))
         {
             AddEvidence(
                 bySlug,
                 pillar.Name,
                 "heading",
                 TopicEvidenceWeights.Heading,
-                "homepage heading");
+                "page heading");
         }
 
         foreach (var phrase in pageContent.ServicePhrases)
