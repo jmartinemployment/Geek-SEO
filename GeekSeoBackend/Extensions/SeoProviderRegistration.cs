@@ -17,7 +17,6 @@ namespace GeekSeoBackend.Extensions;
 public static class SeoProviderRegistration
 {
     public const string SerpProviderEnv = "SERP_PROVIDER";
-    public const string SerpProviderFallbackEnv = "SERP_PROVIDER_FALLBACK";
     public const string KeywordProviderEnv = "KEYWORD_PROVIDER";
     public const string RankSnapshotProviderEnv = "RANK_SNAPSHOT_PROVIDER";
     public const string SerpApiKeyEnv = "SERPAPI_API_KEY";
@@ -64,27 +63,10 @@ public static class SeoProviderRegistration
         switch (config.SerpProvider)
         {
             case "dataforseo":
-                if (!string.IsNullOrEmpty(config.SerpProviderFallback))
-                {
-                    throw new InvalidOperationException(
-                        $"{SerpProviderFallbackEnv} is only supported when {SerpProviderEnv}=serpapi.");
-                }
-
                 services.AddScoped<DataForSEOSerpProvider>();
                 break;
             case "serpapi":
                 services.AddScoped<SerpApiSerpProvider>();
-                if (config.SerpProviderFallback == "dataforseo")
-                {
-                    services.AddScoped<DataForSEOSerpProvider>();
-                    services.AddScoped<FallbackSerpProvider>();
-                }
-                else if (!string.IsNullOrEmpty(config.SerpProviderFallback))
-                {
-                    throw new InvalidOperationException(
-                        $"Invalid {SerpProviderFallbackEnv}={config.SerpProviderFallback}. Allowed with serpapi: dataforseo.");
-                }
-
                 break;
             case "serpdev":
                 services.AddScoped<SerperDevSerpProvider>();
@@ -106,7 +88,6 @@ public static class SeoProviderRegistration
         config.SerpProvider switch
         {
             "dataforseo" => sp.GetRequiredService<DataForSEOSerpProvider>(),
-            "serpapi" when config.SerpProviderFallback == "dataforseo" => sp.GetRequiredService<FallbackSerpProvider>(),
             "serpapi" => sp.GetRequiredService<SerpApiSerpProvider>(),
             "serpdev" => sp.GetRequiredService<SerperDevSerpProvider>(),
             _ => throw new InvalidOperationException($"Unhandled {SerpProviderEnv}={config.SerpProvider}"),
@@ -187,7 +168,6 @@ public static class SeoProviderRegistration
 public sealed class SeoProviderConfiguration
 {
     public required string SerpProvider { get; init; }
-    public string? SerpProviderFallback { get; init; }
     public required string KeywordProvider { get; init; }
     public required string RankSnapshotProvider { get; init; }
     public bool DataForSeoCredentialsConfigured { get; init; }
@@ -198,13 +178,11 @@ public sealed class SeoProviderConfiguration
 
     public static SeoProviderConfiguration FromEnvironment()
     {
-        var serpFallback = Environment.GetEnvironmentVariable(SeoProviderRegistration.SerpProviderFallbackEnv);
         return new SeoProviderConfiguration
         {
             SerpProvider = Normalize(
                 Environment.GetEnvironmentVariable(SeoProviderRegistration.SerpProviderEnv),
                 "dataforseo"),
-            SerpProviderFallback = string.IsNullOrWhiteSpace(serpFallback) ? null : serpFallback.Trim().ToLowerInvariant(),
             KeywordProvider = Normalize(
                 Environment.GetEnvironmentVariable(SeoProviderRegistration.KeywordProviderEnv),
                 "dataforseo"),

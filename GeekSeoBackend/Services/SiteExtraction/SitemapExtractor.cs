@@ -15,25 +15,17 @@ public sealed class SitemapExtractor(IHttpClientFactory factory, ILogger<Sitemap
 
     public async Task<SitemapData> ExtractAsync(string siteUrl, CancellationToken ct)
     {
-        try
+        var client = BuildClient();
+        var urls = await FetchUrlsAsync(siteUrl, client, ct);
+        var pillars = GroupIntoPillars(urls, siteUrl);
+        if (urls.Count > 0 && pillars.Count == 0)
         {
-            var client = BuildClient();
-            var urls = await FetchUrlsAsync(siteUrl, client, ct);
-            var pillars = GroupIntoPillars(urls, siteUrl);
-            if (urls.Count > 0 && pillars.Count == 0)
-            {
-                logger.LogInformation(
-                    "Sitemap for {Url} lists {UrlCount} URL(s) with no interior paths — pillar discovery will use schema.org and other signals",
-                    siteUrl, urls.Count);
-            }
+            logger.LogInformation(
+                "Sitemap for {Url} lists {UrlCount} URL(s) with no interior paths — pillar discovery will use schema.org and other signals",
+                siteUrl, urls.Count);
+        }
 
-            return new SitemapData(pillars, urls.Count, urls);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Sitemap extraction failed for {Url}", siteUrl);
-            return new SitemapData([], 0, []);
-        }
+        return new SitemapData(pillars, urls.Count, urls);
     }
 
     private async Task<List<string>> FetchUrlsAsync(string siteUrl, HttpClient client, CancellationToken ct)
@@ -46,11 +38,21 @@ public sealed class SitemapExtractor(IHttpClientFactory factory, ILogger<Sitemap
             if (urls.Count > 0) return urls;
         }
 
-        // Try robots.txt
+        // Try robots.txt — a missing/unreachable robots.txt is a normal condition, not a bug;
+        // only swallow the request failure itself, not e.g. a bug parsing its content.
+        string? robots = null;
         try
         {
             var robotsUrl = siteUrl.TrimEnd('/') + "/robots.txt";
-            var robots = await client.GetStringAsync(robotsUrl, ct);
+            robots = await client.GetStringAsync(robotsUrl, ct);
+        }
+        catch (HttpRequestException)
+        {
+            // No robots.txt at this domain — expected on most sites.
+        }
+
+        if (robots is not null)
+        {
             foreach (var line in robots.Split('\n'))
             {
                 if (!line.StartsWith("Sitemap:", StringComparison.OrdinalIgnoreCase)) continue;
@@ -59,49 +61,50 @@ public sealed class SitemapExtractor(IHttpClientFactory factory, ILogger<Sitemap
                 if (urls.Count > 0) return urls;
             }
         }
-        catch
-        {
-            // robots.txt unavailable — ignore
-        }
 
         return [];
     }
 
     private async Task<List<string>> TryFetchSitemapAsync(string url, HttpClient client, int depth, CancellationToken ct)
     {
+        // A candidate sitemap path not existing (404, connection refused, etc.) is a normal
+        // condition — the caller tries the next candidate. A malformed-XML/parse failure on a
+        // sitemap that DID respond is a real bug and must surface, not be swallowed as "not found."
+        string content;
         try
         {
-            var content = await client.GetStringAsync(url, ct);
-            var doc = XDocument.Parse(content);
-            var ns = doc.Root?.Name.Namespace ?? XNamespace.None;
-
-            // Sitemap index — fetch all child sitemaps (uncapped)
-            if (doc.Root?.Name.LocalName == "sitemapindex")
-            {
-                var urls = new List<string>();
-                var childUrls = doc.Descendants(ns + "loc")
-                    .Select(e => e.Value.Trim())
-                    .Where(u => !string.IsNullOrWhiteSpace(u))
-                    .ToList();
-
-                foreach (var childUrl in childUrls)
-                {
-                    var childUrls2 = await TryFetchSitemapAsync(childUrl, client, depth + 1, ct);
-                    urls.AddRange(childUrls2);
-                }
-                return urls;
-            }
-
-            // Regular sitemap — uncapped
-            return doc.Descendants(ns + "loc")
-                .Select(e => e.Value.Trim())
-                .Where(u => !string.IsNullOrWhiteSpace(u))
-                .ToList();
+            content = await client.GetStringAsync(url, ct);
         }
-        catch
+        catch (HttpRequestException)
         {
             return [];
         }
+
+        var doc = XDocument.Parse(content);
+        var ns = doc.Root?.Name.Namespace ?? XNamespace.None;
+
+        // Sitemap index — fetch all child sitemaps (uncapped)
+        if (doc.Root?.Name.LocalName == "sitemapindex")
+        {
+            var urls = new List<string>();
+            var childUrls = doc.Descendants(ns + "loc")
+                .Select(e => e.Value.Trim())
+                .Where(u => !string.IsNullOrWhiteSpace(u))
+                .ToList();
+
+            foreach (var childUrl in childUrls)
+            {
+                var childUrls2 = await TryFetchSitemapAsync(childUrl, client, depth + 1, ct);
+                urls.AddRange(childUrls2);
+            }
+            return urls;
+        }
+
+        // Regular sitemap — uncapped
+        return doc.Descendants(ns + "loc")
+            .Select(e => e.Value.Trim())
+            .Where(u => !string.IsNullOrWhiteSpace(u))
+            .ToList();
     }
 
     private static List<DiscoveredPillar> GroupIntoPillars(List<string> absoluteUrls, string siteUrl)

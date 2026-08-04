@@ -383,16 +383,6 @@ public sealed class PillarDemandEnricher(
                         PlacesOnly = usePlacesOnly,
                     };
                     localResult = await FetchSerpWithRetryAsync(localRequest, ct);
-                    if (usePlacesOnly
-                        && localResult.IsSuccess
-                        && localResult.Value is not null
-                        && !HasLocalSerpSignal(localResult.Value))
-                    {
-                        var fallbackRequest = localRequest with { PlacesOnly = false };
-                        var fallbackResult = await FetchSerpWithRetryAsync(fallbackRequest, ct);
-                        if (fallbackResult.IsSuccess && fallbackResult.Value is not null)
-                            localResult = fallbackResult;
-                    }
 
                     if (!localResult.IsSuccess || localResult.Value is null)
                     {
@@ -568,11 +558,6 @@ public sealed class PillarDemandEnricher(
         !string.IsNullOrWhiteSpace(error)
         && (error.Contains("429", StringComparison.Ordinal)
             || error.Contains("rate limit", StringComparison.OrdinalIgnoreCase));
-
-    private static bool HasLocalSerpSignal(SerpResult result) =>
-        result.OrganicResults.Count > 0
-        || result.LocalPlaceDomains.Count > 0
-        || result.LocalPlaces.Count > 0;
 
     internal static List<string> CollectLocalCompetitorDomains(
         SerpResult result,

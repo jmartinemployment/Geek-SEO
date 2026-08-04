@@ -29,7 +29,6 @@ public sealed class SeoProviderRegistrationTests
             [SeoProviderRegistration.SerpProviderEnv] = null,
             [SeoProviderRegistration.KeywordProviderEnv] = null,
             [SeoProviderRegistration.RankSnapshotProviderEnv] = null,
-            [SeoProviderRegistration.SerpProviderFallbackEnv] = null,
         }));
 
         var services = CreateServiceCollection();
@@ -72,7 +71,6 @@ public sealed class SeoProviderRegistrationTests
             [SeoProviderRegistration.SerpProviderEnv] = "serpapi",
             [SeoProviderRegistration.RankSnapshotProviderEnv] = "serpapi",
             [SeoProviderRegistration.SerpApiKeyEnv] = "test-key",
-            [SeoProviderRegistration.SerpProviderFallbackEnv] = null,
         }));
 
         var services = CreateServiceCollection();
@@ -83,27 +81,6 @@ public sealed class SeoProviderRegistrationTests
         Assert.IsType<DatabaseBackedSerpProvider>(scope.ServiceProvider.GetRequiredService<ISerpProvider>());
         Assert.IsType<MeteredRankSnapshotProvider>(scope.ServiceProvider.GetRequiredService<IRankSnapshotProvider>());
         Assert.IsType<SerpApiRankSnapshotProvider>(scope.ServiceProvider.GetRequiredService<SerpApiRankSnapshotProvider>());
-    }
-
-    [Fact]
-    public void AddSeoDataProviders_serpapi_with_fallback_registers_fallback_wrapper()
-    {
-        using var env = EnvScope.For(WithDefaultVendorCache(new Dictionary<string, string?>
-        {
-            [SeoProviderRegistration.SerpProviderEnv] = "serpapi",
-            [SeoProviderRegistration.SerpApiKeyEnv] = "test-key",
-            [SeoProviderRegistration.SerpProviderFallbackEnv] = "dataforseo",
-            ["DATAFORSEO_LOGIN"] = "user",
-            ["DATAFORSEO_PASSWORD"] = "pass",
-        }));
-
-        var services = CreateServiceCollection();
-        services.AddSeoDataProviders();
-        using var sp = services.BuildServiceProvider();
-        using var scope = sp.CreateScope();
-
-        var serp = scope.ServiceProvider.GetRequiredService<ISerpProvider>();
-        Assert.IsType<DatabaseBackedSerpProvider>(serp);
     }
 
     [Fact]

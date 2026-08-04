@@ -616,36 +616,6 @@ public sealed class SiteAnalyzerService(
             .Select(kvp => $"{kvp.Key}: {kvp.Value}")
             .ToArray();
 
-    private async Task<IReadOnlyList<string>?> LoadPriorSitemapUrlsWithFallbackAsync(
-        SiteAnalysisProfile profile,
-        CancellationToken ct)
-    {
-        try
-        {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(TimeSpan.FromSeconds(10));
-            return await LoadPriorSitemapUrlsAsync(profile, cts.Token);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private async Task<IReadOnlyList<string>?> LoadPriorSitemapUrlsAsync(
-        SiteAnalysisProfile profile,
-        CancellationToken ct)
-    {
-        var discoveredUrls = await profileRepo.GetDiscoveredUrlsAsync(profile.Id, ct);
-        if (!discoveredUrls.IsSuccess)
-            return null;
-
-        return (discoveredUrls.Value ?? [])
-            .Where(x => string.Equals(x.SourceType, "sitemap", StringComparison.OrdinalIgnoreCase))
-            .Select(x => x.Url)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-    }
 
     private async Task ClearRelationalCrawlUrlsAsync(Guid profileId, CancellationToken ct)
     {

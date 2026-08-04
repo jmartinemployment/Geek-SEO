@@ -18,91 +18,83 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
     public async Task<SchemaOrgData> ExtractAsync(
         string siteUrl, IBrowser? browser, CancellationToken ct)
     {
-        try
+        var blocks = new List<string>();
+
+        if (browser is not null)
         {
-            var blocks = new List<string>();
-
-            if (browser is not null)
+            try
             {
-                try
-                {
-                    blocks.AddRange(await ExtractJsonLdWithPlaywrightAsync(siteUrl, browser, ct));
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(
-                        ex,
-                        "Playwright schema.org extraction failed for {Url}, falling back to HTTP",
-                        siteUrl);
-                }
+                blocks.AddRange(await ExtractJsonLdWithPlaywrightAsync(siteUrl, browser, ct));
             }
-
-            if (blocks.Count == 0)
+            catch (Exception ex)
             {
-                var html = await FetchHomePageAsync(siteUrl, ct);
-                if (!string.IsNullOrWhiteSpace(html))
-                    blocks.AddRange(ExtractJsonLdBlocks(html));
+                logger.LogWarning(
+                    ex,
+                    "Playwright schema.org extraction failed for {Url}, falling back to HTTP",
+                    siteUrl);
             }
-
-            var serviceNames = new List<string>();
-            var knowsAboutTopics = new List<string>();
-            var offerCatalogTopics = new List<string>();
-            var sameAsUrls = new List<string>();
-            string? description = null;
-            string? brand = null;
-            var areas = new List<string>();
-
-            foreach (var block in blocks)
-            {
-                try
-                {
-                    using var doc = JsonDocument.Parse(block);
-                    ProcessJsonLdNode(
-                        doc.RootElement,
-                        serviceNames,
-                        knowsAboutTopics,
-                        offerCatalogTopics,
-                        sameAsUrls,
-                        areas,
-                        ref description,
-                        ref brand);
-                }
-                catch (JsonException)
-                {
-                    // malformed block — skip
-                }
-            }
-
-            var resolvedPlatforms = SameAsClassifier.ResolvePlatforms(sameAsUrls);
-            var entityResolved = SameAsClassifier.IsEntityResolved(resolvedPlatforms);
-
-            var data = new SchemaOrgData(
-                serviceNames.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
-                knowsAboutTopics.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
-                offerCatalogTopics.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
-                description,
-                brand,
-                areas.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
-                sameAsUrls.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
-                resolvedPlatforms,
-                entityResolved);
-
-            logger.LogInformation(
-                "Schema.org for {Url}: {TopicCount} topics, brand={HasBrand}, areas={AreaCount}, blocks={BlockCount}, entityResolved={EntityResolved}",
-                siteUrl,
-                data.ServiceNames.Count,
-                !string.IsNullOrWhiteSpace(data.BrandName),
-                data.AreaServed.Count,
-                blocks.Count,
-                data.EntityResolved);
-
-            return data;
         }
-        catch (Exception ex)
+
+        if (blocks.Count == 0)
         {
-            logger.LogWarning(ex, "Schema.org extraction failed for {Url}", siteUrl);
-            return Empty();
+            var html = await FetchHomePageAsync(siteUrl, ct);
+            if (!string.IsNullOrWhiteSpace(html))
+                blocks.AddRange(ExtractJsonLdBlocks(html));
         }
+
+        var serviceNames = new List<string>();
+        var knowsAboutTopics = new List<string>();
+        var offerCatalogTopics = new List<string>();
+        var sameAsUrls = new List<string>();
+        string? description = null;
+        string? brand = null;
+        var areas = new List<string>();
+
+        foreach (var block in blocks)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(block);
+                ProcessJsonLdNode(
+                    doc.RootElement,
+                    serviceNames,
+                    knowsAboutTopics,
+                    offerCatalogTopics,
+                    sameAsUrls,
+                    areas,
+                    ref description,
+                    ref brand);
+            }
+            catch (JsonException)
+            {
+                // malformed block — skip
+            }
+        }
+
+        var resolvedPlatforms = SameAsClassifier.ResolvePlatforms(sameAsUrls);
+        var entityResolved = SameAsClassifier.IsEntityResolved(resolvedPlatforms);
+
+        var data = new SchemaOrgData(
+            serviceNames.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            knowsAboutTopics.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            offerCatalogTopics.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            description,
+            brand,
+            areas.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            sameAsUrls.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            resolvedPlatforms,
+            entityResolved);
+
+        logger.LogInformation(
+            "Schema.org for {Url}: {TopicCount} topics, brand={HasBrand}, areas={AreaCount}, blocks={BlockCount}, entityResolved={EntityResolved}",
+            siteUrl,
+            data.ServiceNames.Count,
+            !string.IsNullOrWhiteSpace(data.BrandName),
+            data.AreaServed.Count,
+            blocks.Count,
+            data.EntityResolved);
+
+        return data;
     }
 
     /// <summary>Parse schema.org from already-fetched HTML — no HTTP call, no Playwright.</summary>

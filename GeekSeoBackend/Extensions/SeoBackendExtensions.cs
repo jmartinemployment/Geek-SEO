@@ -153,9 +153,7 @@ public static class SeoBackendExtensions
             client.Timeout = TimeSpan.FromSeconds(15);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("GeekSEO/1.0 (https://seo.geekatyourspot.com)");
         });
-        services.AddScoped<GoogleGeocodeService>();
-        services.AddScoped<NominatimGeocodeService>();
-        services.AddScoped<IGeocodeService, CompositeGeocodeService>();
+        services.AddScoped<IGeocodeService, GoogleGeocodeService>();
         services.AddScoped<ILocalSerpContextResolver, LocalSerpContextResolver>();
 
         services.AddHttpClient("Copyscape", client => client.Timeout = TimeSpan.FromSeconds(90));

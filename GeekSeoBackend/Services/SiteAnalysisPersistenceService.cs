@@ -125,15 +125,6 @@ public sealed class SiteAnalysisPersistenceService(
         var scoresResult = await profileRepo.UpdateScoresAsync(
             profileId, authorityScore, covered, partial, gap, ct);
 
-        if (IsRouteUnavailable(summaryResult.Error))
-        {
-            logger.LogWarning(
-                "Split profile-summary PATCH unavailable for {ProfileId} — falling back to analysis-results",
-                profileId);
-            return await FallbackMonolithicSaveAsync(
-                profileId, summary, authorityScore, covered, partial, gap, fusedForArchive, writeFusionArchive, ct);
-        }
-
         if (!summaryResult.IsSuccess)
             return summaryResult;
         if (!scoresResult.IsSuccess)
@@ -148,39 +139,6 @@ public sealed class SiteAnalysisPersistenceService(
         }
 
         return Result.Success();
-    }
-
-    private async Task<Result> FallbackMonolithicSaveAsync(
-        Guid profileId,
-        SiteAnalysisProfileSummaryPatch summary,
-        decimal authorityScore,
-        int covered,
-        int partial,
-        int gap,
-        SiteTopicProfile? fusedForArchive,
-        bool writeFusionArchive,
-        CancellationToken ct)
-    {
-        var fusionJson = writeFusionArchive && fusedForArchive is not null
-            ? SiteTopicProfileJson.SerializeForPersistence(fusedForArchive)
-            : null;
-
-#pragma warning disable CS0618
-        return await profileRepo.SaveAnalysisResultsAsync(profileId, new SiteAnalysisSaveRequest(
-#pragma warning restore CS0618
-            summary.PrimaryFocus,
-            summary.FocusDescription,
-            summary.FocusTags,
-            summary.AudienceType,
-            string.Empty,
-            authorityScore,
-            summary.TotalPillarsIdentified,
-            covered,
-            partial,
-            gap,
-            summary.AnalyzedAt,
-            summary.NextAnalysisDue,
-            fusionJson), ct);
     }
 
     private static bool IsRouteUnavailable(string? error) =>

@@ -69,7 +69,6 @@ public sealed class HealthController(
         return Ok(new
         {
             serpProvider = providerConfig.SerpProvider,
-            serpProviderFallback = providerConfig.SerpProviderFallback,
             keywordProvider = providerConfig.KeywordProvider,
             rankSnapshotProvider = providerConfig.RankSnapshotProvider,
             vendorPersistence = "database-first",
