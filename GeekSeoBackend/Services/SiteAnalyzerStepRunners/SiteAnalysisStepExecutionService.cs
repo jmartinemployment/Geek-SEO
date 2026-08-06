@@ -1115,8 +1115,8 @@ public sealed class SiteAnalyzerStepExecutionService(
     /// <summary>
     /// Gap subtopics from the real per-page <see cref="PageSection"/> tree only — never from
     /// sitemap URL-segment childSlugs (those manufactured a gap for every path segment). A node
-    /// is a gap when it has real paragraph text of its own, sits on a page belonging to the
-    /// pillar (or is nested under a matching pillar heading anywhere), and has no dedicated page.
+    /// is a gap when it sits on a page belonging to the pillar (or is nested under a matching
+    /// pillar heading anywhere) and has no dedicated page. Bare headings count.
     /// </summary>
     private static List<SiteAnalysisSubtopic> BuildSubtopics(
         List<SiteAnalysisPillar> pillars,

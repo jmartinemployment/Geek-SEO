@@ -248,14 +248,26 @@ internal static class SiteContentCoverageMatcher
     private static int CountMatchingPages(string pillarSlug, string? dedicatedUrl, IReadOnlyList<string> allUrls) =>
         allUrls.Count(u => UrlRelatesToPillar(u, pillarSlug, dedicatedUrl));
 
+    /// <summary>
+    /// True when <paramref name="url"/>'s path already represents <paramref name="slug"/>.
+    /// Slugs are lowercase with hyphens between words (see <see cref="SiteAnalyzerService.NameToSlug"/>).
+    /// A page is not missing when its slug is found as a path segment, or (for longer slugs) in the path.
+    /// </summary>
     private static bool UrlPathContainsSlug(string url, string slug)
     {
-        if (string.IsNullOrWhiteSpace(slug) || slug.Length < 3)
+        if (string.IsNullOrWhiteSpace(slug))
             return false;
 
         try
         {
             var path = new Uri(url).AbsolutePath;
+            var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            // Exact path segment (covers short slugs like "ai" without matching inside "training").
+            if (segments.Any(s => string.Equals(s, slug, StringComparison.OrdinalIgnoreCase)))
+                return true;
+            // Longer slugs: also allow hyphen/path forms in the full path.
+            if (slug.Length < 3)
+                return false;
             return path.Contains(slug, StringComparison.OrdinalIgnoreCase)
                 || path.Contains(slug.Replace('-', '/'), StringComparison.OrdinalIgnoreCase);
         }
@@ -297,14 +309,15 @@ internal static class SiteContentCoverageMatcher
         SiteAnalyzerService.NameToSlug(value);
 
     /// <summary>
-    /// Real content-gap detection: a heading found somewhere on the crawled site whose slug
-    /// matches no crawled/sitemap URL is a genuine gap (the site talks about/links to a topic
-    /// but has no dedicated page for it) — as opposed to inventing generic keyword templates.
+    /// Missing-page check: heading (any length slug) whose slug is not found on any crawled/sitemap URL.
+    /// Slugs are lowercase with hyphens between words.
     /// </summary>
     internal static bool HasNoMatchingPage(string headingText, IReadOnlyList<string> allUrls)
     {
         var slug = Slugify(headingText);
-        return slug.Length >= 3 && !allUrls.Any(u => UrlPathContainsSlug(u, slug));
+        if (string.IsNullOrWhiteSpace(slug))
+            return false;
+        return !allUrls.Any(u => UrlPathContainsSlug(u, slug));
     }
 
     /// <summary>Whether a page URL's path relates to the given pillar slug — used to scope real
@@ -313,9 +326,8 @@ internal static class SiteContentCoverageMatcher
         UrlPathContainsSlug(url, pillarSlug);
 
     /// <summary>
-    /// Walks per-page <see cref="PageSection"/> trees and returns content-backed heading nodes
-    /// that belong to <paramref name="pillarSlug"/> and have no dedicated page — the only source
-    /// of gap subtopics (never sitemap URL-segment childSlugs).
+    /// Walks per-page heading trees (h1–h6) and returns headings under <paramref name="pillarSlug"/>
+    /// that have no dedicated page — missing-page candidates. Bare headings count; short slugs (e.g. "ai") count.
     /// </summary>
     internal static IReadOnlyList<(string HeadingText, string HeadingSlug)> CollectTreeGaps(
         string pillarSlug,
@@ -330,13 +342,11 @@ internal static class SiteContentCoverageMatcher
             var pageBelongs = UrlBelongsToPillarSlug(pageUrl, pillarSlug);
             foreach (var node in EnumerateGapCandidates(tree, pillarSlug, pageBelongs))
             {
-                if (!node.HasOwnContent)
-                    continue;
                 if (!HasNoMatchingPage(node.HeadingText, allUrls))
                     continue;
 
                 var headingSlug = Slugify(node.HeadingText);
-                if (headingSlug.Length < 3 || !seen.Add(headingSlug))
+                if (string.IsNullOrWhiteSpace(headingSlug) || !seen.Add(headingSlug))
                     continue;
 
                 gaps.Add((node.HeadingText, headingSlug));

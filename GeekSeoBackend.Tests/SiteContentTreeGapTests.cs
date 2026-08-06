@@ -6,7 +6,7 @@ namespace GeekSeoBackend.Tests;
 public sealed class SiteContentTreeGapTests
 {
     [Fact]
-    public void Homepage_h5_with_real_paragraph_under_pillar_heading_is_a_gap()
+    public void Homepage_h5_under_pillar_heading_is_a_gap_even_without_paragraph()
     {
         const string html = """
             <h1>Home</h1>
@@ -24,12 +24,12 @@ public sealed class SiteContentTreeGapTests
             ["https://example.com/", "https://example.com/ai-content-creation-workflow"]);
 
         Assert.Contains(gaps, g => g.HeadingSlug == "marketing");
-        Assert.DoesNotContain(gaps, g => g.HeadingSlug == "sales"); // bare label, no paragraph
+        Assert.Contains(gaps, g => g.HeadingSlug == "sales"); // bare label still counts as a gap
         Assert.DoesNotContain(gaps, g => g.HeadingSlug == "ai-content-creation-workflow");
     }
 
     [Fact]
-    public void Bare_heading_with_no_paragraph_is_not_a_gap()
+    public void Bare_heading_with_no_paragraph_is_still_a_gap()
     {
         const string html = "<h2>Services</h2><h3>Plumbing</h3>";
         var tree = PageSectionTreeBuilder.Build(html);
@@ -39,7 +39,7 @@ public sealed class SiteContentTreeGapTests
             [("https://example.com/services", tree)],
             ["https://example.com/", "https://example.com/services"]);
 
-        Assert.Empty(gaps);
+        Assert.Contains(gaps, g => g.HeadingSlug == "plumbing");
     }
 
     [Fact]
@@ -57,10 +57,50 @@ public sealed class SiteContentTreeGapTests
     }
 
     [Fact]
+    public void Short_heading_AI_is_a_gap_when_no_ai_page_exists()
+    {
+        const string html = "<h2>Services</h2><h3>AI</h3>";
+        var tree = PageSectionTreeBuilder.Build(html);
+
+        var gaps = SiteContentCoverageMatcher.CollectTreeGaps(
+            "services",
+            [("https://example.com/services", tree)],
+            ["https://example.com/", "https://example.com/services"]);
+
+        Assert.Contains(gaps, g => g.HeadingSlug == "ai");
+    }
+
+    [Fact]
+    public void Short_heading_AI_is_not_a_gap_when_ai_page_exists()
+    {
+        const string html = "<h2>Services</h2><h3>AI</h3>";
+        var tree = PageSectionTreeBuilder.Build(html);
+
+        var gaps = SiteContentCoverageMatcher.CollectTreeGaps(
+            "services",
+            [("https://example.com/services", tree)],
+            ["https://example.com/", "https://example.com/services", "https://example.com/ai"]);
+
+        Assert.DoesNotContain(gaps, g => g.HeadingSlug == "ai");
+    }
+
+    [Fact]
+    public void Short_slug_ai_does_not_false_match_inside_training_path()
+    {
+        const string html = "<h2>Services</h2><h3>AI</h3>";
+        var tree = PageSectionTreeBuilder.Build(html);
+
+        var gaps = SiteContentCoverageMatcher.CollectTreeGaps(
+            "services",
+            [("https://example.com/services", tree)],
+            ["https://example.com/", "https://example.com/services", "https://example.com/training"]);
+
+        Assert.Contains(gaps, g => g.HeadingSlug == "ai");
+    }
+
+    [Fact]
     public void Does_not_manufacture_gaps_from_sitemap_url_segments()
     {
-        // A page tree with only a pillar heading (no content-backed children) yields zero gaps
-        // even when the sitemap would have produced childSlugs for every URL segment.
         const string html = "<h1>Services</h1><p>Our service catalog.</p>";
         var tree = PageSectionTreeBuilder.Build(html);
 
