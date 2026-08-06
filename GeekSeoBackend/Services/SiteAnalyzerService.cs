@@ -72,7 +72,7 @@ public sealed class SiteAnalyzerService(
             ProjectId = projectId,
             Domain = siteUrl,
             Status = "pending",
-            AnalysisVersion = "1.0",
+            AnalysisVersion = "2.0",
             AnalysisStepLog = "[]",
             AnalysisStepLogVersion = 1,
         };

@@ -21,7 +21,7 @@ public sealed class SiteAnalysisProfile
     public int PillarsGap { get; set; }
     public DateTimeOffset? AnalyzedAt { get; set; }
     public DateTimeOffset? NextAnalysisDue { get; set; }
-    public string AnalysisVersion { get; set; } = "1.0";
+    public string AnalysisVersion { get; set; } = "2.0";
     public string Status { get; set; } = "queued";
     public string? AnalysisStep { get; set; }
     public int AnalysisStepNumber { get; set; }
