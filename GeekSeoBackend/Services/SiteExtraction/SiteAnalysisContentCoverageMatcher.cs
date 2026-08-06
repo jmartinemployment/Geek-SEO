@@ -311,4 +311,63 @@ internal static class SiteContentCoverageMatcher
     /// per-page headings to the pillar they were found under for gap detection.</summary>
     internal static bool UrlBelongsToPillarSlug(string url, string pillarSlug) =>
         UrlPathContainsSlug(url, pillarSlug);
+
+    /// <summary>
+    /// Walks per-page <see cref="PageSection"/> trees and returns content-backed heading nodes
+    /// that belong to <paramref name="pillarSlug"/> and have no dedicated page — the only source
+    /// of gap subtopics (never sitemap URL-segment childSlugs).
+    /// </summary>
+    internal static IReadOnlyList<(string HeadingText, string HeadingSlug)> CollectTreeGaps(
+        string pillarSlug,
+        IReadOnlyList<(string PageUrl, IReadOnlyList<PageSection> Tree)> pageTrees,
+        IReadOnlyList<string> allUrls)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { pillarSlug };
+        var gaps = new List<(string HeadingText, string HeadingSlug)>();
+
+        foreach (var (pageUrl, tree) in pageTrees)
+        {
+            var pageBelongs = UrlBelongsToPillarSlug(pageUrl, pillarSlug);
+            foreach (var node in EnumerateGapCandidates(tree, pillarSlug, pageBelongs))
+            {
+                if (!node.HasOwnContent)
+                    continue;
+                if (!HasNoMatchingPage(node.HeadingText, allUrls))
+                    continue;
+
+                var headingSlug = Slugify(node.HeadingText);
+                if (headingSlug.Length < 3 || !seen.Add(headingSlug))
+                    continue;
+
+                gaps.Add((node.HeadingText, headingSlug));
+            }
+        }
+
+        return gaps;
+    }
+
+    /// <summary>
+    /// Yields heading nodes in scope for a pillar: every node on a pillar-owned page, plus nodes
+    /// nested under a heading whose slug matches the pillar (e.g. homepage h5s under an h4 pillar).
+    /// </summary>
+    internal static IEnumerable<PageSection> EnumerateGapCandidates(
+        IReadOnlyList<PageSection> nodes,
+        string pillarSlug,
+        bool pageBelongsToPillar,
+        bool underPillarHeading = false)
+    {
+        foreach (var node in nodes)
+        {
+            var nodeSlug = Slugify(node.HeadingText);
+            var isPillarHeading = string.Equals(nodeSlug, pillarSlug, StringComparison.OrdinalIgnoreCase);
+            var inScope = pageBelongsToPillar || underPillarHeading || isPillarHeading;
+
+            if (inScope && !isPillarHeading)
+                yield return node;
+
+            foreach (var child in EnumerateGapCandidates(
+                         node.Children, pillarSlug, pageBelongsToPillar, underPillarHeading || isPillarHeading))
+                yield return child;
+        }
+    }
 }

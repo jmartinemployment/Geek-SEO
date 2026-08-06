@@ -18,7 +18,8 @@ internal static partial class SiteAnalyzerStepRelationalLoader
         NavMenuData Nav,
         HomepageHeadings Headings,
         PageContentData PageContent,
-        SiteAnalyzerStepArtifactStore.SiteStructureArtifact Structure);
+        SiteAnalyzerStepArtifactStore.SiteStructureArtifact Structure,
+        IReadOnlySet<string> ContentBackedHeadingSlugs);
 
     internal static async Task<MergingInputs> LoadMergingInputsAsync(
         ISiteAnalysisProfileRepository profileRepo,
@@ -33,8 +34,83 @@ internal static partial class SiteAnalyzerStepRelationalLoader
         var headings = await LoadHeadingsAsync(profileRepo, profileId, domain, steps, ct);
         var pageContent = await LoadPageContentAsync(profileRepo, profileId, steps, ct);
         var structure = await LoadSiteStructureAsync(profileRepo, profileId, steps, ct);
+        var contentBackedHeadingSlugs = await LoadContentBackedHeadingSlugsAsync(profileRepo, profileId, ct);
 
-        return new MergingInputs(schema, sitemap, nav, headings, pageContent, structure);
+        return new MergingInputs(schema, sitemap, nav, headings, pageContent, structure, contentBackedHeadingSlugs);
+    }
+
+    /// <summary>
+    /// Slugs of every heading (any page, any level) that has real paragraph text of its own in
+    /// the persisted <see cref="PageSection"/> tree — the content-backed candidacy signal that
+    /// lets a heading-sourced pillar/gap candidate bypass <c>MinPillarConfidence</c> entirely
+    /// (see <see cref="PillarSelector"/>), same standing as a schema/GSC-confirmed topic. No
+    /// step-log gate here: an empty/missing tree (e.g. profile pre-dates this feature) simply
+    /// yields no content-backed slugs, falling back to the existing confidence-gated behavior.
+    /// </summary>
+    internal static async Task<IReadOnlySet<string>> LoadContentBackedHeadingSlugsAsync(
+        ISiteAnalysisProfileRepository profileRepo,
+        Guid profileId,
+        CancellationToken ct)
+    {
+        var trees = await LoadPageSectionTreesAsync(profileRepo, profileId, ct);
+        var slugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (_, tree) in trees)
+            CollectContentBackedSlugs(tree, slugs);
+        return slugs;
+    }
+
+    /// <summary>
+    /// Deserialized per-page section trees for gap detection / content-backed candidacy.
+    /// Malformed JSON for a single page is skipped (other pages still usable).
+    /// </summary>
+    internal static async Task<IReadOnlyList<(string PageUrl, IReadOnlyList<PageSection> Tree)>> LoadPageSectionTreesAsync(
+        ISiteAnalysisProfileRepository profileRepo,
+        Guid profileId,
+        CancellationToken ct)
+    {
+        var result = await profileRepo.GetPageSectionTreesAsync(profileId, ct);
+        var pages = new List<(string PageUrl, IReadOnlyList<PageSection> Tree)>();
+        if (!result.IsSuccess || result.Value is null)
+            return pages;
+
+        foreach (var page in result.Value)
+        {
+            try
+            {
+                var tree = System.Text.Json.JsonSerializer.Deserialize<List<PageSection>>(page.TreeJson) ?? [];
+                pages.Add((page.PageUrl, tree));
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                // Skip malformed page; other pages remain usable.
+            }
+        }
+
+        return pages;
+    }
+
+    private static void CollectContentBackedSlugs(IReadOnlyList<PageSection> nodes, HashSet<string> slugs)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.HasOwnContent)
+            {
+                var slug = SiteAnalyzerService.NameToSlug(node.HeadingText);
+                if (!string.IsNullOrWhiteSpace(slug))
+                    slugs.Add(slug);
+            }
+
+            CollectContentBackedSlugs(node.Children, slugs);
+        }
+    }
+
+    private static void FlattenSectionsToHeadings(IReadOnlyList<PageSection> nodes, List<PageHeading> into)
+    {
+        foreach (var node in nodes)
+        {
+            into.Add(new PageHeading { Level = node.Level, Text = node.HeadingText });
+            FlattenSectionsToHeadings(node.Children, into);
+        }
     }
 
     internal static async Task<SiteBusinessProfile> LoadSiteBusinessProfileAsync(
@@ -151,11 +227,26 @@ internal static partial class SiteAnalyzerStepRelationalLoader
         IReadOnlyList<SiteAnalysisStepLogEntry> steps,
         CancellationToken ct)
     {
-        // A headings step that ran and genuinely found no H1-H6 is a real (if rare) outcome, not a
-        // failure — distinguish "step never ran" via the step-log entry's existence, not row count
-        // or the artifact's content. Title/MetaDescription have no relational column (verified) and
-        // are simply unavailable on a relationally-loaded profile — all downstream consumers already
-        // handle that null-tolerantly (SiteAnalysisRootEntityBuilder, SiteBusinessProfileBuilder).
+        // Prefer the real per-page section tree (post-crawl). Flat heading rows are legacy —
+        // cleared after crawl writes trees; only used as a fallback for profiles that have not
+        // been re-Analyzed since the tree cutover, or for the brief window between the early
+        // homepage headings step and site crawl.
+        var trees = await LoadPageSectionTreesAsync(profileRepo, profileId, ct);
+        if (trees.Count > 0)
+        {
+            var fromTrees = new List<PageHeading>();
+            foreach (var (_, tree) in trees)
+                FlattenSectionsToHeadings(tree, fromTrees);
+
+            return new HomepageHeadings
+            {
+                Title = null,
+                MetaDescription = null,
+                Headings = fromTrees,
+                H2Texts = fromTrees.Where(h => h.Level == 2).Select(h => h.Text).ToList(),
+            };
+        }
+
         if (!steps.Any(s => s.Slug.Equals("headings", StringComparison.OrdinalIgnoreCase)))
         {
             throw new InvalidOperationException(
@@ -164,22 +255,17 @@ internal static partial class SiteAnalyzerStepRelationalLoader
 
         var headingsResult = await profileRepo.GetHeadingsAsync(profileId, ct);
         var rows = headingsResult.IsSuccess ? headingsResult.Value ?? [] : [];
-        // Prefer crawl order: group by page URL, then display order within each page.
         var pageHeadings = rows
             .OrderBy(x => x.PageUrl, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.DisplayOrder)
             .Select(x => new PageHeading { Level = x.HeadingLevel, Text = x.HeadingText })
-            .ToList();
-        var h2Texts = pageHeadings
-            .Where(h => h.Level == 2)
-            .Select(h => h.Text)
             .ToList();
         return new HomepageHeadings
         {
             Title = null,
             MetaDescription = null,
             Headings = pageHeadings,
-            H2Texts = h2Texts,
+            H2Texts = pageHeadings.Where(h => h.Level == 2).Select(h => h.Text).ToList(),
         };
     }
 

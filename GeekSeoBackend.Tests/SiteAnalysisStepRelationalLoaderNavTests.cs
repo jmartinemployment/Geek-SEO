@@ -131,6 +131,12 @@ public sealed class SiteAnalyzerStepRelationalLoaderNavTests
         public Task<Result<IReadOnlyList<SiteAnalysisProfileHeadingRow>>> GetHeadingsAsync(
             Guid profileId, CancellationToken ct = default) =>
             throw new NotSupportedException();
+        public Task<Result> ReplacePageSectionTreesAsync(
+            Guid profileId, IReadOnlyList<SiteAnalysisPageSectionTreeWrite> pages, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+        public Task<Result<IReadOnlyList<SiteAnalysisPageSectionTreeRow>>> GetPageSectionTreesAsync(
+            Guid profileId, CancellationToken ct = default) =>
+            throw new NotSupportedException();
         public Task<Result> ReplaceTopicCandidateEvidenceAsync(
             Guid profileId, IReadOnlyList<SiteAnalysisTopicCandidateEvidenceWrite> evidence, CancellationToken ct = default) =>
             throw new NotSupportedException();

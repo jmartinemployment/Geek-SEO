@@ -147,7 +147,7 @@ public record SiteAnalysisSubtopicResult
     public decimal KeywordDifficulty { get; init; }
     public string CoverageStatus { get; init; } = "gap";
     public string? ExistingUrl { get; init; }
-    public string RecommendedFormat { get; init; } = "how_to";
+    public string RecommendedFormat { get; init; } = "";
     public int RecommendedWordCount { get; init; }
     public string FixEffort { get; init; } = "create";
     public bool IsQuickWin { get; init; }

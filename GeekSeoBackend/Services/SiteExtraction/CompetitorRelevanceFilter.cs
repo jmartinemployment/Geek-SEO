@@ -12,6 +12,7 @@ internal static class CompetitorRelevanceFilter
   {
     "page_vertical",
     "heading",
+    "heading_content_backed",
     "area_served",
   };
 

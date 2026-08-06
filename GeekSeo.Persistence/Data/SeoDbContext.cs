@@ -59,6 +59,7 @@ public partial class SeoDbContext : DbContext
     public DbSet<SiteAnalysisProfileDiscoveredUrl> SiteAnalysisProfileDiscoveredUrls => Set<SiteAnalysisProfileDiscoveredUrl>();
     public DbSet<SiteAnalysisProfileNavigationLink> SiteAnalysisProfileNavigationLinks => Set<SiteAnalysisProfileNavigationLink>();
     public DbSet<SiteAnalysisProfileHeading> SiteAnalysisProfileHeadings => Set<SiteAnalysisProfileHeading>();
+    public DbSet<SiteAnalysisPageSectionTree> SiteAnalysisPageSectionTrees => Set<SiteAnalysisPageSectionTree>();
     public DbSet<SiteAnalysisProfilePageContentItem> SiteAnalysisProfilePageContentItems => Set<SiteAnalysisProfilePageContentItem>();
     public DbSet<SiteAnalysisProfilePageContentMeta> SiteAnalysisProfilePageContentMetaRows => Set<SiteAnalysisProfilePageContentMeta>();
     public DbSet<SiteAnalysisProfileSitePage> SiteAnalysisProfileSitePages => Set<SiteAnalysisProfileSitePage>();

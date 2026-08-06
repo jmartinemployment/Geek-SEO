@@ -60,9 +60,12 @@ public sealed class PillarSelector(PillarValidator validator)
         var candidateBySlug = workingPool.ToDictionary(c => c.Slug, StringComparer.OrdinalIgnoreCase);
 
         // Selection rules (mirrors documented SE behavior):
-        //   Schema-declared → unconditional (site owner assertion; Google/Bing treat as authoritative)
-        //   GSC-confirmed   → unconditional (SE already associates this topic with the site)
-        //   All others      → confidence >= MinPillarConfidence (nav-level signal or stronger)
+        //   Schema-declared          → unconditional (site owner assertion; Google/Bing treat as authoritative)
+        //   GSC-confirmed            → unconditional (SE already associates this topic with the site)
+        //   Content-backed heading   → unconditional (real paragraph text under the heading is a
+        //                              stricter, more honest signal than a synthetic confidence
+        //                              score — see PageSection.HasOwnContent / TopicCandidatePoolBuilder)
+        //   All others               → confidence >= MinPillarConfidence (nav-level signal or stronger)
         var selectedSlugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var pillar in afterGate2)
         {
@@ -74,8 +77,9 @@ public sealed class PillarSelector(PillarValidator validator)
 
             var hasSchema = candidate.Evidence.Any(e => e.Source is "schema" or "same_as");
             var hasGsc = candidate.Evidence.Any(e => e.Source == "gsc");
+            var hasContentBackedHeading = candidate.Evidence.Any(e => e.Source == "heading_content_backed");
 
-            if (hasSchema || hasGsc)
+            if (hasSchema || hasGsc || hasContentBackedHeading)
                 selectedSlugs.Add(pillar.Slug);
             else if (candidate.Confidence >= TopicEvidenceWeights.MinPillarConfidence)
                 selectedSlugs.Add(pillar.Slug);
@@ -124,7 +128,7 @@ public sealed class PillarSelector(PillarValidator validator)
             Name = candidate.Name,
             Slug = candidate.Slug,
             PageUrl = candidate.DedicatedPageUrl,
-            Intent = primarySource is "heading" or "page" or "page_vertical"
+            Intent = primarySource is "heading" or "heading_content_backed" or "page" or "page_vertical"
                 ? "informational"
                 : "commercial",
             Source = primarySource,

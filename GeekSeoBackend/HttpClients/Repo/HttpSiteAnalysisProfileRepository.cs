@@ -257,6 +257,32 @@ public sealed class HttpSiteAnalysisProfileRepository(
         return Result<IReadOnlyList<SiteAnalysisProfileHeadingRow>>.Success(value ?? []);
     }
 
+    public async Task<Result> ReplacePageSectionTreesAsync(
+        Guid profileId,
+        IReadOnlyList<SiteAnalysisPageSectionTreeWrite> pages,
+        CancellationToken ct = default)
+    {
+        var res = await _http.PutAsJsonAsync(
+            $"api/seo/internal/site-analysis-profiles/{profileId}/page-section-trees?userId={user.UserId}",
+            new { pages },
+            Json,
+            ct);
+        return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await ReadFailureAsync(res, ct));
+    }
+
+    public async Task<Result<IReadOnlyList<SiteAnalysisPageSectionTreeRow>>> GetPageSectionTreesAsync(
+        Guid profileId,
+        CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/site-analysis-profiles/{profileId}/page-section-trees?userId={user.UserId}",
+            ct);
+        if (!res.IsSuccessStatusCode)
+            return Result<IReadOnlyList<SiteAnalysisPageSectionTreeRow>>.Failure(await ReadFailureAsync(res, ct));
+        var value = await res.Content.ReadFromJsonAsync<List<SiteAnalysisPageSectionTreeRow>>(Json, ct);
+        return Result<IReadOnlyList<SiteAnalysisPageSectionTreeRow>>.Success(value ?? []);
+    }
+
     public async Task<Result> ReplaceTopicCandidateEvidenceAsync(
         Guid profileId,
         IReadOnlyList<SiteAnalysisTopicCandidateEvidenceWrite> evidence,

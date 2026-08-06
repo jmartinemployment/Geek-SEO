@@ -254,6 +254,15 @@ public partial class SeoDbContext
             e.HasIndex(x => x.SiteAnalysisProfileId);
         });
 
+        modelBuilder.Entity<SiteAnalysisPageSectionTree>(e =>
+        {
+            e.ToTable("site_analysis_page_section_trees");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.SiteAnalysisProfile).WithMany().HasForeignKey(x => x.SiteAnalysisProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.SiteAnalysisProfileId);
+        });
+
         modelBuilder.Entity<SiteAnalysisProfilePageContentItem>(e =>
         {
             e.ToTable("site_analysis_profile_page_content_items");

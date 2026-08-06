@@ -364,6 +364,27 @@ public sealed class SiteAnalyzerController(
         }
     }
 
+    /// <summary>
+    /// Real per-page heading+paragraph tree (h1-h6, content-backed) for this profile — the
+    /// grounding data Content Creator's "must mention real sub-topics" Generate injection reads.
+    /// </summary>
+    [HttpGet("{profileId:guid}/page-section-trees")]
+    public async Task<IActionResult> GetPageSectionTrees(Guid profileId, CancellationToken ct)
+    {
+        try
+        {
+            user.RequireUserId();
+            var result = await profileRepo.GetPageSectionTreesAsync(profileId, ct);
+            if (!result.IsSuccess)
+                return StatusCode(503, new { error = result.Error ?? "Page section trees temporarily unavailable" });
+            return Ok(result.Value);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpPost("{profileId:guid}/run-step/{slug}")]
     public IActionResult RunStep(Guid profileId, string slug, CancellationToken ct)
     {

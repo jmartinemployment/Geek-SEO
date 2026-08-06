@@ -13,7 +13,8 @@ internal static class TopicCandidatePoolBuilder
         HomepageHeadings headings,
         PageContentData pageContent,
         InternalLinkData? internalLinks = null,
-        UrlPatternData? urlPatterns = null)
+        UrlPatternData? urlPatterns = null,
+        IReadOnlySet<string>? contentBackedHeadingSlugs = null)
     {
         var bySlug = new Dictionary<string, TopicCandidateBuilder>(StringComparer.OrdinalIgnoreCase);
 
@@ -52,14 +53,20 @@ internal static class TopicCandidatePoolBuilder
                 pillar.PageUrl);
         }
 
-        // headings.Headings is the full persisted set after site crawl (every crawled page),
-        // not homepage-only — crawl ReplaceHeadingsAsync supersedes the early homepage step.
+        // headings.Headings is derived from the per-page PageSection tree after site crawl
+        // (LoadHeadingsAsync flattens trees), not homepage-only.
         foreach (var pillar in HeadingPillarBuilder.Build(headings.Headings))
         {
+            // Content-backed candidacy (real paragraph text under this heading, per the
+            // PageSection tree) replaces the synthetic confidence gate for heading-sourced
+            // topics: PillarSelector treats "heading_content_backed" as an unconditional-accept
+            // source, the same standing as schema/GSC. A bare heading label with no paragraph
+            // text of its own stays "heading" and is still confidence-gated as before.
+            var contentBacked = contentBackedHeadingSlugs?.Contains(pillar.Slug) == true;
             AddEvidence(
                 bySlug,
                 pillar.Name,
-                "heading",
+                contentBacked ? "heading_content_backed" : "heading",
                 TopicEvidenceWeights.Heading,
                 "page heading");
         }
@@ -241,7 +248,7 @@ internal static class TopicCandidatePoolBuilder
             else if (_evidence.Any(e => e.Source == "page"))
                 score += 0.15m;
 
-            if (_evidence.Any(e => e.Source == "heading"))
+            if (_evidence.Any(e => e.Source is "heading" or "heading_content_backed"))
                 score += 0.10m;
 
             return Math.Min(1.0m, score);

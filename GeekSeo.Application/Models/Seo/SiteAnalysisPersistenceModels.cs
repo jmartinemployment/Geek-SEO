@@ -143,6 +143,20 @@ public sealed record SiteAnalysisProfileHeadingRow(
     string HeadingText,
     int DisplayOrder);
 
+/// <summary>One crawled page's real heading+paragraph tree, JSON-serialized
+/// (<c>IReadOnlyList&lt;PageSection&gt;</c>) — one row per page, replacing the flat
+/// per-heading rows above.</summary>
+public sealed record SiteAnalysisPageSectionTreeWrite(
+    string PageUrl,
+    string TreeJson);
+
+public sealed record SiteAnalysisPageSectionTreeRow(
+    Guid Id,
+    Guid SiteAnalysisProfileId,
+    string PageUrl,
+    string TreeJson,
+    DateTimeOffset CreatedAtUtc);
+
 public sealed record SiteAnalysisTopicCandidateEvidenceWrite(
     Guid TopicCandidateId,
     string EvidenceType,

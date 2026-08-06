@@ -14,7 +14,7 @@ public sealed class PillarValidator
         var pairs = new List<(DiscoveredPillar, DiscoveredPillar)>();
         var sourcePriority = new Dictionary<string, int>
         {
-            ["schema"] = 0, ["sitemap"] = 1, ["nav"] = 2, ["heading"] = 3,
+            ["schema"] = 0, ["sitemap"] = 1, ["nav"] = 2, ["heading"] = 3, ["heading_content_backed"] = 3,
         };
 
         for (var i = 0; i < pillars.Count; i++)

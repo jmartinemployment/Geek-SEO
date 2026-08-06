@@ -7,7 +7,7 @@ public sealed class PillarMerger
     // Priority: schema > sitemap > nav > heading
     private static readonly Dictionary<string, int> SourcePriority = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["schema"] = 0, ["sitemap"] = 1, ["nav"] = 2, ["heading"] = 3,
+        ["schema"] = 0, ["sitemap"] = 1, ["nav"] = 2, ["heading"] = 3, ["heading_content_backed"] = 3,
     };
 
     public PillarMergeResult Merge(

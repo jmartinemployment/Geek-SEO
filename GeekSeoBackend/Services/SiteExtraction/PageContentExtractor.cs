@@ -7,11 +7,8 @@ namespace GeekSeoBackend.Services.SiteExtraction;
 
 /// <summary>
 /// Extracts service-like phrases from homepage body content (lists + section headings).
-/// Playwright when available; HTTP + regex fallback.
 /// </summary>
-public sealed partial class PageContentExtractor(
-    IHttpClientFactory httpClientFactory,
-    ILogger<PageContentExtractor> logger)
+public sealed partial class PageContentExtractor
 {
     public async Task<PageContentData> ExtractAsync(string domain, IBrowser? browser, CancellationToken ct)
     {
@@ -64,19 +61,6 @@ public sealed partial class PageContentExtractor(
             """);
 
         return ParsePayload(json);
-    }
-
-    private async Task<(IReadOnlyList<string> Phrases, IReadOnlyList<string> VerticalTopics, int ListItemsScanned)> ExtractFromHttpAsync(
-        string domain,
-        CancellationToken ct)
-    {
-        using var client = httpClientFactory.CreateClient("SeoFetch");
-        using var response = await client.GetAsync(domain, ct);
-        if (!response.IsSuccessStatusCode)
-            return ([], [], 0);
-
-        var html = await response.Content.ReadAsStringAsync(ct);
-        return ExtractFromHtml(html);
     }
 
     internal static (IReadOnlyList<string> Phrases, IReadOnlyList<string> VerticalTopics, int ListItemsScanned) ExtractFromHtml(string html)

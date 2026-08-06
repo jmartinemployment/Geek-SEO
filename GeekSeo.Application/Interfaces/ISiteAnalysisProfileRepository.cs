@@ -93,6 +93,16 @@ public interface ISiteAnalysisProfileRepository
         Guid profileId,
         CancellationToken ct = default);
 
+    /// <summary>Real per-page heading+paragraph tree (see PageSection), replacing the flat
+    /// heading model above for gap/pillar detection use.</summary>
+    Task<Result> ReplacePageSectionTreesAsync(
+        Guid profileId,
+        IReadOnlyList<SiteAnalysisPageSectionTreeWrite> pages,
+        CancellationToken ct = default);
+    Task<Result<IReadOnlyList<SiteAnalysisPageSectionTreeRow>>> GetPageSectionTreesAsync(
+        Guid profileId,
+        CancellationToken ct = default);
+
     Task<Result> ReplaceTopicCandidateEvidenceAsync(
         Guid profileId,
         IReadOnlyList<SiteAnalysisTopicCandidateEvidenceWrite> evidence,

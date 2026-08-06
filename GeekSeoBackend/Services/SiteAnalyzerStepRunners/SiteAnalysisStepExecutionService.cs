@@ -1,3 +1,4 @@
+using System.Text.Json;
 using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
@@ -322,17 +323,23 @@ public sealed class SiteAnalyzerStepExecutionService(
             profileId,
             message);
 
-        // Real per-page heading extraction for gap detection — must happen here, while raw HTML is
-        // still in scope: PersistSiteStructureAsync below strips it down to VisibleText only, and no
-        // later step ever has HTML available again. Supersedes the schema step's homepage-only
-        // heading write (step 4) with the full per-crawled-page set via the same Replace semantics.
-        var headingWrites = crawlData.Pages
-            .SelectMany(page => HomepageHeadingsExtractor.ExtractHeadingsFromHtml(page.Html)
-                .Select((h, index) => new SiteAnalysisProfileHeadingWrite(page.Url, h.Level, h.Text, index)))
+        // Real per-page heading+paragraph tree (h1-h6, content-backed) — single source of truth.
+        // Flat SiteAnalysisProfileHeading rows are cleared below; LoadHeadingsAsync derives a
+        // flat list from these trees for the candidate pool. Must run here while raw HTML is
+        // still in scope: PersistSiteStructureAsync strips it to VisibleText only.
+        var treeWrites = crawlData.Pages
+            .Select(page => new SiteAnalysisPageSectionTreeWrite(
+                page.Url,
+                JsonSerializer.Serialize(PageSectionTreeBuilder.Build(page.Html))))
             .ToList();
-        var persistHeadings = await profileRepo.ReplaceHeadingsAsync(profileId, headingWrites, ct);
-        if (!persistHeadings.IsSuccess)
-            throw new InvalidOperationException(persistHeadings.Error ?? "Failed to persist per-page headings.");
+        var persistTrees = await profileRepo.ReplacePageSectionTreesAsync(profileId, treeWrites, ct);
+        if (!persistTrees.IsSuccess)
+            throw new InvalidOperationException(persistTrees.Error ?? "Failed to persist per-page section trees.");
+
+        // Clear stale flat heading rows left by the early homepage-only step — trees replace them.
+        var clearFlat = await profileRepo.ReplaceHeadingsAsync(profileId, [], ct);
+        if (!clearFlat.IsSuccess)
+            throw new InvalidOperationException(clearFlat.Error ?? "Failed to clear flat headings after tree persist.");
 
         await PersistCrawlDiscoveredUrlsAsync(profileId, crawlUrls, ct);
         await PersistSiteStructureAsync(
@@ -467,7 +474,8 @@ public sealed class SiteAnalyzerStepExecutionService(
             inputs.Headings,
             inputs.PageContent,
             inputs.Structure.InternalLinks,
-            inputs.Structure.UrlPatterns);
+            inputs.Structure.UrlPatterns,
+            inputs.ContentBackedHeadingSlugs);
         candidatePool = GscQueryExtractor.ApplyToPool(candidatePool, gscOverlay);
         var fused = pillarSelector.Select(candidatePool, inputs.Schema.AreaServed.ToList());
         fused = NormalizedTopicalityCalculator.Apply(fused, inputs.Structure.Crawl, inputs.Structure.UrlPatterns);
@@ -500,7 +508,7 @@ public sealed class SiteAnalyzerStepExecutionService(
                 CountBySource(fused.AllCandidates, "schema"),
                 CountBySource(fused.AllCandidates, "sitemap"),
                 CountBySource(fused.AllCandidates, "nav"),
-                CountBySource(fused.AllCandidates, "heading"),
+                CountBySource(fused.AllCandidates, "heading") + CountBySource(fused.AllCandidates, "heading_content_backed"),
                 mergeResult.Excluded,
                 CountBySource(fused.AllCandidates, "page"),
                 CountBySource(fused.AllCandidates, "page_vertical"),
@@ -737,15 +745,15 @@ public sealed class SiteAnalyzerStepExecutionService(
                 pillar.Id = Guid.NewGuid();
         }
 
-        var headingsResult = await profileRepo.GetHeadingsAsync(profileId, ct);
-        var headingRows = headingsResult.IsSuccess ? headingsResult.Value ?? [] : [];
+        var pageTrees = await SiteAnalyzerStepRelationalLoader.LoadPageSectionTreesAsync(
+            profileRepo, profileId, ct);
         var allUrls = structure.Crawl.Pages
             .Select(p => p.Url)
             .Concat(sitemap.SampleUrls)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var subtopics = BuildSubtopics(pillars, merged, existingSubtopics, headingRows, allUrls);
+        var subtopics = BuildSubtopics(pillars, existingSubtopics, pageTrees, allUrls);
         AttachSubtopics(pillars, subtopics);
 
         var coverageResult = SiteContentCoverageMatcher.Apply(
@@ -1104,62 +1112,26 @@ public sealed class SiteAnalyzerStepExecutionService(
         }).ToList();
     }
 
+    /// <summary>
+    /// Gap subtopics from the real per-page <see cref="PageSection"/> tree only — never from
+    /// sitemap URL-segment childSlugs (those manufactured a gap for every path segment). A node
+    /// is a gap when it has real paragraph text of its own, sits on a page belonging to the
+    /// pillar (or is nested under a matching pillar heading anywhere), and has no dedicated page.
+    /// </summary>
     private static List<SiteAnalysisSubtopic> BuildSubtopics(
         List<SiteAnalysisPillar> pillars,
-        IReadOnlyList<DiscoveredPillar> discovered,
         IReadOnlyDictionary<string, SiteAnalysisSubtopic> existingByKey,
-        IReadOnlyList<SiteAnalysisProfileHeadingRow> headingRows,
+        IReadOnlyList<(string PageUrl, IReadOnlyList<PageSection> Tree)> pageTrees,
         IReadOnlyList<string> allUrls)
     {
         var subtopics = new List<SiteAnalysisSubtopic>();
-        var discMap = discovered.ToDictionary(d => d.Slug, StringComparer.OrdinalIgnoreCase);
 
         foreach (var pillar in pillars)
         {
-            if (!discMap.TryGetValue(pillar.PillarSlug, out var disc))
-                continue;
-
-            var childSlugs = disc.ChildSlugs.ToList();
-            var seenSlugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var childSlug in childSlugs)
+            foreach (var (headingText, headingSlug) in SiteContentCoverageMatcher.CollectTreeGaps(
+                         pillar.PillarSlug, pageTrees, allUrls))
             {
-                var keyword = $"{pillar.PrimaryKeyword} {childSlug.Replace('-', ' ')}".Trim();
-                var key = $"{pillar.Id:N}:{keyword}";
-                existingByKey.TryGetValue(key, out var existing);
-                seenSlugs.Add(childSlug);
-
-                subtopics.Add(new SiteAnalysisSubtopic
-                {
-                    Id = existing?.Id ?? Guid.NewGuid(),
-                    PillarId = pillar.Id,
-                    SubtopicTitle = SitemapExtractor.SlugToTitle(childSlug),
-                    TargetKeyword = keyword,
-                    SearchIntent = pillar.SearchIntent == "local" ? "local" : "informational",
-                    CoverageStatus = existing?.CoverageStatus ?? "gap",
-                    ExistingUrl = existing?.ExistingUrl,
-                    RecommendedFormat = existing?.RecommendedFormat ?? InferFormat(childSlug),
-                    FixEffort = existing?.FixEffort ?? "create",
-                    SearchVolume = existing?.SearchVolume ?? 0,
-                    KeywordDifficulty = existing?.KeywordDifficulty ?? 0m,
-                    RecommendedWordCount = existing?.RecommendedWordCount ?? 0,
-                    IsQuickWin = existing?.IsQuickWin ?? false,
-                });
-            }
-
-            // Real gap detection: headings found on this pillar's crawled pages that have no
-            // dedicated page of their own anywhere on the site — not invented keyword templates.
-            // A pillar with zero such headings gets zero extra gaps here, never padded filler.
-            var pillarHeadings = headingRows
-                .Where(h => SiteContentCoverageMatcher.UrlBelongsToPillarSlug(h.PageUrl, pillar.PillarSlug))
-                .Where(h => SiteContentCoverageMatcher.HasNoMatchingPage(h.HeadingText, allUrls));
-
-            foreach (var heading in pillarHeadings)
-            {
-                var headingSlug = SiteAnalyzerService.NameToSlug(heading.HeadingText);
-                if (headingSlug.Length < 3 || !seenSlugs.Add(headingSlug))
-                    continue;
-
-                var keyword = $"{pillar.PrimaryKeyword} {heading.HeadingText}".Trim();
+                var keyword = $"{pillar.PrimaryKeyword} {headingText}".Trim();
                 var key = $"{pillar.Id:N}:{keyword}";
                 existingByKey.TryGetValue(key, out var existing);
 
@@ -1167,9 +1139,10 @@ public sealed class SiteAnalyzerStepExecutionService(
                 {
                     Id = existing?.Id ?? Guid.NewGuid(),
                     PillarId = pillar.Id,
-                    SubtopicTitle = heading.HeadingText,
+                    SubtopicTitle = headingText,
                     TargetKeyword = keyword,
-                    SearchIntent = existing?.SearchIntent ?? (pillar.SearchIntent == "local" ? "local" : "informational"),
+                    SearchIntent = existing?.SearchIntent
+                        ?? (pillar.SearchIntent == "local" ? "local" : "informational"),
                     CoverageStatus = existing?.CoverageStatus ?? "gap",
                     ExistingUrl = existing?.ExistingUrl,
                     RecommendedFormat = existing?.RecommendedFormat ?? InferFormat(headingSlug),
@@ -1199,6 +1172,11 @@ public sealed class SiteAnalyzerStepExecutionService(
         }
     }
 
+    /// <summary>
+    /// Recommends a content format only when the slug gives a real signal for one. Returns ""
+    /// (no recommendation) rather than a guessed default — asserting e.g. "how_to" for slugs with
+    /// no matching keyword is a fake-confident label, not a real recommendation.
+    /// </summary>
     private static string InferFormat(string slug)
     {
         if (slug.Contains("how") || slug.Contains("guide")) return "how_to";
@@ -1207,7 +1185,7 @@ public sealed class SiteAnalyzerStepExecutionService(
         if (slug.Contains("near") || slug.Contains("location")) return "local_page";
         if (slug.Contains("vs") || slug.Contains("compare")) return "comparison";
         if (slug.Contains("faq") || slug.Contains("question")) return "faq";
-        return "how_to";
+        return "";
     }
 
     private static string DetermineAudienceType(List<SiteAnalysisPillar> pillars, SchemaOrgData schema)

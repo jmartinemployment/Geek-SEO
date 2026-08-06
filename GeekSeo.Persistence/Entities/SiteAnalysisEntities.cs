@@ -152,6 +152,24 @@ public sealed class SiteAnalysisProfileHeading
     public SiteAnalysisProfile? SiteAnalysisProfile { get; set; }
 }
 
+/// <summary>
+/// Real per-page heading tree (h1-h6, each with its own paragraph text and nested child
+/// headings) replacing the flat <see cref="SiteAnalysisProfileHeading"/> model. One row per
+/// crawled page; <see cref="TreeJson"/> is the serialized <c>IReadOnlyList&lt;PageSection&gt;</c>
+/// root list for that page (see GeekSeo.Application.Models.Seo.PageSection).
+/// </summary>
+public sealed class SiteAnalysisPageSectionTree
+{
+    public Guid Id { get; set; }
+    public Guid SiteAnalysisProfileId { get; set; }
+    public string PageUrl { get; set; } = string.Empty;
+    public string TreeJson { get; set; } = "[]";
+    public DateTimeOffset CreatedAtUtc { get; set; }
+
+    [ValidateNever]
+    public SiteAnalysisProfile? SiteAnalysisProfile { get; set; }
+}
+
 public sealed class SiteAnalysisPillar
 {
     public Guid Id { get; set; }
@@ -207,7 +225,7 @@ public sealed class SiteAnalysisSubtopic
     public decimal KeywordDifficulty { get; set; }
     public string CoverageStatus { get; set; } = "gap";
     public string? ExistingUrl { get; set; }
-    public string RecommendedFormat { get; set; } = "how_to";
+    public string RecommendedFormat { get; set; } = "";
     public int RecommendedWordCount { get; set; }
     public string FixEffort { get; set; } = "create";
     public bool IsQuickWin { get; set; }

@@ -151,6 +151,8 @@ public sealed class SiteAnalyzerServiceCanonicalProfileTests
         public Task<Result<IReadOnlyList<SiteAnalysisProfileNavigationLinkRow>>> GetNavigationLinksAsync(Guid profileId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Result> ReplaceHeadingsAsync(Guid profileId, IReadOnlyList<SiteAnalysisProfileHeadingWrite> headings, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Result<IReadOnlyList<SiteAnalysisProfileHeadingRow>>> GetHeadingsAsync(Guid profileId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result> ReplacePageSectionTreesAsync(Guid profileId, IReadOnlyList<SiteAnalysisPageSectionTreeWrite> pages, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result<IReadOnlyList<SiteAnalysisPageSectionTreeRow>>> GetPageSectionTreesAsync(Guid profileId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Result> ReplaceTopicCandidateEvidenceAsync(Guid profileId, IReadOnlyList<SiteAnalysisTopicCandidateEvidenceWrite> evidence, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Result<IReadOnlyList<SiteAnalysisTopicCandidateEvidenceRow>>> GetTopicCandidateEvidenceAsync(Guid profileId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Result> ReplacePageContentAsync(Guid profileId, SiteAnalysisProfilePageContentWrite content, CancellationToken ct = default) => Task.FromResult(Result.Success());
