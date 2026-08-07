@@ -1,8 +1,9 @@
 namespace GeekSeoBackend.Services;
 
 /// <summary>
-/// Site-model spine for Content Creator / Site Analyzer (through coverage).
-/// Finding checks (content_gap, later broken_link, etc.) run after this spine.
+/// Site-model spine for Content Creator / Site Analyzer: raw crawl/discovery only. Gaps and
+/// existing pages are no longer computed as pipeline steps here — GeekAPI reads them as raw
+/// facts on demand (discovered-urls, content-gaps; see SiteContentCoverageMatcher).
 /// </summary>
 public static class SiteAnalyzerStepCatalog
 {
@@ -16,8 +17,6 @@ public static class SiteAnalyzerStepCatalog
         "site_crawl",
         "internal_links",
         "url_patterns",
-        "merging",
-        "coverage",
     ];
 
     public const string SiteCoveragePersistStage = "site_coverage";

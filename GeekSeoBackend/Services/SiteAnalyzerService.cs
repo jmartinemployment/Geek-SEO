@@ -199,7 +199,7 @@ public sealed class SiteAnalyzerService(
             await profileRepo.UpdateStatusAsync(
                 profileId,
                 "complete",
-                "coverage",
+                SiteAnalyzerStepCatalog.ThroughCoverage[^1],
                 total,
                 total,
                 ct: ct);
