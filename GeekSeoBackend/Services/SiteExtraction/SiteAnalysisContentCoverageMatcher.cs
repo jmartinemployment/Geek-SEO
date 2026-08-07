@@ -380,4 +380,48 @@ internal static class SiteContentCoverageMatcher
                 yield return child;
         }
     }
+
+    /// <summary>
+    /// Content Creator's entire gap rule: every real heading (h1–h6, any page, any depth) with no
+    /// matching crawled/sitemap page. No pillar scoping, no confidence score, no minimum length —
+    /// a heading as short as "AI" with no <c>/ai</c> page counts. This is deliberately not scoped
+    /// to a pillar/topic-selection concept at all; see <see cref="CollectTreeGaps"/> for the
+    /// pillar-scoped variant this app's own coverage step used.
+    /// </summary>
+    internal static IReadOnlyList<(string HeadingText, string? ParentHeadingText)> CollectAllHeadingGaps(
+        IReadOnlyList<(string PageUrl, IReadOnlyList<PageSection> Tree)> pageTrees,
+        IReadOnlyList<string> allUrls)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var gaps = new List<(string HeadingText, string? ParentHeadingText)>();
+
+        foreach (var (_, tree) in pageTrees)
+        {
+            foreach (var (node, parent) in EnumerateAllHeadings(tree, null))
+            {
+                if (!HasNoMatchingPage(node.HeadingText, allUrls))
+                    continue;
+
+                var slug = Slugify(node.HeadingText);
+                if (string.IsNullOrWhiteSpace(slug) || !seen.Add(slug))
+                    continue;
+
+                gaps.Add((node.HeadingText, parent?.HeadingText));
+            }
+        }
+
+        return gaps;
+    }
+
+    private static IEnumerable<(PageSection Node, PageSection? Parent)> EnumerateAllHeadings(
+        IReadOnlyList<PageSection> nodes,
+        PageSection? parent)
+    {
+        foreach (var node in nodes)
+        {
+            yield return (node, parent);
+            foreach (var child in EnumerateAllHeadings(node.Children, node))
+                yield return child;
+        }
+    }
 }

@@ -385,6 +385,60 @@ public sealed class SiteAnalyzerController(
         }
     }
 
+    /// <summary>
+    /// Raw discovered/crawled URL inventory for this profile (sitemap + generated + crawled
+    /// source types) — the "does a page already exist for this heading" side of Content
+    /// Creator's gap check. Raw crawl fact, not an opinionated analysis result.
+    /// </summary>
+    [HttpGet("{profileId:guid}/discovered-urls")]
+    public async Task<IActionResult> GetDiscoveredUrls(Guid profileId, CancellationToken ct)
+    {
+        try
+        {
+            user.RequireUserId();
+            var result = await profileRepo.GetDiscoveredUrlsAsync(profileId, ct);
+            if (!result.IsSuccess)
+                return StatusCode(503, new { error = result.Error ?? "Discovered URLs temporarily unavailable" });
+            return Ok(result.Value);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Content gaps for this profile — purely mechanical: a real crawled heading (h1–h6) exists
+    /// somewhere on the site and no discovered/sitemap URL's slug matches it. No topic scoring,
+    /// no pillar selection, no minimum length gate. This is the entire rule.
+    /// </summary>
+    [HttpGet("{profileId:guid}/content-gaps")]
+    public async Task<IActionResult> GetContentGaps(Guid profileId, CancellationToken ct)
+    {
+        try
+        {
+            user.RequireUserId();
+
+            var pageTrees = await SiteAnalyzerStepRelationalLoader.LoadPageSectionTreesAsync(profileRepo, profileId, ct);
+
+            var urlsResult = await profileRepo.GetDiscoveredUrlsAsync(profileId, ct);
+            if (!urlsResult.IsSuccess)
+                return StatusCode(503, new { error = urlsResult.Error ?? "Content gaps temporarily unavailable" });
+
+            var allUrls = (urlsResult.Value ?? [])
+                .Select(u => u.Url)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var gaps = SiteContentCoverageMatcher.CollectAllHeadingGaps(pageTrees, allUrls);
+            return Ok(gaps.Select(g => new { topic = g.HeadingText, sectionPath = g.ParentHeadingText }));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpPost("{profileId:guid}/run-step/{slug}")]
     public IActionResult RunStep(Guid profileId, string slug, CancellationToken ct)
     {

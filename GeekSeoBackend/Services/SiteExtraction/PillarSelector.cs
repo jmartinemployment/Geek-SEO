@@ -117,11 +117,14 @@ public sealed class PillarSelector(PillarValidator validator)
 
     internal static DiscoveredPillar ToDiscoveredPillar(TopicCandidate candidate)
     {
+        // A candidate should always carry at least one piece of evidence — that's what made it
+        // a candidate. Guard rather than crash if one somehow doesn't: "unknown" is an honest
+        // label for "no evidence recorded", not an invented reason.
         var primarySource = candidate.Evidence
             .OrderByDescending(e => e.Weight)
             .ThenBy(e => e.Source, StringComparer.OrdinalIgnoreCase)
-            .First()
-            .Source;
+            .FirstOrDefault()
+            ?.Source ?? "unknown";
 
         return new DiscoveredPillar
         {

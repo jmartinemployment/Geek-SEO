@@ -1601,10 +1601,41 @@ public sealed class SiteExtractionTests
     }
 
     [Fact]
-    public void SiteContentCoverageMatcher_HasNoMatchingPage_FalseForTooShortSlug()
+    public void SiteContentCoverageMatcher_HasNoMatchingPage_TrueForShortHeadingWithNoPage()
     {
-        // Slugs under 3 chars are excluded to avoid false-positive gaps on noise headings.
-        Assert.False(SiteContentCoverageMatcher.HasNoMatchingPage("Hi", []));
+        // No minimum slug length: a short heading like "Hi" with no matching page is still a
+        // gap — same rule as "AI" with no /ai page. Bare/short headings count, full stop.
+        Assert.True(SiteContentCoverageMatcher.HasNoMatchingPage("Hi", []));
+    }
+
+    [Fact]
+    public void SiteContentCoverageMatcher_CollectAllHeadingGaps_NoPillarScoping_ShortHeadingsCount()
+    {
+        // Content Creator's whole gap rule: heading exists, no page matches its slug — no
+        // pillar concept, no confidence score, no minimum length.
+        var tree = new List<PageSection>
+        {
+            new()
+            {
+                Level = 1,
+                HeadingText = "Home",
+                Children =
+                [
+                    new PageSection { Level = 2, HeadingText = "AI" },
+                    new PageSection { Level = 2, HeadingText = "Accounting Services" },
+                ],
+            },
+        };
+        var pageTrees = new List<(string PageUrl, IReadOnlyList<PageSection> Tree)>
+        {
+            ("https://example.com/", tree),
+        };
+        var allUrls = new List<string> { "https://example.com/accounting-services" };
+
+        var gaps = SiteContentCoverageMatcher.CollectAllHeadingGaps(pageTrees, allUrls);
+
+        Assert.Contains(gaps, g => g.HeadingText == "AI" && g.ParentHeadingText == "Home");
+        Assert.DoesNotContain(gaps, g => g.HeadingText == "Accounting Services");
     }
 
     [Fact]
