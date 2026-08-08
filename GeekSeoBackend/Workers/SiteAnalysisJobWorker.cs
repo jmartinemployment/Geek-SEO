@@ -2,6 +2,7 @@ using GeekSeo.Application.Interfaces;
 using GeekSeoBackend.Auth;
 using GeekSeoBackend.Infrastructure;
 using GeekSeoBackend.Jobs;
+using GeekSeoBackend.Services;
 using GeekSeoBackend.Services.SiteAnalyzerStepRunners;
 
 namespace GeekSeoBackend.Workers;
@@ -94,7 +95,7 @@ public sealed class SiteAnalysisJobWorker(
             {
                 workerUser.UserId = item.UserId;
                 var claim = await siteAnalysisRepo.UpdateStatusAsync(
-                    item.ProfileId, "processing", step: "schema", stepNumber: 1, totalSteps: SiteAnalysisStepCatalog.Ordered.Count, ct: ct);
+                    item.ProfileId, "processing", step: "schema", stepNumber: 1, totalSteps: SiteAnalyzerStepCatalog.ThroughCoverage.Count, ct: ct);
                 if (!claim.IsSuccess)
                 {
                     logger.LogWarning("Could not claim site analysis profile {ProfileId}: {Error}", item.ProfileId, claim.Error);

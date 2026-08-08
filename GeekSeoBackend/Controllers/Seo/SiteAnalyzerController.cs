@@ -147,7 +147,7 @@ public sealed class SiteAnalyzerController(
             var stepNumber = p.AnalysisStepNumber > 0
                 ? p.AnalysisStepNumber
                 : p.Status switch { "complete" => 14, _ => 0 };
-            var totalSteps = p.AnalysisTotalSteps > 0 ? p.AnalysisTotalSteps : SiteAnalysisStepCatalog.Ordered.Count;
+            var totalSteps = p.AnalysisTotalSteps;
             var stepStatusesResult = await profileRepo.GetStepStatusesAsync(profileId, ct);
             IReadOnlyDictionary<string, string>? stepStatuses = stepStatusesResult.IsSuccess
                 && stepStatusesResult.Value is { Count: > 0 }

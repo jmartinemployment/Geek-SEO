@@ -34,7 +34,7 @@ public sealed class SiteAnalyzerService(
     ICurrentUserContext userContext,
     ILogger<SiteAnalyzerService> logger)
 {
-    private static int TotalSteps => SiteAnalysisStepCatalog.Ordered.Count;
+    private static int TotalSteps => SiteAnalyzerStepCatalog.ThroughCoverage.Count;
     private static bool FusionArchiveEnabled =>
         string.Equals(
             Environment.GetEnvironmentVariable("SITE_ANALYSIS_FUSION_ARCHIVE_ENABLED"),

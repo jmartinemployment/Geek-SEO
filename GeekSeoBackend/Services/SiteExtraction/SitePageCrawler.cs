@@ -201,11 +201,16 @@ public sealed partial class SitePageCrawler(
         try
         {
             page = await context.NewPageAsync();
-            await page.GotoAsync(url, new PageGotoOptions
+            var response = await page.GotoAsync(url, new PageGotoOptions
             {
                 WaitUntil = WaitUntilState.DOMContentLoaded,
                 Timeout = 15_000,
             });
+            if (response is null || !response.Ok)
+            {
+                logger.LogDebug("Playwright crawl skipped {Url}: HTTP {Status}", url, response?.Status ?? -1);
+                return null;
+            }
             await page.WaitForTimeoutAsync(400);
             return await page.ContentAsync();
         }

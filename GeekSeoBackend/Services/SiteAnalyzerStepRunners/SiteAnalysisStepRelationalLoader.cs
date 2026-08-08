@@ -247,26 +247,8 @@ internal static partial class SiteAnalyzerStepRelationalLoader
             };
         }
 
-        if (!steps.Any(s => s.Slug.Equals("headings", StringComparison.OrdinalIgnoreCase)))
-        {
-            throw new InvalidOperationException(
-                "Headings are not available — the headings step has not completed for this profile.");
-        }
-
-        var headingsResult = await profileRepo.GetHeadingsAsync(profileId, ct);
-        var rows = headingsResult.IsSuccess ? headingsResult.Value ?? [] : [];
-        var pageHeadings = rows
-            .OrderBy(x => x.PageUrl, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(x => x.DisplayOrder)
-            .Select(x => new PageHeading { Level = x.HeadingLevel, Text = x.HeadingText })
-            .ToList();
-        return new HomepageHeadings
-        {
-            Title = null,
-            MetaDescription = null,
-            Headings = pageHeadings,
-            H2Texts = pageHeadings.Where(h => h.Level == 2).Select(h => h.Text).ToList(),
-        };
+        throw new InvalidOperationException(
+            "Heading hierarchy not available — this profile requires re-analysis with the current crawl pipeline to load per-page section trees.");
     }
 
     internal static async Task<PageContentData> LoadPageContentAsync(

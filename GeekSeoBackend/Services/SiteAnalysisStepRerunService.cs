@@ -41,7 +41,7 @@ public sealed class SiteAnalyzerStepRerunService(
     WorkerUserContext workerUser,
     ILogger<SiteAnalyzerStepRerunService> logger)
 {
-    private static int TotalSteps => SiteAnalysisStepCatalog.Ordered.Count;
+    private static int TotalSteps => SiteAnalyzerStepCatalog.ThroughCoverage.Count;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
