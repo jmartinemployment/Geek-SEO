@@ -273,18 +273,19 @@ public sealed class SiteAnalyzerStepExecutionService(
         var crawlData = await sitePageCrawler.CrawlAsync(domain, inventoryUrls, browser, ct);
         var crawlUrls = crawlData.Pages.Select(p => p.Url).ToList();
         var fetchedSet = new HashSet<string>(crawlUrls, StringComparer.OrdinalIgnoreCase);
-        var missing = inventoryUrls.Where(u => !fetchedSet.Contains(u)).ToList();
-
+        var message = SiteCrawlInventoryCompleteness.Evaluate(inventoryUrls, fetchedSet, out var missing);
         if (missing.Count > 0)
         {
             var sample = string.Join(", ", missing.Take(10));
             var suffix = missing.Count > 10 ? $" (+{missing.Count - 10} more)" : string.Empty;
-            throw new InvalidOperationException(
-                $"Site crawl incomplete: {missing.Count} of {inventoryUrls.Count} inventory URL(s) were not fetched: {sample}{suffix}");
+            logger.LogWarning(
+                "Site crawl for profile {ProfileId}: excluding {MissingCount} inventory URL(s) not fetched: {Sample}{Suffix}",
+                profileId,
+                missing.Count,
+                sample,
+                suffix);
         }
 
-        var message =
-            $"Site crawl: {crawlData.PagesFetched} of {inventoryUrls.Count} inventory page(s) fetched (complete).";
         logger.LogInformation(
             "Site crawl extracted for profile {ProfileId}: {Message}",
             profileId,

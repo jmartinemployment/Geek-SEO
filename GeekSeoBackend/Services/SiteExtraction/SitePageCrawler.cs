@@ -19,6 +19,15 @@ public sealed partial class SitePageCrawler(
     // doesn't time out URLs sooner than the Playwright-backed BFS mode would.
     private const int HttpFetchTimeoutSeconds = 15;
 
+    /// <summary>Bounded concurrency for same-context Playwright/HTTP fetches (wave BFS).</summary>
+    private const int CrawlConcurrency = 6;
+
+    /// <summary>
+    /// Post-DOMContentLoaded settle before snapshot. 400ms is the known-good value;
+    /// 1000ms (speculative in 4564782) blew serial crawls past the 15-minute job timeout.
+    /// </summary>
+    private const int RenderSettleMs = 400;
+
     private static readonly string[] SkipExtensions =
     [
         ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".zip", ".xml",
@@ -63,30 +72,53 @@ public sealed partial class SitePageCrawler(
 
         var client = playwrightContext is null ? BuildClient() : null;
         var followLinks = playwrightContext is not null;
+        var fetchMode = followLinks ? "playwright" : "http";
 
         try
         {
+            using var gate = new SemaphoreSlim(CrawlConcurrency);
             while (queue.Count > 0)
             {
                 ct.ThrowIfCancellationRequested();
-                var url = queue.Dequeue();
-                if (!seen.Add(url))
-                    continue;
 
-                attempted++;
-                string? html = playwrightContext is not null
-                    ? await FetchWithPlaywrightAsync(playwrightContext, url, ct)
-                    : await FetchWithHttpAsync(client!, url, ct);
-
-                if (string.IsNullOrWhiteSpace(html))
-                    continue;
-
-                pages.Add(new CrawledPage(url, html, playwrightContext is not null ? "playwright" : "http"));
-
-                if (followLinks)
+                var wave = new List<string>();
+                while (queue.Count > 0)
                 {
-                    foreach (var discovered in ExtractSameOriginLinks(html, url, origin))
-                        Enqueue(discovered);
+                    var url = queue.Dequeue();
+                    if (seen.Add(url))
+                        wave.Add(url);
+                }
+
+                if (wave.Count == 0)
+                    break;
+
+                attempted += wave.Count;
+                var waveHtml = new string?[wave.Count];
+                var fetchTasks = new Task[wave.Count];
+                for (var i = 0; i < wave.Count; i++)
+                {
+                    var index = i;
+                    var url = wave[i];
+                    fetchTasks[i] = FetchWaveItemAsync(
+                        gate, playwrightContext, client, url, waveHtml, index, ct);
+                }
+
+                await Task.WhenAll(fetchTasks);
+
+                for (var i = 0; i < wave.Count; i++)
+                {
+                    var html = waveHtml[i];
+                    if (string.IsNullOrWhiteSpace(html))
+                        continue;
+
+                    var url = wave[i];
+                    pages.Add(new CrawledPage(url, html, fetchMode));
+
+                    if (followLinks)
+                    {
+                        foreach (var discovered in ExtractSameOriginLinks(html, url, origin))
+                            Enqueue(discovered);
+                    }
                 }
             }
         }
@@ -111,6 +143,29 @@ public sealed partial class SitePageCrawler(
                 return;
             if (!seen.Contains(url) && !queue.Contains(url))
                 queue.Enqueue(url);
+        }
+    }
+
+    private async Task FetchWaveItemAsync(
+        SemaphoreSlim gate,
+        IBrowserContext? playwrightContext,
+        HttpClient? client,
+        string url,
+        string?[] waveHtml,
+        int index,
+        CancellationToken ct)
+    {
+        await gate.WaitAsync(ct);
+        try
+        {
+            ct.ThrowIfCancellationRequested();
+            waveHtml[index] = playwrightContext is not null
+                ? await FetchWithPlaywrightAsync(playwrightContext, url, ct)
+                : await FetchWithHttpAsync(client!, url, ct);
+        }
+        finally
+        {
+            gate.Release();
         }
     }
 
@@ -211,7 +266,7 @@ public sealed partial class SitePageCrawler(
                 logger.LogDebug("Playwright crawl skipped {Url}: HTTP {Status}", url, response?.Status ?? -1);
                 return null;
             }
-            await page.WaitForTimeoutAsync(1000);
+            await page.WaitForTimeoutAsync(RenderSettleMs);
             var html = await page.ContentAsync();
 
             if (IsSoft404(html, url))
