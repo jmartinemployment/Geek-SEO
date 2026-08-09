@@ -387,13 +387,18 @@ internal static class SiteContentCoverageMatcher
     /// a heading as short as "AI" with no <c>/ai</c> page counts. This is deliberately not scoped
     /// to a pillar/topic-selection concept at all; see <see cref="CollectTreeGaps"/> for the
     /// pillar-scoped variant this app's own coverage step used.
+    /// Each gap includes the source page URL and full heading breadcrumb (root → gap) for confirmation.
     /// </summary>
-    internal static IReadOnlyList<(string HeadingText, string? ParentHeadingText)> CollectAllHeadingGaps(
+    internal static IReadOnlyList<(
+        string HeadingText,
+        string? ParentHeadingText,
+        string SourcePageUrl,
+        IReadOnlyList<string> Hierarchy)> CollectAllHeadingGaps(
         IReadOnlyList<(string PageUrl, IReadOnlyList<PageSection> Tree)> pageTrees,
         IReadOnlyList<string> allUrls)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var gaps = new List<(string HeadingText, string? ParentHeadingText)>();
+        var gaps = new List<(string HeadingText, string? ParentHeadingText, string SourcePageUrl, IReadOnlyList<string> Hierarchy)>();
 
         var pageHeadings = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (_, tree) in pageTrees)
@@ -403,9 +408,9 @@ internal static class SiteContentCoverageMatcher
                 pageHeadings.Add(firstHeading.ToLowerInvariant());
         }
 
-        foreach (var (_, tree) in pageTrees)
+        foreach (var (pageUrl, tree) in pageTrees)
         {
-            foreach (var (node, parent) in EnumerateAllHeadings(tree, null))
+            foreach (var (node, ancestors) in EnumerateAllHeadingsWithAncestors(tree, []))
             {
                 if (!HasNoMatchingPage(node.HeadingText, allUrls))
                     continue;
@@ -417,11 +422,29 @@ internal static class SiteContentCoverageMatcher
                 if (string.IsNullOrWhiteSpace(slug) || !seen.Add(slug))
                     continue;
 
-                gaps.Add((node.HeadingText, parent?.HeadingText));
+                var hierarchy = ancestors
+                    .Select(a => a.HeadingText)
+                    .Append(node.HeadingText)
+                    .ToList();
+                var parent = ancestors.Count > 0 ? ancestors[^1].HeadingText : null;
+                gaps.Add((node.HeadingText, parent, pageUrl, hierarchy));
             }
         }
 
         return gaps;
+    }
+
+    private static IEnumerable<(PageSection Node, IReadOnlyList<PageSection> Ancestors)> EnumerateAllHeadingsWithAncestors(
+        IReadOnlyList<PageSection> nodes,
+        IReadOnlyList<PageSection> ancestors)
+    {
+        foreach (var node in nodes)
+        {
+            yield return (node, ancestors);
+            var childAncestors = ancestors.Append(node).ToList();
+            foreach (var child in EnumerateAllHeadingsWithAncestors(node.Children, childAncestors))
+                yield return child;
+        }
     }
 
     private static IEnumerable<(PageSection Node, PageSection? Parent)> EnumerateAllHeadings(

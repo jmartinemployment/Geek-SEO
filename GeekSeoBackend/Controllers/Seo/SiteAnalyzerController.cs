@@ -431,7 +431,13 @@ public sealed class SiteAnalyzerController(
                 .ToList();
 
             var gaps = SiteContentCoverageMatcher.CollectAllHeadingGaps(pageTrees, allUrls);
-            return Ok(gaps.Select(g => new { topic = g.HeadingText, sectionPath = g.ParentHeadingText }));
+            return Ok(gaps.Select(g => new
+            {
+                topic = g.HeadingText,
+                sectionPath = g.ParentHeadingText,
+                sourcePageUrl = g.SourcePageUrl,
+                hierarchy = g.Hierarchy,
+            }));
         }
         catch (InvalidOperationException ex)
         {

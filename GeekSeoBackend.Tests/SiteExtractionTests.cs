@@ -1634,8 +1634,47 @@ public sealed class SiteExtractionTests
 
         var gaps = SiteContentCoverageMatcher.CollectAllHeadingGaps(pageTrees, allUrls);
 
-        Assert.Contains(gaps, g => g.HeadingText == "AI" && g.ParentHeadingText == "Home");
+        Assert.Contains(gaps, g =>
+            g.HeadingText == "AI"
+            && g.ParentHeadingText == "Home"
+            && g.SourcePageUrl == "https://example.com/"
+            && g.Hierarchy.SequenceEqual(new[] { "Home", "AI" }));
         Assert.DoesNotContain(gaps, g => g.HeadingText == "Accounting Services");
+    }
+
+    [Fact]
+    public void SiteContentCoverageMatcher_CollectAllHeadingGaps_IncludesFullHierarchyAndSourcePage()
+    {
+        var tree = new List<PageSection>
+        {
+            new()
+            {
+                Level = 1,
+                HeadingText = "AI Marketing Systems",
+                Children =
+                [
+                    new PageSection
+                    {
+                        Level = 2,
+                        HeadingText = "Transforming Marketing Chaos into Clarity",
+                    },
+                ],
+            },
+        };
+        var pageTrees = new List<(string PageUrl, IReadOnlyList<PageSection> Tree)>
+        {
+            ("https://example.com/marketing/ai-marketing-systems", tree),
+        };
+
+        var gaps = SiteContentCoverageMatcher.CollectAllHeadingGaps(pageTrees, []);
+
+        var gap = Assert.Single(gaps);
+        Assert.Equal("Transforming Marketing Chaos into Clarity", gap.HeadingText);
+        Assert.Equal("AI Marketing Systems", gap.ParentHeadingText);
+        Assert.Equal("https://example.com/marketing/ai-marketing-systems", gap.SourcePageUrl);
+        Assert.Equal(
+            ["AI Marketing Systems", "Transforming Marketing Chaos into Clarity"],
+            gap.Hierarchy);
     }
 
     [Fact]
