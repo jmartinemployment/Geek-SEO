@@ -395,11 +395,22 @@ internal static class SiteContentCoverageMatcher
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var gaps = new List<(string HeadingText, string? ParentHeadingText)>();
 
+        var pageHeadings = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (_, tree) in pageTrees)
+        {
+            var firstHeading = tree.FirstOrDefault()?.HeadingText;
+            if (!string.IsNullOrWhiteSpace(firstHeading))
+                pageHeadings.Add(firstHeading.ToLowerInvariant());
+        }
+
         foreach (var (_, tree) in pageTrees)
         {
             foreach (var (node, parent) in EnumerateAllHeadings(tree, null))
             {
                 if (!HasNoMatchingPage(node.HeadingText, allUrls))
+                    continue;
+
+                if (pageHeadings.Contains(node.HeadingText.ToLowerInvariant()))
                     continue;
 
                 var slug = Slugify(node.HeadingText);
