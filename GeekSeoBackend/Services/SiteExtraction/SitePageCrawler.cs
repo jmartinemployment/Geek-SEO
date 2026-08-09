@@ -211,8 +211,16 @@ public sealed partial class SitePageCrawler(
                 logger.LogDebug("Playwright crawl skipped {Url}: HTTP {Status}", url, response?.Status ?? -1);
                 return null;
             }
-            await page.WaitForTimeoutAsync(400);
-            return await page.ContentAsync();
+            await page.WaitForTimeoutAsync(1000);
+            var html = await page.ContentAsync();
+
+            if (IsSoft404(html, url))
+            {
+                logger.LogDebug("Playwright crawl skipped {Url}: soft 404 detected", url);
+                return null;
+            }
+
+            return html;
         }
         catch (Exception ex)
         {
@@ -237,6 +245,26 @@ public sealed partial class SitePageCrawler(
             logger.LogDebug(ex, "HTTP crawl skipped {Url}", url);
             return null;
         }
+    }
+
+    private static bool IsSoft404(string html, string url)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+            return false;
+
+        html = html.ToLowerInvariant();
+
+        if (html.Contains("<meta name=\"robots\" content=\"noindex\"") ||
+            html.Contains("<meta name='robots' content='noindex'"))
+            return true;
+
+        if (html.Contains("<title>404") || html.Contains("<title>not found") ||
+            html.Contains("<h1>404") || html.Contains("<h1>not found") ||
+            html.Contains("<h1>page not found") || html.Contains("<h2>404") ||
+            html.Contains("<h2>not found"))
+            return true;
+
+        return false;
     }
 
     private static bool TryNormalizeSameOrigin(string url, string origin, out string normalized)

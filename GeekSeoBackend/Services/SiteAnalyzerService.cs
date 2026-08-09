@@ -75,6 +75,7 @@ public sealed class SiteAnalyzerService(
             AnalysisVersion = "2.0",
             AnalysisStepLog = "[]",
             AnalysisStepLogVersion = 1,
+            AnalysisTotalSteps = SiteAnalyzerStepCatalog.ThroughCoverage.Count,
         };
 
         var result = await profileRepo.CreateAsync(profile, ct);

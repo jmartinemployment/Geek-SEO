@@ -33,11 +33,13 @@ public static partial class PageSectionTreeBuilder
                 while (stack.Count > 0 && stack[^1].Level >= level)
                     stack.RemoveAt(stack.Count - 1);
 
-                if (stack.Count == 0)
-                    roots.Add(node);
-                else
-                    stack[^1].Children.Add(node);
+                var parent = stack.Count == 0 ? null : stack[^1];
+                var siblings = parent?.Children ?? roots;
 
+                if (IsDuplicateHeading(siblings, level, text))
+                    continue;
+
+                siblings.Add(node);
                 stack.Add(node);
                 continue;
             }
@@ -54,6 +56,17 @@ public static partial class PageSectionTreeBuilder
         }
 
         return roots.ConvertAll(r => r.Seal());
+    }
+
+    private static bool IsDuplicateHeading(List<MutableNode> siblings, int level, string text)
+    {
+        var normalizedText = text.ToLowerInvariant();
+        foreach (var sibling in siblings)
+        {
+            if (sibling.Level == level && sibling.HeadingText.ToLowerInvariant() == normalizedText)
+                return true;
+        }
+        return false;
     }
 
     private static string CleanText(string raw)
