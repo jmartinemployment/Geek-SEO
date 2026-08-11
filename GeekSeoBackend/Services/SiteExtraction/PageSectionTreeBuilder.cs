@@ -36,9 +36,6 @@ public static partial class PageSectionTreeBuilder
                 var parent = stack.Count == 0 ? null : stack[^1];
                 var siblings = parent?.Children ?? roots;
 
-                if (level <= 4 && IsDuplicateHeading(siblings, level, text))
-                    continue;
-
                 siblings.Add(node);
                 stack.Add(node);
                 continue;

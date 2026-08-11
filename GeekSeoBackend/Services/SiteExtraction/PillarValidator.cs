@@ -40,10 +40,6 @@ public sealed class PillarValidator
         return pairs;
     }
 
-    // Gate 3 — Noise filter: reject generic stop-words and H2 navigation noise.
-    public bool PassesGate3(DiscoveredPillar pillar) =>
-        !NoisePaths.IsNoise(pillar.Slug) && !IsH2Noise(pillar.Name);
-
-    private static bool IsH2Noise(string name) =>
-        NoisePaths.H2Noise.Contains(name.Trim());
+    // Gate 3 — Removed: if it is a heading its valid (per product direction).
+    public bool PassesGate3(DiscoveredPillar pillar) => true;
 }

@@ -45,7 +45,7 @@ public sealed partial class PageContentExtractor
                 arr.push(t);
               };
 
-              document.querySelectorAll('h1,h2,h3,h4').forEach(h => {
+              document.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(h => {
                 const level = parseInt(h.tagName.substring(1), 10);
                 const text = (h.textContent || '').replace(/\s+/g, ' ').trim();
                 if (text) result.headings.push({ level, text });

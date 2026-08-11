@@ -18,14 +18,11 @@ internal static class HeadingPillarBuilder
         foreach (var heading in headings.Where(h => h.Level is >= 1 and <= 6))
         {
             var text = heading.Text.Trim();
-            if (text.Length < 4)
-                continue;
-
-            if (NoisePaths.H2Noise.Contains(text))
+            if (string.IsNullOrWhiteSpace(text))
                 continue;
 
             var slug = SiteAnalyzerService.NameToSlug(text);
-            if (string.IsNullOrWhiteSpace(slug) || NoisePaths.IsNoise(slug))
+            if (string.IsNullOrWhiteSpace(slug))
                 continue;
 
             if (!seen.Add(slug))
