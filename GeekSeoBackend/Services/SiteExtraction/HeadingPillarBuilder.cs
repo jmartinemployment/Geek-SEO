@@ -12,7 +12,6 @@ internal static class HeadingPillarBuilder
 {
     // Site Structure pillar list disabled per product direction — if heading its valid but list not needed, return empty.
     public static IReadOnlyList<DiscoveredPillar> Build(IEnumerable<PageHeading> headings) => [];
-}
 
     /// <summary>Convenience overload when headings are wrapped in <see cref="HomepageHeadings"/> (may be site-wide after crawl).</summary>
     public static IReadOnlyList<DiscoveredPillar> Build(HomepageHeadings headings) =>
