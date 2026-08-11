@@ -57,7 +57,7 @@ internal static class SerpEntityExtractor
             return;
 
         var trimmed = phrase.Trim();
-        if (trimmed.Length < 4 || trimmed.Length > 80)
+        if (string.IsNullOrWhiteSpace(trimmed))
             return;
 
         var slug = SiteAnalyzerService.NameToSlug(trimmed);

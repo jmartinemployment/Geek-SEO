@@ -38,7 +38,7 @@ public sealed partial class PageContentExtractor
               const seen = new Set();
               const add = (arr, text) => {
                 const t = (text || '').replace(/\s+/g, ' ').trim();
-                if (t.length < 4 || t.length > 80) return;
+                if (!t) return;
                 const key = t.toLowerCase();
                 if (seen.has(key)) return;
                 seen.add(key);
@@ -201,7 +201,7 @@ public sealed partial class PageContentExtractor
             listItems.Count);
     }
 
-    [GeneratedRegex(@"<h([234])[^>]*>(.*?)</h\1>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    [GeneratedRegex(@"<h([1-6])[^>]*>(.*?)</h\1>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex OrderedHeadingRegex();
 
     [GeneratedRegex(@"<li[^>]*>(.*?)</li>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]

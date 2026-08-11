@@ -75,7 +75,7 @@ public sealed partial class InternalLinkExtractor
             foreach (var (_, slug) in UrlPatternExtractor.ExtractTopicSegments(path))
             {
                 topicName = SitemapExtractor.SlugToTitle(slug);
-                return topicName.Length >= 4;
+                return !string.IsNullOrWhiteSpace(topicName);
             }
         }
         catch

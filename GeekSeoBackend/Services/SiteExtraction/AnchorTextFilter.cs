@@ -15,7 +15,7 @@ internal static class AnchorTextFilter
     internal static bool IsUsableTopic(string anchorText)
     {
         var trimmed = anchorText.Trim();
-        if (trimmed.Length < 4 || trimmed.Length > 80)
+        if (string.IsNullOrWhiteSpace(trimmed))
             return false;
 
         if (GenericAnchors.Contains(trimmed))
