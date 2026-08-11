@@ -25,7 +25,6 @@ internal static class SerpEntityExtractor
             TryAddPhrase(slugs, paa.Question);
 
         return slugs
-            .Where(s => !NoisePaths.IsNoise(s))
             .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
@@ -47,7 +46,7 @@ internal static class SerpEntityExtractor
 
         foreach (var (_, slug) in UrlPatternExtractor.ExtractTopicSegments(path))
         {
-            if (!NoisePaths.IsNoise(slug) && slug.Length >= 3)
+            if (slug.Length >= 3)
                 yield return slug;
         }
     }
@@ -62,7 +61,7 @@ internal static class SerpEntityExtractor
             return;
 
         var slug = SiteAnalyzerService.NameToSlug(trimmed);
-        if (slug.Length >= 3 && !NoisePaths.IsNoise(slug))
+        if (slug.Length >= 3)
             slugs.Add(slug);
     }
 }

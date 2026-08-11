@@ -192,9 +192,6 @@ public sealed partial class PageContentExtractor
 
         foreach (var item in listItems)
         {
-            if (NoisePaths.IsNoise(SiteAnalyzerService.NameToSlug(item)))
-                continue;
-
             phrases.Add(item);
         }
 

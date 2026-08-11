@@ -74,9 +74,6 @@ public sealed partial class InternalLinkExtractor
 
             foreach (var (_, slug) in UrlPatternExtractor.ExtractTopicSegments(path))
             {
-                if (NoisePaths.IsNoise(slug))
-                    continue;
-
                 topicName = SitemapExtractor.SlugToTitle(slug);
                 return topicName.Length >= 4;
             }

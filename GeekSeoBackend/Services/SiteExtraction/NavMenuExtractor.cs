@@ -93,7 +93,6 @@ public sealed class NavMenuExtractor(ILogger<NavMenuExtractor> logger)
                 var filtered = links
                     .Where(l => !string.IsNullOrWhiteSpace(l.text) && !string.IsNullOrWhiteSpace(l.href))
                     .Where(l => l.href.StartsWith(origin, StringComparison.OrdinalIgnoreCase) || l.href.StartsWith("/"))
-                    .Where(l => !NoisePaths.IsNoise(l.text.ToLowerInvariant().Replace(" ", "-")))
                     .Distinct()
                     .ToList();
 
@@ -116,7 +115,6 @@ public sealed class NavMenuExtractor(ILogger<NavMenuExtractor> logger)
         foreach (var (text, href) in links)
         {
             var slug = TextToSlug(text);
-            if (NoisePaths.IsNoise(slug)) continue;
 
             var relativePath = href.StartsWith(origin, StringComparison.OrdinalIgnoreCase)
                 ? href[origin.Length..]
@@ -127,7 +125,7 @@ public sealed class NavMenuExtractor(ILogger<NavMenuExtractor> logger)
 
             if (segments.Length == 0) continue;
 
-            if (segments.Length >= 2 && !NoisePaths.IsNoise(segments[1]))
+            if (segments.Length >= 2)
             {
                 var childSlug = segments[1];
                 if (!pillars.ContainsKey(childSlug))

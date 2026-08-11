@@ -108,9 +108,6 @@ internal static class InternalLinkGraphBuilder
             var path = new Uri(url).AbsolutePath.Trim('/');
             foreach (var (_, topicSlug) in UrlPatternExtractor.ExtractTopicSegments(path))
             {
-                if (NoisePaths.IsNoise(topicSlug))
-                    continue;
-
                 slug = topicSlug;
                 return true;
             }

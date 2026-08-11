@@ -120,11 +120,10 @@ public sealed class SitemapExtractor(IHttpClientFactory factory, ILogger<Sitemap
             if (segments.Length == 0) continue;
 
             var first = segments[0];
-            if (NoisePaths.IsNoise(first)) continue;
 
             if (!pathGroups.ContainsKey(first))
                 pathGroups[first] = [];
-            if (segments.Length > 1 && !NoisePaths.IsNoise(segments[1]))
+            if (segments.Length > 1)
                 pathGroups[first].Add(segments[1]);
         }
 

@@ -151,7 +151,7 @@ internal static class TopicCandidatePoolBuilder
             return;
 
         var slug = SiteAnalyzerService.NameToSlug(trimmed);
-        if (string.IsNullOrWhiteSpace(slug) || NoisePaths.IsNoise(slug))
+        if (string.IsNullOrWhiteSpace(slug))
             return;
 
         if (!bySlug.TryGetValue(slug, out var builder))
