@@ -92,7 +92,7 @@ public static partial class PageSectionTreeBuilder
     }
 
     [GeneratedRegex(
-        "<h(?<hlevel>[1-6])(?:\\s[^>]*)?>(?<htext>[\\s\\S]*?)</h\\k<hlevel>>|<p(?:\\s[^>]*)?>(?<ptext>[\\s\\S]*?)</p>|<li(?:\\s[^>]*)?>(?<ptext>[\\s\\S]*?)</li>",
+        "<h(?<hlevel>[1-6])(?:\\s[^>]*)?>(?<htext>[\\s\\S]*?)</h\\k<hlevel>>|<p(?:\\s[^>]*)?>(?<ptext>[\\s\\S]*?)</p>",
         RegexOptions.IgnoreCase)]
     private static partial Regex NodeRegex();
 
