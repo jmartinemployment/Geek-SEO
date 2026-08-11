@@ -163,9 +163,6 @@ internal static class LocalGapGenerator
             return false;
 
         slug = segments[1];
-        if (NoisePaths.IsNoise(slug))
-            return false;
-
         name = SitemapExtractor.SlugToTitle(slug);
         return true;
     }

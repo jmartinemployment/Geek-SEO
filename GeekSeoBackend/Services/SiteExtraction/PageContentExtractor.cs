@@ -51,9 +51,10 @@ public sealed partial class PageContentExtractor
                 if (text) result.headings.push({ level, text });
               });
 
+              // ul/ol list items are not headings — keep without length/Noise filter if needed, but not as headings
               document.querySelectorAll('main li, article li, section li, ul li, ol li').forEach(li => {
                 const text = (li.textContent || '').replace(/\s+/g, ' ').trim();
-                if (text.length >= 4 && text.length <= 80) add(result.listItems, text);
+                if (text) add(result.listItems, text);
               });
 
               return JSON.stringify(result);
@@ -73,7 +74,7 @@ public sealed partial class PageContentExtractor
         {
             var text = WebUtility.HtmlDecode(match.Groups[1].Value.Trim());
             text = TagStripRegex().Replace(text, " ").Trim();
-            if (text.Length is >= 4 and <= 80 && !NoisePaths.IsNoise(SiteAnalyzerService.NameToSlug(text)))
+            if (!string.IsNullOrWhiteSpace(text))
                 listItems.Add(text);
         }
 

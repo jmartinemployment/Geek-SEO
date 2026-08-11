@@ -43,48 +43,10 @@ internal static class PageVerticalClassifier
                || normalized.EndsWith(" industries", StringComparison.OrdinalIgnoreCase);
     }
 
-    internal static bool ShouldTreatAsVertical(int level, string text, bool underSectionParent)
-    {
-        var trimmed = text.Trim();
-        if (trimmed.Length < MinLength || trimmed.Length > MaxLength)
-            return false;
+    // Vertical/section filters removed: if heading its valid, treat all h2/h3 as potential verticals.
+    internal static bool ShouldTreatAsVertical(int level, string text, bool underSectionParent) => level is 2 or 3 && !string.IsNullOrWhiteSpace(text.Trim());
 
-        if (IsNoiseForVertical(trimmed))
-            return false;
-
-        if (level == 3)
-            return true;
-
-        if (level != 2)
-            return false;
-
-        if (underSectionParent)
-            return true;
-
-        return LooksLikeStandaloneVertical(trimmed);
-    }
-
-    internal static bool ResetsSectionContext(int level, string text)
-    {
-        if (level != 2)
-            return false;
-
-        var trimmed = text.Trim();
-        if (IsSectionParent(trimmed))
-            return false;
-
-        return NoisePaths.H2Noise.Contains(trimmed)
-               || IsNoiseForVertical(trimmed)
-               || !LooksLikeStandaloneVertical(trimmed);
-    }
-
-    private static bool IsNoiseForVertical(string text)
-    {
-        if (NoisePaths.H2Noise.Contains(text))
-            return true;
-
-        return NoisePaths.IsNoise(SiteAnalyzerService.NameToSlug(text));
-    }
+    internal static bool ResetsSectionContext(int level, string text) => false;
 
     private static bool LooksLikeStandaloneVertical(string text)
     {

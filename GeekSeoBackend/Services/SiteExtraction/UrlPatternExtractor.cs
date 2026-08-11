@@ -36,9 +36,6 @@ public sealed class UrlPatternExtractor
 
             foreach (var (segment, topicSlug) in ExtractTopicSegments(relative))
             {
-                if (NoisePaths.IsNoise(topicSlug))
-                    continue;
-
                 if (bySlug.ContainsKey(topicSlug))
                     continue;
 
@@ -69,13 +66,12 @@ public sealed class UrlPatternExtractor
         if (segments.Count >= 2 && TopicPathPrefixes.Contains(segments[0]))
         {
             var topicSlug = segments[1];
-            if (!NoisePaths.IsNoise(topicSlug))
-                yield return (segments[1], topicSlug);
+            yield return (segments[1], topicSlug);
             yield break;
         }
 
         var last = segments[^1];
-        if (!NoisePaths.IsNoise(last) && last.Length >= 3)
+        if (last.Length >= 3)
             yield return (last, last);
     }
 
