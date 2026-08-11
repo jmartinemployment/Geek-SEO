@@ -12,48 +12,9 @@ namespace GeekSeoBackend.Services.SiteExtraction;
 /// </summary>
 public static partial class PageSectionTreeBuilder
 {
-    public static IReadOnlyList<PageSection> Build(string html)
-    {
-        var roots = new List<MutableNode>();
-        var stack = new List<MutableNode>();
-
-        foreach (Match match in NodeRegex().Matches(html))
-        {
-            if (match.Groups["hlevel"].Success)
-            {
-                if (!int.TryParse(match.Groups["hlevel"].Value, out var level) || level is < 1 or > 6)
-                    continue;
-
-                var text = CleanText(match.Groups["htext"].Value);
-                if (string.IsNullOrWhiteSpace(text))
-                    continue;
-
-                var node = new MutableNode { Level = level, HeadingText = text };
-
-                while (stack.Count > 0 && stack[^1].Level >= level)
-                    stack.RemoveAt(stack.Count - 1);
-
-                var parent = stack.Count == 0 ? null : stack[^1];
-                var siblings = parent?.Children ?? roots;
-
-                siblings.Add(node);
-                stack.Add(node);
-                continue;
-            }
-
-            // Paragraph-like content: attach to the nearest open heading. Content that appears
-            // before any heading has no node to attach to and is intentionally dropped - this
-            // tree exists to ground heading-scoped topics, not to capture whole-page prose.
-            if (stack.Count == 0)
-                continue;
-
-            var paragraphText = CleanText(match.Groups["ptext"].Value);
-            if (!string.IsNullOrWhiteSpace(paragraphText))
-                stack[^1].Paragraphs.Add(paragraphText);
-        }
-
-        return roots.ConvertAll(r => r.Seal());
-    }
+    // Per-page tree disabled per product direction — waste of time, Site Structure pillar list not needed.
+    // Kept for API compat; returns empty so hierarchy child injection is no-op.
+    public static IReadOnlyList<PageSection> Build(string html) => [];
 
     private static bool IsDuplicateHeading(List<MutableNode> siblings, int level, string text)
     {
