@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.RegularExpressions;
 using GeekSeo.Application.Models.Seo;
+using HtmlAgilityPack;
 
 namespace GeekSeoBackend.Services.SiteExtraction;
 
@@ -47,9 +48,12 @@ public static partial class PageSectionTreeBuilder
             if (stack.Count == 0)
                 continue;
 
-            var paragraphText = CleanText(match.Groups["ptext"].Value);
+            var (paragraphText, links) = CleanAndExtractLinks(match.Groups["ptext"].Value);
             if (!string.IsNullOrWhiteSpace(paragraphText))
+            {
                 stack[^1].Paragraphs.Add(paragraphText);
+                stack[^1].Links.AddRange(links);
+            }
         }
 
         return roots.ConvertAll(r => r.Seal());
@@ -73,6 +77,30 @@ public static partial class PageSectionTreeBuilder
         return decoded.Length == 0 ? string.Empty : WhitespaceRegex().Replace(decoded, " ").Trim();
     }
 
+    private static (string cleanText, List<PageSectionLink> links) CleanAndExtractLinks(string raw)
+    {
+        var links = new List<PageSectionLink>();
+        var doc = new HtmlDocument();
+        doc.LoadHtml(raw);
+
+        var anchors = doc.DocumentNode.SelectNodes(".//a[@href]");
+        if (anchors != null)
+        {
+            foreach (var anchor in anchors)
+            {
+                var href = anchor.GetAttributeValue("href", "").Trim();
+                var text = anchor.InnerText?.Trim();
+                if (!string.IsNullOrEmpty(href) && !string.IsNullOrEmpty(text))
+                {
+                    links.Add(new PageSectionLink { Text = text, Href = href });
+                }
+            }
+        }
+
+        var cleanText = CleanText(raw);
+        return (cleanText, links);
+    }
+
     // Nodes are mutable while building (children/paragraphs accumulate as later siblings are
     // parsed) and sealed into the immutable PageSection record once fully populated.
     private sealed class MutableNode
@@ -80,6 +108,7 @@ public static partial class PageSectionTreeBuilder
         public required int Level { get; init; }
         public required string HeadingText { get; init; }
         public List<string> Paragraphs { get; } = [];
+        public List<PageSectionLink> Links { get; } = [];
         public List<MutableNode> Children { get; } = [];
 
         public PageSection Seal() => new()
@@ -87,6 +116,7 @@ public static partial class PageSectionTreeBuilder
             Level = Level,
             HeadingText = HeadingText,
             Paragraphs = Paragraphs,
+            Links = Links,
             Children = Children.ConvertAll(c => c.Seal()),
         };
     }

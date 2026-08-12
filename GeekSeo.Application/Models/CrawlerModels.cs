@@ -20,6 +20,12 @@ public sealed record PageHeading
     public required string Text { get; init; }
 }
 
+public sealed record PageSectionLink
+{
+    public required string Text { get; init; }
+    public required string Href { get; init; }
+}
+
 /// <summary>
 /// A real heading node from a crawled page: its own text, the paragraph text that appeared
 /// between it and the next heading of the same-or-shallower level, and any nested headings —
@@ -32,6 +38,7 @@ public sealed record PageSection
     public required int Level { get; init; }
     public required string HeadingText { get; init; }
     public IReadOnlyList<string> Paragraphs { get; init; } = [];
+    public IReadOnlyList<PageSectionLink> Links { get; init; } = [];
     public IReadOnlyList<PageSection> Children { get; init; } = [];
 
     /// <summary>True when this node has real paragraph text of its own (not just children) —
