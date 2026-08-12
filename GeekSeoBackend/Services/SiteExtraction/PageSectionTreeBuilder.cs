@@ -52,6 +52,33 @@ public static partial class PageSectionTreeBuilder
                 stack[^1].Paragraphs.Add(paragraphText);
         }
 
+        // Top AI {content} Tools: paragraphs are inside <li><h5>Title:</h5> paragraph text</li> — NodeRegex is h|p only so the trailing li text after h5 is not a <p> and was dropped. Capture it as the h5's paragraph without adding AngleSharp.
+        foreach (Match li in LiWithHeadingRegex().Matches(html))
+        {
+            var headingText = CleanText(li.Groups["htext"].Value);
+            var trailing = CleanText(li.Groups["tail"].Value);
+            if (string.IsNullOrWhiteSpace(headingText) || string.IsNullOrWhiteSpace(trailing))
+                continue;
+            // Find the h5 node we already created for this heading (last matching level/text on stack)
+            MutableNode? target = null;
+            // Search stack and roots for matching heading (most recent wins — li's h5 is the last h5 pushed)
+            for (var i = stack.Count - 1; i >= 0; i--)
+            {
+                if (string.Equals(stack[i].HeadingText, headingText, StringComparison.OrdinalIgnoreCase))
+                {
+                    target = stack[i];
+                    break;
+                }
+            }
+            if (target == null)
+            {
+                // Fallback: search all roots recursively
+                target = FindNode(roots, headingText);
+            }
+            if (target != null && !target.Paragraphs.Contains(trailing))
+                target.Paragraphs.Add(trailing);
+        }
+
         return roots.ConvertAll(r => r.Seal());
     }
 
@@ -101,4 +128,19 @@ public static partial class PageSectionTreeBuilder
 
     [GeneratedRegex(@"\s+")]
     private static partial Regex WhitespaceRegex();
+
+    [GeneratedRegex("<li[^>]*>\\s*<h[1-6][^>]*>(?<htext>[\\s\\S]*?)</h[1-6]>\\s*(?<tail>[\\s\\S]*?)</li>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex LiWithHeadingRegex();
+
+    private static MutableNode? FindNode(List<MutableNode> nodes, string headingText)
+    {
+        foreach (var n in nodes)
+        {
+            if (string.Equals(n.HeadingText, headingText, StringComparison.OrdinalIgnoreCase))
+                return n;
+            var child = FindNode(n.Children, headingText);
+            if (child != null) return child;
+        }
+        return null;
+    }
 }
