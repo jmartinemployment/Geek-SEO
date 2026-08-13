@@ -66,7 +66,12 @@ public sealed partial class SitePageCrawler(
         {
             playwrightContext = await browser.NewContextAsync(new BrowserNewContextOptions
             {
-                UserAgent = "Mozilla/5.0 (compatible; GeekSEO/1.0; +https://seo.geekatyourspot.com)",
+                UserAgent = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) " +
+                            "Chrome/124.0.0.0 Mobile Safari/537.36 (compatible; GeekSEO/1.0; +https://seo.geekatyourspot.com)",
+                ViewportSize = new ViewportSize { Width = 412, Height = 823 },
+                IsMobile = true,
+                HasTouch = true,
+                DeviceScaleFactor = 1.75f,
             });
         }
 
@@ -267,7 +272,16 @@ public sealed partial class SitePageCrawler(
                 return null;
             }
             await page.WaitForTimeoutAsync(RenderSettleMs);
-            var html = await page.ContentAsync();
+            var html = await page.EvaluateAsync<string>(@"() => {
+    const isHidden = (el) => {
+        const style = window.getComputedStyle(el);
+        return style.display === 'none' || style.visibility === 'hidden';
+    };
+    document.querySelectorAll('*').forEach(el => {
+        if (isHidden(el)) el.remove();
+    });
+    return document.documentElement.outerHTML;
+}");
 
             if (IsSoft404(html, url))
             {

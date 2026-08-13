@@ -15,67 +15,75 @@ public static partial class PageSectionTreeBuilder
 {
     public static IReadOnlyList<PageSection> Build(string html)
     {
+        var doc = new HtmlDocument();
+        doc.LoadHtml(html);
+
         var roots = new List<MutableNode>();
         var stack = new List<MutableNode>();
 
-        foreach (Match match in NodeRegex().Matches(html))
+        foreach (var node in doc.DocumentNode.ChildNodes)
         {
-            if (match.Groups["hlevel"].Success)
-            {
-                if (!int.TryParse(match.Groups["hlevel"].Value, out var level) || level is < 1 or > 6)
-                    continue;
-
-                var text = CleanText(match.Groups["htext"].Value);
-                if (string.IsNullOrWhiteSpace(text))
-                    continue;
-
-                var node = new MutableNode { Level = level, HeadingText = text };
-
-                while (stack.Count > 0 && stack[^1].Level >= level)
-                    stack.RemoveAt(stack.Count - 1);
-
-                var parent = stack.Count == 0 ? null : stack[^1];
-                var siblings = parent?.Children ?? roots;
-
-                siblings.Add(node);
-                stack.Add(node);
-                continue;
-            }
-
-            // Paragraph-like content: attach to the nearest open heading. Content that appears
-            // before any heading has no node to attach to and is intentionally dropped - this
-            // tree exists to ground heading-scoped topics, not to capture whole-page prose.
-            if (stack.Count == 0)
-                continue;
-
-            var (paragraphText, links) = CleanAndExtractLinks(match.Groups["ptext"].Value);
-            if (!string.IsNullOrWhiteSpace(paragraphText))
-            {
-                stack[^1].Paragraphs.Add(paragraphText);
-                stack[^1].Links.AddRange(links);
-            }
+            ProcessNode(node, roots, stack);
         }
 
         return roots.ConvertAll(r => r.Seal());
     }
 
-    private static bool IsDuplicateHeading(List<MutableNode> siblings, int level, string text)
+    private static void ProcessNode(HtmlNode node, List<MutableNode> roots, List<MutableNode> stack)
     {
-        var normalizedText = text.ToLowerInvariant();
-        foreach (var sibling in siblings)
+        if (node.NodeType != HtmlNodeType.Element)
+            return;
+
+        var tagName = node.Name.ToLowerInvariant();
+
+        // Handle headings (h1-h6)
+        if (tagName.Length == 2 && tagName[0] == 'h' && char.IsDigit(tagName[1]))
         {
-            if (sibling.Level == level && sibling.HeadingText.ToLowerInvariant() == normalizedText)
-                return true;
+            if (!int.TryParse(tagName[1].ToString(), out var level) || level is < 1 or > 6)
+                return;
+
+            var text = WebUtility.HtmlDecode(node.InnerText).Trim();
+            text = WhitespaceRegex().Replace(text, " ").Trim();
+            if (string.IsNullOrWhiteSpace(text))
+                return;
+
+            var newNode = new MutableNode { Level = level, HeadingText = text };
+
+            // Pop stack to find the correct parent
+            while (stack.Count > 0 && stack[^1].Level >= level)
+                stack.RemoveAt(stack.Count - 1);
+
+            var parent = stack.Count == 0 ? null : stack[^1];
+            var siblings = parent?.Children ?? roots;
+
+            siblings.Add(newNode);
+            stack.Add(newNode);
+            return;
         }
-        return false;
+
+        // Handle paragraphs
+        if (tagName == "p")
+        {
+            // Only attach to the nearest open heading
+            if (stack.Count == 0)
+                return;
+
+            var (paragraphText, links) = CleanAndExtractLinks(node.InnerHtml);
+            if (!string.IsNullOrWhiteSpace(paragraphText))
+            {
+                stack[^1].Paragraphs.Add(paragraphText);
+                stack[^1].Links.AddRange(links);
+            }
+            return;
+        }
+
+        // Recursively process child nodes
+        foreach (var child in node.ChildNodes)
+        {
+            ProcessNode(child, roots, stack);
+        }
     }
 
-    private static string CleanText(string raw)
-    {
-        var noTags = TagRegex().Replace(raw, " ");
-        var decoded = WebUtility.HtmlDecode(noTags).Trim();
-        return decoded.Length == 0 ? string.Empty : WhitespaceRegex().Replace(decoded, " ").Trim();
-    }
 
     private static (string cleanText, List<PageSectionLink> links) CleanAndExtractLinks(string raw)
     {
@@ -97,7 +105,9 @@ public static partial class PageSectionTreeBuilder
             }
         }
 
-        var cleanText = CleanText(raw);
+        var innerText = doc.DocumentNode.InnerText;
+        var decoded = WebUtility.HtmlDecode(innerText).Trim();
+        var cleanText = decoded.Length == 0 ? string.Empty : WhitespaceRegex().Replace(decoded, " ").Trim();
         return (cleanText, links);
     }
 
@@ -120,14 +130,6 @@ public static partial class PageSectionTreeBuilder
             Children = Children.ConvertAll(c => c.Seal()),
         };
     }
-
-    [GeneratedRegex(
-        "<h(?<hlevel>[1-6])(?:\\s[^>]*)?>(?<htext>[\\s\\S]*?)</h\\k<hlevel>>|<p(?:\\s[^>]*)?>(?<ptext>[\\s\\S]*?)</p>",
-        RegexOptions.IgnoreCase)]
-    private static partial Regex NodeRegex();
-
-    [GeneratedRegex("<[^>]+>")]
-    private static partial Regex TagRegex();
 
     [GeneratedRegex(@"\s+")]
     private static partial Regex WhitespaceRegex();
