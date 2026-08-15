@@ -288,7 +288,10 @@ public sealed class SiteAnalyzerStepExecutionService(
 
         // Heading tree is built in memory, then stored as PageContext markdown on site pages
         // (Analyze always writes). Nested TreeJson remains for Analyzer gap detection only.
-        var treeWrites = crawlData.Pages
+        // 404 / soft-404 chrome is not a document — do not put it in structure, gaps, or GCC pages.
+        var documentPages = crawlData.Pages.Where(p => p.HasDocument).ToList();
+        var documentUrls = documentPages.Select(p => p.Url).ToList();
+        var treeWrites = documentPages
             .Select(page => new SiteAnalysisPageSectionTreeWrite(
                 page.Url,
                 JsonSerializer.Serialize(PageSectionTreeBuilder.Build(page.Html))))
@@ -302,7 +305,7 @@ public sealed class SiteAnalyzerStepExecutionService(
         if (!clearFlat.IsSuccess)
             throw new InvalidOperationException(clearFlat.Error ?? "Failed to clear flat headings after tree persist.");
 
-        await PersistCrawlDiscoveredUrlsAsync(profileId, crawlUrls, ct);
+        await PersistCrawlDiscoveredUrlsAsync(profileId, documentUrls, ct);
         await PersistSiteStructureAsync(
             profileId,
             crawlData,
@@ -315,7 +318,7 @@ public sealed class SiteAnalyzerStepExecutionService(
             crawlData,
             SiteAnalyzerStepRelationalLoader.EmptyInternalLinks(crawlData.PagesFetched),
             SiteAnalyzerStepRelationalLoader.EmptyUrlPatterns(),
-            crawlUrls);
+            documentUrls);
 
         return SiteAnalyzerStepArtifactStore.WithArtifact(
             SiteAnalysisStepLogBuilder.SiteCrawl(6, crawlData, message),

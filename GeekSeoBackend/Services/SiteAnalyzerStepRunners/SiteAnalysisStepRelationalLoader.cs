@@ -443,14 +443,16 @@ internal static class SiteAnalyzerStepRelationalLoader
         var pages = crawlData.Pages
             .Select((page, index) =>
             {
-                var html = page.Html ?? "";
-                var context = PageContextBuilder.FromHtml(html);
+                var html = page.HasDocument ? (page.Html ?? "") : "";
+                var context = page.HasDocument
+                    ? PageContextBuilder.FromHtml(html)
+                    : new PageContext();
                 var markdown = context.MainContentMarkdown ?? "";
                 return new SiteAnalysisProfileSitePageWrite(
                     page.Url,
                     page.FetchMethod,
-                    VisibleTextExtractor.Extract(html),
-                    VisibleTextExtractor.EstimateWordCount(html),
+                    page.HasDocument ? VisibleTextExtractor.Extract(html) : "",
+                    page.HasDocument ? VisibleTextExtractor.EstimateWordCount(html) : 0,
                     index,
                     context,
                     CrawlDocumentHasher.Sha256Hex(markdown),

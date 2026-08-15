@@ -359,6 +359,12 @@ public sealed record CrawledPage(string Url, string Html, string FetchMethod = "
 
     public bool SoftNotFound { get; init; }
 
+    /// <summary>
+    /// 2xx fetch that is not 404 chrome. Site structure, heading trees, and gaps use these only.
+    /// The crawl record itself is still stored for non-documents.
+    /// </summary>
+    public bool HasDocument => StatusCode is >= 200 and < 300 && !SoftNotFound;
+
     public DateTimeOffset FetchedAt { get; init; }
 
     /// <summary>Anchors discovered from the rendered DOM (href already absolutized when possible).</summary>
