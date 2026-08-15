@@ -517,5 +517,16 @@ public partial class SeoDbContext
             e.HasOne(x => x.Pillar).WithMany(p => p.ExistingPages).HasForeignKey(x => x.PillarId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.PillarId);
         });
+
+        modelBuilder.Entity<SiteAnalysisProfileExtractedTool>(e =>
+        {
+            e.ToTable("extracted_tools");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.HasOne(x => x.SiteAnalysisProfile).WithMany().HasForeignKey(x => x.SiteAnalysisProfileId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.SiteAnalysisProfileId);
+            e.HasIndex(x => x.SitePageId);
+            e.HasIndex(x => new { x.Name, x.Department, x.Body }).IsUnique();
+        });
     }
 }

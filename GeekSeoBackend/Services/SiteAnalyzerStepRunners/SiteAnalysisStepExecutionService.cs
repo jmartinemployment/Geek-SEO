@@ -3,8 +3,10 @@ using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Services;
+using GeekSeo.Persistence.Data;
 using GeekSeo.Persistence.Entities;
 using GeekSeoBackend.Services.SiteExtraction;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Playwright;
 
 namespace GeekSeoBackend.Services.SiteAnalyzerStepRunners;
@@ -19,7 +21,8 @@ public sealed class SiteAnalyzerStepExecutionService(
     SitePageCrawler sitePageCrawler,
     InternalLinkExtractor internalLinkExtractor,
     UrlPatternExtractor urlPatternExtractor,
-    ILogger<SiteAnalyzerStepExecutionService> logger)
+    ILogger<SiteAnalyzerStepExecutionService> logger,
+    SeoDbContext dbContext)
 {
     public Task<SiteAnalysisStepLogEntry> RunAsync(
         string slug,
@@ -314,6 +317,9 @@ public sealed class SiteAnalyzerStepExecutionService(
             ct);
         logger.LogInformation("Site crawl persisted for profile {ProfileId}", profileId);
 
+        // Extract tools from crawled pages' ContextJson and persist them
+        await ExtractAndPersistToolsAsync(profileId, documentPages, ct);
+
         var artifact = new SiteAnalyzerStepArtifactStore.SiteStructureArtifact(
             crawlData,
             SiteAnalyzerStepRelationalLoader.EmptyInternalLinks(crawlData.PagesFetched),
@@ -451,5 +457,72 @@ public sealed class SiteAnalyzerStepExecutionService(
             signals.Add(new SiteAnalysisProfileSchemaSignalWrite("organization", "brandName", schemaData.BrandName, null, order++));
 
         return signals;
+    }
+
+    private async Task ExtractAndPersistToolsAsync(
+        Guid profileId,
+        IReadOnlyList<CrawledPage> documentPages,
+        CancellationToken ct)
+    {
+        // Delete existing tools for this profile
+        var existingTools = dbContext.ExtractedTools
+            .Where(t => t.SiteAnalysisProfileId == profileId)
+            .ToList();
+        if (existingTools.Count > 0)
+        {
+            dbContext.ExtractedTools.RemoveRange(existingTools);
+            await dbContext.SaveChangesAsync(ct);
+            logger.LogInformation("Deleted {Count} existing extracted tools for profile {ProfileId}",
+                existingTools.Count, profileId);
+        }
+
+        // Load persisted site pages with ContextJson
+        var sitePages = await dbContext.SiteAnalysisProfileSitePages
+            .Where(sp => sp.SiteAnalysisProfileId == profileId)
+            .ToListAsync(ct);
+
+        var toolsToInsert = new List<SiteAnalysisProfileExtractedTool>();
+        foreach (var sitePage in sitePages)
+        {
+            // Deserialize ContextJson to PageContext
+            if (string.IsNullOrWhiteSpace(sitePage.ContextJson))
+                continue;
+
+            try
+            {
+                var context = JsonSerializer.Deserialize<PageContext>(sitePage.ContextJson);
+                if (context is null)
+                    continue;
+
+                var extractedTools = ContentExtractor.ExtractTools(context);
+                foreach (var tool in extractedTools)
+                {
+                    toolsToInsert.Add(new SiteAnalysisProfileExtractedTool
+                    {
+                        Id = Guid.NewGuid(),
+                        SiteAnalysisProfileId = profileId,
+                        SitePageId = sitePage.Id,
+                        Name = tool.Name,
+                        Href = tool.Href,
+                        Department = tool.Department,
+                        Body = tool.Body,
+                        ExtractedAt = DateTimeOffset.UtcNow
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to extract tools from page {Url} for profile {ProfileId}",
+                    sitePage.Url, profileId);
+            }
+        }
+
+        if (toolsToInsert.Count > 0)
+        {
+            await dbContext.ExtractedTools.AddRangeAsync(toolsToInsert, ct);
+            await dbContext.SaveChangesAsync(ct);
+            logger.LogInformation("Extracted and persisted {Count} tools for profile {ProfileId}",
+                toolsToInsert.Count, profileId);
+        }
     }
 }
