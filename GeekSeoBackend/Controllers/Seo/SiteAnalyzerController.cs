@@ -386,6 +386,34 @@ public sealed class SiteAnalyzerController(
     }
 
     /// <summary>
+    /// Flat PageContext (headings + markdown) for Content Creator. Not HTML, not a nested tree.
+    /// </summary>
+    [HttpGet("{profileId:guid}/page-contexts")]
+    public async Task<IActionResult> GetPageContexts(Guid profileId, CancellationToken ct)
+    {
+        try
+        {
+            user.RequireUserId();
+            var result = await profileRepo.GetSiteStructureAsync(profileId, ct);
+            if (!result.IsSuccess)
+                return StatusCode(503, new { error = result.Error ?? "Page contexts temporarily unavailable" });
+            var pages = result.Value?.Pages ?? [];
+            return Ok(pages.Select(p => new
+            {
+                pageUrl = p.Url,
+                title = p.ContextData?.Title ?? "",
+                description = p.ContextData?.Description ?? "",
+                headings = p.ContextData?.Headings ?? [],
+                markdown = p.ContextData?.MainContentMarkdown ?? "",
+            }));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Raw discovered/crawled URL inventory for this profile (sitemap + generated + crawled
     /// source types) — the "does a page already exist for this heading" side of Content
     /// Creator's gap check. Raw crawl fact, not an opinionated analysis result.

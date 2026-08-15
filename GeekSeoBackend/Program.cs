@@ -24,10 +24,8 @@ builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()))
     .AddApplicationPart(typeof(ProjectsController).Assembly);
 
-// DISABLE_PLAYWRIGHT is an explicit, deliberate operator opt-out — not the same as an unexpected
-// launch failure. When Playwright is expected to be available (the default) and fails to launch,
-// that's a real startup failure and must crash the app, not silently degrade every extractor to
-// its lower-quality HTTP/regex path with nobody the wiser.
+// DISABLE_PLAYWRIGHT is an explicit, deliberate operator opt-out. Unexpected Chromium launch
+// failure is logged loudly and retried on first crawl use rather than poisoning the process.
 PlaywrightBrowserHolder? playwrightHolder = null;
 var disablePlaywright = string.Equals(
     Environment.GetEnvironmentVariable("DISABLE_PLAYWRIGHT"), "true", StringComparison.OrdinalIgnoreCase);

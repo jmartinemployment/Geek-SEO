@@ -1,14 +1,12 @@
-using System.Net;
-using System.Text.RegularExpressions;
 using GeekSeo.Application.Models.Seo;
 
 namespace GeekSeoBackend.Services.SiteExtraction;
 
 /// <summary>
 /// Extracts same-origin anchor text and inbound link counts from crawled pages.
-/// Mirrors search-engine T* topicality from internal link graph (Phase B).
+/// Prefers structured links on the crawl record; falls back to a DOM walk (never regex).
 /// </summary>
-public sealed partial class InternalLinkExtractor
+public sealed class InternalLinkExtractor
 {
     public InternalLinkData Extract(SiteCrawlData crawl, string siteUrl)
     {
@@ -23,7 +21,7 @@ public sealed partial class InternalLinkExtractor
 
         foreach (var page in crawl.Pages)
         {
-            foreach (var edge in ExtractLinksFromHtml(page.Html, page.Url, origin))
+            foreach (var edge in ExtractLinksFromPage(page, origin))
             {
                 edges.Add(edge);
                 inbound[edge.TargetUrl] = inbound.GetValueOrDefault(edge.TargetUrl) + 1;
@@ -36,30 +34,45 @@ public sealed partial class InternalLinkExtractor
     internal static IEnumerable<InternalLinkEdge> ExtractLinksFromHtml(
         string html, string pageUrl, string origin)
     {
-        foreach (Match match in AnchorLinkRegex().Matches(html))
+        foreach (var link in SitePageCrawler.ExtractLinksFromHtml(html, pageUrl, origin))
         {
-            var href = WebUtility.HtmlDecode(match.Groups[1].Value.Trim());
-            var rawAnchor = match.Groups[2].Value;
-            var anchor = StripTags(WebUtility.HtmlDecode(rawAnchor)).Replace('\n', ' ').Trim();
-            anchor = CollapseWhitespace(anchor);
+            foreach (var edge in ToEdge(pageUrl, origin, link.Href, link.Text))
+                yield return edge;
+        }
+    }
 
-            if (!SitePageCrawler.TryResolveUrl(href, pageUrl, origin, out var targetUrl))
-                continue;
+    private static IEnumerable<InternalLinkEdge> ExtractLinksFromPage(CrawledPage page, string origin)
+    {
+        var links = page.Links.Count > 0
+            ? page.Links
+            : SitePageCrawler.ExtractLinksFromHtml(page.Html, page.Url, origin);
 
-            if (AnchorTextFilter.IsUsableTopic(anchor))
-            {
-                yield return new InternalLinkEdge(pageUrl, targetUrl, anchor);
-                continue;
-            }
+        foreach (var link in links)
+        {
+            foreach (var edge in ToEdge(page.Url, origin, link.Href, link.Text))
+                yield return edge;
+        }
+    }
 
-            if (TryTopicFromTargetUrl(targetUrl, out var topicFromUrl))
-            {
-                yield return new InternalLinkEdge(
-                    pageUrl,
-                    targetUrl,
-                    topicFromUrl,
-                    InferredFromUrlSlug: true);
-            }
+    private static IEnumerable<InternalLinkEdge> ToEdge(
+        string pageUrl, string origin, string href, string anchor)
+    {
+        if (!SitePageCrawler.TryResolveUrl(href, pageUrl, origin, out var targetUrl))
+            yield break;
+
+        if (AnchorTextFilter.IsUsableTopic(anchor))
+        {
+            yield return new InternalLinkEdge(pageUrl, targetUrl, anchor);
+            yield break;
+        }
+
+        if (TryTopicFromTargetUrl(targetUrl, out var topicFromUrl))
+        {
+            yield return new InternalLinkEdge(
+                pageUrl,
+                targetUrl,
+                topicFromUrl,
+                InferredFromUrlSlug: true);
         }
     }
 
@@ -99,21 +112,4 @@ public sealed partial class InternalLinkExtractor
             return false;
         }
     }
-
-    private static string StripTags(string value) =>
-        TagRegex().Replace(value, " ");
-
-    private static string CollapseWhitespace(string value) =>
-        WhitespaceRegex().Replace(value, " ").Trim();
-
-    [GeneratedRegex(@"<[^>]+>", RegexOptions.CultureInvariant)]
-    private static partial Regex TagRegex();
-
-    [GeneratedRegex(@"\s+", RegexOptions.CultureInvariant)]
-    private static partial Regex WhitespaceRegex();
-
-    [GeneratedRegex(
-        @"<a\s[^>]*href=[""']([^""'#][^""']*)[""'][^>]*>(.*?)</a>",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
-    private static partial Regex AnchorLinkRegex();
 }

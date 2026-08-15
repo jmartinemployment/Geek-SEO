@@ -27,16 +27,14 @@ public sealed partial class HomepageHeadingsExtractor
     private async Task<HomepageHeadings> ExtractWithPlaywrightAsync(
         string siteUrl, IBrowser browser, CancellationToken ct)
     {
-        await using var context = await browser.NewContextAsync(new BrowserNewContextOptions
-        {
-            UserAgent = "Mozilla/5.0 (compatible; GeekSEO/1.0; +https://seo.geekatyourspot.com)",
-        });
+        await using var context = await browser.NewContextAsync(CrawlerIdentity.MobileContext());
         var page = await context.NewPageAsync();
         await page.GotoAsync(siteUrl, new PageGotoOptions
         {
-            WaitUntil = WaitUntilState.DOMContentLoaded,
-            Timeout = 20_000,
+            WaitUntil = WaitUntilState.Load,
+            Timeout = CrawlerIdentity.NavigationTimeoutMs,
         });
+        await CrawlerIdentity.WaitForRenderedAsync(page);
 
         var payload = await page.EvaluateAsync<string>(@"() => {
             const title = document.title || null;

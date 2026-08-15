@@ -27,9 +27,16 @@ public sealed partial class PageContentExtractor
         IBrowser browser,
         CancellationToken ct)
     {
-        await using var context = await browser.NewContextAsync(new BrowserNewContextOptions { IgnoreHTTPSErrors = true });
+        var options = CrawlerIdentity.MobileContext();
+        options.IgnoreHTTPSErrors = true;
+        await using var context = await browser.NewContextAsync(options);
         var page = await context.NewPageAsync();
-        await page.GotoAsync(domain, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30_000 });
+        await page.GotoAsync(domain, new PageGotoOptions
+        {
+            WaitUntil = WaitUntilState.Load,
+            Timeout = CrawlerIdentity.NavigationTimeoutMs,
+        });
+        await CrawlerIdentity.WaitForRenderedAsync(page);
 
         var json = await page.EvaluateAsync<string>(
             """

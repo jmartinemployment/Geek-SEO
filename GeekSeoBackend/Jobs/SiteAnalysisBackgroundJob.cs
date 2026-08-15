@@ -14,7 +14,9 @@ public sealed class SiteAnalysisBackgroundJob(
 {
     public async Task RunAsync(SiteAnalysisJobPayload payload, CancellationToken ct)
     {
-        var browser = playwrightHolder?.Browser;
+        var browser = playwrightHolder is null
+            ? null
+            : await playwrightHolder.EnsureBrowserAsync(ct);
         var profileResult = await profileRepo.GetByIdAsync(payload.ProfileId, ct);
         var persistStage = profileResult.IsSuccess ? profileResult.Value?.PersistStage : null;
         var siteCoverage = string.Equals(

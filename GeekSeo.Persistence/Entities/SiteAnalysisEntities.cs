@@ -349,6 +349,18 @@ public sealed class SiteAnalysisProfileSitePage
     public int WordCount { get; set; }
     public int DisplayOrder { get; set; }
 
+    /// <summary>CC read model: title, headings[], markdown. Not raw HTML.</summary>
+    public string ContextJson { get; set; } = "{}";
+
+    public string ContentHash { get; set; } = string.Empty;
+    public string FinalUrl { get; set; } = string.Empty;
+    public int StatusCode { get; set; }
+    public string? Canonical { get; set; }
+    public bool NoIndex { get; set; }
+    public bool NoFollow { get; set; }
+    public string RedirectChainJson { get; set; } = "[]";
+    public DateTimeOffset FetchedAt { get; set; }
+
     [ValidateNever]
     public SiteAnalysisProfile? SiteAnalysisProfile { get; set; }
 }

@@ -203,7 +203,16 @@ public sealed record SiteAnalysisProfileSitePageWrite(
     string FetchMethod,
     string VisibleText,
     int WordCount,
-    int DisplayOrder = 0);
+    int DisplayOrder = 0,
+    PageContext? ContextData = null,
+    string ContentHash = "",
+    string FinalUrl = "",
+    int StatusCode = 0,
+    string? Canonical = null,
+    bool NoIndex = false,
+    bool NoFollow = false,
+    string RedirectChainJson = "[]",
+    DateTimeOffset FetchedAt = default);
 
 public sealed record SiteAnalysisProfileSitePageRow(
     Guid Id,
@@ -212,7 +221,16 @@ public sealed record SiteAnalysisProfileSitePageRow(
     string FetchMethod,
     string VisibleText,
     int WordCount,
-    int DisplayOrder);
+    int DisplayOrder,
+    PageContext? ContextData = null,
+    string ContentHash = "",
+    string FinalUrl = "",
+    int StatusCode = 0,
+    string? Canonical = null,
+    bool NoIndex = false,
+    bool NoFollow = false,
+    string RedirectChainJson = "[]",
+    DateTimeOffset FetchedAt = default);
 
 public sealed record SiteAnalysisProfileSitePageLinkWrite(
     string SourceUrl,
@@ -259,7 +277,8 @@ public sealed record SiteAnalysisProfileSiteStructureWrite(
     IReadOnlyList<SiteAnalysisProfileSitePageWrite> Pages,
     IReadOnlyList<SiteAnalysisProfileSitePageLinkWrite> Links,
     IReadOnlyList<SiteAnalysisProfileUrlPatternTopicWrite> UrlPatterns,
-    SiteAnalysisProfileSiteCrawlMetaWrite CrawlMeta);
+    SiteAnalysisProfileSiteCrawlMetaWrite CrawlMeta,
+    bool ForceDocumentWrite = true);
 
 public sealed record SiteAnalysisProfileSiteStructureRow(
     IReadOnlyList<SiteAnalysisProfileSitePageRow> Pages,

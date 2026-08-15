@@ -30,16 +30,15 @@ public sealed class SitemapExtractor(IHttpClientFactory factory, ILogger<Sitemap
 
     private async Task<List<string>> FetchUrlsAsync(string siteUrl, HttpClient client, CancellationToken ct)
     {
-        // Try known sitemap paths first
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var all = new List<string>();
+
         foreach (var path in SitemapPaths)
         {
             var candidate = siteUrl.TrimEnd('/') + path;
-            var urls = await TryFetchSitemapAsync(candidate, client, 0, ct);
-            if (urls.Count > 0) return urls;
+            all.AddRange(await TryFetchSitemapAsync(candidate, client, 0, visited, ct));
         }
 
-        // Try robots.txt — a missing/unreachable robots.txt is a normal condition, not a bug;
-        // only swallow the request failure itself, not e.g. a bug parsing its content.
         string? robots = null;
         try
         {
@@ -53,23 +52,24 @@ public sealed class SitemapExtractor(IHttpClientFactory factory, ILogger<Sitemap
 
         if (robots is not null)
         {
-            foreach (var line in robots.Split('\n'))
-            {
-                if (!line.StartsWith("Sitemap:", StringComparison.OrdinalIgnoreCase)) continue;
-                var sitemapUrl = line["Sitemap:".Length..].Trim();
-                var urls = await TryFetchSitemapAsync(sitemapUrl, client, 0, ct);
-                if (urls.Count > 0) return urls;
-            }
+            var parsed = RobotsTxt.Parse(robots);
+            foreach (var sitemapUrl in parsed.Sitemaps)
+                all.AddRange(await TryFetchSitemapAsync(sitemapUrl, client, 0, visited, ct));
         }
 
-        return [];
+        return all.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    private async Task<List<string>> TryFetchSitemapAsync(string url, HttpClient client, int depth, CancellationToken ct)
+    private const int MaxSitemapIndexDepth = 5;
+
+    private async Task<List<string>> TryFetchSitemapAsync(
+        string url, HttpClient client, int depth, HashSet<string> visited, CancellationToken ct)
     {
-        // A candidate sitemap path not existing (404, connection refused, etc.) is a normal
-        // condition — the caller tries the next candidate. A malformed-XML/parse failure on a
-        // sitemap that DID respond is a real bug and must surface, not be swallowed as "not found."
+        if (depth > MaxSitemapIndexDepth)
+            return [];
+        if (!visited.Add(url))
+            return [];
+
         string content;
         try
         {
@@ -83,7 +83,6 @@ public sealed class SitemapExtractor(IHttpClientFactory factory, ILogger<Sitemap
         var doc = XDocument.Parse(content);
         var ns = doc.Root?.Name.Namespace ?? XNamespace.None;
 
-        // Sitemap index — fetch all child sitemaps (uncapped)
         if (doc.Root?.Name.LocalName == "sitemapindex")
         {
             var urls = new List<string>();
@@ -93,14 +92,10 @@ public sealed class SitemapExtractor(IHttpClientFactory factory, ILogger<Sitemap
                 .ToList();
 
             foreach (var childUrl in childUrls)
-            {
-                var childUrls2 = await TryFetchSitemapAsync(childUrl, client, depth + 1, ct);
-                urls.AddRange(childUrls2);
-            }
+                urls.AddRange(await TryFetchSitemapAsync(childUrl, client, depth + 1, visited, ct));
             return urls;
         }
 
-        // Regular sitemap — uncapped
         return doc.Descendants(ns + "loc")
             .Select(e => e.Value.Trim())
             .Where(u => !string.IsNullOrWhiteSpace(u))
@@ -180,8 +175,7 @@ public sealed class SitemapExtractor(IHttpClientFactory factory, ILogger<Sitemap
     {
         var client = factory.CreateClient();
         client.Timeout = TimeSpan.FromSeconds(20);
-        client.DefaultRequestHeaders.Add("User-Agent",
-            "Mozilla/5.0 (compatible; GeekSEO/1.0; +https://seo.geekatyourspot.com)");
+        client.DefaultRequestHeaders.Add("User-Agent", CrawlerIdentity.UserAgent);
         return client;
     }
 }

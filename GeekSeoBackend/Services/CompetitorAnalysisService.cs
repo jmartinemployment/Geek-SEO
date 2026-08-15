@@ -126,8 +126,7 @@ public sealed class CompetitorAnalysisService(
     private static int EstimateAvgWordCount(SiteCrawlData crawl)
     {
         if (crawl.Pages.Count == 0) return 0;
-        var total = crawl.Pages.Sum(p =>
-            p.Html.Split([' ', '\n', '\r', '\t'], StringSplitOptions.RemoveEmptyEntries).Length);
+        var total = crawl.Pages.Sum(p => VisibleTextExtractor.EstimateWordCount(p.Html));
         return total / crawl.Pages.Count;
     }
 

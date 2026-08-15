@@ -334,7 +334,40 @@ public sealed record PageContentData(
     IReadOnlyList<string> VerticalTopics,
     int ListItemsScanned);
 
-public sealed record CrawledPage(string Url, string Html, string FetchMethod = "http");
+/// <summary>
+/// One fetch/render of a URL. This is the indexer seam: URL identity, status, redirects,
+/// and directives live here — never a bare HTML string.
+/// </summary>
+public sealed record CrawledPage(string Url, string Html, string FetchMethod = "http")
+{
+    /// <summary>response.Url after Playwright follows redirects.</summary>
+    public string FinalUrl { get; init; } = "";
+
+    public int StatusCode { get; init; }
+
+    public IReadOnlyList<string> RedirectChain { get; init; } = [];
+
+    /// <summary>rel=canonical hint. Non-canonical pages are kept; consolidation is index-time.</summary>
+    public string? Canonical { get; init; }
+
+    /// <summary>
+    /// Indexed: no. Crawled and followed: yes. Downstream decides exclusion once an index exists.
+    /// </summary>
+    public bool NoIndex { get; init; }
+
+    public bool NoFollow { get; init; }
+
+    public bool SoftNotFound { get; init; }
+
+    public DateTimeOffset FetchedAt { get; init; }
+
+    /// <summary>Anchors discovered from the rendered DOM (href already absolutized when possible).</summary>
+    public IReadOnlyList<DiscoveredCrawlLink> Links { get; init; } = [];
+
+    public string? ContentType { get; init; }
+}
+
+public sealed record DiscoveredCrawlLink(string Href, string Text, string Rel = "");
 
 /// <summary>Bounded same-origin crawl for structure-signal extractors (Phase B).</summary>
 public sealed record SiteCrawlData(

@@ -92,4 +92,98 @@ public sealed class PageSectionTreeBuilderTests
         Assert.Equal("B", tree[1].HeadingText);
         Assert.Empty(tree[1].Children);
     }
+
+    [Fact]
+    public void Br_and_block_boundaries_are_word_separators()
+    {
+        const string html = "<h2>Clone Yourself<br/><span>Work 24/7</span></h2>";
+        var tree = PageSectionTreeBuilder.Build(html);
+        var h2 = Assert.Single(tree);
+        Assert.Equal("Clone Yourself Work 24/7", h2.HeadingText);
+    }
+
+    [Fact]
+    public void Aria_hidden_collapsed_sizer_wins_over_partial_visible_sibling()
+    {
+        const string html =
+            """<h1>Redefine Your Business<br/><span aria-hidden="true" data-gsv="collapsed">Efficiency</span><span data-gsv="visible">Effici</span></h1>""";
+        var tree = PageSectionTreeBuilder.Build(html);
+        var h1 = Assert.Single(tree);
+        Assert.Equal("Redefine Your Business Efficiency", h1.HeadingText);
+    }
+
+    [Fact]
+    public void Desktop_only_subtree_contributes_no_text_but_links_are_kept()
+    {
+        const string html = """
+            <h1>Home</h1>
+            <div data-gsv="desktop-only">
+              <p>Desktop hero copy that Google does not index on mobile.</p>
+              <a href="/desktop-only-link">Hidden nav</a>
+            </div>
+            <p>Mobile body.</p>
+            """;
+
+        var tree = PageSectionTreeBuilder.Build(html);
+        var h1 = Assert.Single(tree);
+        Assert.Equal(["Mobile body."], h1.Paragraphs);
+        Assert.Contains(h1.Links, l => l.Href == "/desktop-only-link");
+    }
+
+    [Fact]
+    public void Collapsed_subtree_contributes_text()
+    {
+        const string html = """
+            <h2>FAQ</h2>
+            <div data-gsv="collapsed"><p>Accordion answer Google indexes at full weight.</p></div>
+            """;
+
+        var tree = PageSectionTreeBuilder.Build(html);
+        var h2 = Assert.Single(tree);
+        Assert.Contains("Accordion answer Google indexes at full weight.", h2.Paragraphs);
+    }
+
+    [Fact]
+    public void Script_and_style_inside_heading_contribute_no_text()
+    {
+        const string html = "<h2>Title<script>var x=1</script><style>.x{}</style></h2>";
+        var tree = PageSectionTreeBuilder.Build(html);
+        var h2 = Assert.Single(tree);
+        Assert.Equal("Title", h2.HeadingText);
+    }
+
+    [Fact]
+    public void H5_inside_li_is_a_heading_not_swallowed_by_the_list_item()
+    {
+        const string html = """
+            <h4>AI Content Creation Workflow</h4>
+            <ul>
+              <li><h5>Automated Content Generation</h5></li>
+              <li><h5>AI Content Repurposing</h5></li>
+            </ul>
+            """;
+
+        var tree = PageSectionTreeBuilder.Build(html);
+        var h4 = Assert.Single(tree);
+        Assert.Equal(2, h4.Children.Count);
+        Assert.Equal("Automated Content Generation", h4.Children[0].HeadingText);
+        Assert.Equal("AI Content Repurposing", h4.Children[1].HeadingText);
+    }
+
+    [Fact]
+    public void Harvests_anchors_from_list_items_not_only_paragraphs()
+    {
+        const string html = """
+            <h6>Top 5 Automated Data Entry Processing Tools:</h6>
+            <ul>
+              <li><a href="/tools/zapier">Zapier</a></li>
+              <li><a href="/tools/quickbooks">QuickBooks</a></li>
+            </ul>
+            """;
+
+        var tree = PageSectionTreeBuilder.Build(html);
+        var h6 = Assert.Single(tree);
+        Assert.Equal(2, h6.Links.Count);
+        Assert.Contains(h6.Links, l => l.Href == "/tools/zapier" && l.Text == "Zapier");
+    }
 }

@@ -29,20 +29,18 @@ public sealed class NavMenuExtractor(ILogger<NavMenuExtractor> logger)
         IPage? page = null;
         try
         {
-            page = await browser.NewPageAsync();
-            await page.SetViewportSizeAsync(1440, 900);
+            await using var context = await browser.NewContextAsync(CrawlerIdentity.MobileContext());
+            page = await context.NewPageAsync();
             await page.GotoAsync(
                 siteUrl,
                 new PageGotoOptions
                 {
-                    Timeout = 15_000,
-                    WaitUntil = WaitUntilState.DOMContentLoaded,
+                    Timeout = CrawlerIdentity.NavigationTimeoutMs,
+                    WaitUntil = WaitUntilState.Load,
                 });
+            await CrawlerIdentity.WaitForRenderedAsync(page);
 
-            await page.WaitForTimeoutAsync(800);
-
-            // Extract only links visible without interaction — search engines don't
-            // click hamburger menus or expand hidden navigation.
+            // Googlebot does not click the hamburger; it still sees those hrefs in the DOM.
             var links = await ExtractLinksAsync(page, siteUrl);
 
             timeoutCts.Token.ThrowIfCancellationRequested();

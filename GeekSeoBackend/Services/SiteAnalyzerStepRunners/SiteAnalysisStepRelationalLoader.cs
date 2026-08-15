@@ -1,5 +1,4 @@
-using System.Net;
-using System.Text.RegularExpressions;
+using System.Text.Json;
 using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Services;
@@ -7,7 +6,7 @@ using GeekSeoBackend.Services.SiteExtraction;
 
 namespace GeekSeoBackend.Services.SiteAnalyzerStepRunners;
 
-internal static partial class SiteAnalyzerStepRelationalLoader
+internal static class SiteAnalyzerStepRelationalLoader
 {
     internal const string ServicePhraseKind = "service_phrase";
     internal const string VerticalTopicKind = "vertical_topic";
@@ -383,7 +382,16 @@ internal static partial class SiteAnalyzerStepRelationalLoader
     {
         var pages = row.Pages
             .OrderBy(x => x.DisplayOrder)
-            .Select(x => new CrawledPage(x.Url, x.VisibleText, x.FetchMethod))
+            .Select(x => new CrawledPage(x.Url, x.VisibleText, x.FetchMethod)
+            {
+                FinalUrl = x.FinalUrl,
+                StatusCode = x.StatusCode,
+                Canonical = x.Canonical,
+                NoIndex = x.NoIndex,
+                NoFollow = x.NoFollow,
+                RedirectChain = ParseRedirectChain(x.RedirectChainJson),
+                FetchedAt = x.FetchedAt,
+            })
             .ToList();
         var crawlMeta = row.CrawlMeta;
         var crawl = new SiteCrawlData(
@@ -429,18 +437,30 @@ internal static partial class SiteAnalyzerStepRelationalLoader
     internal static SiteAnalysisProfileSiteStructureWrite ToSiteStructureWrite(
         SiteCrawlData crawlData,
         InternalLinkData internalLinks,
-        UrlPatternData urlPatterns)
+        UrlPatternData urlPatterns,
+        bool forceDocumentWrite = true)
     {
         var pages = crawlData.Pages
             .Select((page, index) =>
             {
-                var visibleText = ExtractVisibleText(page.Html);
+                var html = page.Html ?? "";
+                var context = PageContextBuilder.FromHtml(html);
+                var markdown = context.MainContentMarkdown ?? "";
                 return new SiteAnalysisProfileSitePageWrite(
                     page.Url,
                     page.FetchMethod,
-                    visibleText,
-                    NormalizedTopicalityCalculator.EstimateWordCount(page.Html),
-                    index);
+                    VisibleTextExtractor.Extract(html),
+                    VisibleTextExtractor.EstimateWordCount(html),
+                    index,
+                    context,
+                    CrawlDocumentHasher.Sha256Hex(markdown),
+                    page.FinalUrl,
+                    page.StatusCode,
+                    page.Canonical,
+                    page.NoIndex,
+                    page.NoFollow,
+                    JsonSerializer.Serialize(page.RedirectChain),
+                    page.FetchedAt == default ? DateTimeOffset.UtcNow : page.FetchedAt);
             })
             .ToList();
 
@@ -466,7 +486,22 @@ internal static partial class SiteAnalyzerStepRelationalLoader
             pages,
             links,
             patterns,
-            new SiteAnalysisProfileSiteCrawlMetaWrite(crawlData.PagesAttempted, crawlData.PagesFetched));
+            new SiteAnalysisProfileSiteCrawlMetaWrite(crawlData.PagesAttempted, crawlData.PagesFetched),
+            forceDocumentWrite);
+    }
+
+    private static IReadOnlyList<string> ParseRedirectChain(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json) || json == "[]")
+            return [];
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(json) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
     }
 
     private static SchemaOrgData BuildSchemaOrgData(
@@ -531,25 +566,4 @@ internal static partial class SiteAnalyzerStepRelationalLoader
             return null;
         }
     }
-
-    // No truncation cap: persist the full visible text extracted from fetched HTML.
-    private static string ExtractVisibleText(string html)
-    {
-        if (string.IsNullOrWhiteSpace(html))
-            return string.Empty;
-
-        var stripped = ScriptTagRegex().Replace(html, " ");
-        stripped = StyleTagRegex().Replace(stripped, " ");
-        stripped = TagRegex().Replace(stripped, " ");
-        return WebUtility.HtmlDecode(stripped).Trim();
-    }
-
-    [GeneratedRegex("<script\\b[^<]*(?:(?!<\\/script>)<[^<]*)*<\\/script>", RegexOptions.IgnoreCase)]
-    private static partial Regex ScriptTagRegex();
-
-    [GeneratedRegex("<style\\b[^<]*(?:(?!<\\/style>)<[^<]*)*<\\/style>", RegexOptions.IgnoreCase)]
-    private static partial Regex StyleTagRegex();
-
-    [GeneratedRegex("<[^>]+>")]
-    private static partial Regex TagRegex();
 }

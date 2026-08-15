@@ -3,10 +3,16 @@ using System.Text.RegularExpressions;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Results;
+using GeekSeoBackend.Services.SiteExtraction;
 using Microsoft.Playwright;
 
 namespace GeekSeoBackend.Providers.Seo;
 
+/// <summary>
+/// Single-page crawler used by scoring. Shares the RFC 9309 / Google REP parser with
+/// <see cref="SitePageCrawler"/> via <see cref="RobotsTxt"/>. Unreachable or 5xx robots.txt
+/// fails closed (disallow all).
+/// </summary>
 public sealed class PlaywrightCrawlerProvider(IBrowser browser) : ICrawlerProvider
 {
     private static readonly SemaphoreSlim CrawlSemaphore = new(2, 2);
@@ -22,18 +28,15 @@ public sealed class PlaywrightCrawlerProvider(IBrowser browser) : ICrawlerProvid
         await CrawlSemaphore.WaitAsync(ct);
         try
         {
-            await using var context = await browser.NewContextAsync();
+            await using var context = await browser.NewContextAsync(CrawlerIdentity.MobileContext());
             var page = await context.NewPageAsync();
-            await page.SetExtraHTTPHeadersAsync(new Dictionary<string, string>
-            {
-                { "User-Agent", "GeekSEO-Bot/1.0 (content analysis; contact: jeff@geekatyourspot.com)" },
-            });
 
             var response = await page.GotoAsync(url, new PageGotoOptions
             {
-                Timeout = 30_000,
-                WaitUntil = WaitUntilState.DOMContentLoaded,
+                Timeout = CrawlerIdentity.NavigationTimeoutMs,
+                WaitUntil = WaitUntilState.Load,
             });
+            await CrawlerIdentity.WaitForRenderedAsync(page);
 
             var httpStatus = response?.Status ?? 0;
             if (httpStatus >= 400)
@@ -75,50 +78,8 @@ public sealed class PlaywrightCrawlerProvider(IBrowser browser) : ICrawlerProvid
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
             return false;
 
-        try
-        {
-            var robotsUrl = $"{uri.Scheme}://{uri.Host}/robots.txt";
-            using var response = await RobotsClient.GetAsync(robotsUrl, ct);
-            if (!response.IsSuccessStatusCode)
-                return true;
-
-            var text = await response.Content.ReadAsStringAsync(ct);
-            return !IsPathDisallowed(text, uri.AbsolutePath);
-        }
-        catch
-        {
-            return true;
-        }
-    }
-
-    private static bool IsPathDisallowed(string robotsTxt, string path)
-    {
-        var lines = robotsTxt.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        var applies = false;
-        foreach (var raw in lines)
-        {
-            var line = raw.Trim();
-            if (line.StartsWith('#'))
-                continue;
-
-            if (line.StartsWith("User-agent:", StringComparison.OrdinalIgnoreCase))
-            {
-                var agent = line["User-agent:".Length..].Trim();
-                applies = agent is "*" or "GeekSEO-Bot";
-                continue;
-            }
-
-            if (applies && line.StartsWith("Disallow:", StringComparison.OrdinalIgnoreCase))
-            {
-                var disallow = line["Disallow:".Length..].Trim();
-                if (disallow.Length == 0)
-                    continue;
-                if (path.StartsWith(disallow, StringComparison.OrdinalIgnoreCase))
-                    return true;
-            }
-        }
-
-        return false;
+        var rules = await RobotsTxt.FetchAsync(uri, RobotsClient, ct);
+        return rules.IsAllowed(uri.AbsolutePath);
     }
 
     private static async Task<IReadOnlyList<PageHeading>> ExtractHeadingsAsync(IPage page)

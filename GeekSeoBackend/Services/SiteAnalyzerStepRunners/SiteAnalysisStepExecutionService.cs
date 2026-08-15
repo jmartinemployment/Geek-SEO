@@ -291,10 +291,8 @@ public sealed class SiteAnalyzerStepExecutionService(
             profileId,
             message);
 
-        // Real per-page heading+paragraph tree (h1-h6, content-backed) — single source of truth.
-        // Flat SiteAnalysisProfileHeading rows are cleared below; LoadHeadingsAsync derives a
-        // flat list from these trees for the candidate pool. Must run here while raw HTML is
-        // still in scope: PersistSiteStructureAsync strips it to VisibleText only.
+        // Heading tree is built in memory, then stored as PageContext markdown on site pages
+        // (Analyze always writes). Nested TreeJson remains for Analyzer gap detection only.
         var treeWrites = crawlData.Pages
             .Select(page => new SiteAnalysisPageSectionTreeWrite(
                 page.Url,
@@ -414,7 +412,11 @@ public sealed class SiteAnalyzerStepExecutionService(
     {
         var persistStructure = await profileRepo.ReplaceSiteStructureAsync(
             profileId,
-            SiteAnalyzerStepRelationalLoader.ToSiteStructureWrite(crawlData, internalLinks, urlPatterns),
+            SiteAnalyzerStepRelationalLoader.ToSiteStructureWrite(
+                crawlData,
+                internalLinks,
+                urlPatterns,
+                forceDocumentWrite: true),
             ct);
         if (!persistStructure.IsSuccess)
             throw new InvalidOperationException(persistStructure.Error ?? "Failed to persist site structure.");

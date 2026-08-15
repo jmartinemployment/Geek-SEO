@@ -271,7 +271,11 @@ public sealed class SiteAnalyzerStepRerunService(
 
         var persistStructure = await profileRepo.ReplaceSiteStructureAsync(
             profileId,
-            SiteAnalyzerStepRelationalLoader.ToSiteStructureWrite(crawlData, internalLinks, urlPatterns),
+            SiteAnalyzerStepRelationalLoader.ToSiteStructureWrite(
+                crawlData,
+                internalLinks,
+                urlPatterns,
+                forceDocumentWrite: true),
             ct);
         if (!persistStructure.IsSuccess)
             throw new InvalidOperationException(persistStructure.Error ?? "Failed to persist site structure.");
@@ -285,12 +289,13 @@ public sealed class SiteAnalyzerStepRerunService(
     private async Task<SiteAnalysisStepLogEntry> RerunMergingAsync(
         Guid profileId, Guid userId, SiteAnalysisProfile profile, string domain, IBrowser? browser, CancellationToken ct)
     {
-        // Re-extract all inputs (steps 1–6 are fast enough)
+        if (browser is null)
+            throw new InvalidOperationException(
+                "crawl requires a rendering browser; Playwright/Chromium unavailable");
+
         var schema    = await schemaExtractor.ExtractAsync(domain, browser, ct);
         var sitemap   = await sitemapExtractor.ExtractAsync(domain, ct);
-        var nav       = browser is not null
-            ? await navMenuExtractor.ExtractAsync(domain, browser, ct)
-            : new NavMenuData([], "skipped");
+        var nav       = await navMenuExtractor.ExtractAsync(domain, browser, ct);
         var headings  = await headingsExtractor.ExtractAsync(domain, browser, ct);
         var content   = await pageContentExtractor.ExtractAsync(domain, browser, ct);
         var crawlData = await sitePageCrawler.CrawlAsync(domain, sitemap.SampleUrls, browser, ct);

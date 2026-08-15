@@ -131,16 +131,14 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
     private static async Task<IReadOnlyList<string>> ExtractJsonLdWithPlaywrightAsync(
         string siteUrl, IBrowser browser, CancellationToken ct)
     {
-        await using var context = await browser.NewContextAsync(new BrowserNewContextOptions
-        {
-            UserAgent = "Mozilla/5.0 (compatible; GeekSEO/1.0; +https://seo.geekatyourspot.com)",
-        });
+        await using var context = await browser.NewContextAsync(CrawlerIdentity.MobileContext());
         var page = await context.NewPageAsync();
         await page.GotoAsync(siteUrl, new PageGotoOptions
         {
-            WaitUntil = WaitUntilState.DOMContentLoaded,
-            Timeout = 20_000,
+            WaitUntil = WaitUntilState.Load,
+            Timeout = CrawlerIdentity.NavigationTimeoutMs,
         });
+        await CrawlerIdentity.WaitForRenderedAsync(page);
 
         var payload = await page.EvaluateAsync<string>(@"() => {
             const scripts = Array.from(
@@ -173,8 +171,7 @@ public sealed partial class SchemaOrgExtractor(IHttpClientFactory factory, ILogg
     {
         var client = factory.CreateClient();
         client.Timeout = TimeSpan.FromSeconds(15);
-        client.DefaultRequestHeaders.Add("User-Agent",
-            "Mozilla/5.0 (compatible; GeekSEO/1.0; +https://seo.geekatyourspot.com)");
+        client.DefaultRequestHeaders.Add("User-Agent", CrawlerIdentity.UserAgent);
         var response = await client.GetAsync(siteUrl, ct);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsStringAsync(ct);

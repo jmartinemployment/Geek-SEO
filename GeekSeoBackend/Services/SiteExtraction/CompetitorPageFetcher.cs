@@ -1,22 +1,17 @@
-using System.Text.Json;
 using GeekSeo.Application.Models.Seo;
 using Microsoft.Playwright;
 
 namespace GeekSeoBackend.Services.SiteExtraction;
 
 /// <summary>
-/// Crawls competitor sites (bounded BFS, max 50 pages each) and extracts
-/// topic signals — headings, word count, FAQ schema — across their full site.
+/// Crawls competitor sites (uncapped BFS, same unlimited <see cref="SitePageCrawler"/> rules
+/// as the own-site crawl) and extracts topic signals — headings, word count, FAQ schema.
 /// Deduplicates by domain so each competitor is crawled once across all pillars.
 /// </summary>
 public sealed class CompetitorPageFetcher(
     SitePageCrawler crawler,
     ILogger<CompetitorPageFetcher> logger)
 {
-    /// <summary>
-    /// Crawl all unique competitor domains, return insights keyed by domain.
-    /// Uncapped — same unlimited <see cref="SitePageCrawler"/> rules as the own-site crawl.
-    /// </summary>
     public async Task<Dictionary<string, CompetitorSiteInsight>> CrawlCompetitorsAsync(
         IEnumerable<string> domains,
         IBrowser? browser,
@@ -41,7 +36,6 @@ public sealed class CompetitorPageFetcher(
                 var hasFaqSchema = false;
                 var pageCount = crawl.Pages.Count;
 
-                // Schema aggregation across all crawled pages
                 var allServices = new List<string>();
                 var allKnowsAbout = new List<string>();
                 var allAreaServed = new List<string>();
@@ -52,7 +46,7 @@ public sealed class CompetitorPageFetcher(
                 foreach (var page in crawl.Pages)
                 {
                     allHeadings.AddRange(ExtractHeadings(page.Html));
-                    totalWords += CountWords(StripContent(page.Html));
+                    totalWords += VisibleTextExtractor.EstimateWordCount(page.Html);
                     if (!hasFaqSchema) hasFaqSchema = HasFaqSchema(page.Html);
 
                     var schema = SchemaOrgExtractor.ParseFromHtml(page.Html);
@@ -102,64 +96,22 @@ public sealed class CompetitorPageFetcher(
     private static List<string> ExtractHeadings(string html)
     {
         var list = new List<string>();
-        var inTag = false;
-        // Simple regex-free extraction using span scanning would be ideal,
-        // but for now delegate to string search
-        var pos = 0;
-        while (pos < html.Length)
-        {
-            var h = html.IndexOf("<h", pos, StringComparison.OrdinalIgnoreCase);
-            if (h < 0) break;
-
-            if (h + 3 >= html.Length || !char.IsDigit(html[h + 2])) { pos = h + 1; continue; }
-            var level = html[h + 2] - '0';
-            if (level is < 1 or > 3) { pos = h + 1; continue; }
-
-            var tagEnd = html.IndexOf('>', h);
-            if (tagEnd < 0) break;
-
-            var closeTag = $"</h{level}>";
-            var closePos = html.IndexOf(closeTag, tagEnd, StringComparison.OrdinalIgnoreCase);
-            if (closePos < 0) { pos = tagEnd; continue; }
-
-            var raw = html[(tagEnd + 1)..closePos];
-            var text = StripTags(raw).Trim();
-            if (!string.IsNullOrWhiteSpace(text) && text.Length < 200)
-                list.Add(text);
-
-            pos = closePos + closeTag.Length;
-        }
+        Flatten(PageSectionTreeBuilder.Build(html), list);
         return list;
+    }
+
+    private static void Flatten(IReadOnlyList<PageSection> nodes, List<string> list)
+    {
+        foreach (var node in nodes)
+        {
+            list.Add(node.HeadingText);
+            Flatten(node.Children, list);
+        }
     }
 
     private static bool HasFaqSchema(string html) =>
         html.Contains("FAQPage", StringComparison.OrdinalIgnoreCase) ||
         html.Contains("\"@type\":\"Question\"", StringComparison.OrdinalIgnoreCase);
-
-    private static string StripTags(string html)
-    {
-        var sb = new System.Text.StringBuilder();
-        var inTag2 = false;
-        foreach (var c in html)
-        {
-            if (c == '<') inTag2 = true;
-            else if (c == '>') inTag2 = false;
-            else if (!inTag2) sb.Append(c);
-        }
-        return sb.ToString().Replace("&nbsp;", " ").Replace("&amp;", "&").Trim();
-    }
-
-    private static string StripContent(string html)
-    {
-        // Remove scripts and styles before word counting
-        var s = System.Text.RegularExpressions.Regex.Replace(html, "<script[\\s\\S]*?</script>", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        s = System.Text.RegularExpressions.Regex.Replace(s, "<style[\\s\\S]*?</style>", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        return StripTags(s);
-    }
-
-    private static int CountWords(string text) =>
-        string.IsNullOrWhiteSpace(text) ? 0
-            : text.Split((char[])[' ', '\n', '\r', '\t'], StringSplitOptions.RemoveEmptyEntries).Length;
 }
 
 public sealed record CompetitorSiteInsight(

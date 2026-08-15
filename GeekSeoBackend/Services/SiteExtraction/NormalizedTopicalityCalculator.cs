@@ -1,5 +1,3 @@
-using System.Net;
-using System.Text.RegularExpressions;
 using GeekSeo.Application.Models.Seo;
 
 namespace GeekSeoBackend.Services.SiteExtraction;
@@ -8,7 +6,7 @@ namespace GeekSeoBackend.Services.SiteExtraction;
 /// Estimates per-pillar normalized topicality: share of crawled site content (by word count)
 /// attributed to each selected pillar — mirrors Google's NormalizedTopicality signal (Gap 4).
 /// </summary>
-public static partial class NormalizedTopicalityCalculator
+public static class NormalizedTopicalityCalculator
 {
     private const decimal MinMatchScore = 0.25m;
     private const int MinPageWords = 50;
@@ -60,7 +58,7 @@ public static partial class NormalizedTopicalityCalculator
         IReadOnlyDictionary<string, string> slugToUrl)
     {
         var path = SafePath(page.Url);
-        var text = VisibleText(page.Html);
+        var text = VisibleTextExtractor.Extract(page.Html);
 
         var bestSlug = string.Empty;
         var bestScore = 0m;
@@ -124,23 +122,8 @@ public static partial class NormalizedTopicalityCalculator
             StringComparer.OrdinalIgnoreCase);
     }
 
-    internal static int EstimateWordCount(string html)
-    {
-        return VisibleText(html)
-            .Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
-            .Length;
-    }
-
-    private static string VisibleText(string html)
-    {
-        if (string.IsNullOrWhiteSpace(html))
-            return string.Empty;
-
-        var stripped = ScriptTagRegex().Replace(html, " ");
-        stripped = StyleTagRegex().Replace(stripped, " ");
-        stripped = TagRegex().Replace(stripped, " ");
-        return WebUtility.HtmlDecode(stripped);
-    }
+    internal static int EstimateWordCount(string html) =>
+        VisibleTextExtractor.EstimateWordCount(html);
 
     private static string SafePath(string url)
     {
@@ -184,13 +167,4 @@ public static partial class NormalizedTopicalityCalculator
             return false;
         }
     }
-
-    [GeneratedRegex("<script\\b[^>]*>[\\s\\S]*?</script>", RegexOptions.IgnoreCase)]
-    private static partial Regex ScriptTagRegex();
-
-    [GeneratedRegex("<style\\b[^>]*>[\\s\\S]*?</style>", RegexOptions.IgnoreCase)]
-    private static partial Regex StyleTagRegex();
-
-    [GeneratedRegex("<[^>]+>")]
-    private static partial Regex TagRegex();
 }

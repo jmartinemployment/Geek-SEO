@@ -1,5 +1,14 @@
 # Mobile-First Crawl: Single Canonical Html, Regex-Free Heading Tree
 
+**Superseded (2026-08-15):** Part 1's "only capturing what's actually visible" and the
+"intentionally incomplete" tradeoff (`:22-26`) are withdrawn. Mobile viewport stands. Deleting
+every computed-hidden node (`el.remove()` in §2) was the wrong mechanism — it also deleted
+accordion/tab/nav-drawer content Google indexes at full weight, and did so before link discovery.
+Duplicates still stop by construction under mobile-first indexing; the strip is not how. See
+`docs/crawler-architecture.md` and `docs/plans/mobile-first-crawl-part-3-render-always.md`.
+
+Original Part 1 text is preserved below.
+
 ## Context
 
 Site Structure was showing duplicate headings (H1/H2 repeated 2-3x on a page). Root cause: the
@@ -76,7 +85,12 @@ media queries.
 
 ### 2. Visibility-filtered capture (`FetchWithPlaywrightAsync`, replaces `page.ContentAsync()`)
 
-Real computed-style check inside the live Playwright page — no regex, no text matching:
+**Superseded (2026-08-15):** do not `el.remove()` hidden nodes. Annotate `data-gsv` instead. The
+snippet below is the mechanism this plan shipped and that later work reversed. Verification step 6
+(`:149-152`) already worried about hamburger nav being "just visually hidden until toggled" — that
+is exactly what the strip deletes.
+
+Original §2 text:
 
 ```csharp
 var html = await page.EvaluateAsync<string>(@"() => {

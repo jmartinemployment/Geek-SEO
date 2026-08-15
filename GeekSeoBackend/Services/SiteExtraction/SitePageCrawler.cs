@@ -1,44 +1,32 @@
+using System.Globalization;
 using System.Net;
-using System.Text.RegularExpressions;
 using GeekSeo.Application.Models.Seo;
+using HtmlAgilityPack;
 using Microsoft.Playwright;
 
 namespace GeekSeoBackend.Services.SiteExtraction;
 
 /// <summary>
-/// Fetches a bounded set of same-origin pages (homepage, sitemap seeds, shallow BFS)
-/// for internal-link and URL-pattern extractors.
-/// HTTP-only runs (manual step re-run) crawl seeds only — BFS link following requires Playwright
-/// because SPA shells return the same HTML for every client-side route.
+/// Fetch/render layer: mirrors search-engine protocol (render always, robots, status/redirects,
+/// directives, URL identity, quiescence). Never deletes DOM nodes — annotates <c>data-gsv</c>
+/// instead. Extraction decisions belong in <see cref="PageSectionTreeBuilder"/> and
+/// <see cref="VisibleTextExtractor"/>. Uncapped same-origin BFS; robots.txt is the skip mechanism.
 /// </summary>
-public sealed partial class SitePageCrawler(
-    IHttpClientFactory factory,
-    ILogger<SitePageCrawler> logger)
+public sealed class SitePageCrawler(ILogger<SitePageCrawler> logger)
 {
-    // Matches Playwright's page.GotoAsync timeout (15_000 ms) so HTTP-only crawl mode
-    // doesn't time out URLs sooner than the Playwright-backed BFS mode would.
-    private const int HttpFetchTimeoutSeconds = 15;
-
-    /// <summary>Bounded concurrency for same-context Playwright/HTTP fetches (wave BFS).</summary>
     private const int CrawlConcurrency = 6;
-
-    /// <summary>
-    /// Post-DOMContentLoaded settle before snapshot. 400ms is the known-good value;
-    /// 1000ms (speculative in 4564782) blew serial crawls past the 15-minute job timeout.
-    /// </summary>
-    private const int RenderSettleMs = 400;
+    private const int InterRequestDelayMs = 100;
+    private const int MaxRetries = 3;
+    private static readonly TimeSpan RobotsFetchTimeout = TimeSpan.FromSeconds(8);
 
     private static readonly string[] SkipExtensions =
     [
-        ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".zip", ".xml",
-        ".css", ".js", ".woff", ".woff2",
+        ".css", ".js", ".woff", ".woff2", ".zip",
     ];
 
     /// <summary>
-    /// Crawls the full same-origin inventory (homepage + sitemap/inventory seeds + BFS-discovered
-    /// links when Playwright is available). Unlimited — no page cap, no attempt-budget soft-stop.
-    /// Callers that need a bounded crawl must apply their own post-hoc limiting; this method always
-    /// attempts every reachable, non-junk URL so crawl completeness can be checked against inventory.
+    /// Crawls the full same-origin inventory (homepage + sitemap/inventory seeds + BFS).
+    /// Unlimited — no page cap. Requires a rendering browser; there is no HTTP fallback.
     /// </summary>
     public async Task<SiteCrawlData> CrawlAsync(
         string siteUrl,
@@ -46,42 +34,104 @@ public sealed partial class SitePageCrawler(
         IBrowser? browser,
         CancellationToken ct)
     {
-        if (!TryGetOrigin(siteUrl, out var origin, out var homepage))
+        if (browser is null)
+        {
+            throw new InvalidOperationException(
+                "crawl requires a rendering browser; Playwright/Chromium unavailable");
+        }
+
+        if (!TryGetOrigin(siteUrl, out var originUri, out var homepage))
             return new SiteCrawlData([], 0, 0);
 
         var queue = new Queue<string>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var queued = new HashSet<string>(StringComparer.Ordinal);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
         var pages = new List<CrawledPage>();
         var attempted = 0;
 
-        Enqueue(homepage);
-        foreach (var url in sitemapUrls)
-        {
-            if (TryNormalizeSameOrigin(url, origin, out var normalized))
-                Enqueue(normalized);
-        }
+        var playwrightContext = await browser.NewContextAsync(CrawlerIdentity.MobileContext());
 
-        IBrowserContext? playwrightContext = null;
-        if (browser is not null)
+        await playwrightContext.RouteAsync("**/*", async route =>
         {
-            playwrightContext = await browser.NewContextAsync(new BrowserNewContextOptions
-            {
-                UserAgent = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) " +
-                            "Chrome/124.0.0.0 Mobile Safari/537.36 (compatible; GeekSEO/1.0; +https://seo.geekatyourspot.com)",
-                ViewportSize = new ViewportSize { Width = 412, Height = 823 },
-                IsMobile = true,
-                HasTouch = true,
-                DeviceScaleFactor = 1.75f,
-            });
-        }
+            if (TrackerBlocklist.ShouldAbort(route.Request.Url))
+                await route.AbortAsync();
+            else
+                await route.ContinueAsync();
+        });
 
-        var client = playwrightContext is null ? BuildClient() : null;
-        var followLinks = playwrightContext is not null;
-        var fetchMode = followLinks ? "playwright" : "http";
+        var robots = await FetchRobotsAsync(originUri, ct);
+        var crawlDelayMs = robots.CrawlDelaySeconds is int seconds
+            ? Math.Max(InterRequestDelayMs, seconds * 1000)
+            : InterRequestDelayMs;
 
         try
         {
-            using var gate = new SemaphoreSlim(CrawlConcurrency);
+            Enqueue(homepage);
+            foreach (var url in sitemapUrls)
+            {
+                if (TryNormalizeSameOrigin(url, originUri, out var normalized))
+                    Enqueue(normalized);
+            }
+
+            foreach (var sitemap in robots.Sitemaps)
+            {
+                if (TryNormalizeSameOrigin(sitemap, originUri, out var normalized))
+                    Enqueue(normalized);
+            }
+
+            var concurrency = CrawlConcurrency;
+            var inFlight = 0;
+            var distress = 0;
+            var successStreak = 0;
+            var gate = new object();
+
+            async Task AcquireAsync()
+            {
+                while (true)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    lock (gate)
+                    {
+                        if (inFlight < concurrency)
+                        {
+                            inFlight++;
+                            return;
+                        }
+                    }
+
+                    await Task.Delay(25, ct);
+                }
+            }
+
+            void Release()
+            {
+                lock (gate)
+                    inFlight--;
+            }
+
+            void NoteDistress()
+            {
+                lock (gate)
+                {
+                    distress++;
+                    successStreak = 0;
+                    if (distress >= 3)
+                        concurrency = Math.Max(1, concurrency / 2);
+                }
+            }
+
+            void NoteSuccess()
+            {
+                lock (gate)
+                {
+                    successStreak++;
+                    if (successStreak >= 8 && concurrency < CrawlConcurrency)
+                        concurrency++;
+                    if (distress > 0)
+                        distress--;
+                }
+            }
+
             while (queue.Count > 0)
             {
                 ct.ThrowIfCancellationRequested();
@@ -98,47 +148,56 @@ public sealed partial class SitePageCrawler(
                     break;
 
                 attempted += wave.Count;
-                var waveHtml = new string?[wave.Count];
+                var wavePages = new CrawledPage?[wave.Count];
                 var fetchTasks = new Task[wave.Count];
                 for (var i = 0; i < wave.Count; i++)
                 {
                     var index = i;
                     var url = wave[i];
                     fetchTasks[i] = FetchWaveItemAsync(
-                        gate, playwrightContext, client, url, waveHtml, index, ct);
+                        AcquireAsync,
+                        Release,
+                        NoteDistress,
+                        NoteSuccess,
+                        playwrightContext,
+                        url,
+                        crawlDelayMs,
+                        wavePages,
+                        index,
+                        ct);
                 }
 
                 await Task.WhenAll(fetchTasks);
 
                 for (var i = 0; i < wave.Count; i++)
                 {
-                    var html = waveHtml[i];
-                    if (string.IsNullOrWhiteSpace(html))
+                    var record = wavePages[i];
+                    if (record is null)
                         continue;
 
-                    var url = wave[i];
-                    pages.Add(new CrawledPage(url, html, fetchMode));
+                    pages.Add(record);
 
-                    if (followLinks)
-                    {
-                        foreach (var discovered in ExtractSameOriginLinks(html, url, origin))
-                            Enqueue(discovered);
-                    }
+                    var finalKey = CrawlUrl.Canonicalize(record.FinalUrl.Length > 0 ? record.FinalUrl : record.Url);
+                    seen.Add(finalKey);
+
+                    if (record.StatusCode is < 200 or >= 300)
+                        continue;
+
+                    foreach (var link in record.Links)
+                        Enqueue(link.Href);
                 }
             }
         }
         finally
         {
-            if (playwrightContext is not null)
-                await playwrightContext.DisposeAsync();
+            await playwrightContext.DisposeAsync();
         }
 
         logger.LogInformation(
-            "Site crawl finished for {Origin}: {Fetched}/{Attempted} page(s) (unlimited, mode {Mode})",
-            origin,
+            "Site crawl finished for {Origin}: {Fetched}/{Attempted} page(s) (unlimited, playwright-bfs)",
+            originUri.GetLeftPart(UriPartial.Authority),
             pages.Count,
-            attempted,
-            followLinks ? "playwright-bfs" : "http-seeds-only");
+            attempted);
 
         return new SiteCrawlData(pages, attempted, pages.Count);
 
@@ -146,50 +205,81 @@ public sealed partial class SitePageCrawler(
         {
             if (ShouldSkipUrl(url))
                 return;
-            if (!seen.Contains(url) && !queue.Contains(url))
-                queue.Enqueue(url);
+            if (!IsAllowedByRobots(robots, url))
+                return;
+            var key = CrawlUrl.Canonicalize(url);
+            if (!seen.Contains(key) && queued.Add(key))
+                queue.Enqueue(key);
         }
     }
 
     private async Task FetchWaveItemAsync(
-        SemaphoreSlim gate,
-        IBrowserContext? playwrightContext,
-        HttpClient? client,
+        Func<Task> acquire,
+        Action release,
+        Action noteDistress,
+        Action noteSuccess,
+        IBrowserContext playwrightContext,
         string url,
-        string?[] waveHtml,
+        int crawlDelayMs,
+        CrawledPage?[] wavePages,
         int index,
         CancellationToken ct)
     {
-        await gate.WaitAsync(ct);
+        await acquire();
         try
         {
             ct.ThrowIfCancellationRequested();
-            waveHtml[index] = playwrightContext is not null
-                ? await FetchWithPlaywrightAsync(playwrightContext, url, ct)
-                : await FetchWithHttpAsync(client!, url, ct);
+            if (crawlDelayMs > 0)
+                await Task.Delay(crawlDelayMs, ct);
+            var record = await FetchWithPlaywrightAsync(playwrightContext, url, ct);
+            wavePages[index] = record;
+            if (record is not null && record.StatusCode is 429 or >= 500)
+                noteDistress();
+            else if (record is { StatusCode: >= 200 and < 400 })
+                noteSuccess();
         }
         finally
         {
-            gate.Release();
+            release();
         }
     }
 
     internal static IEnumerable<string> ExtractSameOriginLinks(string html, string pageUrl, string origin)
     {
-        foreach (Match match in LinkHrefRegex().Matches(html))
+        foreach (var link in ExtractLinksFromHtml(html, pageUrl, origin))
+            yield return link.Href;
+    }
+
+    internal static IReadOnlyList<DiscoveredCrawlLink> ExtractLinksFromHtml(
+        string html, string pageUrl, string origin)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+            return [];
+
+        var doc = new HtmlDocument();
+        doc.LoadHtml(html);
+        var nodes = doc.DocumentNode.SelectNodes(".//a[@href]");
+        if (nodes is null)
+            return [];
+
+        var links = new List<DiscoveredCrawlLink>();
+        foreach (var anchor in nodes)
         {
-            var href = WebUtility.HtmlDecode(match.Groups[1].Value.Trim());
+            var href = WebUtility.HtmlDecode(anchor.GetAttributeValue("href", "")).Trim();
             if (string.IsNullOrWhiteSpace(href))
                 continue;
-
             if (!TryResolveUrl(href, pageUrl, origin, out var absolute))
                 continue;
-
             if (ShouldSkipUrl(absolute))
                 continue;
 
-            yield return absolute;
+            var text = VisibleTextExtractor.Collapse(
+                WebUtility.HtmlDecode(anchor.InnerText ?? string.Empty));
+            var rel = (anchor.GetAttributeValue("rel", "") ?? string.Empty).Trim().ToLowerInvariant();
+            links.Add(new DiscoveredCrawlLink(absolute, text, rel));
         }
+
+        return links;
     }
 
     internal static bool TryResolveUrl(string href, string pageUrl, string origin, out string absolute)
@@ -211,11 +301,14 @@ public sealed partial class SitePageCrawler(
             if (!resolved.Scheme.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                 return false;
 
-            var resolvedOrigin = resolved.GetLeftPart(UriPartial.Authority);
-            if (!resolvedOrigin.Equals(origin, StringComparison.OrdinalIgnoreCase))
+            if (!Uri.TryCreate(origin.Contains("://", StringComparison.Ordinal) ? origin : "https://" + origin,
+                    UriKind.Absolute, out var originUri))
                 return false;
 
-            absolute = StripFragment(resolved.AbsoluteUri);
+            if (!CrawlUrl.IsSameSite(resolved, originUri))
+                return false;
+
+            absolute = CrawlUrl.Canonicalize(resolved.AbsoluteUri);
             return true;
         }
         catch
@@ -225,16 +318,14 @@ public sealed partial class SitePageCrawler(
     }
 
     /// <summary>
-    /// Hard-junk-only crawl filter. Utility pages (/about, /contact, /faq, …) are legitimate
-    /// sitemap-inventory / site-audit URLs and MUST be fetched — they are excluded only from
-    /// pillar/topic selection via <see cref="NoisePaths"/>, never from the crawl itself.
+    /// Non-document assets only. Path opinion lists are not a crawl filter — robots.txt is.
     /// </summary>
-    private static bool ShouldSkipUrl(string url)
+    internal static bool ShouldSkipUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url))
             return true;
 
-        var path = url;
+        string path;
         try
         {
             path = new Uri(url).AbsolutePath;
@@ -250,51 +341,83 @@ public sealed partial class SitePageCrawler(
                 return true;
         }
 
-        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        return segments.Any(HardJunkPaths.IsHardJunk);
+        return false;
     }
 
-    private async Task<string?> FetchWithPlaywrightAsync(
+    private async Task<CrawledPage?> FetchWithPlaywrightAsync(
         IBrowserContext context, string url, CancellationToken ct)
     {
         IPage? page = null;
         try
         {
             page = await context.NewPageAsync();
-            var response = await page.GotoAsync(url, new PageGotoOptions
+            IResponse? response = null;
+            var status = 0;
+            for (var attempt = 0; attempt <= MaxRetries; attempt++)
             {
-                WaitUntil = WaitUntilState.DOMContentLoaded,
-                Timeout = 15_000,
-            });
-            if (response is null || !response.Ok)
-            {
-                logger.LogDebug("Playwright crawl skipped {Url}: HTTP {Status}", url, response?.Status ?? -1);
-                return null;
-            }
-            await page.WaitForTimeoutAsync(RenderSettleMs);
-            var html = await page.EvaluateAsync<string>(@"() => {
-    const isHidden = (el) => {
-        const style = window.getComputedStyle(el);
-        return style.display === 'none' || style.visibility === 'hidden';
-    };
-    document.querySelectorAll('*').forEach(el => {
-        if (isHidden(el)) el.remove();
-    });
-    return document.documentElement.outerHTML;
-}");
+                response = await page.GotoAsync(url, new PageGotoOptions
+                {
+                    WaitUntil = WaitUntilState.Load,
+                    Timeout = CrawlerIdentity.NavigationTimeoutMs,
+                });
+                status = response?.Status ?? 0;
+                if (status is not (429 or >= 500) || attempt == MaxRetries)
+                    break;
 
-            if (IsSoft404(html, url))
-            {
-                logger.LogDebug("Playwright crawl skipped {Url}: soft 404 detected", url);
-                return null;
+                var delay = DelayForRetry(response, attempt);
+                logger.LogInformation(
+                    "Backing off {Delay} after HTTP {Status} for {Url} (attempt {Attempt})",
+                    delay, status, url, attempt + 1);
+                await Task.Delay(delay, ct);
             }
 
-            return html;
+            if (response is null)
+            {
+                return new CrawledPage(url, string.Empty, "playwright")
+                {
+                    FinalUrl = url,
+                    StatusCode = 0,
+                    FetchedAt = DateTimeOffset.UtcNow,
+                };
+            }
+
+            await CrawlerIdentity.WaitForRenderedAsync(page);
+
+            var redirectChain = CaptureRedirectChain(response);
+            var finalUrl = response.Url ?? page.Url ?? url;
+            var headers = response.Headers;
+            headers.TryGetValue("x-robots-tag", out var xRobots);
+            headers.TryGetValue("content-type", out var contentType);
+
+            var html = await AnnotateVisibilityAsync(page);
+            var directives = ParseDirectives(html, xRobots);
+            var links = status is >= 200 and < 300
+                ? ExtractLinksFromHtml(html, finalUrl, url)
+                : [];
+
+            return new CrawledPage(url, html ?? string.Empty, "playwright")
+            {
+                FinalUrl = finalUrl,
+                StatusCode = status,
+                RedirectChain = redirectChain,
+                Canonical = directives.Canonical,
+                NoIndex = directives.NoIndex,
+                NoFollow = directives.NoFollow,
+                SoftNotFound = directives.SoftNotFound,
+                FetchedAt = DateTimeOffset.UtcNow,
+                Links = links,
+                ContentType = contentType,
+            };
         }
         catch (Exception ex)
         {
-            logger.LogDebug(ex, "Playwright crawl skipped {Url}", url);
-            return null;
+            logger.LogDebug(ex, "Playwright crawl failed for {Url}", url);
+            return new CrawledPage(url, string.Empty, "playwright")
+            {
+                FinalUrl = url,
+                StatusCode = 0,
+                FetchedAt = DateTimeOffset.UtcNow,
+            };
         }
         finally
         {
@@ -303,58 +426,162 @@ public sealed partial class SitePageCrawler(
         }
     }
 
-    private async Task<string?> FetchWithHttpAsync(HttpClient client, string url, CancellationToken ct)
+    private static async Task<string> AnnotateVisibilityAsync(IPage page)
     {
+        var hiddenScript =
+            """
+            () => [...document.querySelectorAll('*')].map(el => {
+              const s = getComputedStyle(el);
+              return s.display === 'none' || s.visibility === 'hidden';
+            })
+            """;
+
+        var atMobile = await page.EvaluateAsync<bool[]>(hiddenScript);
+        await page.SetViewportSizeAsync(CrawlerIdentity.DesktopProbeWidth, CrawlerIdentity.DesktopProbeHeight);
         try
         {
-            return await client.GetStringAsync(url, ct);
+            await page.EvaluateAsync("() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))");
+            var atDesktop = await page.EvaluateAsync<bool[]>(hiddenScript);
+            var labels = VisibilityClassifier.ClassifyAll(atMobile, atDesktop);
+            await page.EvaluateAsync(
+                """
+                labels => {
+                  const all = [...document.querySelectorAll('*')];
+                  const n = Math.min(all.length, labels.length);
+                  for (let i = 0; i < n; i++) all[i].setAttribute('data-gsv', labels[i]);
+                }
+                """,
+                labels);
         }
-        catch (Exception ex)
+        finally
         {
-            logger.LogDebug(ex, "HTTP crawl skipped {Url}", url);
-            return null;
+            await page.SetViewportSizeAsync(
+                CrawlerIdentity.MobileViewportWidth,
+                CrawlerIdentity.MobileViewportHeight);
         }
+
+        return await page.EvaluateAsync<string>("() => document.documentElement.outerHTML") ?? string.Empty;
     }
 
-    private static bool IsSoft404(string html, string url)
+    private static List<string> CaptureRedirectChain(IResponse response)
     {
-        if (string.IsNullOrWhiteSpace(html))
-            return false;
+        var chain = new List<string>();
+        var from = response.Request.RedirectedFrom;
+        while (from is not null)
+        {
+            chain.Insert(0, from.Url);
+            from = from.RedirectedFrom;
+        }
 
-        html = html.ToLowerInvariant();
+        return chain;
+    }
 
-        if (html.Contains("<meta name=\"robots\" content=\"noindex\"") ||
-            html.Contains("<meta name='robots' content='noindex'"))
+    private static TimeSpan DelayForRetry(IResponse? response, int attempt)
+    {
+        if (response is not null
+            && response.Headers.TryGetValue("retry-after", out var raw)
+            && TryParseRetryAfter(raw, out var retryAfter))
+        {
+            return retryAfter;
+        }
+
+        return TimeSpan.FromSeconds(Math.Pow(2, attempt));
+    }
+
+    private static bool TryParseRetryAfter(string raw, out TimeSpan delay)
+    {
+        delay = TimeSpan.Zero;
+        if (int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds))
+        {
+            delay = TimeSpan.FromSeconds(Math.Clamp(seconds, 1, 60));
             return true;
+        }
 
-        if (html.Contains("<title>404") || html.Contains("<title>not found") ||
-            html.Contains("<h1>404") || html.Contains("<h1>not found") ||
-            html.Contains("<h1>page not found") || html.Contains("<h2>404") ||
-            html.Contains("<h2>not found"))
+        if (DateTimeOffset.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var when))
+        {
+            var delta = when - DateTimeOffset.UtcNow;
+            if (delta < TimeSpan.Zero)
+                delta = TimeSpan.FromSeconds(1);
+            delay = delta > TimeSpan.FromMinutes(1) ? TimeSpan.FromMinutes(1) : delta;
             return true;
+        }
 
         return false;
     }
 
-    private static bool TryNormalizeSameOrigin(string url, string origin, out string normalized)
+    private readonly record struct PageDirectives(string? Canonical, bool NoIndex, bool NoFollow, bool SoftNotFound);
+
+    private static PageDirectives ParseDirectives(string html, string? xRobotsTag)
+    {
+        var doc = new HtmlDocument();
+        doc.LoadHtml(html ?? string.Empty);
+
+        var tokens = new List<string>();
+        foreach (var meta in doc.DocumentNode.SelectNodes("//meta[@name]") ?? Enumerable.Empty<HtmlNode>())
+        {
+            var name = meta.GetAttributeValue("name", "");
+            if (!name.Equals("robots", StringComparison.OrdinalIgnoreCase)
+                && !name.Equals("googlebot", StringComparison.OrdinalIgnoreCase))
+                continue;
+            tokens.AddRange(SplitDirectiveTokens(meta.GetAttributeValue("content", "")));
+        }
+
+        if (!string.IsNullOrWhiteSpace(xRobotsTag))
+            tokens.AddRange(SplitDirectiveTokens(xRobotsTag));
+
+        var noindex = tokens.Any(t => t is "noindex" or "none");
+        var nofollow = tokens.Any(t => t is "nofollow" or "none");
+
+        string? canonical = null;
+        var link = doc.DocumentNode.SelectSingleNode("//link[translate(@rel,'CANONICAL','canonical')='canonical']")
+                   ?? doc.DocumentNode.SelectSingleNode("//link[@rel='canonical' or @rel='Canonical']");
+        if (link is not null)
+        {
+            var href = link.GetAttributeValue("href", "").Trim();
+            canonical = string.IsNullOrWhiteSpace(href) ? null : href;
+        }
+
+        var title = WebUtility.HtmlDecode(doc.DocumentNode.SelectSingleNode("//title")?.InnerText ?? "");
+        var h1 = WebUtility.HtmlDecode(doc.DocumentNode.SelectSingleNode("//h1")?.InnerText ?? "");
+        var h2 = WebUtility.HtmlDecode(doc.DocumentNode.SelectSingleNode("//h2")?.InnerText ?? "");
+        var soft = IsSoftNotFoundText(title) || IsSoftNotFoundText(h1) || IsSoftNotFoundText(h2);
+
+        return new PageDirectives(canonical, noindex, nofollow, soft);
+    }
+
+    private static IEnumerable<string> SplitDirectiveTokens(string content) =>
+        content.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(t => t.ToLowerInvariant());
+
+    private static bool IsSoftNotFoundText(string text)
+    {
+        var value = VisibleTextExtractor.Collapse(text).ToLowerInvariant();
+        if (value.Length == 0)
+            return false;
+        return value.StartsWith("404", StringComparison.Ordinal)
+            || value.Contains("not found", StringComparison.Ordinal)
+            || value.Contains("page not found", StringComparison.Ordinal);
+    }
+
+    private static bool TryNormalizeSameOrigin(string url, Uri originUri, out string normalized)
     {
         normalized = string.Empty;
-        if (!url.StartsWith(origin, StringComparison.OrdinalIgnoreCase))
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
             return false;
-
-        normalized = StripFragment(url);
+        if (!CrawlUrl.IsSameSite(uri, originUri))
+            return false;
+        normalized = CrawlUrl.Canonicalize(uri.AbsoluteUri);
         return !ShouldSkipUrl(normalized);
     }
 
-    private static bool TryGetOrigin(string siteUrl, out string origin, out string homepage)
+    private static bool TryGetOrigin(string siteUrl, out Uri originUri, out string homepage)
     {
-        origin = string.Empty;
+        originUri = null!;
         homepage = string.Empty;
         try
         {
-            var uri = new Uri(SiteUrlNormalizer.Normalize(siteUrl));
-            origin = uri.GetLeftPart(UriPartial.Authority);
-            homepage = origin + "/";
+            originUri = new Uri(SiteUrlNormalizer.Normalize(siteUrl));
+            homepage = CrawlUrl.Canonicalize(originUri.GetLeftPart(UriPartial.Authority) + "/");
             return true;
         }
         catch
@@ -363,23 +590,27 @@ public sealed partial class SitePageCrawler(
         }
     }
 
-    private static string StripFragment(string url)
+    private static bool IsAllowedByRobots(RobotsRules robots, string url)
     {
-        var hash = url.IndexOf('#');
-        return hash >= 0 ? url[..hash] : url;
+        try
+        {
+            return robots.IsAllowed(new Uri(url).AbsolutePath);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
-    private HttpClient BuildClient()
+    private async Task<RobotsRules> FetchRobotsAsync(Uri originUri, CancellationToken ct)
     {
-        var client = factory.CreateClient();
-        client.Timeout = TimeSpan.FromSeconds(HttpFetchTimeoutSeconds);
-        client.DefaultRequestHeaders.Add("User-Agent",
-            "Mozilla/5.0 (compatible; GeekSEO/1.0; +https://seo.geekatyourspot.com)");
-        return client;
+        using var client = new HttpClient { Timeout = RobotsFetchTimeout };
+        var rules = await RobotsTxt.FetchAsync(originUri, client, ct);
+        logger.LogInformation(
+            "robots.txt for {Origin}: sitemaps={SitemapCount}, crawl-delay={CrawlDelay}",
+            originUri.GetLeftPart(UriPartial.Authority),
+            rules.Sitemaps.Count,
+            rules.CrawlDelaySeconds);
+        return rules;
     }
-
-    [GeneratedRegex(
-        @"<a\s[^>]*href=[""']([^""'#][^""']*)[""']",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex LinkHrefRegex();
 }

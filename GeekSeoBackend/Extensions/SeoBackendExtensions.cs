@@ -142,7 +142,7 @@ public static class SeoBackendExtensions
         services.AddHttpClient("PublicScanPage", client =>
         {
             client.Timeout = TimeSpan.FromSeconds(15);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("GeekSEO-Scan/1.0 (https://seo.geekatyourspot.com)");
+            client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", CrawlerIdentity.UserAgent);
         });
         services.AddHttpClient("PublicScanPsi", client => client.Timeout = TimeSpan.FromSeconds(45));
         services.AddScoped<IPublicSiteScanService, PublicSiteScanService>();
@@ -151,7 +151,7 @@ public static class SeoBackendExtensions
         services.AddHttpClient("NominatimGeocode", client =>
         {
             client.Timeout = TimeSpan.FromSeconds(15);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("GeekSEO/1.0 (https://seo.geekatyourspot.com)");
+            client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", CrawlerIdentity.UserAgent);
         });
         services.AddScoped<IGeocodeService, GoogleGeocodeService>();
         services.AddScoped<ILocalSerpContextResolver, LocalSerpContextResolver>();

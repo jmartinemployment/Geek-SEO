@@ -7,8 +7,8 @@ namespace GeekSeoBackend.Services.SiteExtraction;
 
 /// <summary>
 /// Site Analyzer step 1 (Semrush-style sitemap generator): always-run same-origin BFS crawl from
-/// the homepage (unlimited discovery, hard-junk-only skip filter — same crawl rules as
-/// <see cref="SitePageCrawler"/>), merged with any public <c>/sitemap.xml</c> URLs from
+/// the homepage (unlimited discovery; robots.txt is the skip mechanism — same crawl rules as
+/// <see cref="SitePageCrawler"/>), merged with any public sitemap URLs from
 /// <see cref="SitemapExtractor"/>. Produces the full URL inventory (never a discovery cap) and a
 /// standard <c>urlset</c> XML document. Fails closed (throws) when zero URLs are discovered —
 /// there is no empty soft-success path.
@@ -111,8 +111,7 @@ public sealed class SitemapGenerator(
     {
         try
         {
-            return new Uri(url).GetLeftPart(UriPartial.Authority)
-                .Equals(origin, StringComparison.OrdinalIgnoreCase);
+            return CrawlUrl.IsSameSite(new Uri(url), new Uri(origin));
         }
         catch
         {

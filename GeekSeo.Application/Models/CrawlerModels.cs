@@ -24,6 +24,7 @@ public sealed record PageSectionLink
 {
     public required string Text { get; init; }
     public required string Href { get; init; }
+    public string Rel { get; init; } = "";
 }
 
 /// <summary>

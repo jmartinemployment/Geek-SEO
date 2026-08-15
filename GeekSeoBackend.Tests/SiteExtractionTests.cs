@@ -196,8 +196,8 @@ public sealed class SiteExtractionTests
 
         Assert.Contains("Accounting", verticalTopics);
         Assert.Contains("Healthcare", verticalTopics);
+        Assert.Contains("Why Choose Us", verticalTopics);
         Assert.Contains("Industries We Serve", phrases);
-        Assert.Contains("Why Choose Us", phrases);
         Assert.DoesNotContain("Accounting", phrases);
     }
 
@@ -214,7 +214,7 @@ public sealed class SiteExtractionTests
         var (phrases, verticalTopics, _) = PageContentExtractor.ExtractFromHtml(html);
 
         Assert.Contains("AI Consulting", verticalTopics);
-        Assert.Contains("How It Works", phrases);
+        Assert.Contains("How It Works", verticalTopics);
         Assert.DoesNotContain("AI Consulting", phrases);
     }
 
@@ -763,7 +763,7 @@ public sealed class SiteExtractionTests
         const string html = """
             <html><body>
             <a href="/services/managed-it">Managed IT Support</a>
-            <a href="/contact">Learn More</a>
+            <a href="/">Learn More</a>
             </body></html>
             """;
 
@@ -1226,68 +1226,34 @@ public sealed class SiteExtractionTests
     }
 
     [Fact]
-    public async Task SitePageCrawler_HttpOnly_CrawlsSeedsOnly_NotBfsLinks()
+    public async Task SitePageCrawler_FailsClosed_WhenBrowserUnavailable()
     {
-        var html = """
-            <html><body>
-            <a href="/about">About</a>
-            <a href="/services/ai">AI</a>
-            <a href="/contact">Contact</a>
-            </body></html>
-            """;
-        var requestCount = 0;
-        var handler = new StubHttpHandler(_ =>
-        {
-            Interlocked.Increment(ref requestCount);
-            return new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(html, Encoding.UTF8, "text/html"),
-            };
-        });
-        var crawler = new SitePageCrawler(
-            new StubHttpClientFactory(handler),
-            NullLogger<SitePageCrawler>.Instance);
+        var crawler = new SitePageCrawler(NullLogger<SitePageCrawler>.Instance);
 
-        var result = await crawler.CrawlAsync(
-            "https://example.com",
-            ["https://example.com/pricing"],
-            browser: null,
-            CancellationToken.None);
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            crawler.CrawlAsync(
+                "https://example.com",
+                ["https://example.com/pricing"],
+                browser: null,
+                CancellationToken.None));
 
-        Assert.Equal(2, result.PagesFetched);
-        Assert.Equal(2, result.PagesAttempted);
-        Assert.Equal(2, requestCount);
+        Assert.Contains("rendering browser", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task SitePageCrawler_HttpOnly_IsUnlimited_AttemptsEveryInventoryUrl()
+    public async Task SitePageCrawler_FailsClosed_WhenBrowserUnavailable_EvenWithInventorySeeds()
     {
-        // Unlimited crawl: no page cap, no attempt-budget soft-stop. Every seed URL is attempted
-        // regardless of count so crawl completeness can be checked against the full inventory.
-        var requestCount = 0;
-        var handler = new StubHttpHandler(_ =>
-        {
-            Interlocked.Increment(ref requestCount);
-            return new HttpResponseMessage(HttpStatusCode.NotFound);
-        });
-        var crawler = new SitePageCrawler(
-            new StubHttpClientFactory(handler),
-            NullLogger<SitePageCrawler>.Instance);
-
+        var crawler = new SitePageCrawler(NullLogger<SitePageCrawler>.Instance);
         var sitemapSeeds = Enumerable.Range(1, 40)
             .Select(i => $"https://example.com/page-{i}")
             .ToList();
 
-        var result = await crawler.CrawlAsync(
-            "https://example.com",
-            sitemapSeeds,
-            browser: null,
-            CancellationToken.None);
-
-        // Homepage + all 40 seeds attempted — no 25-attempt soft-stop.
-        Assert.Equal(0, result.PagesFetched);
-        Assert.Equal(41, result.PagesAttempted);
-        Assert.Equal(41, requestCount);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            crawler.CrawlAsync(
+                "https://example.com",
+                sitemapSeeds,
+                browser: null,
+                CancellationToken.None));
     }
 
     private sealed class StubHttpClientFactory(StubHttpHandler handler) : IHttpClientFactory
