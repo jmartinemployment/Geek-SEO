@@ -80,6 +80,32 @@ public sealed class PageSectionTreeBuilderTests
     }
 
     [Fact]
+    public void Headings_inside_anchors_are_still_headings()
+    {
+        const string html = """
+            <h2>Artificial Intelligence Use Cases</h2>
+            <h3>Accounting</h3>
+            <a href="/use-cases/accounting/accounts-payable/automated-accounts-payable">
+              <h4>Automated Accounts Payable</h4>
+            </a>
+            <a href="/use-cases/marketing/ai-marketing-systems">
+              <h3>Marketing</h3>
+            </a>
+            <h4>AI Content Creation Workflow</h4>
+            """;
+
+        var tree = PageSectionTreeBuilder.Build(html);
+
+        var h2 = Assert.Single(tree);
+        Assert.Equal("Artificial Intelligence Use Cases", h2.HeadingText);
+        Assert.Equal(2, h2.Children.Count);
+        Assert.Equal("Accounting", h2.Children[0].HeadingText);
+        Assert.Equal("Automated Accounts Payable", Assert.Single(h2.Children[0].Children).HeadingText);
+        Assert.Equal("Marketing", h2.Children[1].HeadingText);
+        Assert.Equal("AI Content Creation Workflow", Assert.Single(h2.Children[1].Children).HeadingText);
+    }
+
+    [Fact]
     public void Sibling_heading_at_same_level_closes_prior_sections_own_scope()
     {
         const string html = "<h2>A</h2><h3>A1</h3><h2>B</h2>";

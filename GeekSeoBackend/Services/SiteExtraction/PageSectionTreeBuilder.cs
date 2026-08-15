@@ -82,6 +82,12 @@ public static class PageSectionTreeBuilder
 
         if (tagName == "a")
         {
+            if (ContainsHeading(node))
+            {
+                foreach (var child in node.ChildNodes)
+                    ProcessNode(child, roots, stack);
+            }
+
             AttachLink(node, stack);
             return;
         }
