@@ -212,7 +212,8 @@ public sealed record SiteAnalysisProfileSitePageWrite(
     bool NoIndex = false,
     bool NoFollow = false,
     string RedirectChainJson = "[]",
-    DateTimeOffset FetchedAt = default);
+    DateTimeOffset FetchedAt = default,
+    string ContextJson = "{}");
 
 public sealed record SiteAnalysisProfileSitePageRow(
     Guid Id,

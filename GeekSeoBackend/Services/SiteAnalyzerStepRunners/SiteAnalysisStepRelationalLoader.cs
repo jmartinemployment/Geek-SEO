@@ -462,7 +462,8 @@ internal static class SiteAnalyzerStepRelationalLoader
                     page.NoIndex,
                     page.NoFollow,
                     JsonSerializer.Serialize(page.RedirectChain),
-                    page.FetchedAt == default ? DateTimeOffset.UtcNow : page.FetchedAt);
+                    page.FetchedAt == default ? DateTimeOffset.UtcNow : page.FetchedAt,
+                    JsonSerializer.Serialize(context));
             })
             .ToList();
 
