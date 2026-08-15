@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using GeekSeo.Application.Models.Seo;
 using GeekSeoBackend.Services.SiteExtraction;
 
 namespace GeekSeoBackend.Tests;
@@ -55,5 +56,44 @@ public sealed class SitemapGeneratorXmlTests
         XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
 
         Assert.Empty(doc.Descendants(ns + "url"));
+    }
+
+    [Fact]
+    public void InventoryFromFetchedPages_uses_2xx_fetches_only_not_unfetched_sitemap_locs()
+    {
+        var seeds = new[]
+        {
+            "https://example.com/listed-but-not-fetched",
+            "https://example.com/",
+        };
+        var pages = new[]
+        {
+            new CrawledPage("https://example.com/", "<html/>") { StatusCode = 200, FinalUrl = "https://example.com/" },
+            new CrawledPage("https://example.com/gone", "") { StatusCode = 404, FinalUrl = "https://example.com/gone" },
+        };
+
+        var inventory = SitemapGenerator.InventoryFromFetchedPages(seeds, pages, "https://example.com");
+
+        Assert.Single(inventory);
+        Assert.Equal("https://example.com/", inventory[0].Url);
+        Assert.Equal("sitemap", inventory[0].SourceType);
+    }
+
+    [Fact]
+    public void InventoryFromFetchedPages_marks_unlisted_2xx_as_generated()
+    {
+        var pages = new[]
+        {
+            new CrawledPage("https://example.com/about", "<html/>")
+            {
+                StatusCode = 200,
+                FinalUrl = "https://example.com/about",
+            },
+        };
+
+        var inventory = SitemapGenerator.InventoryFromFetchedPages([], pages, "https://example.com");
+
+        Assert.Single(inventory);
+        Assert.Equal("generated", inventory[0].SourceType);
     }
 }

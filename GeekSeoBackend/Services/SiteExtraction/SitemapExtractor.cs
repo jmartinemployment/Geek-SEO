@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Xml;
 using System.Xml.Linq;
 using GeekSeo.Application.Models.Seo;
 
@@ -45,9 +46,13 @@ public sealed class SitemapExtractor(IHttpClientFactory factory, ILogger<Sitemap
             var robotsUrl = siteUrl.TrimEnd('/') + "/robots.txt";
             robots = await client.GetStringAsync(robotsUrl, ct);
         }
-        catch (HttpRequestException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            // No robots.txt at this domain — expected on most sites.
+            throw;
+        }
+        catch (Exception)
+        {
+            // robots.txt is optional seed input for sitemap URLs.
         }
 
         if (robots is not null)
@@ -75,15 +80,24 @@ public sealed class SitemapExtractor(IHttpClientFactory factory, ILogger<Sitemap
         {
             content = await client.GetStringAsync(url, ct);
         }
-        catch (HttpRequestException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
         {
             return [];
         }
 
-        var doc = XDocument.Parse(content);
-        var ns = doc.Root?.Name.Namespace ?? XNamespace.None;
+        if (!TryParseSitemapDocument(content, out var doc) || doc?.Root is null)
+        {
+            logger.LogWarning("Sitemap at {Url} is not usable XML and is not crawl input", url);
+            return [];
+        }
 
-        if (doc.Root?.Name.LocalName == "sitemapindex")
+        var ns = doc.Root.Name.Namespace;
+
+        if (doc.Root.Name.LocalName == "sitemapindex")
         {
             var urls = new List<string>();
             var childUrls = doc.Descendants(ns + "loc")
@@ -170,6 +184,25 @@ public sealed class SitemapExtractor(IHttpClientFactory factory, ILogger<Sitemap
         "blog" or "resources" or "guides" or "articles" or "news" or "learn" => "informational",
         _ => "commercial",
     };
+
+    /// <summary>
+    /// A sitemap that is not valid XML is not crawl input. Never throw.
+    /// </summary>
+    internal static bool TryParseSitemapDocument(string content, out XDocument? doc)
+    {
+        doc = null;
+        if (string.IsNullOrWhiteSpace(content))
+            return false;
+        try
+        {
+            doc = XDocument.Parse(content);
+            return doc.Root is not null;
+        }
+        catch (XmlException)
+        {
+            return false;
+        }
+    }
 
     private HttpClient BuildClient()
     {

@@ -66,11 +66,8 @@ public sealed class SiteAnalyzerStepExecutionService(
     }
 
     /// <summary>
-    /// Site Analyzer step 1 (sitemap generation): always regenerates the full URL inventory via
-    /// <see cref="SitemapGenerator"/> — unlimited same-origin BFS crawl merged with any public
-    /// <c>/sitemap.xml</c> URLs — and rewrites the persisted <c>sitemap.xml</c> artifact from that
-    /// inventory on every Analyze. Fails closed: zero discovered URLs, or persisted rows outside
-    /// <c>SourceType ∈ {{sitemap, generated}}</c> / not same-origin, throw rather than soft-continue.
+    /// Site Analyzer step 1: crawl from the homepage. Public sitemap URLs are optional seeds.
+    /// Persisted inventory is 2xx fetches. Throws when zero pages were fetched.
     /// </summary>
     private async Task<SiteAnalysisStepLogEntry> RunSiteUrlsAsync(
         Guid profileId,
@@ -254,10 +251,8 @@ public sealed class SiteAnalyzerStepExecutionService(
     }
 
     /// <summary>
-    /// Unlimited, inventory-complete site crawl: fetches every URL in the step-1 inventory (no
-    /// page cap, no attempt-budget soft-stop). Success requires every inventory URL to have been
-    /// fetched — not <c>PagesFetched >= 1</c> — otherwise this throws with the missing URLs
-    /// listed so the failure is diagnosable rather than a soft "N pages fetched" success.
+    /// Unlimited same-origin crawl from homepage plus inventory seeds. Succeeds when at least
+    /// one page was fetched. Unfetched inventory URLs are logged, not an abort.
     /// </summary>
     private async Task<SiteAnalysisStepLogEntry> RunSiteCrawlAsync(
         Guid profileId,
