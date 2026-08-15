@@ -16,13 +16,7 @@ public sealed class SitePageCrawler(ILogger<SitePageCrawler> logger)
 {
     private const int CrawlConcurrency = 6;
     private const int InterRequestDelayMs = 100;
-    private const int MaxRetries = 3;
     private static readonly TimeSpan RobotsFetchTimeout = TimeSpan.FromSeconds(8);
-
-    private static readonly string[] SkipExtensions =
-    [
-        ".css", ".js", ".woff", ".woff2", ".zip",
-    ];
 
     /// <summary>
     /// Crawls the full same-origin inventory (homepage + sitemap/inventory seeds + BFS).
@@ -203,10 +197,6 @@ public sealed class SitePageCrawler(ILogger<SitePageCrawler> logger)
 
         void Enqueue(string url)
         {
-            if (ShouldSkipUrl(url))
-                return;
-            if (!IsAllowedByRobots(robots, url))
-                return;
             var key = CrawlUrl.Canonicalize(url);
             if (!seen.Contains(key) && queued.Add(key))
                 queue.Enqueue(key);
@@ -270,8 +260,6 @@ public sealed class SitePageCrawler(ILogger<SitePageCrawler> logger)
                 continue;
             if (!TryResolveUrl(href, pageUrl, origin, out var absolute))
                 continue;
-            if (ShouldSkipUrl(absolute))
-                continue;
 
             var text = VisibleTextExtractor.Collapse(
                 WebUtility.HtmlDecode(anchor.InnerText ?? string.Empty));
@@ -317,32 +305,6 @@ public sealed class SitePageCrawler(ILogger<SitePageCrawler> logger)
         }
     }
 
-    /// <summary>
-    /// Non-document assets only. Path opinion lists are not a crawl filter — robots.txt is.
-    /// </summary>
-    internal static bool ShouldSkipUrl(string url)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-            return true;
-
-        string path;
-        try
-        {
-            path = new Uri(url).AbsolutePath;
-        }
-        catch
-        {
-            return true;
-        }
-
-        foreach (var ext in SkipExtensions)
-        {
-            if (path.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-
-        return false;
-    }
 
     private async Task<CrawledPage?> FetchWithPlaywrightAsync(
         IBrowserContext context, string url, CancellationToken ct)
@@ -351,25 +313,11 @@ public sealed class SitePageCrawler(ILogger<SitePageCrawler> logger)
         try
         {
             page = await context.NewPageAsync();
-            IResponse? response = null;
-            var status = 0;
-            for (var attempt = 0; attempt <= MaxRetries; attempt++)
+            var response = await page.GotoAsync(url, new PageGotoOptions
             {
-                response = await page.GotoAsync(url, new PageGotoOptions
-                {
-                    WaitUntil = WaitUntilState.Load,
-                    Timeout = CrawlerIdentity.NavigationTimeoutMs,
-                });
-                status = response?.Status ?? 0;
-                if (status is not (429 or >= 500) || attempt == MaxRetries)
-                    break;
-
-                var delay = DelayForRetry(response, attempt);
-                logger.LogInformation(
-                    "Backing off {Delay} after HTTP {Status} for {Url} (attempt {Attempt})",
-                    delay, status, url, attempt + 1);
-                await Task.Delay(delay, ct);
-            }
+                WaitUntil = WaitUntilState.Load,
+                Timeout = CrawlerIdentity.NavigationTimeoutMs,
+            });
 
             if (response is null)
             {
@@ -388,6 +336,7 @@ public sealed class SitePageCrawler(ILogger<SitePageCrawler> logger)
             var headers = response.Headers;
             headers.TryGetValue("x-robots-tag", out var xRobots);
             headers.TryGetValue("content-type", out var contentType);
+            var status = response.Status;
 
             var html = await AnnotateVisibilityAsync(page);
             var directives = ParseDirectives(html, xRobots);
@@ -407,16 +356,6 @@ public sealed class SitePageCrawler(ILogger<SitePageCrawler> logger)
                 FetchedAt = DateTimeOffset.UtcNow,
                 Links = links,
                 ContentType = contentType,
-            };
-        }
-        catch (Exception ex)
-        {
-            logger.LogDebug(ex, "Playwright crawl failed for {Url}", url);
-            return new CrawledPage(url, string.Empty, "playwright")
-            {
-                FinalUrl = url,
-                StatusCode = 0,
-                FetchedAt = DateTimeOffset.UtcNow,
             };
         }
         finally
@@ -476,38 +415,6 @@ public sealed class SitePageCrawler(ILogger<SitePageCrawler> logger)
         return chain;
     }
 
-    private static TimeSpan DelayForRetry(IResponse? response, int attempt)
-    {
-        if (response is not null
-            && response.Headers.TryGetValue("retry-after", out var raw)
-            && TryParseRetryAfter(raw, out var retryAfter))
-        {
-            return retryAfter;
-        }
-
-        return TimeSpan.FromSeconds(Math.Pow(2, attempt));
-    }
-
-    private static bool TryParseRetryAfter(string raw, out TimeSpan delay)
-    {
-        delay = TimeSpan.Zero;
-        if (int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds))
-        {
-            delay = TimeSpan.FromSeconds(Math.Clamp(seconds, 1, 60));
-            return true;
-        }
-
-        if (DateTimeOffset.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var when))
-        {
-            var delta = when - DateTimeOffset.UtcNow;
-            if (delta < TimeSpan.Zero)
-                delta = TimeSpan.FromSeconds(1);
-            delay = delta > TimeSpan.FromMinutes(1) ? TimeSpan.FromMinutes(1) : delta;
-            return true;
-        }
-
-        return false;
-    }
 
     private readonly record struct PageDirectives(string? Canonical, bool NoIndex, bool NoFollow, bool SoftNotFound);
 
@@ -571,7 +478,7 @@ public sealed class SitePageCrawler(ILogger<SitePageCrawler> logger)
         if (!CrawlUrl.IsSameSite(uri, originUri))
             return false;
         normalized = CrawlUrl.Canonicalize(uri.AbsoluteUri);
-        return !ShouldSkipUrl(normalized);
+        return true;
     }
 
     private static bool TryGetOrigin(string siteUrl, out Uri originUri, out string homepage)
@@ -590,17 +497,6 @@ public sealed class SitePageCrawler(ILogger<SitePageCrawler> logger)
         }
     }
 
-    private static bool IsAllowedByRobots(RobotsRules robots, string url)
-    {
-        try
-        {
-            return robots.IsAllowed(new Uri(url).AbsolutePath);
-        }
-        catch
-        {
-            return false;
-        }
-    }
 
     private async Task<RobotsRules> FetchRobotsAsync(Uri originUri, CancellationToken ct)
     {
