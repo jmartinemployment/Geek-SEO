@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -11,50 +11,37 @@ namespace GeekSeo.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_ExtractedTools_site_analysis_profiles_SiteAnalysisProfileId",
+            migrationBuilder.CreateTable(
+                name: "extracted_tools",
                 schema: "geek_seo",
-                table: "ExtractedTools");
-
-            migrationBuilder.DropPrimaryKey(
-                name: "PK_ExtractedTools",
-                schema: "geek_seo",
-                table: "ExtractedTools");
-
-            migrationBuilder.RenameTable(
-                name: "ExtractedTools",
-                schema: "geek_seo",
-                newName: "extracted_tools",
-                newSchema: "geek_seo");
-
-            migrationBuilder.RenameIndex(
-                name: "IX_ExtractedTools_SiteAnalysisProfileId",
-                schema: "geek_seo",
-                table: "extracted_tools",
-                newName: "IX_extracted_tools_SiteAnalysisProfileId");
-
-            migrationBuilder.AlterColumn<Guid>(
-                name: "Id",
-                schema: "geek_seo",
-                table: "extracted_tools",
-                type: "uuid",
-                nullable: false,
-                defaultValueSql: "gen_random_uuid()",
-                oldClrType: typeof(Guid),
-                oldType: "uuid");
-
-            migrationBuilder.AddPrimaryKey(
-                name: "PK_extracted_tools",
-                schema: "geek_seo",
-                table: "extracted_tools",
-                column: "Id");
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
+                    SiteAnalysisProfileId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SitePageId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    Href = table.Column<string>(type: "text", nullable: false),
+                    Department = table.Column<string>(type: "text", nullable: false),
+                    Body = table.Column<string>(type: "text", nullable: false),
+                    ExtractedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_extracted_tools", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_extracted_tools_site_analysis_profiles_SiteAnalysisProfileId",
+                        column: x => x.SiteAnalysisProfileId,
+                        principalSchema: "geek_seo",
+                        principalTable: "site_analysis_profiles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
 
             migrationBuilder.CreateIndex(
-                name: "IX_extracted_tools_Name_Department_Body",
+                name: "IX_extracted_tools_SiteAnalysisProfileId",
                 schema: "geek_seo",
                 table: "extracted_tools",
-                columns: new[] { "Name", "Department", "Body" },
-                unique: true);
+                column: "SiteAnalysisProfileId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_extracted_tools_SitePageId",
@@ -62,77 +49,20 @@ namespace GeekSeo.Persistence.Migrations
                 table: "extracted_tools",
                 column: "SitePageId");
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_extracted_tools_site_analysis_profiles_SiteAnalysisProfileId",
+            migrationBuilder.CreateIndex(
+                name: "IX_extracted_tools_Name_Department_Body",
                 schema: "geek_seo",
                 table: "extracted_tools",
-                column: "SiteAnalysisProfileId",
-                principalSchema: "geek_seo",
-                principalTable: "site_analysis_profiles",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                columns: new[] { "Name", "Department", "Body" },
+                unique: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_extracted_tools_site_analysis_profiles_SiteAnalysisProfileId",
-                schema: "geek_seo",
-                table: "extracted_tools");
-
-            migrationBuilder.DropPrimaryKey(
-                name: "PK_extracted_tools",
-                schema: "geek_seo",
-                table: "extracted_tools");
-
-            migrationBuilder.DropIndex(
-                name: "IX_extracted_tools_Name_Department_Body",
-                schema: "geek_seo",
-                table: "extracted_tools");
-
-            migrationBuilder.DropIndex(
-                name: "IX_extracted_tools_SitePageId",
-                schema: "geek_seo",
-                table: "extracted_tools");
-
-            migrationBuilder.RenameTable(
+            migrationBuilder.DropTable(
                 name: "extracted_tools",
-                schema: "geek_seo",
-                newName: "ExtractedTools",
-                newSchema: "geek_seo");
-
-            migrationBuilder.RenameIndex(
-                name: "IX_extracted_tools_SiteAnalysisProfileId",
-                schema: "geek_seo",
-                table: "ExtractedTools",
-                newName: "IX_ExtractedTools_SiteAnalysisProfileId");
-
-            migrationBuilder.AlterColumn<Guid>(
-                name: "Id",
-                schema: "geek_seo",
-                table: "ExtractedTools",
-                type: "uuid",
-                nullable: false,
-                oldClrType: typeof(Guid),
-                oldType: "uuid",
-                oldDefaultValueSql: "gen_random_uuid()");
-
-            migrationBuilder.AddPrimaryKey(
-                name: "PK_ExtractedTools",
-                schema: "geek_seo",
-                table: "ExtractedTools",
-                column: "Id");
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_ExtractedTools_site_analysis_profiles_SiteAnalysisProfileId",
-                schema: "geek_seo",
-                table: "ExtractedTools",
-                column: "SiteAnalysisProfileId",
-                principalSchema: "geek_seo",
-                principalTable: "site_analysis_profiles",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                schema: "geek_seo");
         }
     }
 }
