@@ -157,6 +157,23 @@ public sealed record SiteAnalysisPageSectionTreeRow(
     string TreeJson,
     DateTimeOffset CreatedAtUtc);
 
+public sealed record SiteAnalysisProfileExtractedToolWrite(
+    Guid SitePageId,
+    string Name,
+    string Href,
+    string Department,
+    string Body = "");
+
+public sealed record SiteAnalysisProfileExtractedToolRow(
+    Guid Id,
+    Guid SiteAnalysisProfileId,
+    Guid SitePageId,
+    string Name,
+    string Href,
+    string Department,
+    string Body,
+    DateTimeOffset ExtractedAt);
+
 public sealed record SiteAnalysisTopicCandidateEvidenceWrite(
     Guid TopicCandidateId,
     string EvidenceType,

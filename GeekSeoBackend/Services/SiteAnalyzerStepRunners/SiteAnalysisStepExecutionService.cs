@@ -3,10 +3,7 @@ using GeekSeo.Application.Interfaces;
 using GeekSeo.Application.Interfaces.Seo;
 using GeekSeo.Application.Models.Seo;
 using GeekSeo.Application.Services;
-using GeekSeo.Persistence.Data;
-using GeekSeo.Persistence.Entities;
 using GeekSeoBackend.Services.SiteExtraction;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Playwright;
 
 namespace GeekSeoBackend.Services.SiteAnalyzerStepRunners;
@@ -21,8 +18,7 @@ public sealed class SiteAnalyzerStepExecutionService(
     SitePageCrawler sitePageCrawler,
     InternalLinkExtractor internalLinkExtractor,
     UrlPatternExtractor urlPatternExtractor,
-    ILogger<SiteAnalyzerStepExecutionService> logger,
-    SeoDbContext dbContext)
+    ILogger<SiteAnalyzerStepExecutionService> logger)
 {
     public Task<SiteAnalysisStepLogEntry> RunAsync(
         string slug,
@@ -318,7 +314,7 @@ public sealed class SiteAnalyzerStepExecutionService(
         logger.LogInformation("Site crawl persisted for profile {ProfileId}", profileId);
 
         // Extract tools from crawled pages' ContextJson and persist them
-        await ExtractAndPersistToolsAsync(profileId, documentPages, ct);
+        await ExtractAndPersistToolsAsync(profileId, ct);
 
         var artifact = new SiteAnalyzerStepArtifactStore.SiteStructureArtifact(
             crawlData,
@@ -459,55 +455,39 @@ public sealed class SiteAnalyzerStepExecutionService(
         return signals;
     }
 
-    private async Task ExtractAndPersistToolsAsync(
-        Guid profileId,
-        IReadOnlyList<CrawledPage> documentPages,
-        CancellationToken ct)
+    private async Task ExtractAndPersistToolsAsync(Guid profileId, CancellationToken ct)
     {
-        // Delete existing tools for this profile
-        var existingTools = dbContext.ExtractedTools
-            .Where(t => t.SiteAnalysisProfileId == profileId)
-            .ToList();
-        if (existingTools.Count > 0)
+        var siteStructureResult = await profileRepo.GetSiteStructureAsync(profileId, ct);
+        if (!siteStructureResult.IsSuccess)
         {
-            dbContext.ExtractedTools.RemoveRange(existingTools);
-            await dbContext.SaveChangesAsync(ct);
-            logger.LogInformation("Deleted {Count} existing extracted tools for profile {ProfileId}",
-                existingTools.Count, profileId);
+            logger.LogWarning("Failed to load site structure for tool extraction: {Error}", siteStructureResult.Error);
+            return;
         }
 
-        // Load persisted site pages with ContextJson
-        var sitePages = await dbContext.SiteAnalysisProfileSitePages
-            .Where(sp => sp.SiteAnalysisProfileId == profileId)
-            .ToListAsync(ct);
-
-        var toolsToInsert = new List<SiteAnalysisProfileExtractedTool>();
-        foreach (var sitePage in sitePages)
+        var siteStructure = siteStructureResult.Value;
+        if (siteStructure?.Pages is null || siteStructure.Pages.Count == 0)
         {
-            // Deserialize ContextJson to PageContext
-            if (string.IsNullOrWhiteSpace(sitePage.ContextJson))
+            logger.LogInformation("No site pages found for profile {ProfileId}", profileId);
+            return;
+        }
+
+        var toolsToInsert = new List<SiteAnalysisProfileExtractedToolWrite>();
+        foreach (var sitePage in siteStructure.Pages)
+        {
+            if (sitePage.ContextData is null)
                 continue;
 
             try
             {
-                var context = JsonSerializer.Deserialize<PageContext>(sitePage.ContextJson);
-                if (context is null)
-                    continue;
-
-                var extractedTools = ContentExtractor.ExtractTools(context);
+                var extractedTools = ContentExtractor.ExtractTools(sitePage.ContextData);
                 foreach (var tool in extractedTools)
                 {
-                    toolsToInsert.Add(new SiteAnalysisProfileExtractedTool
-                    {
-                        Id = Guid.NewGuid(),
-                        SiteAnalysisProfileId = profileId,
-                        SitePageId = sitePage.Id,
-                        Name = tool.Name,
-                        Href = tool.Href,
-                        Department = tool.Department,
-                        Body = tool.Body,
-                        ExtractedAt = DateTimeOffset.UtcNow
-                    });
+                    toolsToInsert.Add(new SiteAnalysisProfileExtractedToolWrite(
+                        sitePage.Id,
+                        tool.Name,
+                        tool.Href,
+                        tool.Department,
+                        tool.Body));
                 }
             }
             catch (Exception ex)
@@ -519,8 +499,12 @@ public sealed class SiteAnalyzerStepExecutionService(
 
         if (toolsToInsert.Count > 0)
         {
-            await dbContext.ExtractedTools.AddRangeAsync(toolsToInsert, ct);
-            await dbContext.SaveChangesAsync(ct);
+            var replaceResult = await profileRepo.ReplaceExtractedToolsAsync(profileId, toolsToInsert, ct);
+            if (!replaceResult.IsSuccess)
+            {
+                logger.LogWarning("Failed to persist extracted tools: {Error}", replaceResult.Error);
+                return;
+            }
             logger.LogInformation("Extracted and persisted {Count} tools for profile {ProfileId}",
                 toolsToInsert.Count, profileId);
         }

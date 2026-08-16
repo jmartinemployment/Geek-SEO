@@ -526,7 +526,7 @@ public partial class SeoDbContext
             e.HasOne(x => x.SiteAnalysisProfile).WithMany().HasForeignKey(x => x.SiteAnalysisProfileId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => x.SiteAnalysisProfileId);
             e.HasIndex(x => x.SitePageId);
-            e.HasIndex(x => new { x.Name, x.Department, x.Body }).IsUnique();
+            e.HasIndex(x => new { x.SiteAnalysisProfileId, x.Name, x.Department, x.Body }).IsUnique();
         });
     }
 }
