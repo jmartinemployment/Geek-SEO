@@ -365,21 +365,6 @@ public sealed class SiteAnalysisProfileSitePage
     public SiteAnalysisProfile? SiteAnalysisProfile { get; set; }
 }
 
-public sealed class SiteAnalysisProfileExtractedTool
-{
-    public Guid Id { get; set; }
-    public Guid SiteAnalysisProfileId { get; set; }
-    public Guid SitePageId { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Href { get; set; } = string.Empty;
-    public string Department { get; set; } = string.Empty;
-    public string Body { get; set; } = string.Empty;
-    public DateTimeOffset ExtractedAt { get; set; }
-
-    [ValidateNever]
-    public SiteAnalysisProfile? SiteAnalysisProfile { get; set; }
-}
-
 public sealed class SiteAnalysisProfileSitePageLink
 {
     public Guid Id { get; set; }
