@@ -497,6 +497,18 @@ public sealed class SiteAnalyzerStepExecutionService(
             }
         }
 
+        var dedupedTools = toolsToInsert
+            .GroupBy(t => (t.SitePageId, t.Name, t.Department, t.Body))
+            .Select(g => g.First())
+            .ToList();
+        if (dedupedTools.Count != toolsToInsert.Count)
+        {
+            logger.LogInformation(
+                "Deduped {DuplicateCount} extracted tool entries for profile {ProfileId} ({Total} -> {Deduped})",
+                toolsToInsert.Count - dedupedTools.Count, profileId, toolsToInsert.Count, dedupedTools.Count);
+        }
+        toolsToInsert = dedupedTools;
+
         if (toolsToInsert.Count > 0)
         {
             var replaceResult = await profileRepo.ReplaceExtractedToolsAsync(profileId, toolsToInsert, ct);
