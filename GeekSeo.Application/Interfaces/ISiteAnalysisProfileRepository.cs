@@ -15,6 +15,14 @@ public interface ISiteAnalysisProfileRepository
         Guid profileId, bool includeFusion, CancellationToken ct = default);
     Task<Result<SiteAnalysisProfile?>> GetLatestByProjectAsync(Guid projectId, CancellationToken ct = default);
     Task<Result<IReadOnlyList<SiteAnalysisProfileSummary>>> GetHistoryAsync(Guid projectId, CancellationToken ct = default);
+    /// <summary>Recent crawls for Content Creator Site Analyzer picker (Id + Domain + status).</summary>
+    Task<Result<IReadOnlyList<SiteAnalysisProfileSummary>>> ListRecentAsync(int limit, CancellationToken ct = default);
+    /// <summary>Crawls whose Domain matches the normalized host (exact host after strip scheme/www).</summary>
+    Task<Result<IReadOnlyList<SiteAnalysisProfileSummary>>> ListByNormalizedDomainAsync(
+        string normalizedHost, int limit, CancellationToken ct = default);
+    /// <summary>SQL filter: trees for this site_analysis_profiles.Id whose TreeJson contains the keyword.</summary>
+    Task<Result<IReadOnlyList<SiteAnalysisPageSectionTreeRow>>> FindTreesByKeywordAsync(
+        Guid siteAnalysisProfileId, string keyword, CancellationToken ct = default);
     Task<Result> UpdateStatusAsync(
         Guid profileId, string status, string? step = null,
         int stepNumber = 0, int totalSteps = 0, string? errorMessage = null,

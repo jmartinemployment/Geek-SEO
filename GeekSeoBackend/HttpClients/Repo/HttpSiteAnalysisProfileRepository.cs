@@ -113,6 +113,41 @@ public sealed class HttpSiteAnalysisProfileRepository(
         return Result<IReadOnlyList<SiteAnalysisProfileSummary>>.Success(value ?? []);
     }
 
+    public async Task<Result<IReadOnlyList<SiteAnalysisProfileSummary>>> ListRecentAsync(
+        int limit, CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/site-analysis-profiles/recent?userId={user.UserId}&limit={Math.Clamp(limit, 1, 200)}", ct);
+        if (!res.IsSuccessStatusCode)
+            return Result<IReadOnlyList<SiteAnalysisProfileSummary>>.Failure(await res.Content.ReadAsStringAsync(ct));
+        var value = await res.Content.ReadFromJsonAsync<List<SiteAnalysisProfileSummary>>(Json, ct);
+        return Result<IReadOnlyList<SiteAnalysisProfileSummary>>.Success(value ?? []);
+    }
+
+    public async Task<Result<IReadOnlyList<SiteAnalysisProfileSummary>>> ListByNormalizedDomainAsync(
+        string normalizedHost, int limit, CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/site-analysis-profiles/by-domain?userId={user.UserId}&domain={Uri.EscapeDataString(normalizedHost)}&limit={Math.Clamp(limit, 1, 200)}",
+            ct);
+        if (!res.IsSuccessStatusCode)
+            return Result<IReadOnlyList<SiteAnalysisProfileSummary>>.Failure(await res.Content.ReadAsStringAsync(ct));
+        var value = await res.Content.ReadFromJsonAsync<List<SiteAnalysisProfileSummary>>(Json, ct);
+        return Result<IReadOnlyList<SiteAnalysisProfileSummary>>.Success(value ?? []);
+    }
+
+    public async Task<Result<IReadOnlyList<SiteAnalysisPageSectionTreeRow>>> FindTreesByKeywordAsync(
+        Guid siteAnalysisProfileId, string keyword, CancellationToken ct = default)
+    {
+        var res = await _http.GetAsync(
+            $"api/seo/internal/site-analysis-profiles/{siteAnalysisProfileId}/trees-by-keyword?userId={user.UserId}&keyword={Uri.EscapeDataString(keyword)}",
+            ct);
+        if (!res.IsSuccessStatusCode)
+            return Result<IReadOnlyList<SiteAnalysisPageSectionTreeRow>>.Failure(await ReadFailureAsync(res, ct));
+        var value = await res.Content.ReadFromJsonAsync<List<SiteAnalysisPageSectionTreeRow>>(Json, ct);
+        return Result<IReadOnlyList<SiteAnalysisPageSectionTreeRow>>.Success(value ?? []);
+    }
+
     public async Task<Result> UpsertStepRunAsync(
         Guid profileId,
         SiteAnalysisProfileStepRunUpsert stepRun,

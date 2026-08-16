@@ -413,6 +413,112 @@ public sealed class SiteAnalyzerController(
         }
     }
 
+    /// <summary>Recent site_analysis_profiles.Id rows for Site Analyzer picker.</summary>
+    [HttpGet("profiles/recent")]
+    public async Task<IActionResult> ListRecentProfiles([FromQuery] int limit = 50, CancellationToken ct = default)
+    {
+        try
+        {
+            user.RequireUserId();
+            var result = await profileRepo.ListRecentAsync(limit, ct);
+            if (!result.IsSuccess)
+                return StatusCode(503, new { error = result.Error ?? "Profiles unavailable" });
+            return Ok((result.Value ?? []).Select(p => new
+            {
+                id = p.Id,
+                domain = p.Domain,
+                status = p.Status,
+                analyzedAt = p.AnalyzedAt,
+                primaryFocus = p.PrimaryFocus,
+            }));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>site_analysis_profiles for a normalized host (exact host match).</summary>
+    [HttpGet("profiles/by-domain")]
+    public async Task<IActionResult> ListProfilesByDomain(
+        [FromQuery] string domain,
+        [FromQuery] int limit = 50,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            user.RequireUserId();
+            if (string.IsNullOrWhiteSpace(domain))
+                return BadRequest(new { error = "domain required" });
+            var host = NormalizeHost(domain);
+            var result = await profileRepo.ListByNormalizedDomainAsync(host, limit, ct);
+            if (!result.IsSuccess)
+                return StatusCode(503, new { error = result.Error ?? "Profiles unavailable" });
+            return Ok((result.Value ?? []).Select(p => new
+            {
+                id = p.Id,
+                domain = p.Domain,
+                status = p.Status,
+                analyzedAt = p.AnalyzedAt,
+                primaryFocus = p.PrimaryFocus,
+            }));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// SQL match: trees for site_analysis_profiles.Id containing keyword. Returns matching pages + TreeJson.
+    /// </summary>
+    [HttpGet("{profileId:guid}/hierarchy-match")]
+    public async Task<IActionResult> HierarchyMatch(
+        Guid profileId,
+        [FromQuery] string keyword,
+        CancellationToken ct)
+    {
+        try
+        {
+            user.RequireUserId();
+            if (string.IsNullOrWhiteSpace(keyword))
+                return BadRequest(new { error = "keyword required" });
+
+            var result = await profileRepo.FindTreesByKeywordAsync(profileId, keyword.Trim(), ct);
+            if (!result.IsSuccess)
+                return StatusCode(503, new { error = result.Error ?? "Hierarchy match unavailable" });
+
+            return Ok((result.Value ?? []).Select(t => new
+            {
+                pageUrl = t.PageUrl,
+                treeJson = t.TreeJson,
+                siteAnalysisProfileId = t.SiteAnalysisProfileId,
+            }));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    private static string NormalizeHost(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return "";
+        var s = raw.Trim();
+        if (!s.Contains("://", StringComparison.Ordinal))
+            s = "https://" + s;
+        if (!Uri.TryCreate(s, UriKind.Absolute, out var uri))
+        {
+            return raw.Trim().TrimEnd('/').ToLowerInvariant()
+                .Replace("www.", "", StringComparison.OrdinalIgnoreCase);
+        }
+
+        var host = uri.Host.ToLowerInvariant();
+        if (host.StartsWith("www.", StringComparison.Ordinal))
+            host = host[4..];
+        return host;
+    }
+
     /// <summary>
     /// Raw discovered/crawled URL inventory for this profile (sitemap + generated + crawled
     /// source types) — the "does a page already exist for this heading" side of Content

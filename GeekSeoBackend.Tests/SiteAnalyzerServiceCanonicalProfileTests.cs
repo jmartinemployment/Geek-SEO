@@ -139,6 +139,9 @@ public sealed class SiteAnalyzerServiceCanonicalProfileTests
         public Task<Result<SiteAnalysisProfile?>> GetLatestByProjectAsync(Guid projectId, CancellationToken ct = default) =>
             Task.FromResult(Result<SiteAnalysisProfile?>.Success(latest));
         public Task<Result<IReadOnlyList<SiteAnalysisProfileSummary>>> GetHistoryAsync(Guid projectId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result<IReadOnlyList<SiteAnalysisProfileSummary>>> ListRecentAsync(int limit, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result<IReadOnlyList<SiteAnalysisProfileSummary>>> ListByNormalizedDomainAsync(string normalizedHost, int limit, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result<IReadOnlyList<SiteAnalysisPageSectionTreeRow>>> FindTreesByKeywordAsync(Guid siteAnalysisProfileId, string keyword, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Result> UpsertStepRunAsync(Guid profileId, SiteAnalysisProfileStepRunUpsert stepRun, CancellationToken ct = default) =>
             Task.FromResult(Result.Success());
         public Task<Result> UpdateStepRunStatusAsync(Guid profileId, string stepSlug, SiteAnalysisProfileStepRunStatusPatch patch, CancellationToken ct = default) => throw new NotSupportedException();

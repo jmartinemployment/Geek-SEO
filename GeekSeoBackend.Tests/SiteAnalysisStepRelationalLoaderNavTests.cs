@@ -57,6 +57,9 @@ public sealed class SiteAnalyzerStepRelationalLoaderNavTests
         public Task<Result<IReadOnlyList<SiteAnalysisProfileSummary>>> GetHistoryAsync(
             Guid projectId, CancellationToken ct = default) =>
             throw new NotSupportedException();
+        public Task<Result<IReadOnlyList<SiteAnalysisProfileSummary>>> ListRecentAsync(int limit, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result<IReadOnlyList<SiteAnalysisProfileSummary>>> ListByNormalizedDomainAsync(string normalizedHost, int limit, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result<IReadOnlyList<SiteAnalysisPageSectionTreeRow>>> FindTreesByKeywordAsync(Guid siteAnalysisProfileId, string keyword, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<Result> UpdateStatusAsync(
             Guid profileId, string status, string? step = null, int stepNumber = 0, int totalSteps = 0,
             string? errorMessage = null, SiteAnalysisStepLogEntry? stepLogEntry = null, CancellationToken ct = default) =>
