@@ -7,6 +7,11 @@ namespace GeekSeo.Application.Interfaces;
 public interface ISiteAnalysisProfileRepository
 {
     Task<Result<SiteAnalysisProfile>> CreateAsync(SiteAnalysisProfile profile, CancellationToken ct = default);
+    /// <summary>Insert a finished Through Coverage crawl (profile + children) in one commit. Id is born here.</summary>
+    Task<Result<Guid>> PersistThroughCoverageAsync(
+        ThroughCoveragePersistRequest request,
+        CancellationToken ct = default) =>
+        throw new NotSupportedException();
     Task<Result<SiteAnalysisProfile?>> GetByIdAsync(Guid profileId, CancellationToken ct = default);
     /// <summary>Lightweight ownership check — returns only ProjectId without loading the pillar graph.</summary>
     Task<Result<Guid?>> GetProjectIdAsync(Guid profileId, CancellationToken ct = default);

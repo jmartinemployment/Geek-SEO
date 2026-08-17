@@ -5,7 +5,9 @@ public static class CorsOriginParser
     private static readonly string[] DefaultOrigins =
     [
         "http://localhost:3000",
+        "http://localhost:3003",
         "https://seo.geekatyourspot.com",
+        "https://geek-content-creator.vercel.app",
     ];
 
     /// <summary>

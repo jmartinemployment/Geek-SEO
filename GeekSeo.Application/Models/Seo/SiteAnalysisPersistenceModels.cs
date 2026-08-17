@@ -298,6 +298,26 @@ public sealed record SiteAnalysisProfileSiteStructureWrite(
     SiteAnalysisProfileSiteCrawlMetaWrite CrawlMeta,
     bool ForceDocumentWrite = true);
 
+/// <summary>Tool extracted in memory before page row ids exist — persist maps PageUrl → SitePageId.</summary>
+public sealed record SiteAnalysisProfileExtractedToolByUrlWrite(
+    string PageUrl,
+    string Name,
+    string Href,
+    string Department,
+    string Body = "");
+
+/// <summary>One insert of a finished Through Coverage crawl. The profile id is born on this commit.</summary>
+public sealed record ThroughCoveragePersistRequest(
+    Guid ProjectId,
+    string Domain,
+    IReadOnlyList<SiteAnalysisProfileSchemaSignalWrite> SchemaSignals,
+    IReadOnlyList<SiteAnalysisProfileDiscoveredUrlWrite> DiscoveredUrls,
+    IReadOnlyList<SiteAnalysisProfileNavigationLinkWrite> NavigationLinks,
+    SiteAnalysisProfilePageContentWrite? PageContent,
+    IReadOnlyList<SiteAnalysisPageSectionTreeWrite> PageSectionTrees,
+    SiteAnalysisProfileSiteStructureWrite Structure,
+    IReadOnlyList<SiteAnalysisProfileExtractedToolByUrlWrite> ExtractedTools);
+
 public sealed record SiteAnalysisProfileSiteStructureRow(
     IReadOnlyList<SiteAnalysisProfileSitePageRow> Pages,
     IReadOnlyList<SiteAnalysisProfileSitePageLinkRow> Links,

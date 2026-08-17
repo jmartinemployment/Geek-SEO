@@ -15,7 +15,6 @@ public sealed class SiteAnalysisJobWorker(
 {
     private static readonly TimeSpan StaleProcessingAge = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan JobTimeout = TimeSpan.FromMinutes(15);
-    private const int BatchSize = 3;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -27,16 +26,21 @@ public sealed class SiteAnalysisJobWorker(
 
         await DrainExistingAsync(serviceUserId, stoppingToken);
 
-        await foreach (var _ in channel.Reader.ReadAllAsync(stoppingToken))
+        await foreach (var job in channel.Reader.ReadAllAsync(stoppingToken))
         {
-            workerUser.UserId = serviceUserId;
             try
             {
-                await ProcessQueuedAsync(serviceUserId, stoppingToken);
+                workerUser.UserId = job.UserId;
+                using var scope = services.CreateScope();
+                var siteAnalysisJob = scope.ServiceProvider.GetRequiredService<SiteAnalysisBackgroundJob>();
+                using var jobCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                jobCts.CancelAfter(JobTimeout);
+                await siteAnalysisJob.RunThroughCoverageInMemoryAsync(job, jobCts.Token);
+                logger.LogInformation("Through coverage finished for project {ProjectId} domain {Domain}", job.ProjectId, job.Domain);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "SiteAnalysisJobWorker iteration failed");
+                logger.LogError(ex, "Through coverage failed for project {ProjectId} domain {Domain}", job.ProjectId, job.Domain);
             }
             finally
             {
@@ -45,6 +49,7 @@ public sealed class SiteAnalysisJobWorker(
         }
     }
 
+    /// <summary>Leftover queued DB profiles from the old persist-per-step path.</summary>
     private async Task DrainExistingAsync(Guid serviceUserId, CancellationToken ct)
     {
         try
@@ -52,17 +57,36 @@ public sealed class SiteAnalysisJobWorker(
             workerUser.UserId = serviceUserId;
             using var scope = services.CreateScope();
             var siteAnalysisRepo = scope.ServiceProvider.GetRequiredService<ISiteAnalysisProfileRepository>();
+            var siteAnalysisJob = scope.ServiceProvider.GetRequiredService<SiteAnalysisBackgroundJob>();
 
             var stale = await siteAnalysisRepo.FailStaleProcessingAsync(StaleProcessingAge, ct);
             if (stale.IsSuccess && stale.Value > 0)
                 logger.LogWarning("Startup: marked {Count} stale site analysis profile(s) as failed", stale.Value);
 
             var queued = await siteAnalysisRepo.ListQueuedAsync(50, ct);
-            if (queued.IsSuccess && queued.Value is { Count: > 0 })
+            if (!queued.IsSuccess || queued.Value is null || queued.Value.Count == 0)
+                return;
+
+            foreach (var item in queued.Value)
             {
-                foreach (var _ in queued.Value)
-                    channel.Notify();
-                logger.LogInformation("SiteAnalysisJobWorker: {Count} queued profile(s) found on startup", queued.Value.Count);
+                try
+                {
+                    workerUser.UserId = item.UserId;
+                    var claim = await siteAnalysisRepo.UpdateStatusAsync(
+                        item.ProfileId, "processing", step: "schema", stepNumber: 1,
+                        totalSteps: SiteAnalyzerStepCatalog.ThroughCoverage.Count, ct: ct);
+                    if (!claim.IsSuccess)
+                        continue;
+                    using var jobCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    jobCts.CancelAfter(JobTimeout);
+                    await siteAnalysisJob.RunAsync(
+                        new SiteAnalysisJobPayload(item.ProfileId, item.UserId, item.Domain),
+                        jobCts.Token);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Leftover queued profile {ProfileId} failed", item.ProfileId);
+                }
             }
         }
         catch (Exception ex)
@@ -73,48 +97,6 @@ public sealed class SiteAnalysisJobWorker(
         {
             workerUser.UserId = Guid.Empty;
         }
-    }
-
-    private async Task ProcessQueuedAsync(Guid serviceUserId, CancellationToken ct)
-    {
-        using var scope = services.CreateScope();
-        var siteAnalysisRepo = scope.ServiceProvider.GetRequiredService<ISiteAnalysisProfileRepository>();
-        var siteAnalysisJob = scope.ServiceProvider.GetRequiredService<SiteAnalysisBackgroundJob>();
-
-        var stale = await siteAnalysisRepo.FailStaleProcessingAsync(StaleProcessingAge, ct);
-        if (stale.IsSuccess && stale.Value > 0)
-            logger.LogWarning("Marked {Count} stale site analysis profile(s) as failed", stale.Value);
-
-        var queued = await siteAnalysisRepo.ListQueuedAsync(BatchSize, ct);
-        if (!queued.IsSuccess || queued.Value is null || queued.Value.Count == 0)
-            return;
-
-        foreach (var item in queued.Value)
-        {
-            try
-            {
-                workerUser.UserId = item.UserId;
-                var claim = await siteAnalysisRepo.UpdateStatusAsync(
-                    item.ProfileId, "processing", step: "schema", stepNumber: 1, totalSteps: SiteAnalyzerStepCatalog.ThroughCoverage.Count, ct: ct);
-                if (!claim.IsSuccess)
-                {
-                    logger.LogWarning("Could not claim site analysis profile {ProfileId}: {Error}", item.ProfileId, claim.Error);
-                    continue;
-                }
-
-                var payload = new SiteAnalysisJobPayload(item.ProfileId, item.UserId, item.Domain);
-                using var jobCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                jobCts.CancelAfter(JobTimeout);
-                await siteAnalysisJob.RunAsync(payload, jobCts.Token);
-                logger.LogInformation("site analysis finished for profile {ProfileId}", item.ProfileId);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "site analysis failed for profile {ProfileId}", item.ProfileId);
-            }
-        }
-
-        workerUser.UserId = serviceUserId;
     }
 
     private static bool TryResolveWorkerUserId(out Guid userId)

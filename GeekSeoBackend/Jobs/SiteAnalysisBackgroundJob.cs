@@ -1,6 +1,7 @@
 using GeekSeo.Application.Interfaces;
 using GeekSeoBackend.Infrastructure;
 using GeekSeoBackend.Services;
+using GeekSeoBackend.Services.SiteAnalyzerStepRunners;
 
 namespace GeekSeoBackend.Jobs;
 
@@ -8,10 +9,22 @@ public sealed record SiteAnalysisJobPayload(Guid ProfileId, Guid UserId, string 
 
 public sealed class SiteAnalysisBackgroundJob(
     SiteAnalyzerService analyzerService,
+    ThroughCoverageMemoryRunner throughCoverage,
     ISiteAnalysisProfileRepository profileRepo,
     PlaywrightBrowserHolder? playwrightHolder,
     ILogger<SiteAnalysisBackgroundJob> logger)
 {
+    public async Task RunThroughCoverageInMemoryAsync(ThroughCoverageJob job, CancellationToken ct)
+    {
+        var browser = playwrightHolder is null
+            ? null
+            : await playwrightHolder.EnsureBrowserAsync(ct);
+        logger.LogInformation(
+            "Starting in-memory through coverage for project {ProjectId} domain {Domain}",
+            job.ProjectId, job.Domain);
+        await throughCoverage.RunAsync(job, browser, ct);
+    }
+
     public async Task RunAsync(SiteAnalysisJobPayload payload, CancellationToken ct)
     {
         var browser = playwrightHolder is null

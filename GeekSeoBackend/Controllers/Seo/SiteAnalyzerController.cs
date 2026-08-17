@@ -36,9 +36,9 @@ public sealed class SiteAnalyzerController(
                 return StatusCode(503, new { error = "Site analysis worker is not running" });
 
             var userId = user.RequireUserId();
-            var profileId = await analyzer.QueueSiteAnalysisAsync(
+            await analyzer.QueueSiteAnalysisAsync(
                 userId, request.ProjectId, request.Domain, request.SeedTopic, ct);
-            return Ok(new { profileId, status = "queued" });
+            return Ok(new { status = "queued" });
         }
         catch (InvalidOperationException ex) when (
             ex.Message.Contains("worker is not running", StringComparison.OrdinalIgnoreCase))

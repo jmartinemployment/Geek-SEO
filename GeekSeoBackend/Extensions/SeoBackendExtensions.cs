@@ -120,6 +120,7 @@ public static class SeoBackendExtensions
         services.AddScoped<SiteRootEntityBuilder>();
         services.AddScoped<SiteAnalysisPersistenceService>();
         services.AddScoped<SiteAnalyzerStepExecutionService>();
+        services.AddScoped<ThroughCoverageMemoryRunner>();
         services.AddScoped<SiteAnalyzerService>();
         services.AddScoped<CompetitorAnalysisService>();
         services.AddScoped<SiteAnalysisProgressNotifier>();
@@ -200,6 +201,7 @@ public static class SeoBackendExtensions
                         NameClaimType = "sub",
                         ClockSkew = TimeSpan.FromMinutes(1),
                     };
+                    JwtHubQueryToken.AcceptAccessTokenFromQuery(options);
                 });
             services.AddAuthorization();
             return;
@@ -230,6 +232,7 @@ public static class SeoBackendExtensions
                     IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
                     ClockSkew = TimeSpan.FromMinutes(1),
                 };
+                JwtHubQueryToken.AcceptAccessTokenFromQuery(options);
             });
         services.AddAuthorization();
     }

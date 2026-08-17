@@ -96,9 +96,9 @@ public sealed class SiteAnalyzerService(
     }
 
     /// <summary>
-    /// Queues a site-model run through coverage for the worker (Content Creator Site Analyzer).
+    /// Queues a Through Coverage crawl for Content Creator. No profile row until persist.
     /// </summary>
-    public async Task<Guid> QueueSiteAnalysisAsync(
+    public async Task QueueSiteAnalysisAsync(
         Guid userId,
         Guid projectId,
         string domain,
@@ -108,31 +108,12 @@ public sealed class SiteAnalyzerService(
         if (!IsWorkerConfigured())
             throw new InvalidOperationException("Site analysis worker is not running");
 
-        var profileId = await EnqueueAsync(userId, projectId, domain, seedTopic, ct);
-
-        await profileRepo.UpdatePhaseStatusAsync(
-            profileId,
-            new SiteAnalysisPhaseStatusPatch(
-                StructureStatus: "pending",
-                EnrichmentStatus: "pending",
-                PersistStage: SiteAnalyzerStepCatalog.SiteCoveragePersistStage,
-                Status: "queued"),
-            ct);
-        await profileRepo.UpdateStatusAsync(
-            profileId,
-            "queued",
-            step: SiteAnalyzerStepCatalog.ThroughCoverage[0],
-            stepNumber: 0,
-            totalSteps: SiteAnalyzerStepCatalog.ThroughCoverage.Count,
-            errorMessage: null,
-            ct: ct);
-
-        jobChannel.Notify();
+        var siteUrl = await ResolveSiteUrlAsync(projectId, domain, ct);
+        jobChannel.Enqueue(new ThroughCoverageJob(userId, projectId, siteUrl, seedTopic));
         logger.LogInformation(
-            "Queued site analysis profile {ProfileId} for project {ProjectId}",
-            profileId,
-            projectId);
-        return profileId;
+            "Queued through-coverage crawl for project {ProjectId} domain {Domain}",
+            projectId,
+            siteUrl);
     }
 
     public static bool IsWorkerConfigured()

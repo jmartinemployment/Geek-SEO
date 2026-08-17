@@ -36,6 +36,25 @@ public sealed class HttpSiteAnalysisProfileRepository(
             : Result<SiteAnalysisProfile>.Success(value);
     }
 
+    public async Task<Result<Guid>> PersistThroughCoverageAsync(
+        ThroughCoveragePersistRequest request,
+        CancellationToken ct = default)
+    {
+        var res = await _http.PostAsJsonAsync(
+            $"api/seo/internal/site-analysis-profiles/through-coverage?userId={user.UserId}",
+            request,
+            Json,
+            ct);
+        if (!res.IsSuccessStatusCode)
+            return Result<Guid>.Failure(await ReadFailureAsync(res, ct));
+        var payload = await res.Content.ReadFromJsonAsync<PersistThroughCoverageResponse>(Json, ct);
+        return payload is null || payload.Id == Guid.Empty
+            ? Result<Guid>.Failure("Empty persist response")
+            : Result<Guid>.Success(payload.Id);
+    }
+
+    private sealed record PersistThroughCoverageResponse(Guid Id);
+
     public async Task<Result<SiteAnalysisProfile?>> GetByIdAsync(Guid profileId, CancellationToken ct = default)
     {
         var res = await _http.GetAsync(

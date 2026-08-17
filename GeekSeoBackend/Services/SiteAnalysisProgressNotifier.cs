@@ -38,9 +38,12 @@ public sealed class SiteAnalysisProgressNotifier(
             try
             {
                 var userTarget = hub.Clients.User(userId.ToString());
-                var groupTarget = hub.Clients.Group(SeoRealtimeHub.SiteAnalysisGroup(profileId));
                 await userTarget.SendAsync("AnalysisProgress", payload, ct);
-                await groupTarget.SendAsync("AnalysisProgress", payload, ct);
+                if (profileId != Guid.Empty)
+                {
+                    var groupTarget = hub.Clients.Group(SeoRealtimeHub.SiteAnalysisGroup(profileId));
+                    await groupTarget.SendAsync("AnalysisProgress", payload, ct);
+                }
                 return;
             }
             catch (Exception ex) when (attempt < MaxAttempts)
