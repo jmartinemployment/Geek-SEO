@@ -131,7 +131,6 @@ public sealed class ThroughCoverageMemoryRunner(
 
             var structure = SiteAnalyzerStepRelationalLoader.ToSiteStructureWrite(
                 crawlData, internalLinks, urlPatterns, forceDocumentWrite: true);
-            var tools = ExtractToolsByUrl(structure);
 
             var persist = await profileRepo.PersistThroughCoverageAsync(
                 new ThroughCoveragePersistRequest(
@@ -142,8 +141,7 @@ public sealed class ThroughCoverageMemoryRunner(
                     navLinks,
                     pageContentWrite,
                     treeWrites,
-                    structure,
-                    tools),
+                    structure),
                 ct);
             if (!persist.IsSuccess || persist.Value == Guid.Empty)
                 throw new InvalidOperationException(persist.Error ?? "Failed to persist crawl.");
@@ -170,33 +168,6 @@ public sealed class ThroughCoverageMemoryRunner(
         int totalSteps,
         CancellationToken ct) =>
         progressNotifier.PushAsync(profileId, userId, slug, status, message, stepNumber, totalSteps, ct);
-
-    private static List<SiteAnalysisProfileExtractedToolByUrlWrite> ExtractToolsByUrl(
-        SiteAnalysisProfileSiteStructureWrite structure)
-    {
-        var tools = new List<SiteAnalysisProfileExtractedToolByUrlWrite>();
-        foreach (var page in structure.Pages)
-        {
-            if (page.ContextData is null) continue;
-            try
-            {
-                foreach (var tool in ContentExtractor.ExtractTools(page.ContextData))
-                {
-                    tools.Add(new SiteAnalysisProfileExtractedToolByUrlWrite(
-                        page.Url, tool.Name, tool.Href, tool.Department, tool.Body));
-                }
-            }
-            catch
-            {
-                // skip a bad page; persist the rest
-            }
-        }
-
-        return tools
-            .GroupBy(t => (t.PageUrl, t.Name, t.Department, t.Body))
-            .Select(g => g.First())
-            .ToList();
-    }
 
     private static List<SiteAnalysisProfileSchemaSignalWrite> BuildSchemaSignals(SchemaOrgData schemaData)
     {

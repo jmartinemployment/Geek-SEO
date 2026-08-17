@@ -337,32 +337,6 @@ public sealed class HttpSiteAnalysisProfileRepository(
         return Result<IReadOnlyList<SiteAnalysisPageSectionTreeRow>>.Success(value ?? []);
     }
 
-    public async Task<Result> ReplaceExtractedToolsAsync(
-        Guid profileId,
-        IReadOnlyList<SiteAnalysisProfileExtractedToolWrite> tools,
-        CancellationToken ct = default)
-    {
-        var res = await _http.PutAsJsonAsync(
-            $"api/seo/internal/site-analysis-profiles/{profileId}/extracted-tools?userId={user.UserId}",
-            new { tools },
-            Json,
-            ct);
-        return res.IsSuccessStatusCode ? Result.Success() : Result.Failure(await ReadFailureAsync(res, ct));
-    }
-
-    public async Task<Result<IReadOnlyList<SiteAnalysisProfileExtractedToolRow>>> GetExtractedToolsAsync(
-        Guid profileId,
-        CancellationToken ct = default)
-    {
-        var res = await _http.GetAsync(
-            $"api/seo/internal/site-analysis-profiles/{profileId}/extracted-tools?userId={user.UserId}",
-            ct);
-        if (!res.IsSuccessStatusCode)
-            return Result<IReadOnlyList<SiteAnalysisProfileExtractedToolRow>>.Failure(await ReadFailureAsync(res, ct));
-        var value = await res.Content.ReadFromJsonAsync<List<SiteAnalysisProfileExtractedToolRow>>(Json, ct);
-        return Result<IReadOnlyList<SiteAnalysisProfileExtractedToolRow>>.Success(value ?? []);
-    }
-
     public async Task<Result> ReplaceTopicCandidateEvidenceAsync(
         Guid profileId,
         IReadOnlyList<SiteAnalysisTopicCandidateEvidenceWrite> evidence,

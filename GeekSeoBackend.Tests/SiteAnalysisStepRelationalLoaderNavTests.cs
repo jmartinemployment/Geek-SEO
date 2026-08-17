@@ -170,11 +170,5 @@ public sealed class SiteAnalyzerStepRelationalLoaderNavTests
         public Task<Result<IReadOnlyDictionary<string, string>>> GetStepStatusesAsync(
             Guid profileId, CancellationToken ct = default) =>
             throw new NotSupportedException();
-        public Task<Result> ReplaceExtractedToolsAsync(
-            Guid profileId, IReadOnlyList<SiteAnalysisProfileExtractedToolWrite> tools, CancellationToken ct = default) =>
-            throw new NotSupportedException();
-        public Task<Result<IReadOnlyList<SiteAnalysisProfileExtractedToolRow>>> GetExtractedToolsAsync(
-            Guid profileId, CancellationToken ct = default) =>
-            throw new NotSupportedException();
     }
 }

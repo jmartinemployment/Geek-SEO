@@ -313,9 +313,6 @@ public sealed class SiteAnalyzerStepExecutionService(
             ct);
         logger.LogInformation("Site crawl persisted for profile {ProfileId}", profileId);
 
-        // Extract tools from crawled pages' ContextJson and persist them
-        await ExtractAndPersistToolsAsync(profileId, ct);
-
         var artifact = new SiteAnalyzerStepArtifactStore.SiteStructureArtifact(
             crawlData,
             SiteAnalyzerStepRelationalLoader.EmptyInternalLinks(crawlData.PagesFetched),
@@ -453,72 +450,5 @@ public sealed class SiteAnalyzerStepExecutionService(
             signals.Add(new SiteAnalysisProfileSchemaSignalWrite("organization", "brandName", schemaData.BrandName, null, order++));
 
         return signals;
-    }
-
-    private async Task ExtractAndPersistToolsAsync(Guid profileId, CancellationToken ct)
-    {
-        var siteStructureResult = await profileRepo.GetSiteStructureAsync(profileId, ct);
-        if (!siteStructureResult.IsSuccess)
-        {
-            logger.LogWarning("Failed to load site structure for tool extraction: {Error}", siteStructureResult.Error);
-            return;
-        }
-
-        var siteStructure = siteStructureResult.Value;
-        if (siteStructure?.Pages is null || siteStructure.Pages.Count == 0)
-        {
-            logger.LogInformation("No site pages found for profile {ProfileId}", profileId);
-            return;
-        }
-
-        var toolsToInsert = new List<SiteAnalysisProfileExtractedToolWrite>();
-        foreach (var sitePage in siteStructure.Pages)
-        {
-            if (sitePage.ContextData is null)
-                continue;
-
-            try
-            {
-                var extractedTools = ContentExtractor.ExtractTools(sitePage.ContextData);
-                foreach (var tool in extractedTools)
-                {
-                    toolsToInsert.Add(new SiteAnalysisProfileExtractedToolWrite(
-                        sitePage.Id,
-                        tool.Name,
-                        tool.Href,
-                        tool.Department,
-                        tool.Body));
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to extract tools from page {Url} for profile {ProfileId}",
-                    sitePage.Url, profileId);
-            }
-        }
-
-        var dedupedTools = toolsToInsert
-            .GroupBy(t => (t.SitePageId, t.Name, t.Department, t.Body))
-            .Select(g => g.First())
-            .ToList();
-        if (dedupedTools.Count != toolsToInsert.Count)
-        {
-            logger.LogInformation(
-                "Deduped {DuplicateCount} extracted tool entries for profile {ProfileId} ({Total} -> {Deduped})",
-                toolsToInsert.Count - dedupedTools.Count, profileId, toolsToInsert.Count, dedupedTools.Count);
-        }
-        toolsToInsert = dedupedTools;
-
-        if (toolsToInsert.Count > 0)
-        {
-            var replaceResult = await profileRepo.ReplaceExtractedToolsAsync(profileId, toolsToInsert, ct);
-            if (!replaceResult.IsSuccess)
-            {
-                logger.LogWarning("Failed to persist extracted tools: {Error}", replaceResult.Error);
-                return;
-            }
-            logger.LogInformation("Extracted and persisted {Count} tools for profile {ProfileId}",
-                toolsToInsert.Count, profileId);
-        }
     }
 }

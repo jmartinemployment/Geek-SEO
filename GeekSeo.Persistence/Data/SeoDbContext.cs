@@ -80,7 +80,6 @@ public partial class SeoDbContext : DbContext
     public DbSet<SeoSiteResearch> SiteResearch => Set<SeoSiteResearch>();
     public DbSet<SeoSiteResearchPage> SiteResearchPages => Set<SeoSiteResearchPage>();
     public DbSet<SeoSiteAnalyzerStepRun> SiteAnalyzerStepRuns => Set<SeoSiteAnalyzerStepRun>();
-    public DbSet<SiteAnalysisProfileExtractedTool> ExtractedTools => Set<SiteAnalysisProfileExtractedTool>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

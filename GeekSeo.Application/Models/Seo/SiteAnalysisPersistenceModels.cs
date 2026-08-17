@@ -157,23 +157,6 @@ public sealed record SiteAnalysisPageSectionTreeRow(
     string TreeJson,
     DateTimeOffset CreatedAtUtc);
 
-public sealed record SiteAnalysisProfileExtractedToolWrite(
-    Guid SitePageId,
-    string Name,
-    string Href,
-    string Department,
-    string Body = "");
-
-public sealed record SiteAnalysisProfileExtractedToolRow(
-    Guid Id,
-    Guid SiteAnalysisProfileId,
-    Guid SitePageId,
-    string Name,
-    string Href,
-    string Department,
-    string Body,
-    DateTimeOffset ExtractedAt);
-
 public sealed record SiteAnalysisTopicCandidateEvidenceWrite(
     Guid TopicCandidateId,
     string EvidenceType,
@@ -298,14 +281,6 @@ public sealed record SiteAnalysisProfileSiteStructureWrite(
     SiteAnalysisProfileSiteCrawlMetaWrite CrawlMeta,
     bool ForceDocumentWrite = true);
 
-/// <summary>Tool extracted in memory before page row ids exist — persist maps PageUrl → SitePageId.</summary>
-public sealed record SiteAnalysisProfileExtractedToolByUrlWrite(
-    string PageUrl,
-    string Name,
-    string Href,
-    string Department,
-    string Body = "");
-
 /// <summary>One insert of a finished Through Coverage crawl. The profile id is born on this commit.</summary>
 public sealed record ThroughCoveragePersistRequest(
     Guid ProjectId,
@@ -315,8 +290,7 @@ public sealed record ThroughCoveragePersistRequest(
     IReadOnlyList<SiteAnalysisProfileNavigationLinkWrite> NavigationLinks,
     SiteAnalysisProfilePageContentWrite? PageContent,
     IReadOnlyList<SiteAnalysisPageSectionTreeWrite> PageSectionTrees,
-    SiteAnalysisProfileSiteStructureWrite Structure,
-    IReadOnlyList<SiteAnalysisProfileExtractedToolByUrlWrite> ExtractedTools);
+    SiteAnalysisProfileSiteStructureWrite Structure);
 
 public sealed record SiteAnalysisProfileSiteStructureRow(
     IReadOnlyList<SiteAnalysisProfileSitePageRow> Pages,

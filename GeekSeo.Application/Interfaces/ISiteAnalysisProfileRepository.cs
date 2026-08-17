@@ -116,14 +116,6 @@ public interface ISiteAnalysisProfileRepository
         Guid profileId,
         CancellationToken ct = default);
 
-    Task<Result> ReplaceExtractedToolsAsync(
-        Guid profileId,
-        IReadOnlyList<SiteAnalysisProfileExtractedToolWrite> tools,
-        CancellationToken ct = default);
-    Task<Result<IReadOnlyList<SiteAnalysisProfileExtractedToolRow>>> GetExtractedToolsAsync(
-        Guid profileId,
-        CancellationToken ct = default);
-
     Task<Result> ReplaceTopicCandidateEvidenceAsync(
         Guid profileId,
         IReadOnlyList<SiteAnalysisTopicCandidateEvidenceWrite> evidence,

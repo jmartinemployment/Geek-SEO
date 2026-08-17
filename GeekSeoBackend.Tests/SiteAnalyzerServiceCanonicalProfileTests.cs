@@ -194,8 +194,6 @@ public sealed class SiteAnalyzerServiceCanonicalProfileTests
         public Task<Result<IReadOnlyDictionary<string, string>>> GetStepStatusesAsync(Guid profileId, CancellationToken ct = default) =>
             Task.FromResult<Result<IReadOnlyDictionary<string, string>>>(
                 Result<IReadOnlyDictionary<string, string>>.Success(new Dictionary<string, string>()));
-        public Task<Result> ReplaceExtractedToolsAsync(Guid profileId, IReadOnlyList<SiteAnalysisProfileExtractedToolWrite> tools, CancellationToken ct = default) => Task.FromResult(Result.Success());
-        public Task<Result<IReadOnlyList<SiteAnalysisProfileExtractedToolRow>>> GetExtractedToolsAsync(Guid profileId, CancellationToken ct = default) => Task.FromResult(Result<IReadOnlyList<SiteAnalysisProfileExtractedToolRow>>.Success([]));
     }
 
     private sealed class NullHubContext : Microsoft.AspNetCore.SignalR.IHubContext<GeekSeoBackend.Hubs.SeoRealtimeHub>
