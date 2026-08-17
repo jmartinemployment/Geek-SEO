@@ -23,11 +23,13 @@ public static class CorsOriginParser
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(NormalizeOrigin)
             .Where(o => Uri.TryCreate(o, UriKind.Absolute, out var uri)
-                        && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+                        && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps));
+
+        // Env can add origins; it cannot drop the known frontends (Vercel GCC, SEO UI, local).
+        return parsed
+            .Concat(DefaultOrigins)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
-
-        return parsed.Length > 0 ? parsed : DefaultOrigins;
     }
 
     private static string NormalizeOrigin(string origin) =>
