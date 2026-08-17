@@ -171,6 +171,16 @@ this session, and the user has explicitly ruled out ever calling it again).
 
 # Part 2: Fix Incomplete/Misaligned Tool Extraction
 
+**Superseded (2026-08-17):** Generate Tools does **not** persist a tool list onto the Workflow
+project (`HierarchyToolNames` / `HierarchyToolsByHeading`). The crawl's page-section trees are the
+source. GeekAPI queries `TreeJson` links under the matched heading at generate time. Do not copy
+tools onto the project or revive `extracted_tools`.
+
+The first-match / heading-association bugs below were real for the old copy-on-match path. Live
+Generate no longer reads that copy.
+
+Original Part 2 text is preserved below.
+
 ## Context
 
 Testing the tool-linking work from the prior session (recursive descendant-paragraph fix, "Finding

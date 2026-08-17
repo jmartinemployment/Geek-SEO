@@ -9,10 +9,13 @@ are not here — see "Not in this document" in `docs/plans/mobile-first-crawl-pa
 | Layer | Job | Opinion |
 |---|---|---|
 | **Fetch / render** | Produce a crawl record: rendered mobile DOM + protocol facts | Mirror Googlebot Smartphone fetch. No extraction choices. |
-| **Extraction** | Heading tree, word counts, topicality, tool lists | Our content model. Reads `data-gsv`; never mutates the captured DOM. |
+| **Extraction** | Heading tree, word counts, topicality, tool lists **on that tree** | Our content model. Reads `data-gsv`; never mutates the captured DOM. |
 
 **Rule:** no extraction decisions inside the fetch layer. Ever. Preferring the `aria-hidden` sizer
 word, skipping `desktop-only` copy in the tree, grouping tool anchors — those belong in extraction.
+
+Tool lists are **links on the heading tree** (`TreeJson`), not a separate `extracted_tools` table
+(dropped). Content Creator Generate Tools queries those trees by `site_analysis_profiles.Id`.
 
 ## What we mirror
 
