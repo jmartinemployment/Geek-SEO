@@ -5,8 +5,8 @@ namespace GeekSeoBackend.Services.SiteExtraction;
 
 /// <summary>
 /// Extraction layer: heading tree from already-fetched, <c>data-gsv</c>-annotated HTML.
-/// Skips <c>desktop-only</c> text; keeps <c>collapsed</c> at full weight. Fetch-layer HTML is
-/// never stripped.
+/// Skips <c>desktop-only</c> paragraph text but still registers headings and links inside those
+/// regions. Keeps <c>collapsed</c> at full weight. Fetch-layer HTML is never stripped.
 /// </summary>
 public static class PageSectionTreeBuilder
 {
@@ -31,7 +31,9 @@ public static class PageSectionTreeBuilder
 
         if (IsDesktopOnly(node))
         {
-            CollectLinksOnly(node, stack);
+            // Skip desktop-only body text, but still register h1–h6 so hierarchy / tool harvest
+            // sees the same outline as the live page (CollectLinksOnly alone dropped those headings).
+            ProcessDesktopOnlyOutline(node, roots, stack);
             return;
         }
 
@@ -136,6 +138,87 @@ public static class PageSectionTreeBuilder
 
         foreach (var anchor in anchors)
             AttachLink(anchor, stack);
+    }
+
+    /// <summary>
+    /// Walk a desktop-only region: create heading nodes and keep links; omit paragraph text.
+    /// </summary>
+    private static void ProcessDesktopOnlyOutline(HtmlNode node, List<MutableNode> roots, List<MutableNode> stack)
+    {
+        foreach (var child in node.ChildNodes)
+            ProcessDesktopOnlyChild(child, roots, stack);
+    }
+
+    private static void ProcessDesktopOnlyChild(HtmlNode node, List<MutableNode> roots, List<MutableNode> stack)
+    {
+        if (node.NodeType != HtmlNodeType.Element)
+            return;
+
+        if (IsDesktopOnly(node))
+        {
+            ProcessDesktopOnlyOutline(node, roots, stack);
+            return;
+        }
+
+        var tagName = node.Name.ToLowerInvariant();
+        if (tagName is "script" or "style" or "template" or "noscript")
+            return;
+
+        if (tagName.Length == 2 && tagName[0] == 'h' && char.IsDigit(tagName[1]))
+        {
+            if (!int.TryParse(tagName[1].ToString(), out var level) || level is < 1 or > 6)
+                return;
+
+            var text = VisibleTextExtractor.ExtractHeadingText(node);
+            if (string.IsNullOrWhiteSpace(text))
+                return;
+
+            var newNode = new MutableNode { Level = level, HeadingText = text };
+
+            while (stack.Count > 0 && stack[^1].Level >= level)
+                stack.RemoveAt(stack.Count - 1);
+
+            var parent = stack.Count == 0 ? null : stack[^1];
+            var siblings = parent?.Children ?? roots;
+
+            siblings.Add(newNode);
+            stack.Add(newNode);
+            return;
+        }
+
+        if (tagName == "p")
+        {
+            CollectLinksOnly(node, stack);
+            return;
+        }
+
+        if (tagName == "li")
+        {
+            if (ContainsHeading(node))
+            {
+                foreach (var child in node.ChildNodes)
+                    ProcessDesktopOnlyChild(child, roots, stack);
+                return;
+            }
+
+            CollectLinksOnly(node, stack);
+            return;
+        }
+
+        if (tagName == "a")
+        {
+            if (ContainsHeading(node))
+            {
+                foreach (var child in node.ChildNodes)
+                    ProcessDesktopOnlyChild(child, roots, stack);
+            }
+
+            AttachLink(node, stack);
+            return;
+        }
+
+        foreach (var child in node.ChildNodes)
+            ProcessDesktopOnlyChild(child, roots, stack);
     }
 
     private static bool ContainsHeading(HtmlNode node)

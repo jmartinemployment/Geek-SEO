@@ -157,6 +157,32 @@ public sealed class PageSectionTreeBuilderTests
     }
 
     [Fact]
+    public void Desktop_only_region_still_registers_descendant_headings()
+    {
+        const string html = """
+            <h4>Ad Spend Optimization</h4>
+            <div data-gsv="desktop-only">
+              <h5>Predictive Analytics for Advertising</h5>
+              <p>Desktop-only blurb.</p>
+              <h5>Budget Allocation Models</h5>
+              <h5>Bid Strategy Automation</h5>
+              <h5>Creative Fatigue Detection</h5>
+            </div>
+            """;
+
+        var tree = PageSectionTreeBuilder.Build(html);
+        var h4 = Assert.Single(tree);
+        Assert.Equal("Ad Spend Optimization", h4.HeadingText);
+        Assert.Equal(4, h4.Children.Count);
+        Assert.Equal("Predictive Analytics for Advertising", h4.Children[0].HeadingText);
+        Assert.Equal("Budget Allocation Models", h4.Children[1].HeadingText);
+        Assert.Equal("Bid Strategy Automation", h4.Children[2].HeadingText);
+        Assert.Equal("Creative Fatigue Detection", h4.Children[3].HeadingText);
+        Assert.DoesNotContain(h4.Paragraphs, p => p.Contains("Desktop-only blurb"));
+        Assert.Empty(h4.Children[0].Paragraphs);
+    }
+
+    [Fact]
     public void Collapsed_subtree_contributes_text()
     {
         const string html = """
