@@ -365,39 +365,23 @@ public sealed class SitePageCrawler(ILogger<SitePageCrawler> logger)
         }
     }
 
+    /// <summary>
+    /// Mobile only. One snapshot at the mobile viewport: anything not rendered to a mobile user is
+    /// marked <c>data-gsv="hidden"</c> and pruned by the tree builder. There is no desktop probe —
+    /// the crawler never leaves the mobile viewport.
+    /// </summary>
     private static async Task<string> AnnotateVisibilityAsync(IPage page)
     {
-        var hiddenScript =
+        await page.EvaluateAsync(
             """
-            () => [...document.querySelectorAll('*')].map(el => {
-              const s = getComputedStyle(el);
-              return s.display === 'none' || s.visibility === 'hidden';
-            })
-            """;
-
-        var atMobile = await page.EvaluateAsync<bool[]>(hiddenScript);
-        await page.SetViewportSizeAsync(CrawlerIdentity.DesktopProbeWidth, CrawlerIdentity.DesktopProbeHeight);
-        try
-        {
-            await page.EvaluateAsync("() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))");
-            var atDesktop = await page.EvaluateAsync<bool[]>(hiddenScript);
-            var labels = VisibilityClassifier.ClassifyAll(atMobile, atDesktop);
-            await page.EvaluateAsync(
-                """
-                labels => {
-                  const all = [...document.querySelectorAll('*')];
-                  const n = Math.min(all.length, labels.length);
-                  for (let i = 0; i < n; i++) all[i].setAttribute('data-gsv', labels[i]);
-                }
-                """,
-                labels);
-        }
-        finally
-        {
-            await page.SetViewportSizeAsync(
-                CrawlerIdentity.MobileViewportWidth,
-                CrawlerIdentity.MobileViewportHeight);
-        }
+            () => {
+              for (const el of document.querySelectorAll('*')) {
+                const s = getComputedStyle(el);
+                if (s.display === 'none' || s.visibility === 'hidden')
+                  el.setAttribute('data-gsv', 'hidden');
+              }
+            }
+            """);
 
         return await page.EvaluateAsync<string>("() => document.documentElement.outerHTML") ?? string.Empty;
     }

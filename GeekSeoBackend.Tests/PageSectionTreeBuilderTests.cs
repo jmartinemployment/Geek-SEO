@@ -139,12 +139,13 @@ public sealed class PageSectionTreeBuilderTests
     }
 
     [Fact]
-    public void Desktop_only_subtree_contributes_no_text_but_links_are_kept()
+    public void Hidden_at_mobile_subtree_contributes_nothing()
     {
+        // Mobile only: content a mobile user never sees is not part of the tree.
         const string html = """
             <h1>Home</h1>
-            <div data-gsv="desktop-only">
-              <p>Desktop hero copy that Google does not index on mobile.</p>
+            <div data-gsv="hidden">
+              <p>Desktop hero copy.</p>
               <a href="/desktop-only-link">Hidden nav</a>
             </div>
             <p>Mobile body.</p>
@@ -153,34 +154,74 @@ public sealed class PageSectionTreeBuilderTests
         var tree = PageSectionTreeBuilder.Build(html);
         var h1 = Assert.Single(tree);
         Assert.Equal(["Mobile body."], h1.Paragraphs);
-        Assert.Contains(h1.Links, l => l.Href == "/desktop-only-link");
+        Assert.DoesNotContain(h1.Links, l => l.Href == "/desktop-only-link");
     }
 
     [Fact]
-    public void Desktop_only_region_still_registers_descendant_headings()
+    public void Legacy_desktop_only_label_is_still_pruned()
     {
+        // HTML captured before the label rename must prune the same way.
+        const string html = """
+            <h1>Home</h1>
+            <div data-gsv="desktop-only"><p>Old label.</p><a href="/old">Old</a></div>
+            <p>Mobile body.</p>
+            """;
+
+        var tree = PageSectionTreeBuilder.Build(html);
+        var h1 = Assert.Single(tree);
+        Assert.Equal(["Mobile body."], h1.Paragraphs);
+        Assert.Empty(h1.Links);
+    }
+
+    [Fact]
+    public void Hidden_at_mobile_region_registers_no_headings()
+    {
+        // Mobile only: the whole subtree is pruned, headings included.
         const string html = """
             <h4>Ad Spend Optimization</h4>
-            <div data-gsv="desktop-only">
+            <div data-gsv="hidden">
               <h5>Predictive Analytics for Advertising</h5>
-              <p>Desktop-only blurb.</p>
+              <p>Hidden blurb.</p>
               <h5>Budget Allocation Models</h5>
-              <h5>Bid Strategy Automation</h5>
-              <h5>Creative Fatigue Detection</h5>
             </div>
             """;
 
         var tree = PageSectionTreeBuilder.Build(html);
         var h4 = Assert.Single(tree);
         Assert.Equal("Ad Spend Optimization", h4.HeadingText);
-        Assert.Equal(4, h4.Children.Count);
-        Assert.Equal("Predictive Analytics for Advertising", h4.Children[0].HeadingText);
-        Assert.Equal("Budget Allocation Models", h4.Children[1].HeadingText);
-        Assert.Equal("Bid Strategy Automation", h4.Children[2].HeadingText);
-        Assert.Equal("Creative Fatigue Detection", h4.Children[3].HeadingText);
-        Assert.DoesNotContain(h4.Paragraphs, p => p.Contains("Desktop-only blurb"));
-        Assert.Empty(h4.Children[0].Paragraphs);
+        Assert.Empty(h4.Children);
+        Assert.Empty(h4.Paragraphs);
     }
+
+    [Fact]
+    public void Heading_with_empty_text_still_nests_its_children()
+    {
+        // Regression: a heading whose text extracts empty used to `return` before stack.Add,
+        // so everything after it reparented onto the previous surviving heading and the outline
+        // silently collapsed. The empty heading must remain a node.
+        const string html = """
+            <h2>Section</h2>
+            <h3><span aria-hidden="true"></span></h3>
+            <h4>Nested Under Empty</h4>
+            <a href="/tools/marketing/example">Example Tool</a>
+            """;
+
+        var tree = PageSectionTreeBuilder.Build(html);
+        var h2 = Assert.Single(tree);
+        Assert.Equal("Section", h2.HeadingText);
+
+        var h3 = Assert.Single(h2.Children);
+        Assert.Equal(3, h3.Level);
+        Assert.True(string.IsNullOrWhiteSpace(h3.HeadingText));
+
+        var h4 = Assert.Single(h3.Children);
+        Assert.Equal("Nested Under Empty", h4.HeadingText);
+        Assert.Contains(h4.Links, l => l.Href == "/tools/marketing/example");
+
+        // The link must NOT have reparented onto the h2.
+        Assert.DoesNotContain(h2.Links, l => l.Href == "/tools/marketing/example");
+    }
+
 
     [Fact]
     public void Collapsed_subtree_contributes_text()

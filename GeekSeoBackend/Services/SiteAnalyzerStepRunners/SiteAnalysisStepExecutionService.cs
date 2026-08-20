@@ -288,7 +288,10 @@ public sealed class SiteAnalyzerStepExecutionService(
         // Heading tree is built in memory, then stored as PageContext markdown on site pages
         // (Analyze always writes). Nested TreeJson remains for Analyzer gap detection only.
         // 404 / soft-404 chrome is not a document — do not put it in structure, gaps, or GCC pages.
-        var documentPages = crawlData.Pages.Where(p => p.HasDocument).ToList();
+        // Index-time canonical consolidation: a site serving 200 on both www and apex yields two
+        // identical pages. Collapse them here so one document produces one tree row.
+        var documentPages = CanonicalPageConsolidator
+            .Consolidate(crawlData.Pages.Where(p => p.HasDocument).ToList());
         var documentUrls = documentPages.Select(p => p.Url).ToList();
         var treeWrites = documentPages
             .Select(page => new SiteAnalysisPageSectionTreeWrite(

@@ -93,7 +93,9 @@ public sealed class ThroughCoverageMemoryRunner(
                     domain, missing.Count);
             }
 
-            var documentPages = crawlData.Pages.Where(p => p.HasDocument).ToList();
+            // Index-time canonical consolidation — see SiteAnalysisStepExecutionService.
+            var documentPages = CanonicalPageConsolidator
+                .Consolidate(crawlData.Pages.Where(p => p.HasDocument).ToList());
             var documentUrls = documentPages.Select(p => p.Url).ToList();
             var treeWrites = documentPages
                 .Select(page => new SiteAnalysisPageSectionTreeWrite(

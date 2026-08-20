@@ -5,8 +5,16 @@ namespace GeekSeoBackend.Services.SiteExtraction;
 
 /// <summary>
 /// Extraction layer: heading tree from already-fetched, <c>data-gsv</c>-annotated HTML.
-/// Skips <c>desktop-only</c> paragraph text but still registers headings and links inside those
-/// regions. Keeps <c>collapsed</c> at full weight. Fetch-layer HTML is never stripped.
+/// <para>
+/// <b>Mobile only.</b> Subtrees the mobile render hides (<c>data-gsv="hidden"</c>, or legacy
+/// <c>desktop-only</c>) are pruned entirely — no headings, no links, no paragraphs, no stack
+/// mutation. Content a mobile user never sees is not part of the tree.
+/// </para>
+/// <para>
+/// Headings are never dropped. A heading whose text extracts empty is still pushed onto the
+/// stack, because skipping it would reparent every following heading and link onto the previous
+/// surviving heading and silently corrupt the outline.
+/// </para>
 /// </summary>
 public static class PageSectionTreeBuilder
 {
@@ -29,13 +37,10 @@ public static class PageSectionTreeBuilder
         if (node.NodeType != HtmlNodeType.Element)
             return;
 
-        if (IsDesktopOnly(node))
-        {
-            // Skip desktop-only body text, but still register h1–h6 so hierarchy / tool harvest
-            // sees the same outline as the live page (CollectLinksOnly alone dropped those headings).
-            ProcessDesktopOnlyOutline(node, roots, stack);
+        // Mobile only: prune anything the mobile render hides. Nothing inside contributes
+        // headings, links, paragraphs, or stack mutation.
+        if (IsHiddenAtMobile(node))
             return;
-        }
 
         var tagName = node.Name.ToLowerInvariant();
         if (tagName is "script" or "style" or "template" or "noscript")
@@ -47,10 +52,12 @@ public static class PageSectionTreeBuilder
                 return;
 
             var text = VisibleTextExtractor.ExtractHeadingText(node);
-            if (string.IsNullOrWhiteSpace(text))
-                return;
 
-            var newNode = new MutableNode { Level = level, HeadingText = text };
+            // Never drop a heading silently. Returning here would also skip stack.Add below, so
+            // every following heading and link would reparent onto the previous surviving
+            // heading — silently corrupting the outline. Keep the node (empty text is honest and
+            // detectable) so nesting is preserved.
+            var newNode = new MutableNode { Level = level, HeadingText = text ?? string.Empty };
 
             while (stack.Count > 0 && stack[^1].Level >= level)
                 stack.RemoveAt(stack.Count - 1);
@@ -127,100 +134,6 @@ public static class PageSectionTreeBuilder
         });
     }
 
-    private static void CollectLinksOnly(HtmlNode node, List<MutableNode> stack)
-    {
-        if (stack.Count == 0)
-            return;
-
-        var anchors = node.SelectNodes(".//a[@href]");
-        if (anchors is null)
-            return;
-
-        foreach (var anchor in anchors)
-            AttachLink(anchor, stack);
-    }
-
-    /// <summary>
-    /// Walk a desktop-only region: create heading nodes and keep links; omit paragraph text.
-    /// </summary>
-    private static void ProcessDesktopOnlyOutline(HtmlNode node, List<MutableNode> roots, List<MutableNode> stack)
-    {
-        foreach (var child in node.ChildNodes)
-            ProcessDesktopOnlyChild(child, roots, stack);
-    }
-
-    private static void ProcessDesktopOnlyChild(HtmlNode node, List<MutableNode> roots, List<MutableNode> stack)
-    {
-        if (node.NodeType != HtmlNodeType.Element)
-            return;
-
-        if (IsDesktopOnly(node))
-        {
-            ProcessDesktopOnlyOutline(node, roots, stack);
-            return;
-        }
-
-        var tagName = node.Name.ToLowerInvariant();
-        if (tagName is "script" or "style" or "template" or "noscript")
-            return;
-
-        if (tagName.Length == 2 && tagName[0] == 'h' && char.IsDigit(tagName[1]))
-        {
-            if (!int.TryParse(tagName[1].ToString(), out var level) || level is < 1 or > 6)
-                return;
-
-            var text = VisibleTextExtractor.ExtractHeadingText(node);
-            if (string.IsNullOrWhiteSpace(text))
-                return;
-
-            var newNode = new MutableNode { Level = level, HeadingText = text };
-
-            while (stack.Count > 0 && stack[^1].Level >= level)
-                stack.RemoveAt(stack.Count - 1);
-
-            var parent = stack.Count == 0 ? null : stack[^1];
-            var siblings = parent?.Children ?? roots;
-
-            siblings.Add(newNode);
-            stack.Add(newNode);
-            return;
-        }
-
-        if (tagName == "p")
-        {
-            CollectLinksOnly(node, stack);
-            return;
-        }
-
-        if (tagName == "li")
-        {
-            if (ContainsHeading(node))
-            {
-                foreach (var child in node.ChildNodes)
-                    ProcessDesktopOnlyChild(child, roots, stack);
-                return;
-            }
-
-            CollectLinksOnly(node, stack);
-            return;
-        }
-
-        if (tagName == "a")
-        {
-            if (ContainsHeading(node))
-            {
-                foreach (var child in node.ChildNodes)
-                    ProcessDesktopOnlyChild(child, roots, stack);
-            }
-
-            AttachLink(node, stack);
-            return;
-        }
-
-        foreach (var child in node.ChildNodes)
-            ProcessDesktopOnlyChild(child, roots, stack);
-    }
-
     private static bool ContainsHeading(HtmlNode node)
     {
         foreach (var child in node.Descendants())
@@ -235,8 +148,17 @@ public static class PageSectionTreeBuilder
         return false;
     }
 
-    private static bool IsDesktopOnly(HtmlNode node) =>
-        node.GetAttributeValue("data-gsv", "").Equals("desktop-only", StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    /// True when the mobile render did not show this element. <c>hidden</c> is what the crawler
+    /// writes now; <c>desktop-only</c> is the pre-mobile-only label, honoured so HTML captured by
+    /// an older crawl still prunes correctly.
+    /// </summary>
+    private static bool IsHiddenAtMobile(HtmlNode node)
+    {
+        var gsv = node.GetAttributeValue("data-gsv", "");
+        return gsv.Equals("hidden", StringComparison.OrdinalIgnoreCase)
+            || gsv.Equals("desktop-only", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static (string cleanText, List<PageSectionLink> links) CleanAndExtractLinks(HtmlNode node)
     {
