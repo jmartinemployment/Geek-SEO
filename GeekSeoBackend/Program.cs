@@ -46,7 +46,11 @@ var corsOrigins = CorsOriginParser.GetAllowedOrigins();
 builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
         policy
-            .WithOrigins(corsOrigins)
+            // Explicit list plus any https host on our own apex. AllowCredentials forbids "*",
+            // and SignalR needs credentials, so each origin must be matched individually.
+            .SetIsOriginAllowed(origin =>
+                corsOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase)
+                || CorsOriginParser.IsOwnOrigin(origin))
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials()));
