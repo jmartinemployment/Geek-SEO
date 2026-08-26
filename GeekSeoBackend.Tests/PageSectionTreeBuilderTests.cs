@@ -264,6 +264,25 @@ public sealed class PageSectionTreeBuilderTests
     }
 
     [Fact]
+    public void Harvests_anchors_nested_inside_heading_tags()
+    {
+        const string html = """
+            <h5>Smart Chatbots for Marketing:</h5>
+            <p>Intro</p>
+            <p>Top AI Chatbot Tools:</p>
+            <h6><a href="/tools/marketing/fin">Fin.ai</a></h6>
+            <h6><a href="/tools/marketing/lyro">Tidio - Lyro AI Agent</a></h6>
+            """;
+
+        var tree = PageSectionTreeBuilder.Build(html);
+        var h5 = Assert.Single(tree);
+        Assert.Equal("Smart Chatbots for Marketing:", h5.HeadingText);
+        Assert.Equal(2, h5.Children.Count);
+        Assert.Contains(h5.Children[0].Links, l => l.Href == "/tools/marketing/fin" && l.Text.Contains("Fin"));
+        Assert.Contains(h5.Children[1].Links, l => l.Href == "/tools/marketing/lyro");
+    }
+
+    [Fact]
     public void Harvests_anchors_from_list_items_not_only_paragraphs()
     {
         const string html = """

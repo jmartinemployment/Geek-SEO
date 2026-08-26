@@ -67,6 +67,22 @@ public static class PageSectionTreeBuilder
 
             siblings.Add(newNode);
             stack.Add(newNode);
+
+            // Anchors nested in the heading itself (e.g. <h6><a href="/tools/...">Fin.ai</a></h6>)
+            // must land on this section's Links — previously ProcessNode returned before walking
+            // children, so partner extract saw zero tools for that markup.
+            foreach (var child in node.ChildNodes)
+            {
+                if (child.NodeType != HtmlNodeType.Element) continue;
+                if (child.Name.Equals("a", StringComparison.OrdinalIgnoreCase))
+                    AttachLink(child, stack);
+                else
+                {
+                    foreach (var anchor in child.Descendants("a"))
+                        AttachLink(anchor, stack);
+                }
+            }
+
             return;
         }
 
